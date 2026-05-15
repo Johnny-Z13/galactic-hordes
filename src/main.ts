@@ -4,10 +4,17 @@ type GameState = 'title' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landin
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
 type EnemyKind = 'chaser' | 'splinter' | 'lancer' | 'mine' | 'warden'
 type SurfaceResourceKind = 'crystal' | 'scrap' | 'repair' | 'cache'
+type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
+type UpgradeCategory = 'weapon' | 'system'
+type RelicId = 'staticIdol' | 'glassReactor' | 'deadSunCoin' | 'hungryCompass' | 'blackBoxSaint' | 'mirrorSeed' | 'saintCapacitor' | 'forbiddenMap'
+type LimitId = 'might' | 'cooldown' | 'amount' | 'speed' | 'magnet' | 'hull'
 type UpgradeId =
   | 'rapid'
   | 'split'
   | 'pierce'
+  | 'mine'
+  | 'chain'
+  | 'rift'
   | 'engine'
   | 'magnet'
   | 'shield'
@@ -16,6 +23,11 @@ type UpgradeId =
   | 'rail'
   | 'echo'
   | 'vampire'
+  | 'survey'
+  | 'luck'
+  | 'cargo'
+  | 'heat'
+  | 'phase'
 
 interface Vec {
   x: number
@@ -34,6 +46,8 @@ interface Bullet {
   pierce: number
   rail?: boolean
   hostile?: boolean
+  chain?: number
+  mine?: boolean
 }
 
 interface Enemy {
@@ -150,9 +164,36 @@ interface SurfaceRun {
 interface Upgrade {
   id: UpgradeId
   name: string
+  category: UpgradeCategory
   description: string
   max: number
+  rarity: number
+  levels: string[]
+  catalyst?: RelicId
+  evolutionName?: string
+  evolutionDescription?: string
 }
+
+interface Relic {
+  id: RelicId
+  name: string
+  description: string
+  rarity: number
+  downside?: string
+}
+
+interface Evolution {
+  weapon: UpgradeId
+  relic: RelicId
+  name: string
+  description: string
+}
+
+type WorkbenchChoice =
+  | { kind: 'upgrade'; upgrade: Upgrade }
+  | { kind: 'evolution'; evolution: Evolution }
+  | { kind: 'limit'; id: LimitId; name: string; description: string }
+  | { kind: 'relic'; relic: Relic }
 
 interface ScoreEntry {
   name: string
@@ -161,6 +202,13 @@ interface ScoreEntry {
   level: number
   kills: number
   date: string
+}
+
+interface PerfStats {
+  updateMs: number
+  renderMs: number
+  frameMs: number
+  fps: number
 }
 
 const TAU = Math.PI * 2
@@ -176,18 +224,222 @@ const MAX_ENEMIES = 320
 const MAX_PICKUPS = 220
 
 const upgrades: Upgrade[] = [
-  { id: 'rapid', name: 'Pulse Overclock', description: 'Fire rate increases. Every level makes the ship hum a little angrier.', max: 7 },
-  { id: 'split', name: 'Prism Barrel', description: 'Adds side beams to your shot pattern.', max: 4 },
-  { id: 'pierce', name: 'Ghost Rounds', description: 'Shots pass through more targets before collapsing.', max: 5 },
-  { id: 'engine', name: 'Drift Engine', description: 'More speed, sharper recovery, longer survival routes.', max: 5 },
-  { id: 'magnet', name: 'Signal Magnet', description: 'Pull XP shards and drops from farther away.', max: 6 },
-  { id: 'shield', name: 'Halo Battery', description: 'Adds and strengthens a regenerating shield.', max: 5 },
-  { id: 'repair', name: 'Hull Stitcher', description: 'Repair now and increase maximum hull.', max: 4 },
-  { id: 'orbit', name: 'Ion Moons', description: 'Adds orbiting blades that chew through close swarms.', max: 5 },
-  { id: 'rail', name: 'Rail Lattice', description: 'Every few shots becomes a long-range piercing lance.', max: 4 },
-  { id: 'echo', name: 'Echo Chamber', description: 'Bullets live longer and leave a damaging after-tone.', max: 4 },
-  { id: 'vampire', name: 'Salvage Hunger', description: 'Enemy wreckage can repair hull when you are hurt.', max: 3 }
+  {
+    id: 'rapid',
+    name: 'Pulse Cannon',
+    category: 'weapon',
+    description: 'Primary auto-fire. Level it for a faster, meaner heartbeat.',
+    max: 8,
+    rarity: 100,
+    catalyst: 'staticIdol',
+    evolutionName: 'Choir Cannon',
+    evolutionDescription: 'Pulse fire becomes a three-note volley with a brighter synth chord.',
+    levels: ['Base pulse stabilizer', '-8% fire cooldown', '+12% pulse damage', '-8% fire cooldown', 'Every fifth shot double-pulses', '+15% projectile speed', '-10% fire cooldown', 'Evolution-ready']
+  },
+  {
+    id: 'split',
+    name: 'Prism Barrel',
+    category: 'weapon',
+    description: 'Adds side beams and widens the bullet fan.',
+    max: 6,
+    rarity: 86,
+    catalyst: 'glassReactor',
+    evolutionName: 'Shatter Prism',
+    evolutionDescription: 'The fan gains two extra rays and cracks through nearby targets.',
+    levels: ['+1 side ray', 'Tighter fan control', '+1 side ray', '+10% ray damage', '+1 side ray', 'Evolution-ready']
+  },
+  {
+    id: 'pierce',
+    name: 'Ghost Rounds',
+    category: 'weapon',
+    description: 'Shots pass through more enemies before fading.',
+    max: 5,
+    rarity: 80,
+    levels: ['+1 pierce', '+1 pierce', '+10% pulse damage', '+1 pierce', '+2 pierce']
+  },
+  {
+    id: 'rail',
+    name: 'Rail Lattice',
+    category: 'weapon',
+    description: 'Periodically replaces a pulse with a long piercing lance.',
+    max: 6,
+    rarity: 62,
+    catalyst: 'deadSunCoin',
+    evolutionName: 'Solar Lance',
+    evolutionDescription: 'Rail shots become screen-splitting sun lances with heavy pierce.',
+    levels: ['Every 8th shot rails', '+15% rail damage', 'Every 7th shot rails', '+2 rail pierce', 'Every 6th shot rails', 'Evolution-ready']
+  },
+  {
+    id: 'echo',
+    name: 'Echo Chamber',
+    category: 'weapon',
+    description: 'Bullets live longer, move faster, and leave a resonant after-tone.',
+    max: 5,
+    rarity: 70,
+    catalyst: 'blackBoxSaint',
+    evolutionName: 'Resonance Wake',
+    evolutionDescription: 'Shots leave damaging vector trails after passing through enemies.',
+    levels: ['+18% bullet lifetime', '+8% projectile speed', '+18% bullet lifetime', '+12% echo damage', 'Evolution-ready']
+  },
+  {
+    id: 'orbit',
+    name: 'Ion Moons',
+    category: 'weapon',
+    description: 'Orbiting blades chew through close swarms.',
+    max: 6,
+    rarity: 72,
+    catalyst: 'hungryCompass',
+    evolutionName: 'Gravity Halo',
+    evolutionDescription: 'Orbitals pull enemies inward before cutting them apart.',
+    levels: ['+1 orbital', '+10% orbital radius', '+1 orbital', '+15% orbital damage', '+1 orbital', 'Evolution-ready']
+  },
+  {
+    id: 'mine',
+    name: 'Mine Wake',
+    category: 'weapon',
+    description: 'Dashing leaves unstable vector mines behind the ship.',
+    max: 5,
+    rarity: 55,
+    catalyst: 'forbiddenMap',
+    evolutionName: 'Comet Net',
+    evolutionDescription: 'Dash mines link into explosive constellations.',
+    levels: ['Dash drops 2 mines', '+20% mine damage', '+1 mine', 'Mines last longer', 'Evolution-ready']
+  },
+  {
+    id: 'chain',
+    name: 'Static Arc',
+    category: 'weapon',
+    description: 'Pulse hits can jump to nearby enemies.',
+    max: 5,
+    rarity: 50,
+    catalyst: 'saintCapacitor',
+    evolutionName: 'Storm Liturgy',
+    evolutionDescription: 'Chain lightning erupts from pulse impacts and mining pulses.',
+    levels: ['+1 chain hop', '+10% arc damage', '+1 chain hop', '+1 chain hop', 'Evolution-ready']
+  },
+  {
+    id: 'rift',
+    name: 'Rift Needle',
+    category: 'weapon',
+    description: 'Adds occasional slow, high-damage shots for elites.',
+    max: 5,
+    rarity: 45,
+    catalyst: 'mirrorSeed',
+    evolutionName: 'Black Needle',
+    evolutionDescription: 'Rare needles execute wounded elites and bosses.',
+    levels: ['Every 11th shot fires a needle', '+18% needle damage', 'Every 9th shot fires a needle', '+2 needle pierce', 'Evolution-ready']
+  },
+  {
+    id: 'engine',
+    name: 'Drift Engine',
+    category: 'system',
+    description: 'More speed, sharper recovery, shorter dash cooldown.',
+    max: 6,
+    rarity: 95,
+    levels: ['+18 move speed', '+8% acceleration', '-8% dash cooldown', '+18 move speed', '+0.08s dash invulnerability', '+22 move speed']
+  },
+  {
+    id: 'magnet',
+    name: 'Signal Magnet',
+    category: 'system',
+    description: 'Pulls XP shards and drops from farther away.',
+    max: 6,
+    rarity: 92,
+    levels: ['+62 pickup range', '+12% pickup speed', '+62 pickup range', '+12% pickup speed', '+72 pickup range', 'Vacuum pings last longer']
+  },
+  {
+    id: 'shield',
+    name: 'Halo Battery',
+    category: 'system',
+    description: 'Adds and strengthens a regenerating shield.',
+    max: 5,
+    rarity: 78,
+    levels: ['+18 max shield', '+20% shield regen', '+18 max shield', '-12% recharge delay', '+28 max shield']
+  },
+  {
+    id: 'repair',
+    name: 'Hull Stitcher',
+    category: 'system',
+    description: 'Repairs now and increases maximum hull.',
+    max: 5,
+    rarity: 78,
+    levels: ['+18 max hull and full repair', '+12% repair value', '+18 max hull and full repair', '+12% repair value', '+26 max hull and full repair']
+  },
+  {
+    id: 'vampire',
+    name: 'Salvage Hunger',
+    category: 'system',
+    description: 'Enemy wreckage can repair hull when you are hurt.',
+    max: 4,
+    rarity: 52,
+    levels: ['+2.5% repair drop chance', '+2.5% repair drop chance', 'Repair drops pull faster', '+3.5% repair drop chance']
+  },
+  {
+    id: 'survey',
+    name: 'Survey Array',
+    category: 'system',
+    description: 'Planet cache rumors become clearer and caches get safer.',
+    max: 4,
+    rarity: 58,
+    levels: ['Planet cache rumors improve', '+8% relic discovery', '-10% ambush chance', 'Hidden cache pings appear more often']
+  },
+  {
+    id: 'luck',
+    name: 'Luck Coil',
+    category: 'system',
+    description: 'Improves rare cache rolls and chance for a fourth workbench choice.',
+    max: 5,
+    rarity: 54,
+    levels: ['+10% rare roll pressure', '+8% fourth choice chance', '+10% relic chance', '+8% fourth choice chance', 'Cache jackpots become more likely']
+  },
+  {
+    id: 'cargo',
+    name: 'Cargo Spine',
+    category: 'system',
+    description: 'Planet salvage yields more scrap, crystals, and cores.',
+    max: 4,
+    rarity: 66,
+    levels: ['+15% planet resources', '+1 core from first cache', '+15% planet resources', '+25% cache score']
+  },
+  {
+    id: 'heat',
+    name: 'Heat Sink',
+    category: 'system',
+    description: 'Lets high fire-rate builds stay stable.',
+    max: 4,
+    rarity: 62,
+    levels: ['-3% weapon cooldown', '+8% projectile speed', '-3% weapon cooldown', 'Rail and needle shots cool faster']
+  },
+  {
+    id: 'phase',
+    name: 'Phase Rudder',
+    category: 'system',
+    description: 'Dash gets safer and collision mistakes hurt less.',
+    max: 4,
+    rarity: 58,
+    levels: ['+0.08s dash invulnerability', '-8% collision damage', '+0.08s dash invulnerability', 'Dash shockwave knocks enemies back harder']
+  }
 ]
+
+const relics: Relic[] = [
+  { id: 'staticIdol', name: 'Static Idol', rarity: 42, description: 'Pulse weapons arc with little religious sparks.', downside: 'Planet ambush odds rise slightly.' },
+  { id: 'glassReactor', name: 'Glass Reactor', rarity: 38, description: 'A dangerous lens that turns spread fire into cutting light.', downside: 'Shield recharge delay is longer.' },
+  { id: 'deadSunCoin', name: 'Dead Sun Coin', rarity: 34, description: 'Boss caches become richer and rail weapons wake up.', downside: 'Hunters hear you after takeoff.' },
+  { id: 'hungryCompass', name: 'Hungry Compass', rarity: 42, description: 'The map pulls loot, enemies, and fate toward the ship.', downside: 'Enemy steering gets a little more aggressive.' },
+  { id: 'blackBoxSaint', name: 'Black Box Saint', rarity: 30, description: 'Every cache sounds like it remembers another run.', downside: 'Caches sometimes summon stranger surface threats.' },
+  { id: 'mirrorSeed', name: 'Mirror Seed', rarity: 30, description: 'Rerolls bend toward impossible needles and second chances.', downside: 'Cursed offers become more common.' },
+  { id: 'saintCapacitor', name: 'Saint Capacitor', rarity: 36, description: 'Stores a planet pulse for lightning-heavy builds.', downside: 'Mining pulse cooldown is longer.' },
+  { id: 'forbiddenMap', name: 'Forbidden Map', rarity: 26, description: 'Reveals hidden cache logic and mine constellations.', downside: 'Elite patrols track your signal.' }
+]
+
+const evolutions: Evolution[] = upgrades
+  .filter((upgrade) => upgrade.catalyst && upgrade.evolutionName && upgrade.evolutionDescription)
+  .map((upgrade) => ({
+    weapon: upgrade.id,
+    relic: upgrade.catalyst!,
+    name: upgrade.evolutionName!,
+    description: upgrade.evolutionDescription!
+  }))
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
 const rand = (min: number, max: number) => min + Math.random() * (max - min)
@@ -328,6 +580,9 @@ class VectorShooter {
   private last = performance.now()
   private state: GameState = 'title'
   private previousState: GameState = 'title'
+  private graphicsMode: GraphicsMode = (localStorage.getItem('vector_shooter_graphics') as GraphicsMode) || 'LOW'
+  private perf: PerfStats = { updateMs: 0, renderMs: 0, frameMs: 16.7, fps: 60 }
+  private perfVisible = true
   private keys = new Set<string>()
   private pressed = new Set<string>()
   private mouse = { x: 0, y: 0, down: false }
@@ -341,12 +596,14 @@ class VectorShooter {
   private scoreName = 'ACE'
   private toastTimer = 0
   private toastText = ''
-  private upgradeChoices: Upgrade[] = []
+  private upgradeChoices: WorkbenchChoice[] = []
   private planetChoice: Planet | null = null
   private transitionTimer = 0
   private transitionDuration = 1.25
   private surface: SurfaceRun | null = null
   private collisionFxCooldown = 0
+  private pendingUpgrades = 0
+  private takeoffAfterWorkbench = false
   private enemyId = 0
   private fireSerial = 0
   private spawnTimer = 0
@@ -354,6 +611,10 @@ class VectorShooter {
   private chestTimer = 30
   private stars: Vec[] = []
   private highs: ScoreEntry[] = []
+  private resources = { scrap: 0, crystal: 0, cores: 0 }
+  private relics = new Set<RelicId>()
+  private evolved = new Set<UpgradeId>()
+  private limitBreaks: Record<LimitId, number> = { might: 0, cooldown: 0, amount: 0, speed: 0, magnet: 0, hull: 0 }
 
   private player = this.makePlayer()
   private bullets: Bullet[] = []
@@ -386,6 +647,9 @@ class VectorShooter {
     rapid: 0,
     split: 0,
     pierce: 0,
+    mine: 0,
+    chain: 0,
+    rift: 0,
     engine: 0,
     magnet: 0,
     shield: 0,
@@ -393,7 +657,12 @@ class VectorShooter {
     orbit: 0,
     rail: 0,
     echo: 0,
-    vampire: 0
+    vampire: 0,
+    survey: 0,
+    luck: 0,
+    cargo: 0,
+    heat: 0,
+    phase: 0
   }
 
   private ui = {
@@ -403,8 +672,10 @@ class VectorShooter {
     hull: document.createElement('span'),
     wave: document.createElement('span'),
     high: document.createElement('span'),
+    resources: document.createElement('span'),
     xpFill: document.createElement('div'),
     toast: document.createElement('div'),
+    perf: document.createElement('div'),
     touchControls: document.createElement('div'),
     touchStick: document.createElement('div'),
     touchKnob: document.createElement('div'),
@@ -473,7 +744,7 @@ class VectorShooter {
     right.className = 'hud-cluster'
     right.style.justifyContent = 'flex-end'
     left.append(this.chip('SCORE', this.ui.score), this.chip('TIME', this.ui.time), this.chip('KILLS', this.ui.wave))
-    right.append(this.chip('HULL', this.ui.hull), this.chip('HIGH', this.ui.high))
+    right.append(this.chip('HULL', this.ui.hull), this.chip('SALVAGE', this.ui.resources), this.chip('HIGH', this.ui.high))
     const xp = document.createElement('div')
     xp.className = 'xp-wrap'
     xp.innerHTML = `<div class="xp-title"><span>LEVEL <b></b></span><span>XP SIGNAL</span></div><div class="xp-bar"></div>`
@@ -481,7 +752,8 @@ class VectorShooter {
     xp.querySelector('.xp-bar')!.append(this.ui.xpFill)
     this.ui.xpFill.className = 'xp-fill'
     this.ui.toast.className = 'toast'
-    hud.append(top, this.ui.toast, this.makeTouchControls())
+    this.ui.perf.className = 'perf'
+    hud.append(top, this.ui.toast, this.ui.perf, this.makeTouchControls())
     top.append(left, xp, right)
     return hud
   }
@@ -544,6 +816,7 @@ class VectorShooter {
       this.keys.add(e.code)
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault()
       if (e.code === 'Escape') this.togglePause()
+      if (e.code === 'KeyP') this.perfVisible = !this.perfVisible
       if (e.code === 'Enter' && this.state === 'title') this.start()
       if (e.code === 'Enter' && this.state === 'gameover') this.restartFromGameOver()
     })
@@ -565,8 +838,12 @@ class VectorShooter {
       if (e.pointerType === 'touch') {
         const target = e.target instanceof HTMLElement ? e.target : null
         if (target?.closest('button, input')) return
-        if ((this.state === 'playing' || this.state === 'surface') && e.clientY > this.height * 0.28 && e.clientX < this.width * 0.68) {
+        if (this.canStartTouchMove(e.clientX, e.clientY)) {
           this.touchStick = { active: true, id: e.pointerId, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY }
+          this.ui.touchStick.style.left = `${e.clientX}px`
+          this.ui.touchStick.style.top = `${e.clientY}px`
+          this.ui.touchStick.style.setProperty('--touch-line', '0px')
+          this.ui.touchStick.style.setProperty('--touch-angle', '0rad')
           this.ui.touchStick.classList.add('active')
           e.preventDefault()
         }
@@ -588,7 +865,8 @@ class VectorShooter {
   }
 
   private resize() {
-    this.dpr = window.devicePixelRatio || 1
+    const modeCap = this.graphicsMode === 'LOW' ? 1 : this.graphicsMode === 'MED' ? 1.25 : 1.75
+    this.dpr = Math.min(window.devicePixelRatio || 1, modeCap)
     this.width = window.innerWidth
     this.height = window.innerHeight
     this.canvas.width = Math.floor(this.width * this.dpr)
@@ -607,11 +885,26 @@ class VectorShooter {
     this.ui.touchStick.classList.remove('active')
   }
 
+  private canStartTouchMove(x: number, y: number) {
+    if (this.state !== 'playing' && this.state !== 'surface') return false
+    if (y < Math.max(82, this.height * 0.13)) return false
+    if (x > this.width - 118 && y > this.height - 250) return false
+    return true
+  }
+
   private frame(now: number) {
     const dt = clamp((now - this.last) / 1000, 0, 0.033)
+    const frameMs = now - this.last
     this.last = now
+    const updateStart = performance.now()
     this.update(dt)
+    const renderStart = performance.now()
     this.render()
+    const renderEnd = performance.now()
+    this.perf.updateMs = this.perf.updateMs * 0.9 + (renderStart - updateStart) * 0.1
+    this.perf.renderMs = this.perf.renderMs * 0.9 + (renderEnd - renderStart) * 0.1
+    this.perf.frameMs = this.perf.frameMs * 0.9 + frameMs * 0.1
+    this.perf.fps = 1000 / Math.max(1, this.perf.frameMs)
     this.pressed.clear()
     requestAnimationFrame((t) => this.frame(t))
   }
@@ -650,7 +943,8 @@ class VectorShooter {
     if (this.toastTimer <= 0) this.ui.toast.classList.remove('visible')
 
     if (this.player.maxShield > 0 && this.player.shieldDelay <= 0) {
-      this.player.shield = clamp(this.player.shield + dt * (4 + this.build.shield * 3), 0, this.player.maxShield)
+      const reactorPenalty = this.relics.has('glassReactor') ? 0.7 : 1
+      this.player.shield = clamp(this.player.shield + dt * (4 + this.build.shield * 3) * reactorPenalty, 0, this.player.maxShield)
     }
 
     this.updatePlayer(dt)
@@ -688,10 +982,11 @@ class VectorShooter {
       const d = norm(this.player.vx, this.player.vy)
       this.player.vx += d.x * 520
       this.player.vy += d.y * 520
-      this.player.dashCd = clamp(1.15 - this.build.engine * 0.12, 0.55, 1.15)
-      this.player.invuln = 0.18
+      this.player.dashCd = clamp(1.15 - this.build.engine * 0.12 - this.build.heat * 0.025, 0.48, 1.15)
+      this.player.invuln = 0.18 + this.build.phase * 0.08
       this.camera.shake = Math.max(this.camera.shake, 8)
-      this.burst(this.player.x, this.player.y, '#70a8ff', 14, 180)
+      this.burst(this.player.x, this.player.y, '#70a8ff', 14 + this.build.phase * 3, 180 + this.build.phase * 24)
+      this.deployMineWake(d)
     }
     this.player.vx *= Math.pow(0.06, dt)
     this.player.vy *= Math.pow(0.06, dt)
@@ -781,10 +1076,10 @@ class VectorShooter {
     if (this.touchStick.active) {
       const dx = this.touchStick.x - this.touchStick.startX
       const dy = this.touchStick.y - this.touchStick.startY
-      const distance = Math.min(64, Math.hypot(dx, dy))
+      const distance = Math.min(82, Math.hypot(dx, dy))
       const direction = Math.atan2(dy, dx)
-      mx = Math.cos(direction) * (distance / 64)
-      my = Math.sin(direction) * (distance / 64)
+      mx = Math.cos(direction) * (distance / 82)
+      my = Math.sin(direction) * (distance / 82)
     }
     let aimX = 0
     let aimY = 0
@@ -888,30 +1183,82 @@ class VectorShooter {
     return has
   }
 
+  private deployMineWake(direction: Vec) {
+    const level = this.build.mine
+    if (level <= 0) return
+    const evolved = this.evolved.has('mine')
+    const count = Math.min(6, 1 + Math.ceil(level / 2) + (evolved ? 2 : 0))
+    const side = { x: -direction.y, y: direction.x }
+    for (let i = 0; i < count; i += 1) {
+      if (this.bullets.length > MAX_BULLETS) this.bullets.shift()
+      const offset = i - (count - 1) / 2
+      this.bullets.push({
+        x: this.player.x - direction.x * (28 + i * 8) + side.x * offset * 18,
+        y: this.player.y - direction.y * (28 + i * 8) + side.y * offset * 18,
+        vx: -direction.x * 24,
+        vy: -direction.y * 24,
+        life: 1.25 + level * 0.22 + (evolved ? 0.55 : 0),
+        damage: 20 + level * 7 + this.limitBreaks.might * 1.5,
+        radius: evolved ? 18 : 13,
+        color: evolved ? '#fff27a' : '#70a8ff',
+        pierce: evolved ? 5 : 2,
+        mine: true
+      })
+    }
+  }
+
   private fire() {
     if (this.bullets.length > MAX_BULLETS) this.bullets.splice(0, this.bullets.length - MAX_BULLETS)
     const rapid = this.build.rapid
-    this.player.fireCd = clamp(0.18 - rapid * 0.016, 0.06, 0.18)
-    const damage = 14 + this.stats.level * 0.8 + this.build.rail * 2
-    const speed = 780 + this.build.echo * 55
-    const count = 1 + this.build.split
+    const choir = this.evolved.has('rapid')
+    const shatter = this.evolved.has('split')
+    const solar = this.evolved.has('rail')
+    const resonance = this.evolved.has('echo')
+    const storm = this.evolved.has('chain')
+    const blackNeedle = this.evolved.has('rift')
+    const glassRisk = this.relics.has('glassReactor') ? 1.12 : 1
+    this.player.fireCd = clamp((0.18 - rapid * 0.014 - this.build.heat * 0.006 - this.limitBreaks.cooldown * 0.004) * (choir ? 0.88 : 1), 0.055, 0.18)
+    const damage = (14 + this.stats.level * 0.65 + this.build.rail * 2 + this.build.rift * 2 + this.limitBreaks.might * 1.6) * glassRisk
+    const speed = 780 + this.build.echo * 55 + this.build.heat * 18 + this.limitBreaks.speed * 14
+    const count = 1 + this.build.split + (shatter ? 2 : 0) + Math.floor(this.limitBreaks.amount / 3)
     const spread = count === 1 ? 0 : clamp(0.12 + count * 0.035, 0.12, 0.31)
-    const rail = this.build.rail > 0 && this.fireSerial % Math.max(8 - this.build.rail, 3) === 0
+    const rail = this.build.rail > 0 && this.fireSerial % Math.max((solar ? 6 : 8) - this.build.rail, 3) === 0
+    const needle = this.build.rift > 0 && this.fireSerial % Math.max((blackNeedle ? 9 : 12) - this.build.rift, 4) === 0
+    const volleys = choir ? 2 : 1
     this.fireSerial += 1
-    for (let i = 0; i < count; i += 1) {
-      const offset = count === 1 ? 0 : (i - (count - 1) / 2) * spread
-      const a = this.player.aimAngle + offset
+    for (let v = 0; v < volleys; v += 1) {
+      for (let i = 0; i < count; i += 1) {
+        const offset = (count === 1 ? 0 : (i - (count - 1) / 2) * spread) + (volleys === 1 ? 0 : (v - 0.5) * 0.055)
+        const a = this.player.aimAngle + offset
+        this.bullets.push({
+          x: this.player.x + Math.cos(a) * 22,
+          y: this.player.y + Math.sin(a) * 22,
+          vx: Math.cos(a) * speed + this.player.vx * 0.14,
+          vy: Math.sin(a) * speed + this.player.vy * 0.14,
+          life: rail ? 0.86 + (solar ? 0.28 : 0) : 0.62 + this.build.echo * 0.13 + (resonance ? 0.24 : 0),
+          damage: rail ? damage * (solar ? 3.4 : 2.4) : damage * (shatter && i !== Math.floor(count / 2) ? 0.82 : 1),
+          radius: rail ? (solar ? 7 : 5) : 3.5,
+          color: rail ? '#fff27a' : needle ? '#b990ff' : '#57fff3',
+          pierce: rail ? 7 + this.build.pierce + (solar ? 5 : 0) : this.build.pierce + (resonance ? 1 : 0),
+          rail,
+          chain: this.build.chain + (storm ? 3 : 0)
+        })
+      }
+    }
+    if (needle) {
+      const a = this.player.aimAngle
       this.bullets.push({
-        x: this.player.x + Math.cos(a) * 22,
-        y: this.player.y + Math.sin(a) * 22,
-        vx: Math.cos(a) * speed + this.player.vx * 0.14,
-        vy: Math.sin(a) * speed + this.player.vy * 0.14,
-        life: rail ? 0.86 : 0.62 + this.build.echo * 0.13,
-        damage: rail ? damage * 2.4 : damage,
-        radius: rail ? 5 : 3.5,
-        color: rail ? '#fff27a' : '#57fff3',
-        pierce: rail ? 7 + this.build.pierce : this.build.pierce,
-        rail
+        x: this.player.x + Math.cos(a) * 24,
+        y: this.player.y + Math.sin(a) * 24,
+        vx: Math.cos(a) * (speed * 0.62),
+        vy: Math.sin(a) * (speed * 0.62),
+        life: 1.1,
+        damage: damage * (blackNeedle ? 5.2 : 3.4),
+        radius: blackNeedle ? 9 : 6,
+        color: blackNeedle ? '#ffffff' : '#b990ff',
+        pierce: 4 + this.build.rift + (blackNeedle ? 8 : 0),
+        rail: true,
+        chain: storm ? 2 : 0
       })
     }
     this.audio.fire(this.stats.level + rapid)
@@ -944,6 +1291,8 @@ class VectorShooter {
         const rr = e.radius + b.radius
         if ((e.x - b.x) ** 2 + (e.y - b.y) ** 2 < rr * rr) {
           this.damageEnemy(e, b.damage, b.rail ? '#fff27a' : '#57fff3')
+          if (b.chain && b.chain > 0) this.spawnChainBolt(b, e)
+          if (b.mine) this.burst(b.x, b.y, b.color, this.evolved.has('mine') ? 10 : 5, 120)
           b.pierce -= 1
           if (b.pierce < 0) {
             this.bullets.splice(i, 1)
@@ -952,6 +1301,35 @@ class VectorShooter {
         }
       }
     }
+  }
+
+  private spawnChainBolt(source: Bullet, hit: Enemy) {
+    if (this.bullets.length > MAX_BULLETS - 4) return
+    let best: Enemy | null = null
+    let bestD = (220 + this.build.chain * 26) ** 2
+    for (const enemy of this.enemies) {
+      if (enemy === hit || enemy.hp <= 0) continue
+      const d = (enemy.x - hit.x) ** 2 + (enemy.y - hit.y) ** 2
+      if (d < bestD) {
+        bestD = d
+        best = enemy
+      }
+    }
+    if (!best) return
+    const aim = norm(best.x - hit.x, best.y - hit.y)
+    this.bullets.push({
+      x: hit.x,
+      y: hit.y,
+      vx: aim.x * 960,
+      vy: aim.y * 960,
+      life: 0.16,
+      damage: source.damage * (this.evolved.has('chain') ? 0.58 : 0.42),
+      radius: 4,
+      color: '#fff27a',
+      pierce: 0,
+      rail: true,
+      chain: source.chain ? source.chain - 1 : 0
+    })
   }
 
   private rebuildEnemyGrid() {
@@ -987,6 +1365,7 @@ class VectorShooter {
   }
 
   private updateEnemies(dt: number) {
+    const hunger = this.relics.has('hungryCompass') ? 1.08 : 1
     for (let i = this.enemies.length - 1; i >= 0; i -= 1) {
       const e = this.enemies[i]
       e.phase += dt
@@ -994,8 +1373,8 @@ class VectorShooter {
       e.flash -= dt
       const toP = norm(this.player.x - e.x, this.player.y - e.y)
       if (e.kind === 'chaser' || e.kind === 'splinter') {
-        e.vx += toP.x * e.speed * 3.4 * dt
-        e.vy += toP.y * e.speed * 3.4 * dt
+        e.vx += toP.x * e.speed * 3.4 * hunger * dt
+        e.vy += toP.y * e.speed * 3.4 * hunger * dt
       } else if (e.kind === 'lancer') {
         const d = Math.sqrt(dist2(e, this.player))
         if (e.cd <= 0 && d < 520) {
@@ -1058,7 +1437,8 @@ class VectorShooter {
   }
 
   private updatePickups(dt: number) {
-    const magnet = 105 + this.build.magnet * 62
+    const compass = this.relics.has('hungryCompass') ? 120 : 0
+    const magnet = 105 + this.build.magnet * 62 + this.limitBreaks.magnet * 12 + compass
     for (let i = this.pickups.length - 1; i >= 0; i -= 1) {
       const p = this.pickups[i]
       p.life -= dt
@@ -1104,8 +1484,14 @@ class VectorShooter {
     const count = this.build.orbit
     if (count <= 0) return
     const radius = 66 + count * 8
-    const damage = (18 + count * 5) * dt
+    const gravity = this.evolved.has('orbit')
+    const damage = (18 + count * 5 + this.limitBreaks.might * 1.4) * (gravity ? 1.35 : 1) * dt
     for (const e of this.enemies) {
+      if (gravity && (e.x - this.player.x) ** 2 + (e.y - this.player.y) ** 2 < (radius + 90) ** 2) {
+        const pull = norm(this.player.x - e.x, this.player.y - e.y)
+        e.vx += pull.x * 28 * dt
+        e.vy += pull.y * 28 * dt
+      }
       for (let i = 0; i < count; i += 1) {
         const a = this.stats.time * (2.4 + count * 0.18) + (i / count) * TAU
         const x = this.player.x + Math.cos(a) * radius
@@ -1255,7 +1641,7 @@ class VectorShooter {
     if (this.player.invuln > 0) return
     this.player.invuln = 0.42
     this.player.shieldDelay = 2.4
-    let remaining = amount
+    let remaining = Math.max(1, amount * (1 - this.build.phase * 0.08))
     if (this.player.shield > 0) {
       const used = Math.min(this.player.shield, remaining)
       this.player.shield -= used
@@ -1268,6 +1654,20 @@ class VectorShooter {
   }
 
   private drop(kind: PickupKind, x: number, y: number, value: number) {
+    if (kind === 'xp' && this.isHighLoad()) {
+      for (const pickup of this.pickups) {
+        if (pickup.kind !== 'xp') continue
+        const dx = pickup.x - x
+        const dy = pickup.y - y
+        if (dx * dx + dy * dy > 120 * 120) continue
+        pickup.value += value
+        pickup.life = Math.max(pickup.life, 22)
+        pickup.radius = clamp(pickup.radius + 0.65, 8, 18)
+        pickup.vx += rand(-18, 18)
+        pickup.vy += rand(-18, 18)
+        return
+      }
+    }
     if (this.pickups.length >= MAX_PICKUPS) {
       const xpIndex = this.pickups.findIndex((pickup) => pickup.kind === 'xp')
       if (xpIndex >= 0) this.pickups.splice(xpIndex, 1)
@@ -1288,7 +1688,7 @@ class VectorShooter {
         this.stats.xp -= this.stats.nextXp
         this.stats.level += 1
         this.stats.nextXp = Math.floor(this.stats.nextXp * 1.18 + 11)
-        this.openLevelUp()
+        this.bankUpgrade('MUTATION SIGNAL BANKED. LAND TO INSTALL IT.')
       }
     } else if (p.kind === 'repair') {
       this.player.hull = clamp(this.player.hull + p.value, 0, this.player.maxHull)
@@ -1297,35 +1697,109 @@ class VectorShooter {
       this.build.magnet = clamp(this.build.magnet + 1, 0, upgrades.find((u) => u.id === 'magnet')!.max)
       this.toast('SIGNAL MAGNET TEMPORARILY OVERCHARGED')
     } else if (p.kind === 'chest') {
-      this.openChest()
+      this.bankUpgrade('TREASURE CORE BANKED. INSTALL IT WHEN YOU BOARD.')
+      this.stats.score += 250 + this.stats.level * 35
     }
   }
 
-  private openLevelUp() {
+  private bankUpgrade(message?: string) {
+    this.pendingUpgrades += 1
+    if (message) this.toast(message)
+  }
+
+  private openLevelUp(title = 'SHIPBOARD WORKBENCH', copy = 'Spend one banked mutation signal before takeoff.', rare = false) {
     this.state = 'levelup'
     this.audio.level()
-    this.upgradeChoices = this.rollUpgrades(3)
-    this.renderLevelUp('LEVEL SIGNAL FOUND', 'Choose one vector mutation. The horde keeps its place while you decide.')
+    const count = 3 + (rare || Math.random() < 0.08 + this.build.luck * 0.08 ? 1 : 0)
+    this.upgradeChoices = this.rollUpgrades(count, rare)
+    this.renderLevelUp(title, copy)
   }
 
   private openChest() {
-    this.state = 'levelup'
-    this.audio.level()
+    this.bankUpgrade('TREASURE CORE BANKED. INSTALL IT WHEN YOU BOARD.')
     this.stats.score += 250 + this.stats.level * 35
-    this.upgradeChoices = this.rollUpgrades(3, true)
-    this.renderLevelUp('TREASURE CORE CRACKED', 'Boss and field cores offer stronger, messier upgrades.')
   }
 
-  private rollUpgrades(count: number, rare = false) {
-    const available = upgrades.filter((u) => this.build[u.id] < u.max)
-    const picked: Upgrade[] = []
-    while (picked.length < count && available.length) {
-      available.sort(() => Math.random() - 0.5)
-      const idx = rare && Math.random() < 0.45 ? Math.floor(Math.random() * Math.min(4, available.length)) : Math.floor(Math.random() * available.length)
-      const u = available.splice(idx, 1)[0]
-      picked.push(u)
+  private rollUpgrades(count: number, rare = false): WorkbenchChoice[] {
+    const choices: WorkbenchChoice[] = []
+    const evo = this.availableEvolutions()
+    if (evo.length && (rare || Math.random() < 0.55 + this.build.luck * 0.06)) {
+      choices.push({ kind: 'evolution', evolution: evo[Math.floor(Math.random() * evo.length)] })
     }
-    return picked
+    const relic = this.rollRelicChoice(rare)
+    if (relic && choices.length < count) choices.push({ kind: 'relic', relic })
+    const available = upgrades.filter((u) => this.build[u.id] < u.max && !choices.some((choice) => choice.kind === 'upgrade' && choice.upgrade.id === u.id))
+    while (choices.length < count && available.length) {
+      const selected = this.weightedUpgrade(available, rare)
+      choices.push({ kind: 'upgrade', upgrade: selected })
+      available.splice(available.indexOf(selected), 1)
+    }
+    while (choices.length < count) choices.push(this.rollLimitBreak())
+    return choices
+  }
+
+  private weightedUpgrade(pool: Upgrade[], rare: boolean) {
+    const ownedBias = 1.55 + this.build.luck * 0.08
+    const rareBias = rare ? 0.72 : 1
+    const weights = pool.map((upgrade) => {
+      const owned = this.build[upgrade.id] > 0
+      const weaponFocus = upgrade.category === 'weapon' ? 1.08 : 1
+      return Math.max(1, upgrade.rarity * (owned ? ownedBias : 1) * weaponFocus * (upgrade.rarity < 60 ? rareBias : 1))
+    })
+    let roll = Math.random() * weights.reduce((sum, weight) => sum + weight, 0)
+    for (let i = 0; i < pool.length; i += 1) {
+      roll -= weights[i]
+      if (roll <= 0) return pool[i]
+    }
+    return pool[pool.length - 1]
+  }
+
+  private rollRelicChoice(rare: boolean): Relic | null {
+    const missing = relics.filter((relic) => !this.relics.has(relic.id))
+    if (!missing.length) return null
+    const chance = (rare ? 0.2 : 0.04) + this.build.luck * 0.025 + this.build.survey * 0.018
+    if (Math.random() > chance) return null
+    let roll = Math.random() * missing.reduce((sum, relic) => sum + relic.rarity, 0)
+    for (const relic of missing) {
+      roll -= relic.rarity
+      if (roll <= 0) return relic
+    }
+    return missing[0]
+  }
+
+  private rollLimitBreak(): WorkbenchChoice {
+    const options: Array<{ id: LimitId; name: string; description: string }> = [
+      { id: 'might', name: 'Limit: Might', description: '+3% weapon damage. Stacks forever.' },
+      { id: 'cooldown', name: 'Limit: Cooldown', description: '-0.4% weapon cooldown. Stacks forever.' },
+      { id: 'amount', name: 'Limit: Amount', description: 'Every third rank adds another prism ray.' },
+      { id: 'speed', name: 'Limit: Velocity', description: '+2% projectile speed. Stacks forever.' },
+      { id: 'magnet', name: 'Limit: Magnet', description: '+4% pickup reach. Stacks forever.' },
+      { id: 'hull', name: 'Limit: Hull', description: '+3 max hull and a small repair.' }
+    ]
+    return { kind: 'limit', ...options[Math.floor(Math.random() * options.length)] }
+  }
+
+  private availableEvolutions() {
+    return evolutions.filter((evolution) => this.build[evolution.weapon] >= upgrades.find((upgrade) => upgrade.id === evolution.weapon)!.max && this.relics.has(evolution.relic) && !this.evolved.has(evolution.weapon))
+  }
+
+  private applyWorkbenchChoice(choice: WorkbenchChoice) {
+    if (choice.kind === 'upgrade') this.applyUpgrade(choice.upgrade)
+    else if (choice.kind === 'evolution') this.applyEvolution(choice.evolution)
+    else if (choice.kind === 'relic') this.acquireRelic(choice.relic, 'WORKBENCH RELIC INSTALLED')
+    else this.applyLimitBreak(choice)
+    this.pendingUpgrades = Math.max(0, this.pendingUpgrades - 1)
+    if (this.pendingUpgrades > 0) {
+      this.openLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
+      return
+    }
+    this.showOnly(null)
+    if (this.takeoffAfterWorkbench) {
+      this.takeoffAfterWorkbench = false
+      this.startTakeoff()
+    } else {
+      this.state = 'playing'
+    }
   }
 
   private applyUpgrade(upgrade: Upgrade) {
@@ -1341,8 +1815,37 @@ class VectorShooter {
     }
     if (upgrade.id === 'magnet') this.stats.score += 60
     this.toast(`${upgrade.name.toUpperCase()} ONLINE`)
-    this.state = 'playing'
-    this.showOnly(null)
+  }
+
+  private applyEvolution(evolution: Evolution) {
+    this.evolved.add(evolution.weapon)
+    this.audio.level()
+    this.camera.shake = Math.max(this.camera.shake, 12)
+    this.burst(this.player.x, this.player.y, '#fff27a', 34, 320)
+    this.toast(`${evolution.name.toUpperCase()} EVOLVED`)
+  }
+
+  private acquireRelic(relic: Relic, message = 'PLANET RELIC FOUND') {
+    if (this.relics.has(relic.id)) {
+      this.resources.cores += 1
+      this.stats.score += 250
+      this.toast('DUPLICATE RELIC CONVERTED TO CORE')
+      return
+    }
+    this.relics.add(relic.id)
+    this.stats.score += 500 + this.relics.size * 120
+    this.audio.level()
+    this.burst(this.player.x, this.player.y, '#fff27a', 22, 240)
+    this.toast(`${message}: ${relic.name.toUpperCase()}`)
+  }
+
+  private applyLimitBreak(choice: Extract<WorkbenchChoice, { kind: 'limit' }>) {
+    this.limitBreaks[choice.id] += 1
+    if (choice.id === 'hull') {
+      this.player.maxHull += 3
+      this.player.hull = clamp(this.player.hull + 10, 0, this.player.maxHull)
+    }
+    this.toast(choice.name.toUpperCase())
   }
 
   private tryLand() {
@@ -1449,6 +1952,8 @@ class VectorShooter {
       this.audio.pickup()
       this.burst(resource.x, resource.y, resource.color, resource.kind === 'cache' ? 22 : 10, resource.kind === 'cache' ? 240 : 140)
       if (resource.kind === 'crystal') {
+        const gained = Math.ceil(resource.value * (1 + this.build.cargo * 0.15))
+        this.resources.crystal += gained
         this.stats.xp += resource.value
         this.stats.score += resource.value * 12
         while (this.stats.xp >= this.stats.nextXp) {
@@ -1456,16 +1961,61 @@ class VectorShooter {
           this.stats.level += 1
           this.stats.nextXp = Math.floor(this.stats.nextXp * 1.18 + 11)
           this.surface.pendingUpgrade = true
+          this.bankUpgrade()
         }
       } else if (resource.kind === 'scrap') {
-        this.stats.score += resource.value
+        const gained = Math.ceil(resource.value * (1 + this.build.cargo * 0.15))
+        this.resources.scrap += gained
+        this.stats.score += gained
       } else if (resource.kind === 'repair') {
         this.player.hull = clamp(this.player.hull + resource.value, 0, this.player.maxHull)
       } else if (resource.kind === 'cache') {
-        this.stats.score += 450 + this.stats.level * 45
-        this.surface.pendingUpgrade = true
-        this.surface.message = 'MUTATION CACHE SECURED. GET BACK TO THE SHIP.'
+        this.resolvePlanetCache(resource)
       }
+    }
+  }
+
+  private resolvePlanetCache(resource: SurfaceResource) {
+    if (!this.surface) return
+    const luck = this.build.luck * 0.06 + this.build.survey * 0.035
+    const cargoBonus = 1 + this.build.cargo * 0.15
+    this.stats.score += Math.floor((450 + this.stats.level * 45) * (1 + this.build.cargo * 0.06))
+    this.resources.scrap += Math.ceil(rand(10, 24) * cargoBonus)
+    this.resources.crystal += Math.ceil(rand(3, 9) * cargoBonus)
+    this.resources.cores += 1 + (this.build.cargo >= 2 ? 1 : 0)
+    const missingRelics = relics.filter((relic) => !this.relics.has(relic.id))
+    const relicChance = 0.18 + luck
+    const extraSignalChance = 0.38 + luck
+    if (missingRelics.length && Math.random() < relicChance) {
+      const relic = missingRelics[Math.floor(Math.random() * missingRelics.length)]
+      this.acquireRelic(relic)
+      this.surface.message = `${relic.name.toUpperCase()} RECOVERED. GET BACK TO THE SHIP.`
+    } else {
+      this.surface.pendingUpgrade = true
+      this.bankUpgrade()
+      this.surface.message = 'MUTATION CACHE SECURED. GET BACK TO THE SHIP.'
+    }
+    if (Math.random() < extraSignalChance) {
+      this.surface.pendingUpgrade = true
+      this.bankUpgrade('BONUS MUTATION SIGNAL FOUND IN CACHE')
+    }
+    const cacheMessage = this.surface.message
+    const ambushChance = Math.max(0.08, 0.28 - this.build.survey * 0.04 + (this.relics.has('staticIdol') ? 0.06 : 0))
+    if (Math.random() < ambushChance) {
+      for (let i = 0; i < 2 + Math.floor(this.stats.time / 90); i += 1) {
+        this.surface.threats.push({
+          x: clamp(resource.x + rand(-180, 180), 40, this.surface.width - 40),
+          y: clamp(resource.y + rand(-180, 180), 40, this.surface.height - 40),
+          vx: 0,
+          vy: 0,
+          hp: 24 + this.stats.time * 0.25,
+          radius: 14,
+          phase: Math.random() * TAU,
+          color: '#ff5d73',
+          hit: 0
+        })
+      }
+      this.surface.message = `${cacheMessage} CACHE WAS WIRED.`
     }
   }
 
@@ -1530,6 +2080,11 @@ class VectorShooter {
 
   private startTakeoff() {
     if (!this.surface) return
+    if (this.pendingUpgrades > 0) {
+      this.takeoffAfterWorkbench = true
+      this.openLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} banked mutation signal${this.pendingUpgrades === 1 ? '' : 's'} available. Spend before takeoff.`)
+      return
+    }
     this.state = 'takeoff'
     this.transitionTimer = 0
     this.transitionDuration = 1.2
@@ -1545,13 +2100,15 @@ class VectorShooter {
     this.stats.score += first ? 420 + this.surface.collected * 45 : this.surface.collected * 25
     this.player.landedCd = 2.2
     this.player.invuln = 0.8
-    const needsUpgrade = this.surface.pendingUpgrade || (first && this.surface.collected > 0)
     const planetName = this.surface.planet.name
     this.surface = null
     this.state = 'playing'
     this.showOnly(null)
     this.toast(`${planetName}: SURFACE CACHE EXTRACTED`)
-    if (needsUpgrade) this.openLevelUp()
+    if (this.relics.has('deadSunCoin') && Math.random() < 0.75) {
+      this.spawnEnemy('warden')
+      this.toast('DEAD SUN HUNTER FOUND YOUR WAKE')
+    }
   }
 
   private updateCamera(dt: number) {
@@ -1566,7 +2123,9 @@ class VectorShooter {
 
   private burst(x: number, y: number, color: string, count: number, speed: number) {
     const load = this.particles.length / MAX_PARTICLES
-    const particleCount = Math.max(3, Math.floor(count * clamp(1 - load * 0.65, 0.3, 1)))
+    const glow = this.allowGlow()
+    const modeBoost = glow ? 1.65 : this.graphicsMode === 'MED' ? 1.15 : 1
+    const particleCount = Math.max(3, Math.floor(count * modeBoost * clamp(1 - load * (glow ? 0.35 : 0.65), glow ? 0.5 : 0.3, 1)))
     const big = count > 24
     if (this.shockwaves.length < MAX_SHOCKWAVES) {
       this.shockwaves.push({
@@ -1591,6 +2150,18 @@ class VectorShooter {
           jag: rand(0, TAU)
         })
       }
+      if (glow && this.shockwaves.length < MAX_SHOCKWAVES) {
+        this.shockwaves.push({
+          x,
+          y,
+          radius: big ? 30 : 14,
+          speed: speed * 0.46,
+          life: big ? 0.82 : 0.52,
+          maxLife: big ? 0.82 : 0.52,
+          color: '#57fff3',
+          jag: rand(0, TAU)
+        })
+      }
     }
     for (let i = 0; i < particleCount; i += 1) {
       if (this.particles.length >= MAX_PARTICLES) this.particles.shift()
@@ -1610,8 +2181,8 @@ class VectorShooter {
         angle: a,
         spin: rand(-8, 8),
         sides: shard ? Math.floor(rand(3, 6)) : undefined,
-        length: shard ? undefined : rand(14, big ? 46 : 30),
-        glow: shard ? 18 : 12
+        length: shard ? undefined : rand(glow ? 22 : 14, big ? (glow ? 72 : 46) : (glow ? 42 : 30)),
+        glow: glow ? (shard ? 32 : 24) : shard ? 18 : 12
       })
     }
   }
@@ -1631,6 +2202,11 @@ class VectorShooter {
     ctx.clearRect(0, 0, this.width, this.height)
     ctx.fillStyle = '#020305'
     ctx.fillRect(0, 0, this.width, this.height)
+    if (this.state === 'levelup' && this.surface) {
+      this.mini.style.display = 'none'
+      this.renderSurface(ctx)
+      return
+    }
     if (this.state === 'surface') {
       this.mini.style.display = 'none'
       this.renderSurface(ctx)
@@ -1681,7 +2257,18 @@ class VectorShooter {
   }
 
   private isHighLoad() {
-    return this.particles.length > 170 || this.enemies.length > 120 || this.bullets.length > 130 || this.pickups.length > 150
+    return this.graphicsMode === 'LOW' || this.particles.length > 170 || this.enemies.length > 120 || this.bullets.length > 130 || this.pickups.length > 150
+  }
+
+  private allowGlow() {
+    return this.graphicsMode === 'GLOW' && !this.isHighLoad()
+  }
+
+  private setGraphicsMode(mode: GraphicsMode) {
+    this.graphicsMode = mode
+    localStorage.setItem('vector_shooter_graphics', mode)
+    this.resize()
+    this.toast(`GRAPHICS ${mode}`)
   }
 
   private renderSurface(ctx: CanvasRenderingContext2D) {
@@ -1823,25 +2410,25 @@ class VectorShooter {
   private renderSurfacePilot(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
     const p = this.surfaceToScreen(s.pilot.x, s.pilot.y)
     const step = Math.sin(this.stats.time * 11) * 4
+    const facing = Math.sign(Math.cos(s.pilot.facing)) || 1
     ctx.save()
     ctx.translate(p.x, p.y)
-    ctx.rotate(s.pilot.facing)
     ctx.strokeStyle = s.pilot.invuln > 0 ? '#fff27a' : '#d7fff7'
     ctx.shadowColor = '#57fff3'
     ctx.shadowBlur = 10
     ctx.lineWidth = 2
     ctx.beginPath()
-    ctx.arc(8, 0, 5, 0, TAU)
-    ctx.moveTo(2, 0)
-    ctx.lineTo(-10, 0)
-    ctx.moveTo(-1, 0)
-    ctx.lineTo(-8, -9 - step)
-    ctx.moveTo(-1, 0)
-    ctx.lineTo(-8, 9 + step)
-    ctx.moveTo(-10, 0)
-    ctx.lineTo(-18, -8 + step)
-    ctx.moveTo(-10, 0)
-    ctx.lineTo(-18, 8 - step)
+    ctx.arc(0, -16, 5, 0, TAU)
+    ctx.moveTo(0, -11)
+    ctx.lineTo(0, 6)
+    ctx.moveTo(0, -5)
+    ctx.lineTo(facing * (10 + step * 0.4), 1)
+    ctx.moveTo(0, -4)
+    ctx.lineTo(facing * -8, 2)
+    ctx.moveTo(0, 6)
+    ctx.lineTo(-7, 20 + step)
+    ctx.moveTo(0, 6)
+    ctx.lineTo(7, 20 - step)
     ctx.stroke()
     if (s.pilot.mineCd > 0.18) {
       ctx.strokeStyle = '#57fff3'
@@ -1997,38 +2584,87 @@ class VectorShooter {
   }
 
   private renderBullets(ctx: CanvasRenderingContext2D) {
+    if (this.isHighLoad()) {
+      this.renderBulletsSimple(ctx)
+      return
+    }
     for (const b of this.bullets) {
       const p = this.worldToScreen(b.x, b.y)
       if (p.x < -80 || p.x > this.width + 80 || p.y < -80 || p.y > this.height + 80) continue
       ctx.save()
       ctx.strokeStyle = b.color
       ctx.shadowColor = b.color
-      ctx.shadowBlur = this.isHighLoad() ? 0 : b.rail ? 18 : 10
+      ctx.shadowBlur = this.allowGlow() ? (b.rail ? 18 : 10) : 0
       ctx.lineWidth = b.rail ? 3 : 2
       ctx.beginPath()
-      const tail = norm(b.vx, b.vy)
-      ctx.moveTo(p.x - tail.x * (b.rail ? 26 : 12), p.y - tail.y * (b.rail ? 26 : 12))
-      ctx.lineTo(p.x + tail.x * (b.rail ? 16 : 7), p.y + tail.y * (b.rail ? 16 : 7))
+      if (b.mine) {
+        ctx.arc(p.x, p.y, b.radius, 0, TAU)
+        ctx.moveTo(p.x - b.radius, p.y)
+        ctx.lineTo(p.x + b.radius, p.y)
+      } else {
+        const tail = norm(b.vx, b.vy)
+        ctx.moveTo(p.x - tail.x * (b.rail ? 26 : 12), p.y - tail.y * (b.rail ? 26 : 12))
+        ctx.lineTo(p.x + tail.x * (b.rail ? 16 : 7), p.y + tail.y * (b.rail ? 16 : 7))
+      }
       ctx.stroke()
       ctx.restore()
     }
   }
 
+  private renderBulletsSimple(ctx: CanvasRenderingContext2D) {
+    const camX = this.camera.x
+    const camY = this.camera.y
+    ctx.save()
+    ctx.shadowBlur = 0
+    ctx.lineWidth = 2
+    ctx.strokeStyle = 'rgba(215,255,247,0.82)'
+    ctx.beginPath()
+    for (const b of this.bullets) {
+      const x = b.x - camX
+      const y = b.y - camY
+      if (x < -80 || x > this.width + 80 || y < -80 || y > this.height + 80) continue
+      const mag = Math.hypot(b.vx, b.vy) || 1
+      const tx = b.vx / mag
+      const ty = b.vy / mag
+      const rear = b.rail ? 24 : 11
+      const nose = b.rail ? 15 : 7
+      ctx.moveTo(x - tx * rear, y - ty * rear)
+      ctx.lineTo(x + tx * nose, y + ty * nose)
+    }
+    ctx.stroke()
+    ctx.strokeStyle = 'rgba(255,242,122,0.86)'
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    for (const b of this.bullets) {
+      if (!b.rail) continue
+      const x = b.x - camX
+      const y = b.y - camY
+      if (x < -80 || x > this.width + 80 || y < -80 || y > this.height + 80) continue
+      const mag = Math.hypot(b.vx, b.vy) || 1
+      const tx = b.vx / mag
+      const ty = b.vy / mag
+      ctx.moveTo(x - tx * 28, y - ty * 28)
+      ctx.lineTo(x + tx * 18, y + ty * 18)
+    }
+    ctx.stroke()
+    ctx.restore()
+  }
+
   private renderEnemies(ctx: CanvasRenderingContext2D) {
     const highLoad = this.isHighLoad()
+    if (highLoad) {
+      this.renderHordeEnemies(ctx)
+      return
+    }
     for (const e of this.enemies) {
       const p = this.worldToScreen(e.x, e.y)
       if (p.x < -90 || p.x > this.width + 90 || p.y < -90 || p.y > this.height + 90) continue
-      if (highLoad && e.kind !== 'warden') {
-        this.renderEnemyLod(ctx, e, p)
-        continue
-      }
       ctx.save()
       ctx.translate(p.x, p.y)
       ctx.rotate(e.phase)
       ctx.strokeStyle = e.flash > 0 ? '#ffffff' : e.color
       ctx.shadowColor = e.color
-      ctx.shadowBlur = highLoad ? 0 : 12
+      ctx.shadowBlur = this.allowGlow() ? 12 : 0
       ctx.lineWidth = e.kind === 'warden' ? 3 : 2
       ctx.beginPath()
       if (e.kind === 'chaser') {
@@ -2078,6 +2714,76 @@ class VectorShooter {
         ctx.stroke()
       }
       ctx.restore()
+    }
+  }
+
+  private renderHordeEnemies(ctx: CanvasRenderingContext2D) {
+    const camX = this.camera.x
+    const camY = this.camera.y
+    ctx.save()
+    ctx.shadowBlur = 0
+    ctx.lineWidth = 1.45
+    this.strokeEnemyBatch(ctx, camX, camY, 'chaser', '#8fff7d')
+    this.strokeEnemyBatch(ctx, camX, camY, 'splinter', '#70a8ff')
+    this.strokeEnemyBatch(ctx, camX, camY, 'lancer', '#fff27a')
+    this.strokeEnemyBatch(ctx, camX, camY, 'mine', '#ff5d73')
+    ctx.lineWidth = 2.4
+    this.strokeEnemyBatch(ctx, camX, camY, 'warden', '#b990ff')
+    ctx.lineWidth = 1.8
+    ctx.strokeStyle = '#ffffff'
+    ctx.beginPath()
+    for (const e of this.enemies) {
+      if (e.flash <= 0) continue
+      const x = e.x - camX
+      const y = e.y - camY
+      if (x < -95 || x > this.width + 95 || y < -95 || y > this.height + 95) continue
+      this.addEnemyGlyph(ctx, e, x, y)
+    }
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  private strokeEnemyBatch(ctx: CanvasRenderingContext2D, camX: number, camY: number, kind: EnemyKind, color: string) {
+    ctx.strokeStyle = color
+    ctx.beginPath()
+    for (const e of this.enemies) {
+      if (e.kind !== kind || e.flash > 0) continue
+      const x = e.x - camX
+      const y = e.y - camY
+      if (x < -95 || x > this.width + 95 || y < -95 || y > this.height + 95) continue
+      this.addEnemyGlyph(ctx, e, x, y)
+    }
+    ctx.stroke()
+  }
+
+  private addEnemyGlyph(ctx: CanvasRenderingContext2D, e: Enemy, x: number, y: number) {
+    const r = e.radius
+    if (e.kind === 'lancer') {
+      const dx = this.player.x - e.x
+      const dy = this.player.y - e.y
+      const m = Math.hypot(dx, dy) || 1
+      const ux = dx / m
+      const uy = dy / m
+      const px = -uy
+      const py = ux
+      ctx.moveTo(x + ux * r * 1.2, y + uy * r * 1.2)
+      ctx.lineTo(x - ux * r * 0.78 + px * r * 0.48, y - uy * r * 0.78 + py * r * 0.48)
+      ctx.lineTo(x - ux * r * 0.42, y - uy * r * 0.42)
+      ctx.lineTo(x - ux * r * 0.78 - px * r * 0.48, y - uy * r * 0.78 - py * r * 0.48)
+      ctx.closePath()
+    } else if (e.kind === 'mine') {
+      ctx.rect(x - r * 0.58, y - r * 0.58, r * 1.16, r * 1.16)
+    } else if (e.kind === 'warden') {
+      ctx.moveTo(x + r, y)
+      ctx.arc(x, y, r, 0, TAU)
+      ctx.moveTo(x + r + 12, y)
+      ctx.arc(x, y, r + 12, 0, TAU)
+    } else {
+      ctx.moveTo(x, y - r)
+      ctx.lineTo(x + r, y)
+      ctx.lineTo(x, y + r)
+      ctx.lineTo(x - r, y)
+      ctx.closePath()
     }
   }
 
@@ -2138,9 +2844,13 @@ class VectorShooter {
   }
 
   private renderParticles(ctx: CanvasRenderingContext2D) {
-    ctx.save()
-    ctx.globalCompositeOperation = 'lighter'
     const highLoad = this.isHighLoad()
+    if (highLoad) {
+      this.renderParticlesSimple(ctx)
+      return
+    }
+    ctx.save()
+    ctx.globalCompositeOperation = this.allowGlow() ? 'lighter' : 'source-over'
     const visibleBudget = highLoad ? 160 : MAX_PARTICLES
     let drawn = 0
     for (const p of this.particles) {
@@ -2151,7 +2861,7 @@ class VectorShooter {
       ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1)
       ctx.strokeStyle = p.color
       ctx.shadowColor = p.color
-      ctx.shadowBlur = highLoad ? 0 : p.glow ?? 10
+      ctx.shadowBlur = this.allowGlow() ? p.glow ?? 10 : 0
       ctx.lineWidth = p.sides ? 1.5 : clamp(p.size, 1, 3)
       ctx.translate(s.x, s.y)
       ctx.rotate(p.angle ?? 0)
@@ -2177,21 +2887,48 @@ class VectorShooter {
     ctx.restore()
   }
 
+  private renderParticlesSimple(ctx: CanvasRenderingContext2D) {
+    const surfaceMode = this.surface && (this.state === 'surface' || this.state === 'takeoff' || (this.state === 'landing' && this.transitionTimer / this.transitionDuration > 0.58))
+    const camX = surfaceMode ? this.surface!.camera.x : this.camera.x
+    const camY = surfaceMode ? this.surface!.camera.y : this.camera.y
+    ctx.save()
+    ctx.globalCompositeOperation = 'source-over'
+    ctx.globalAlpha = 0.78
+    ctx.strokeStyle = 'rgba(215,255,247,0.76)'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    let drawn = 0
+    for (const p of this.particles) {
+      const x = p.x - camX
+      const y = p.y - camY
+      if (x < -80 || x > this.width + 80 || y < -80 || y > this.height + 80) continue
+      if (drawn++ > 140) break
+      const alpha = clamp(p.life / p.maxLife, 0, 1)
+      const length = Math.max(3, (p.length ?? Math.hypot(p.vx, p.vy) * 0.035) * alpha)
+      const mag = Math.hypot(p.vx, p.vy) || 1
+      ctx.moveTo(x, y)
+      ctx.lineTo(x - (p.vx / mag) * length, y - (p.vy / mag) * length)
+    }
+    ctx.stroke()
+    ctx.restore()
+  }
+
   private renderShockwaves(ctx: CanvasRenderingContext2D) {
     ctx.save()
-    ctx.globalCompositeOperation = 'lighter'
+    ctx.globalCompositeOperation = this.allowGlow() ? 'lighter' : 'source-over'
     const highLoad = this.isHighLoad()
+    const glow = this.allowGlow()
     for (const w of this.shockwaves) {
       const s = this.effectToScreen(w.x, w.y)
       if (s.x + w.radius < -120 || s.x - w.radius > this.width + 120 || s.y + w.radius < -120 || s.y - w.radius > this.height + 120) continue
       const alpha = clamp(w.life / w.maxLife, 0, 1)
-      const points = highLoad ? 10 : 18
+      const points = highLoad ? 10 : glow ? 28 : 18
       ctx.save()
       ctx.globalAlpha = alpha * 0.92
       ctx.strokeStyle = w.color
       ctx.shadowColor = w.color
-      ctx.shadowBlur = highLoad ? 0 : 28
-      ctx.lineWidth = 2 + alpha * 3
+      ctx.shadowBlur = glow ? 42 : highLoad ? 0 : 22
+      ctx.lineWidth = (glow ? 2.6 : 2) + alpha * (glow ? 4.6 : 3)
       ctx.beginPath()
       for (let i = 0; i <= points; i += 1) {
         const a = (i / points) * TAU
@@ -2203,9 +2940,20 @@ class VectorShooter {
         else ctx.lineTo(x, y)
       }
       ctx.stroke()
-      ctx.globalAlpha = alpha * 0.25
-      ctx.lineWidth = 8
+      ctx.globalAlpha = alpha * (glow ? 0.42 : 0.25)
+      ctx.lineWidth = glow ? 12 : 8
       ctx.stroke()
+      if (glow) {
+        ctx.globalAlpha = alpha * 0.2
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        for (let i = 0; i < 10; i += 1) {
+          const a = (i / 10) * TAU + w.jag
+          ctx.moveTo(s.x + Math.cos(a) * w.radius * 0.18, s.y + Math.sin(a) * w.radius * 0.18)
+          ctx.lineTo(s.x + Math.cos(a) * w.radius * 0.96, s.y + Math.sin(a) * w.radius * 0.96)
+        }
+        ctx.stroke()
+      }
       ctx.restore()
     }
     ctx.restore()
@@ -2216,10 +2964,12 @@ class VectorShooter {
     if (count <= 0) return
     const center = this.worldToScreen(this.player.x, this.player.y)
     const radius = 66 + count * 8
+    const glow = this.allowGlow()
     ctx.save()
+    ctx.globalCompositeOperation = glow ? 'lighter' : 'source-over'
     ctx.strokeStyle = '#8fff7d'
     ctx.shadowColor = '#8fff7d'
-    ctx.shadowBlur = 14
+    ctx.shadowBlur = glow ? 28 : this.isHighLoad() ? 0 : 14
     for (let i = 0; i < count; i += 1) {
       const a = this.stats.time * (2.4 + count * 0.18) + (i / count) * TAU
       const x = center.x + Math.cos(a) * radius
@@ -2228,6 +2978,13 @@ class VectorShooter {
       ctx.moveTo(x - Math.cos(a) * 12, y - Math.sin(a) * 12)
       ctx.lineTo(x + Math.cos(a) * 12, y + Math.sin(a) * 12)
       ctx.stroke()
+      if (glow) {
+        ctx.globalAlpha = 0.28
+        ctx.lineWidth = 5
+        ctx.stroke()
+        ctx.globalAlpha = 1
+        ctx.lineWidth = 1
+      }
     }
     ctx.restore()
   }
@@ -2280,19 +3037,33 @@ class VectorShooter {
     const shield = this.player.maxShield > 0 ? ` +${Math.floor(this.player.shield)}` : ''
     this.ui.hull.textContent = `${Math.ceil(Math.max(0, this.player.hull))}/${this.player.maxHull}${shield}`
     this.ui.high.textContent = Math.max(this.stats.highScore, this.stats.score).toString()
+    this.ui.resources.textContent = `${this.resources.scrap}|${this.resources.crystal}|${this.resources.cores}`
     this.ui.xpFill.style.width = `${clamp((this.stats.xp / this.stats.nextXp) * 100, 0, 100)}%`
     this.updateTouchHud()
+    this.updatePerfHud()
+  }
+
+  private updatePerfHud() {
+    this.ui.perf.classList.toggle('visible', this.perfVisible)
+    this.ui.perf.textContent = `${this.graphicsMode} ${this.perf.fps.toFixed(0)}fps U${this.perf.updateMs.toFixed(1)} R${this.perf.renderMs.toFixed(1)} E${this.enemies.length} B${this.bullets.length} P${this.particles.length}`
   }
 
   private updateTouchHud() {
     const show = this.state === 'playing' || this.state === 'surface'
     this.ui.touchControls.classList.toggle('visible', show)
     if (this.touchStick.active) {
-      const dx = clamp(this.touchStick.x - this.touchStick.startX, -64, 64)
-      const dy = clamp(this.touchStick.y - this.touchStick.startY, -64, 64)
+      const rawDx = this.touchStick.x - this.touchStick.startX
+      const rawDy = this.touchStick.y - this.touchStick.startY
+      const length = Math.hypot(rawDx, rawDy)
+      const scale = length > 82 ? 82 / length : 1
+      const dx = rawDx * scale
+      const dy = rawDy * scale
       this.ui.touchKnob.style.transform = `translate(${dx}px, ${dy}px)`
+      this.ui.touchStick.style.setProperty('--touch-line', `${Math.min(82, length)}px`)
+      this.ui.touchStick.style.setProperty('--touch-angle', `${Math.atan2(dy, dx)}rad`)
     } else {
       this.ui.touchKnob.style.transform = 'translate(0, 0)'
+      this.ui.touchStick.style.setProperty('--touch-line', '0px')
     }
     if (this.state === 'surface') {
       this.ui.touchAction.textContent = this.surface && Math.sqrt(dist2(this.surface.pilot, this.surface.ship)) < 64 ? 'BOARD' : 'USE'
@@ -2316,16 +3087,33 @@ class VectorShooter {
     p.textContent = copy
     const grid = document.createElement('div')
     grid.className = 'choice-grid'
-    for (const upgrade of this.upgradeChoices) {
+    for (const choice of this.upgradeChoices) {
       const button = document.createElement('button')
-      button.className = 'choice'
-      button.innerHTML = `<strong>${upgrade.name} ${this.build[upgrade.id] + 1}/${upgrade.max}</strong><span>${upgrade.description}</span>`
-      button.addEventListener('click', () => this.applyUpgrade(upgrade))
+      button.className = `choice ${choice.kind}`
+      button.innerHTML = this.choiceMarkup(choice)
+      button.addEventListener('click', () => this.applyWorkbenchChoice(choice))
       grid.append(button)
     }
     panel.append(h, p, grid)
     this.ui.levelup.append(panel)
     this.showOnly('levelup')
+  }
+
+  private choiceMarkup(choice: WorkbenchChoice) {
+    if (choice.kind === 'upgrade') {
+      const level = this.build[choice.upgrade.id] + 1
+      const detail = choice.upgrade.levels[level - 1] ?? choice.upgrade.description
+      const tag = choice.upgrade.category === 'weapon' ? 'WEAPON' : 'SHIP'
+      return `<strong>${this.escape(choice.upgrade.name)} ${level}/${choice.upgrade.max}</strong><em>${tag}</em><span>${this.escape(detail)}</span>`
+    }
+    if (choice.kind === 'evolution') {
+      return `<strong>${this.escape(choice.evolution.name)}</strong><em>EVOLUTION</em><span>${this.escape(choice.evolution.description)}</span>`
+    }
+    if (choice.kind === 'relic') {
+      const downside = choice.relic.downside ? ` Risk: ${choice.relic.downside}` : ''
+      return `<strong>${this.escape(choice.relic.name)}</strong><em>RELIC</em><span>${this.escape(choice.relic.description + downside)}</span>`
+    }
+    return `<strong>${this.escape(choice.name)}</strong><em>LIMIT BREAK</em><span>${this.escape(choice.description)}</span>`
   }
 
   private renderPlanet(p: Planet) {
@@ -2385,7 +3173,19 @@ class VectorShooter {
     scores.textContent = 'High Scores'
     scores.addEventListener('click', () => this.showScores())
     row.append(start, scores)
-    left.append(copy, row)
+    const graphics = document.createElement('div')
+    graphics.className = 'graphics-row'
+    ;(['LOW', 'MED', 'GLOW'] as GraphicsMode[]).forEach((mode) => {
+      const button = document.createElement('button')
+      button.className = `vector-button tiny ${this.graphicsMode === mode ? 'active' : 'secondary'}`
+      button.textContent = mode
+      button.addEventListener('click', () => {
+        this.setGraphicsMode(mode)
+        this.showTitle()
+      })
+      graphics.append(button)
+    })
+    left.append(copy, row, graphics)
     const meta = document.createElement('div')
     meta.className = 'meta-list'
     meta.innerHTML = `
@@ -2393,6 +3193,7 @@ class VectorShooter {
       <div>Space or right trigger fires. Shift, B, or RB dashes.</div>
       <div>Press E or Y near a planet to descend, then return to the ship when the cache is clear.</div>
       <div>On foot, move with WASD or left stick. Space, mouse, A, or RT fires the mining pulse.</div>
+      <div>LOW mode is tuned for phones and low-GPU machines. Press P to show or hide the frame meter.</div>
     `
     grid.append(left, meta)
     panel.append(h, k, grid)
@@ -2498,6 +3299,12 @@ class VectorShooter {
     this.shockwaves = []
     this.surface = null
     this.transitionTimer = 0
+    this.pendingUpgrades = 0
+    this.takeoffAfterWorkbench = false
+    this.resources = { scrap: 0, crystal: 0, cores: 0 }
+    this.relics.clear()
+    this.evolved.clear()
+    this.limitBreaks = { might: 0, cooldown: 0, amount: 0, speed: 0, magnet: 0, hull: 0 }
     this.planets.forEach((p) => (p.visited = false))
     this.stats = { time: 0, kills: 0, level: 1, xp: 0, nextXp: 24, highScore: this.highs[0]?.score ?? 0, planets: 0, score: 0 }
     for (const k of Object.keys(this.build) as UpgradeId[]) this.build[k] = 0
