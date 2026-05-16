@@ -5,6 +5,7 @@ import planetBossCatalogUrl from './assets/planet-boss-catalog-alpha.png'
 import surfaceSpacemanSheetUrl from './assets/surface-spaceman-sheet-alpha.png'
 import titleLogoMarkUrl from './assets/title-logo-mark.png'
 import { pressurePackSize, shouldRecycleEnemy } from './spawn-pressure'
+import { firstOpportunityUpgrade } from './workbench-rolls'
 
 type GameState = 'title' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
@@ -2342,6 +2343,11 @@ class VectorShooter {
     const relic = this.rollRelicChoice(rare)
     if (relic && choices.length < count) choices.push({ kind: 'relic', relic })
     const available = upgrades.filter((u) => this.build[u.id] < u.max && !choices.some((choice) => choice.kind === 'upgrade' && choice.upgrade.id === u.id))
+    const requiredUpgrade = firstOpportunityUpgrade(available, this.build)
+    if (requiredUpgrade && choices.length < count) {
+      choices.push({ kind: 'upgrade', upgrade: requiredUpgrade })
+      available.splice(available.indexOf(requiredUpgrade), 1)
+    }
     while (choices.length < count && available.length) {
       const selected = this.weightedUpgrade(available, rare)
       choices.push({ kind: 'upgrade', upgrade: selected })
