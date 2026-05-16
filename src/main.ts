@@ -11,6 +11,7 @@ type EnemyKind = 'chaser' | 'splinter' | 'lancer' | 'mine' | 'brute' | 'shooter'
 type SurfaceResourceKind = 'crystal' | 'scrap' | 'repair' | 'cache'
 type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
 type UpgradeCategory = 'weapon' | 'system'
+type UpgradeBucket = 'weapons' | 'navigation' | 'survival' | 'economy' | 'planetcraft' | 'control'
 type RelicId = 'staticIdol' | 'glassReactor' | 'deadSunCoin' | 'hungryCompass' | 'blackBoxSaint' | 'mirrorSeed' | 'saintCapacitor' | 'forbiddenMap'
 type LimitId = 'might' | 'cooldown' | 'amount' | 'speed' | 'magnet' | 'hull'
 type SurfaceEventKind = 'jackpot' | 'swarm' | 'relic' | 'repair' | 'volatile' | 'standard'
@@ -25,6 +26,7 @@ type UpgradeId =
   | 'chain'
   | 'rift'
   | 'engine'
+  | 'nav'
   | 'magnet'
   | 'shield'
   | 'repair'
@@ -217,6 +219,7 @@ interface Upgrade {
   id: UpgradeId
   name: string
   category: UpgradeCategory
+  bucket: UpgradeBucket
   description: string
   max: number
   rarity: number
@@ -281,7 +284,8 @@ const upgrades: Upgrade[] = [
     id: 'rapid',
     name: 'Pulse Cannon',
     category: 'weapon',
-    description: 'Primary auto-fire. Level it for a faster, meaner heartbeat.',
+    bucket: 'weapons',
+    description: 'The main damage bucket: faster pulse rhythm, harder hits, and double-pulse pressure.',
     max: 8,
     rarity: 100,
     catalyst: 'staticIdol',
@@ -293,7 +297,8 @@ const upgrades: Upgrade[] = [
     id: 'split',
     name: 'Prism Barrel',
     category: 'weapon',
-    description: 'Adds side beams and widens the bullet fan.',
+    bucket: 'weapons',
+    description: 'The screen-control bucket: more rays, a wider fan, and better crowd trimming.',
     max: 6,
     rarity: 86,
     catalyst: 'glassReactor',
@@ -305,7 +310,8 @@ const upgrades: Upgrade[] = [
     id: 'pierce',
     name: 'Ghost Rounds',
     category: 'weapon',
-    description: 'Shots pass through more enemies before fading.',
+    bucket: 'weapons',
+    description: 'The horde-cutting bucket: pulses travel through bodies instead of dying early.',
     max: 5,
     rarity: 80,
     levels: ['+1 pierce', '+1 pierce', '+10% pulse damage', '+1 pierce', '+2 pierce']
@@ -314,7 +320,8 @@ const upgrades: Upgrade[] = [
     id: 'rail',
     name: 'Rail Lattice',
     category: 'weapon',
-    description: 'Periodically replaces a pulse with a long piercing lance.',
+    bucket: 'weapons',
+    description: 'The elite-delete bucket: regular fire is interrupted by huge piercing lances.',
     max: 6,
     rarity: 62,
     catalyst: 'deadSunCoin',
@@ -326,7 +333,8 @@ const upgrades: Upgrade[] = [
     id: 'echo',
     name: 'Echo Chamber',
     category: 'weapon',
-    description: 'Bullets live longer, move faster, and leave a resonant after-tone.',
+    bucket: 'weapons',
+    description: 'The projectile-quality bucket: longer life, more speed, and resonant wake damage.',
     max: 5,
     rarity: 70,
     catalyst: 'blackBoxSaint',
@@ -338,7 +346,8 @@ const upgrades: Upgrade[] = [
     id: 'orbit',
     name: 'Ion Moons',
     category: 'weapon',
-    description: 'Orbiting blades chew through close swarms.',
+    bucket: 'weapons',
+    description: 'The close-defense bucket: orbitals punish anything that crowds the hull.',
     max: 6,
     rarity: 72,
     catalyst: 'hungryCompass',
@@ -350,7 +359,8 @@ const upgrades: Upgrade[] = [
     id: 'mine',
     name: 'Mine Wake',
     category: 'weapon',
-    description: 'Dashing leaves unstable vector mines behind the ship.',
+    bucket: 'control',
+    description: 'The dash-control bucket: movement leaves traps and turns escapes into damage.',
     max: 5,
     rarity: 55,
     catalyst: 'forbiddenMap',
@@ -362,7 +372,8 @@ const upgrades: Upgrade[] = [
     id: 'chain',
     name: 'Static Arc',
     category: 'weapon',
-    description: 'Pulse hits can jump to nearby enemies.',
+    bucket: 'weapons',
+    description: 'The chain-reaction bucket: pulse impacts jump through tight packs.',
     max: 5,
     rarity: 50,
     catalyst: 'saintCapacitor',
@@ -374,7 +385,8 @@ const upgrades: Upgrade[] = [
     id: 'rift',
     name: 'Rift Needle',
     category: 'weapon',
-    description: 'Adds occasional slow, high-damage shots for elites.',
+    bucket: 'weapons',
+    description: 'The boss-hunter bucket: rare heavy needles punch through elite targets.',
     max: 5,
     rarity: 45,
     catalyst: 'mirrorSeed',
@@ -386,16 +398,28 @@ const upgrades: Upgrade[] = [
     id: 'engine',
     name: 'Drift Engine',
     category: 'system',
-    description: 'More speed, sharper recovery, shorter dash cooldown.',
+    bucket: 'navigation',
+    description: 'The manual handling bucket: more speed, sharper recovery, shorter dash cooldown.',
     max: 6,
     rarity: 95,
     levels: ['+18 move speed', '+8% acceleration', '-8% dash cooldown', '+18 move speed', '+0.08s dash invulnerability', '+22 move speed']
   },
   {
+    id: 'nav',
+    name: 'Nav Ghost',
+    category: 'system',
+    bucket: 'navigation',
+    description: 'The low-input autonomy bucket: the ship keeps cruising and learns what to bend toward.',
+    max: 7,
+    rarity: 82,
+    levels: ['Cruise Assist: ship keeps the last chosen heading', 'Vector Memory: stronger course hold and faster cruise', 'Planet Lock: USE locks onto the nearest planet beacon', 'Threat Weave: autopilot curves away from nearby enemies', 'Salvage Bias: idle cruise bends toward valuable drops', 'Overdrive Nav: faster cruise and sharper heading changes', 'Ghost Pilot: stronger autonomous steering when your thumb lifts']
+  },
+  {
     id: 'magnet',
     name: 'Signal Magnet',
     category: 'system',
-    description: 'Pulls XP shards and drops from farther away.',
+    bucket: 'economy',
+    description: 'The collection bucket: fewer missed shards, richer routes, more numbers vacuumed in.',
     max: 6,
     rarity: 92,
     levels: ['+62 pickup range', '+12% pickup speed', '+62 pickup range', '+12% pickup speed', '+72 pickup range', 'Vacuum pings last longer']
@@ -404,7 +428,8 @@ const upgrades: Upgrade[] = [
     id: 'shield',
     name: 'Halo Battery',
     category: 'system',
-    description: 'Adds and strengthens a regenerating shield.',
+    bucket: 'survival',
+    description: 'The mistake-forgiveness bucket: a regenerating buffer before hull damage matters.',
     max: 5,
     rarity: 78,
     levels: ['+18 max shield', '+20% shield regen', '+18 max shield', '-12% recharge delay', '+28 max shield']
@@ -413,7 +438,8 @@ const upgrades: Upgrade[] = [
     id: 'repair',
     name: 'Hull Stitcher',
     category: 'system',
-    description: 'Repairs now and increases maximum hull.',
+    bucket: 'survival',
+    description: 'The long-run hull bucket: bigger maximum hull and full repairs on install.',
     max: 5,
     rarity: 78,
     levels: ['+18 max hull and full repair', '+12% repair value', '+18 max hull and full repair', '+12% repair value', '+26 max hull and full repair']
@@ -422,7 +448,8 @@ const upgrades: Upgrade[] = [
     id: 'vampire',
     name: 'Salvage Hunger',
     category: 'system',
-    description: 'Enemy wreckage can repair hull when you are hurt.',
+    bucket: 'survival',
+    description: 'The sustain bucket: enemy wreckage can become emergency repair.',
     max: 4,
     rarity: 52,
     levels: ['+2.5% repair drop chance', '+2.5% repair drop chance', 'Repair drops pull faster', '+3.5% repair drop chance']
@@ -431,7 +458,8 @@ const upgrades: Upgrade[] = [
     id: 'survey',
     name: 'Survey Array',
     category: 'system',
-    description: 'Planet cache rumors become clearer and caches get safer.',
+    bucket: 'planetcraft',
+    description: 'The planet-reading bucket: clearer cache rumors, safer mystery boxes, better relic odds.',
     max: 4,
     rarity: 58,
     levels: ['Planet cache rumors improve', '+8% relic discovery', '-10% ambush chance', 'Hidden cache pings appear more often']
@@ -440,7 +468,8 @@ const upgrades: Upgrade[] = [
     id: 'luck',
     name: 'Luck Coil',
     category: 'system',
-    description: 'Improves rare cache rolls and chance for a fourth workbench choice.',
+    bucket: 'economy',
+    description: 'The jackpot bucket: more fourth choices, rarer rolls, and better mystery outcomes.',
     max: 5,
     rarity: 54,
     levels: ['+10% rare roll pressure', '+8% fourth choice chance', '+10% relic chance', '+8% fourth choice chance', 'Cache jackpots become more likely']
@@ -449,7 +478,8 @@ const upgrades: Upgrade[] = [
     id: 'cargo',
     name: 'Cargo Spine',
     category: 'system',
-    description: 'Planet salvage yields more scrap, crystals, and cores.',
+    bucket: 'economy',
+    description: 'The planet-profit bucket: surface salvage pays out more resources and score.',
     max: 4,
     rarity: 66,
     levels: ['+15% planet resources', '+1 core from first cache', '+15% planet resources', '+25% cache score']
@@ -458,7 +488,8 @@ const upgrades: Upgrade[] = [
     id: 'heat',
     name: 'Heat Sink',
     category: 'system',
-    description: 'Lets high fire-rate builds stay stable.',
+    bucket: 'control',
+    description: 'The weapon-tempo bucket: high fire-rate builds stay fast and stable.',
     max: 4,
     rarity: 62,
     levels: ['-3% weapon cooldown', '+8% projectile speed', '-3% weapon cooldown', 'Rail and needle shots cool faster']
@@ -467,7 +498,8 @@ const upgrades: Upgrade[] = [
     id: 'phase',
     name: 'Phase Rudder',
     category: 'system',
-    description: 'Dash gets safer and collision mistakes hurt less.',
+    bucket: 'control',
+    description: 'The panic-button bucket: safer dashes, softer collisions, stronger escape shockwaves.',
     max: 4,
     rarity: 58,
     levels: ['+0.08s dash invulnerability', '-8% collision damage', '+0.08s dash invulnerability', 'Dash shockwave knocks enemies back harder']
@@ -705,6 +737,9 @@ class VectorShooter {
   private chunks = new Map<string, SpaceChunk>()
   private stars: Vec[] = []
   private activeChunkKey = ''
+  private autoNavHeading = 0
+  private autoNavActive = false
+  private autoNavTargetPlanetId: string | null = null
   private highs: ScoreEntry[] = []
   private resources = { scrap: 0, crystal: 0, cores: 0 }
   private relics = new Set<RelicId>()
@@ -741,6 +776,7 @@ class VectorShooter {
     chain: 0,
     rift: 0,
     engine: 0,
+    nav: 0,
     magnet: 0,
     shield: 0,
     repair: 0,
@@ -1196,10 +1232,11 @@ class VectorShooter {
 
   private updatePlayer(dt: number) {
     const input = this.getInput()
-    const accel = (1680 + this.build.engine * 210) * dt
-    const maxSpeed = this.player.speed + this.build.engine * 36
-    this.player.vx += input.move.x * accel
-    this.player.vy += input.move.y * accel
+    const move = this.resolveNavigationMove(input.move, input.moveActive, dt)
+    const accel = (1680 + this.build.engine * 210 + this.build.nav * 82) * dt
+    const maxSpeed = this.player.speed + this.build.engine * 36 + this.build.nav * 18
+    this.player.vx += move.x * accel
+    this.player.vy += move.y * accel
     const speed = len(this.player.vx, this.player.vy)
     if (speed > maxSpeed) {
       this.player.vx = (this.player.vx / speed) * maxSpeed
@@ -1227,6 +1264,86 @@ class VectorShooter {
 
     if (input.firing && this.player.fireCd <= 0) this.fire()
     if (input.interact) this.tryLand()
+  }
+
+  private resolveNavigationMove(move: Vec, moveActive: boolean, dt: number): Vec {
+    const level = this.build.nav
+    if (level <= 0) return move
+
+    const manualActive = moveActive && Math.abs(move.x) + Math.abs(move.y) > 0.06
+    if (manualActive) {
+      const target = Math.atan2(move.y, move.x)
+      this.autoNavHeading = this.autoNavActive ? angleLerp(this.autoNavHeading, target, clamp(dt * (3.6 + level * 0.42), 0, 0.38)) : target
+      this.autoNavActive = true
+      this.autoNavTargetPlanetId = null
+    } else if (!this.autoNavActive) {
+      const speed = len(this.player.vx, this.player.vy)
+      this.autoNavHeading = speed > 20 ? Math.atan2(this.player.vy, this.player.vx) : this.player.angle
+      this.autoNavActive = true
+    }
+
+    const targetPlanet = this.autoNavTargetPlanetId ? this.planets.find((planet) => planet.id === this.autoNavTargetPlanetId) : null
+    if (targetPlanet) {
+      const targetAngle = Math.atan2(targetPlanet.y - this.player.y, targetPlanet.x - this.player.x)
+      this.autoNavHeading = angleLerp(this.autoNavHeading, targetAngle, clamp(dt * (1.7 + level * 0.24), 0, 0.22))
+      if (Math.sqrt(dist2(targetPlanet, this.player)) < targetPlanet.radius + 108) {
+        this.autoNavTargetPlanetId = null
+        this.toast('LANDING BEACON IN RANGE')
+      }
+    } else if (!manualActive && level >= 5) {
+      const pickup = this.bestNavigationPickup()
+      if (pickup) {
+        const targetAngle = Math.atan2(pickup.y - this.player.y, pickup.x - this.player.x)
+        this.autoNavHeading = angleLerp(this.autoNavHeading, targetAngle, clamp(dt * 0.82, 0, 0.12))
+      }
+    }
+
+    if (level >= 4) this.applyThreatWeave(dt, level)
+
+    const cruise = clamp(0.38 + level * 0.07 + (targetPlanet ? 0.12 : 0), 0.42, level >= 7 ? 0.96 : 0.88)
+    const influence = manualActive ? 0.58 + level * 0.035 : 0
+    const ghost = { x: Math.cos(this.autoNavHeading) * cruise, y: Math.sin(this.autoNavHeading) * cruise }
+    if (!manualActive) return ghost
+    const steered = { x: ghost.x + move.x * influence, y: ghost.y + move.y * influence }
+    const magnitude = len(steered.x, steered.y)
+    return magnitude > 1 ? { x: steered.x / magnitude, y: steered.y / magnitude } : steered
+  }
+
+  private bestNavigationPickup() {
+    let best: Pickup | null = null
+    let bestScore = 0
+    const reach = 760 + this.build.nav * 90 + this.build.magnet * 26
+    const reach2 = reach * reach
+    for (const pickup of this.pickups) {
+      const d = dist2(pickup, this.player)
+      if (d > reach2) continue
+      const kindValue = pickup.kind === 'chest' ? 9 : pickup.kind === 'core' ? 7 : pickup.kind === 'repair' ? 5 : pickup.kind === 'magnet' ? 4 : 1
+      const score = kindValue / Math.max(120, d)
+      if (score > bestScore) {
+        bestScore = score
+        best = pickup
+      }
+    }
+    return best
+  }
+
+  private applyThreatWeave(dt: number, level: number) {
+    let ax = 0
+    let ay = 0
+    const radius = 230 + level * 38
+    const radius2 = radius * radius
+    for (const enemy of this.enemies) {
+      const dx = this.player.x - enemy.x
+      const dy = this.player.y - enemy.y
+      const d = dx * dx + dy * dy
+      if (d <= 1 || d > radius2) continue
+      const weight = (enemy.kind === 'brute' || enemy.kind === 'warden' ? 1.45 : 1) * (1 - d / radius2)
+      ax += (dx / Math.sqrt(d)) * weight
+      ay += (dy / Math.sqrt(d)) * weight
+    }
+    if (Math.abs(ax) + Math.abs(ay) <= 0.02) return
+    const avoidAngle = Math.atan2(ay, ax)
+    this.autoNavHeading = angleLerp(this.autoNavHeading, avoidAngle, clamp(dt * (0.72 + level * 0.08), 0, 0.14))
   }
 
   private updateLanding(dt: number) {
@@ -1339,8 +1456,9 @@ class VectorShooter {
       gamepadDash ||= !!gamepad.buttons[1]?.pressed || !!gamepad.buttons[5]?.pressed
       if (gamepad.buttons[3]?.pressed) this.pressed.add('KeyE')
     }
+    const moveActive = Math.abs(mx) + Math.abs(my) > 0.04
     const move = norm(mx, my)
-    if (Math.abs(mx) + Math.abs(my) === 0) {
+    if (!moveActive) {
       move.x = 0
       move.y = 0
     }
@@ -1363,6 +1481,7 @@ class VectorShooter {
     }
     return {
       move,
+      moveActive,
       aiming,
       aimAngle,
       firing: this.keys.has('Space') || this.mouse.down || gamepadFire || aiming || autoFire || this.consumeMobileFire(),
@@ -2087,6 +2206,11 @@ class VectorShooter {
     }
     this.build[upgrade.id] = nextLevel
     if (upgrade.id === 'engine') this.player.speed += 18
+    if (upgrade.id === 'nav') {
+      this.autoNavActive = true
+      this.autoNavHeading = len(this.player.vx, this.player.vy) > 20 ? Math.atan2(this.player.vy, this.player.vx) : this.player.angle
+      if (nextLevel === 1) this.toast('NAV GHOST HAS THE STICK')
+    }
     if (upgrade.id === 'shield') {
       this.player.maxShield += 18
       this.player.shield = this.player.maxShield
@@ -2145,15 +2269,40 @@ class VectorShooter {
     if (this.player.landedCd > 0) return
     const planet = this.planets.find((p) => Math.sqrt(dist2(p, this.player)) < p.radius + 86)
     if (!planet) {
+      if (this.build.nav >= 3) {
+        const target = this.nearestPlanetBeacon()
+        if (target) {
+          this.autoNavTargetPlanetId = target.id
+          this.autoNavActive = true
+          this.autoNavHeading = Math.atan2(target.y - this.player.y, target.x - this.player.x)
+          this.toast(`NAV GHOST LOCKED: ${target.name}`)
+          this.audio.pickup()
+          return
+        }
+      }
       this.toast('NO LANDING BEACON IN RANGE')
       return
     }
     this.startLanding(planet)
   }
 
+  private nearestPlanetBeacon() {
+    let best: Planet | null = null
+    let bestD = Number.POSITIVE_INFINITY
+    for (const planet of this.planets) {
+      const d = dist2(planet, this.player)
+      if (d < bestD) {
+        bestD = d
+        best = planet
+      }
+    }
+    return best
+  }
+
   private startLanding(planet: Planet) {
     this.state = 'landing'
     this.planetChoice = planet
+    this.autoNavTargetPlanetId = null
     this.transitionTimer = 0
     this.transitionDuration = 1.35
     this.showOnly(null)
@@ -2917,6 +3066,7 @@ class VectorShooter {
     this.renderBullets(ctx)
     this.renderEnemies(ctx)
     this.renderOrbitals(ctx)
+    this.renderAutopilot(ctx)
     this.renderPlayer(ctx)
     this.renderShockwaves(ctx)
     this.renderParticles(ctx)
@@ -3506,14 +3656,46 @@ class VectorShooter {
     }
   }
 
+  private renderAutopilot(ctx: CanvasRenderingContext2D) {
+    if (this.state !== 'playing' || this.build.nav <= 0 || !this.autoNavActive) return
+    const p = this.worldToScreen(this.player.x, this.player.y)
+    const target = this.autoNavTargetPlanetId ? this.planets.find((planet) => planet.id === this.autoNavTargetPlanetId) : null
+    const color = this.build.nav >= 6 ? '#fff27a' : '#70a8ff'
+    ctx.save()
+    ctx.strokeStyle = color
+    ctx.shadowColor = color
+    ctx.shadowBlur = this.graphicsMode === 'LOW' ? 0 : 14
+    ctx.lineWidth = 1.2
+    ctx.globalAlpha = 0.62
+    ctx.setLineDash([10, 10])
+    ctx.beginPath()
+    ctx.moveTo(p.x, p.y)
+    if (target) {
+      const t = this.worldToScreen(target.x, target.y)
+      ctx.lineTo(t.x, t.y)
+      ctx.stroke()
+      ctx.setLineDash([])
+      ctx.globalAlpha = 0.78
+      ctx.beginPath()
+      ctx.arc(t.x, t.y, target.radius + 16 + Math.sin(this.stats.time * 5) * 3, 0, TAU)
+      ctx.stroke()
+    } else {
+      const length = 72 + this.build.nav * 13
+      ctx.lineTo(p.x + Math.cos(this.autoNavHeading) * length, p.y + Math.sin(this.autoNavHeading) * length)
+      ctx.stroke()
+    }
+    ctx.restore()
+  }
+
   private renderPlayer(ctx: CanvasRenderingContext2D) {
     const p = this.worldToScreen(this.player.x, this.player.y)
     const a = this.player.angle
     const engineGlow = this.build.engine + this.build.heat + this.limitBreaks.speed * 0.2
     const weaponGlow = this.build.rapid + this.build.split + this.build.rail + this.build.rift
     const hullGlow = this.build.repair + this.limitBreaks.hull
+    const navGlow = this.build.nav
     const hullColor = this.evolved.size > 0 ? '#fff27a' : weaponGlow > 8 ? '#f6fffe' : '#57fff3'
-    const exhaustColor = this.build.heat >= 3 ? '#ff9d5c' : this.build.engine >= 3 ? '#70a8ff' : '#57fff3'
+    const exhaustColor = this.build.heat >= 3 ? '#ff9d5c' : navGlow >= 5 ? '#fff27a' : this.build.engine >= 3 || navGlow > 0 ? '#70a8ff' : '#57fff3'
     ctx.save()
     ctx.translate(p.x, p.y)
     ctx.rotate(a)
@@ -3545,6 +3727,14 @@ class VectorShooter {
       ctx.lineTo(6, -4)
       ctx.moveTo(-8, 8)
       ctx.lineTo(6, 4)
+      ctx.stroke()
+      ctx.globalAlpha = 1
+    }
+    if (navGlow > 0) {
+      ctx.strokeStyle = navGlow >= 6 ? '#fff27a' : '#70a8ff'
+      ctx.globalAlpha = 0.35 + Math.min(0.25, navGlow * 0.035)
+      ctx.beginPath()
+      ctx.arc(-2, 0, 19 + navGlow * 1.8 + Math.sin(this.stats.time * 7) * 1.5, -0.8, 0.8)
       ctx.stroke()
       ctx.globalAlpha = 1
     }
@@ -4176,7 +4366,7 @@ class VectorShooter {
       return
     }
     const planet = this.planets.find((p) => Math.sqrt(dist2(p, this.player)) < p.radius + 86)
-    this.ui.touchAction.textContent = planet ? 'LAND' : 'USE'
+    this.ui.touchAction.textContent = planet ? 'LAND' : this.autoNavTargetPlanetId ? 'LOCKED' : this.build.nav >= 3 ? 'LOCK' : 'USE'
     this.ui.touchDash.textContent = 'DASH'
   }
 
@@ -4215,7 +4405,7 @@ class VectorShooter {
     grid.className = 'choice-grid'
     for (const choice of this.upgradeChoices) {
       const button = document.createElement('button')
-      button.className = `choice ${choice.kind}`
+      button.className = `choice ${choice.kind}${choice.kind === 'upgrade' ? ` ${choice.upgrade.bucket}` : ''}`
       button.innerHTML = this.choiceMarkup(choice)
       button.disabled = !this.canApplyWorkbenchChoice(choice)
       button.addEventListener('click', () => this.beginWorkbenchInstall(choice, button))
@@ -4291,7 +4481,7 @@ class VectorShooter {
       const ready = maxed && catalyst && this.relics.has(catalyst.id) && !evolved
       const chip = document.createElement('div')
       chip.className = `manifest-chip ${level > 0 ? 'owned' : 'locked'} ${maxed ? 'maxed' : ''} ${ready ? 'ready' : ''} ${evolved ? 'evolved' : ''}`
-      const route = evolved ? 'EVOLVED' : ready ? 'EVOLUTION READY' : catalyst ? `CATALYST: ${catalyst.name}` : upgrade.category.toUpperCase()
+      const route = evolved ? 'EVOLVED' : ready ? 'EVOLUTION READY' : catalyst ? `CATALYST: ${catalyst.name}` : this.bucketLabel(upgrade.bucket)
       chip.innerHTML = `<strong>${this.escape(upgrade.name)}</strong><span>${level}/${upgrade.max} ${this.escape(route)}</span>`
       chips.append(chip)
     }
@@ -4306,7 +4496,7 @@ class VectorShooter {
     if (choice.kind === 'upgrade') {
       const level = this.build[choice.upgrade.id] + 1
       const detail = choice.upgrade.levels[level - 1] ?? choice.upgrade.description
-      const tag = choice.upgrade.category === 'weapon' ? 'WEAPON' : 'SHIP'
+      const tag = `${this.bucketLabel(choice.upgrade.bucket)} // ${choice.upgrade.category === 'weapon' ? 'WEAPON' : 'SHIP'}`
       return `<strong>${this.escape(choice.upgrade.name)} ${level}/${choice.upgrade.max}</strong><em>${tag}</em><span>${this.escape(detail)}</span>`
     }
     if (choice.kind === 'evolution') {
@@ -4317,6 +4507,18 @@ class VectorShooter {
       return `<strong>${this.escape(choice.relic.name)}</strong><em>RELIC</em><span>${this.escape(choice.relic.description + downside)}</span>`
     }
     return `<strong>${this.escape(choice.name)}</strong><em>LIMIT BREAK</em><span>${this.escape(choice.description)}</span>`
+  }
+
+  private bucketLabel(bucket: UpgradeBucket) {
+    const labels: Record<UpgradeBucket, string> = {
+      weapons: 'WEAPONS',
+      navigation: 'NAVIGATION',
+      survival: 'SURVIVAL',
+      economy: 'ECONOMY',
+      planetcraft: 'PLANETCRAFT',
+      control: 'CONTROL'
+    }
+    return labels[bucket]
   }
 
   private renderPlanet(p: Planet) {
@@ -4495,6 +4697,9 @@ class VectorShooter {
     this.planets = []
     this.visitedPlanets.clear()
     this.activeChunkKey = ''
+    this.autoNavHeading = 0
+    this.autoNavActive = false
+    this.autoNavTargetPlanetId = null
     this.surface = null
     this.transitionTimer = 0
     this.pendingUpgrades = 0

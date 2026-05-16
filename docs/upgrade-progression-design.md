@@ -12,6 +12,17 @@ Vector Shooter uses Vampire Survivors-style build pressure, but moves the upgrad
 6. Maxed weapons plus matching relics can evolve into jackpot weapons.
 7. If normal upgrades run out, Limit Break keeps feeding small infinite upgrades.
 
+## Upgrade Buckets
+
+The workbench should feel like choosing a build direction, not buying tiny line items. Every upgrade belongs to a larger bucket:
+
+- **Weapons**: how the ship kills hordes, elites, and bosses.
+- **Navigation**: how much control the player has to exert, from manual drift to autonomous cruise.
+- **Survival**: shield, hull, sustain, and forgiveness.
+- **Economy**: pickup reach, resource yield, luck, and score pressure.
+- **Planetcraft**: safer/richer planet decisions and mystery-box reading.
+- **Control**: dash traps, heat tempo, phase safety, and escape tools.
+
 ## Workbench Rules
 
 - Owned upgrades are more likely to appear, so builds cohere over a run.
@@ -39,16 +50,31 @@ Vector Shooter uses Vampire Survivors-style build pressure, but moves the upgrad
 
 | System | Max | Rarity | Purpose |
 |---|---:|---:|---|
-| Drift Engine | 6 | 95 | movement speed, dash cooldown, acceleration fantasy |
-| Signal Magnet | 6 | 92 | pickup comfort and XP collection routing |
-| Halo Battery | 5 | 78 | regenerating shield and mistake forgiveness |
-| Hull Stitcher | 5 | 78 | max hull, full repairs, repair scaling |
-| Salvage Hunger | 4 | 52 | kill-to-repair drops |
-| Survey Array | 4 | 58 | safer planet caches and better relic odds |
-| Luck Coil | 5 | 54 | fourth workbench choices and better mystery boxes |
-| Cargo Spine | 4 | 66 | more scrap, crystals, cores, and cache score |
-| Heat Sink | 4 | 62 | cooldown support for fast-fire builds |
-| Phase Rudder | 4 | 58 | dash invulnerability and reduced collision damage |
+| Drift Engine | 6 | 95 | Navigation: manual speed, recovery, and dash cadence |
+| Nav Ghost | 7 | 82 | Navigation: autopilot cruise, planet lock, threat weave, salvage bias |
+| Signal Magnet | 6 | 92 | Economy: pickup comfort and XP collection routing |
+| Halo Battery | 5 | 78 | Survival: regenerating shield and mistake forgiveness |
+| Hull Stitcher | 5 | 78 | Survival: max hull, full repairs, repair scaling |
+| Salvage Hunger | 4 | 52 | Survival: kill-to-repair drops |
+| Survey Array | 4 | 58 | Planetcraft: safer planet caches and better relic odds |
+| Luck Coil | 5 | 54 | Economy: fourth workbench choices and better mystery boxes |
+| Cargo Spine | 4 | 66 | Economy: more scrap, crystals, cores, and cache score |
+| Heat Sink | 4 | 62 | Control: cooldown support for fast-fire builds |
+| Phase Rudder | 4 | 58 | Control: dash invulnerability and reduced collision damage |
+
+## Nav Ghost Progression
+
+Nav Ghost is the low-input/incremental bridge. It lets the player steer the build and route rather than constantly micro-steering the ship.
+
+| Rank | Unlock | Player Effect |
+|---:|---|---|
+| 1 | Cruise Assist | Releasing movement keeps the ship travelling in the last selected heading. |
+| 2 | Vector Memory | Autopilot holds course harder and cruises faster. |
+| 3 | Planet Lock | `USE`/`LOCK` away from a landing zone sets a course to the nearest planet beacon. |
+| 4 | Threat Weave | The heading subtly bends away from nearby enemies. |
+| 5 | Salvage Bias | When idle and unlocked, the heading bends toward valuable pickups. |
+| 6 | Overdrive Nav | Cruise speed and heading response increase. |
+| 7 | Ghost Pilot | Autonomous steering becomes strong enough to feel like a build identity. |
 
 ## Planet Relics
 

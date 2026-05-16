@@ -638,6 +638,24 @@ canvas {
   background: rgba(4, 10, 24, 0.8);
 }
 
+.choice.navigation {
+  border-color: rgba(112, 168, 255, 0.78);
+  background: rgba(4, 12, 30, 0.82);
+}
+
+.choice.survival {
+  border-color: rgba(143, 255, 125, 0.68);
+}
+
+.choice.economy,
+.choice.planetcraft {
+  border-color: rgba(255, 242, 122, 0.58);
+}
+
+.choice.control {
+  border-color: rgba(185, 144, 255, 0.62);
+}
+
 .install-banner {
   display: none;
   margin-top: 12px;

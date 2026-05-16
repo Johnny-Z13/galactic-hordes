@@ -6,6 +6,7 @@ Vector Shooter is a mobile-first portrait survival shooter: Vampire Survivors pr
 
 - Portrait-first 2D canvas game built with Vite and TypeScript.
 - Thumb-anywhere mobile movement: drag in the playfield to steer.
+- Optional `Nav Ghost` autopilot upgrade: release your thumb and the ship keeps cruising, then bend the route when you touch again.
 - Auto-targeting ship fire with keyboard, touch, mouse, and gamepad support.
 - Planet landing transitions into on-foot surface salvage.
 - Endless procedural space sectors with deterministic planets and starfields.
@@ -24,8 +25,10 @@ Vector Shooter is a mobile-first portrait survival shooter: Vampire Survivors pr
 The default experience is designed for an iPhone-style portrait screen.
 
 - Drag anywhere in the playfield to move.
+- With `Nav Ghost`, drag to set a cruise heading; when you release, the ship keeps travelling.
 - The ship auto-fires at nearby enemies.
 - Tap `LAND` near a planet.
+- At `Nav Ghost` rank 3+, tap `LOCK` away from a planet to auto-travel toward the nearest beacon.
 - On a planet, tap `BOARD` near the ship to leave.
 - Tap `DASH` in space.
 - Tap `SHOOT` on planet surfaces.
@@ -69,6 +72,15 @@ Vector Shooter does not open upgrade choices immediately on level-up. XP banks m
 5. Spend banked mutation signals at the workbench.
 
 Workbench choices are weighted by rarity and biased toward upgrades already owned. Maxed upgrades disappear. If a maxed weapon has the right planet relic, an evolution can appear as a jackpot choice.
+
+Upgrades are grouped into bigger build buckets:
+
+- `WEAPONS`: fire pattern, damage shape, pierce, orbitals, elites, chains.
+- `NAVIGATION`: manual speed and the `Nav Ghost` low-input cruise brain.
+- `SURVIVAL`: shields, hull, sustain, and mistake recovery.
+- `ECONOMY`: pickups, luck, cargo, and planet profit.
+- `PLANETCRAFT`: reading planets and making mystery boxes safer/richer.
+- `CONTROL`: dash traps, heat tempo, phase safety, and escape tools.
 
 See [docs/upgrade-progression-design.md](docs/upgrade-progression-design.md) for the full progression design.
 
