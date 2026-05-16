@@ -954,6 +954,7 @@ class VectorShooter {
     wave: document.createElement('span'),
     high: document.createElement('span'),
     resources: document.createElement('span'),
+    hullFill: document.createElement('div'),
     xpFill: document.createElement('div'),
     toast: document.createElement('div'),
     perf: document.createElement('div'),
@@ -1023,15 +1024,34 @@ class VectorShooter {
     hud.className = 'hud'
     const top = document.createElement('div')
     top.className = 'topbar'
+    const meters = document.createElement('div')
+    meters.className = 'hud-meters'
+    meters.append(this.meter('HULL', this.ui.hull, this.ui.hullFill, 'health'), this.meter('XP', this.ui.level, this.ui.xpFill, 'xp'))
     const left = document.createElement('div')
     left.className = 'hud-cluster hud-cluster-left'
-    left.append(this.chip('HULL', this.ui.hull, 'vital'), this.chip('TIME', this.ui.time), this.chip('SCORE', this.ui.score))
-    this.ui.xpFill.className = 'xp-fill'
+    left.append(this.chip('TIME', this.ui.time), this.chip('SCORE', this.ui.score))
     this.ui.toast.className = 'toast'
     this.ui.perf.className = 'perf'
     hud.append(top, this.ui.toast, this.makeTouchControls())
-    top.append(left)
+    top.append(meters, left)
     return hud
+  }
+
+  private meter(label: string, value: HTMLElement, fill: HTMLElement, tone: string) {
+    const meter = document.createElement('div')
+    meter.className = `hud-meter ${tone}`
+    const meta = document.createElement('div')
+    meta.className = 'hud-meter-meta'
+    const labelEl = document.createElement('span')
+    labelEl.textContent = label
+    value.className = 'hud-meter-value'
+    meta.append(labelEl, value)
+    const bar = document.createElement('div')
+    bar.className = 'hud-meter-bar'
+    fill.className = `hud-meter-fill ${tone}`
+    bar.append(fill)
+    meter.append(meta, bar)
+    return meter
   }
 
   private makeTouchControls() {
@@ -4807,12 +4827,13 @@ class VectorShooter {
   private updateHud() {
     this.ui.score.textContent = Math.floor(this.stats.score).toString()
     this.ui.time.textContent = formatTime(this.stats.time)
-    this.ui.level.textContent = this.stats.level.toString()
+    this.ui.level.textContent = `LV ${this.stats.level}`
     this.ui.wave.textContent = this.stats.kills.toString()
     const shield = this.player.maxShield > 0 ? ` +${Math.floor(this.player.shield)}` : ''
     this.ui.hull.textContent = `${Math.ceil(Math.max(0, this.player.hull))}/${this.player.maxHull}${shield}`
     this.ui.high.textContent = Math.max(this.stats.highScore, this.stats.score).toString()
     this.ui.resources.textContent = `S ${this.resources.scrap} C ${this.resources.crystal} K ${this.resources.cores}`
+    this.ui.hullFill.style.width = `${clamp((Math.max(0, this.player.hull) / this.player.maxHull) * 100, 0, 100)}%`
     this.ui.xpFill.style.width = `${clamp((this.stats.xp / this.stats.nextXp) * 100, 0, 100)}%`
     this.updateTouchHud()
     this.updatePerfHud()
