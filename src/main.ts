@@ -586,11 +586,58 @@ const formatTime = (seconds: number) => {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+type PlanetAudioMood = Planet['archetype'] | 'deepSpace' | 'title'
+type WeaponSoundKind = 'pulse' | 'prism' | 'rail' | 'needle' | 'surface'
+type AudioUpgradeCue = UpgradeBucket | 'evolution' | 'relic' | 'limit'
+type ExplosionSoundKind = 'small' | 'heavy' | 'surface' | 'gameover'
+type PickupSoundKind = PickupKind | SurfaceResourceKind | 'gift' | 'nav'
+
+interface PlanetMoodProfile {
+  root: number
+  chord: [number, number, number]
+  noise: number
+  pulse: number
+  wobble: number
+  filter: number
+}
+
+interface WeaponSoundProfile {
+  base: number
+  upper: number
+  wave: OscillatorType
+  duration: number
+  bend: number
+  gain: number
+  noise: number
+  filter: number
+}
+
 class AudioDirector {
   private context: AudioContext | null = null
   private master: GainNode | null = null
+  private sfx: GainNode | null = null
+  private bed: GainNode | null = null
   private musicTimer = 0
+  private ambientTimer = 0
+  private mood: PlanetAudioMood = 'title'
   private unlocked = false
+  private planetMoods: Record<PlanetAudioMood, PlanetMoodProfile> = {
+    title: { root: 55, chord: [0, 7, 12], noise: 0.012, pulse: 0.6, wobble: 0.4, filter: 820 },
+    deepSpace: { root: 44, chord: [0, 5, 12], noise: 0.016, pulse: 0.48, wobble: 0.65, filter: 620 },
+    cache: { root: 58, chord: [0, 7, 14], noise: 0.018, pulse: 0.68, wobble: 0.5, filter: 980 },
+    hostile: { root: 41, chord: [0, 1, 7], noise: 0.03, pulse: 0.36, wobble: 0.9, filter: 520 },
+    repair: { root: 62, chord: [0, 5, 9], noise: 0.01, pulse: 0.82, wobble: 0.28, filter: 1180 },
+    relic: { root: 49, chord: [0, 7, 11], noise: 0.02, pulse: 0.52, wobble: 0.72, filter: 760 },
+    strange: { root: 46, chord: [0, 6, 13], noise: 0.024, pulse: 0.44, wobble: 1.1, filter: 690 },
+    lore: { root: 52, chord: [0, 3, 10], noise: 0.014, pulse: 0.72, wobble: 0.8, filter: 880 }
+  }
+  private weaponProfiles: Record<WeaponSoundKind, WeaponSoundProfile> = {
+    pulse: { base: 310, upper: 890, wave: 'square', duration: 0.044, bend: 46, gain: 0.034, noise: 0.009, filter: 2500 },
+    prism: { base: 420, upper: 1220, wave: 'triangle', duration: 0.052, bend: 82, gain: 0.032, noise: 0.006, filter: 3400 },
+    rail: { base: 145, upper: 1480, wave: 'sawtooth', duration: 0.09, bend: -36, gain: 0.052, noise: 0.026, filter: 2100 },
+    needle: { base: 760, upper: 1900, wave: 'square', duration: 0.065, bend: 180, gain: 0.038, noise: 0.014, filter: 3800 },
+    surface: { base: 238, upper: 720, wave: 'square', duration: 0.048, bend: 24, gain: 0.04, noise: 0.018, filter: 1800 }
+  }
 
   unlock() {
     if (this.unlocked) return
@@ -598,102 +645,181 @@ class AudioDirector {
     if (!AudioCtor) return
     this.context = new AudioCtor()
     this.master = this.context.createGain()
+    this.sfx = this.context.createGain()
+    this.bed = this.context.createGain()
     this.master.gain.value = 0.36
+    this.sfx.gain.value = 1
+    this.bed.gain.value = 0.55
     const limiter = this.context.createDynamicsCompressor()
     limiter.threshold.value = -18
     limiter.ratio.value = 9
     limiter.attack.value = 0.004
     limiter.release.value = 0.16
+    this.sfx.connect(this.master)
+    this.bed.connect(this.master)
     this.master.connect(limiter)
     limiter.connect(this.context.destination)
     this.unlocked = true
   }
 
-  update(dt: number, intensity: number) {
-    if (!this.context || !this.master) return
+  update(dt: number, intensity: number, mood: PlanetAudioMood) {
+    if (!this.context || !this.master || !this.bed) return
+    const bed = this.bed
+    this.mood = mood
+    this.ambientTimer -= dt
     this.musicTimer -= dt
+    if (this.ambientTimer <= 0) {
+      this.ambientTimer = this.emitAmbientMood(mood, intensity)
+    }
     if (this.musicTimer <= 0) {
-      this.musicTimer = clamp(0.7 - intensity * 0.22, 0.3, 0.7)
-      const note = 60 + Math.floor(Math.random() * 5) * 7 + Math.floor(intensity * 10)
-      this.tone(note, 0.08, 'sawtooth', 0.022, 0.04, -18)
-      if (Math.random() < 0.42) this.noise(0.06, 0.018, -22)
+      const profile = this.planetMoods[mood]
+      this.musicTimer = clamp(profile.pulse - intensity * 0.2, 0.24, 0.9)
+      const semitone = profile.chord[Math.floor(Math.random() * profile.chord.length)] + Math.floor(intensity * 5)
+      const note = this.note(profile.root, semitone)
+      this.tone(note, 0.075, 'sawtooth', 0.024, 0.035, -18, { destination: bed, filter: profile.filter + note })
+      if (Math.random() < 0.36 + intensity * 0.24) this.noise(0.055, profile.noise, -23, { destination: bed, filter: profile.filter, type: 'bandpass' })
     }
   }
 
-  fire(power: number) {
-    this.tone(300 + power * 18, 0.045, 'square', 0.035, 0.01, -12)
-    this.tone(880 + power * 40, 0.035, 'triangle', 0.018, 0.005, -17)
+  fire(kind: WeaponSoundKind, power: number) {
+    const profile = this.weaponProfiles[kind]
+    const drive = Math.min(9, power)
+    const low = profile.base + drive * 14
+    const high = profile.upper + drive * 28
+    this.tone(low, profile.duration, profile.wave, profile.gain, 0.006, kind === 'rail' ? -10 : -12, { filter: profile.filter, bend: profile.bend })
+    this.tone(high, profile.duration * 0.72, kind === 'prism' ? 'sine' : 'triangle', profile.gain * 0.46, 0.004, kind === 'needle' ? -13 : -16, { filter: profile.filter + 900, bend: profile.bend * 0.5 })
+    if (profile.noise > 0) this.noise(profile.duration * 0.75, profile.noise, kind === 'rail' ? -14 : -19, { filter: profile.filter * 0.72, type: kind === 'surface' ? 'highpass' : 'bandpass' })
   }
 
   hit() {
-    this.noise(0.055, 0.09, -12)
-    this.tone(90, 0.09, 'sawtooth', 0.05, 0.012, -14)
+    this.noise(0.055, 0.09, -12, { filter: 740, type: 'bandpass' })
+    this.tone(90, 0.09, 'sawtooth', 0.05, 0.012, -14, { bend: -22, filter: 900 })
   }
 
-  pickup() {
-    this.tone(660 + Math.random() * 220, 0.08, 'sine', 0.034, 0.012, -15)
+  pickup(kind: PickupSoundKind = 'xp') {
+    const base = {
+      xp: 760,
+      repair: 520,
+      magnet: 980,
+      core: 620,
+      chest: 430,
+      crystal: 840,
+      scrap: 360,
+      cache: 560,
+      gift: 700,
+      nav: 1040
+    }[kind]
+    const wave: OscillatorType = kind === 'scrap' || kind === 'chest' ? 'square' : kind === 'repair' ? 'triangle' : 'sine'
+    this.tone(base + Math.random() * 70, 0.075, wave, 0.034, 0.01, -15, { filter: base * 3, bend: kind === 'magnet' || kind === 'nav' ? 120 : 22 })
+    if (kind === 'chest' || kind === 'cache' || kind === 'core') this.tone(base * 1.5, 0.11, 'triangle', 0.026, 0.018, -17, { filter: 2400 })
   }
 
   level() {
-    this.tone(360, 0.12, 'triangle', 0.05, 0.02, -12)
-    setTimeout(() => this.tone(540, 0.14, 'triangle', 0.055, 0.02, -12), 70)
-    setTimeout(() => this.tone(810, 0.18, 'triangle', 0.07, 0.02, -12), 140)
+    this.tone(360, 0.12, 'triangle', 0.05, 0.02, -12, { filter: 1800 })
+    setTimeout(() => this.tone(540, 0.14, 'triangle', 0.055, 0.02, -12, { filter: 2200 }), 70)
+    setTimeout(() => this.tone(810, 0.18, 'triangle', 0.07, 0.02, -12, { filter: 2800 }), 140)
   }
 
-  install(rare = false) {
-    this.tone(520, 0.08, 'triangle', 0.04, 0.008, rare ? -10 : -13)
-    setTimeout(() => this.tone(760, 0.1, 'square', 0.03, 0.006, rare ? -11 : -15), 55)
-    setTimeout(() => this.tone(1120, 0.12, 'sine', 0.032, 0.006, rare ? -10 : -14), 120)
-    if (rare) this.noise(0.08, 0.075, -17)
+  install(cue: AudioUpgradeCue, rare = false) {
+    const root = {
+      weapons: 520,
+      navigation: 680,
+      survival: 390,
+      economy: 760,
+      planetcraft: 470,
+      control: 610,
+      evolution: 300,
+      relic: 260,
+      limit: 860
+    }[cue]
+    const wave: OscillatorType = cue === 'weapons' || cue === 'control' ? 'square' : cue === 'relic' || cue === 'evolution' ? 'sawtooth' : 'triangle'
+    this.tone(root, 0.08, wave, 0.043, 0.008, rare ? -10 : -13, { filter: 1900, bend: cue === 'evolution' ? 120 : 34 })
+    setTimeout(() => this.tone(root * (cue === 'survival' ? 1.34 : 1.5), 0.1, 'square', 0.03, 0.006, rare ? -11 : -15, { filter: 2600 }), 55)
+    setTimeout(() => this.tone(root * (rare ? 2.08 : 1.88), 0.13, 'sine', 0.034, 0.006, rare ? -10 : -14, { filter: 3400 }), 120)
+    if (rare) this.noise(0.1, 0.08, -17, { filter: cue === 'relic' ? 920 : 1700, type: 'bandpass' })
   }
 
-  boom(big = false) {
-    this.noise(big ? 0.28 : 0.16, big ? 0.18 : 0.1, big ? -8 : -12)
-    this.tone(big ? 56 : 92, big ? 0.34 : 0.18, 'sawtooth', big ? 0.08 : 0.04, 0.02, big ? -8 : -13)
+  boom(kind: ExplosionSoundKind = 'small') {
+    const big = kind === 'heavy' || kind === 'gameover'
+    const surface = kind === 'surface'
+    this.noise(big ? 0.34 : surface ? 0.2 : 0.16, big ? 0.2 : 0.11, big ? -8 : -12, { filter: big ? 520 : 880, type: 'lowpass' })
+    this.noise(big ? 0.16 : 0.08, big ? 0.1 : 0.046, big ? -14 : -18, { filter: big ? 1600 : 2400, type: 'bandpass' })
+    this.tone(big ? 52 : surface ? 74 : 92, big ? 0.36 : 0.18, 'sawtooth', big ? 0.09 : 0.044, 0.018, big ? -8 : -13, { bend: big ? -28 : -16, filter: big ? 760 : 1100 })
+    if (kind === 'gameover') setTimeout(() => this.tone(38, 0.55, 'triangle', 0.07, 0.04, -12, { bend: -10, filter: 620 }), 120)
   }
 
   land() {
-    this.tone(160, 0.15, 'sine', 0.05, 0.02, -16)
-    this.tone(240, 0.22, 'triangle', 0.045, 0.03, -15)
+    this.tone(160, 0.15, 'sine', 0.05, 0.02, -16, { bend: -22, filter: 900 })
+    this.tone(240, 0.22, 'triangle', 0.045, 0.03, -15, { bend: -38, filter: 1300 })
+    this.noise(0.12, 0.04, -20, { filter: 620, type: 'lowpass' })
   }
 
-  private tone(freq: number, duration: number, type: OscillatorType, gain: number, attack: number, db: number) {
-    if (!this.context || !this.master) return
+  planetSignal(mood: PlanetAudioMood) {
+    const profile = this.planetMoods[mood]
+    for (let i = 0; i < profile.chord.length; i += 1) {
+      const note = this.note(profile.root, profile.chord[i] + 12)
+      setTimeout(() => this.tone(note, 0.12, i === 1 ? 'square' : 'triangle', 0.032, 0.014, -15, { filter: profile.filter + note * 2, bend: profile.wobble * 16 }), i * 68)
+    }
+    this.noise(0.11, profile.noise * 2.6, -21, { filter: profile.filter, type: 'bandpass' })
+  }
+
+  private emitAmbientMood(mood: PlanetAudioMood, intensity: number) {
+    if (!this.bed) return 1
+    const bed = this.bed
+    const profile = this.planetMoods[mood]
+    const chord = profile.chord[Math.floor(Math.random() * profile.chord.length)]
+    const low = this.note(profile.root, chord - 12)
+    const dur = clamp(0.9 + Math.random() * 0.75 - intensity * 0.24, 0.44, 1.45)
+    this.tone(low + rand(-profile.wobble * 3, profile.wobble * 3), dur, mood === 'hostile' ? 'sawtooth' : 'triangle', 0.024, 0.08, -24, { destination: bed, filter: profile.filter, bend: rand(-profile.wobble * 18, profile.wobble * 18) })
+    if (Math.random() < 0.62) this.noise(0.08 + profile.noise * 4, profile.noise, -25, { destination: bed, filter: profile.filter + rand(-120, 220), type: mood === 'repair' ? 'lowpass' : 'bandpass' })
+    return clamp(profile.pulse * 1.65 + Math.random() * 0.5, 0.55, 1.8)
+  }
+
+  private note(root: number, semitones: number) {
+    return root * Math.pow(2, semitones / 12)
+  }
+
+  private tone(freq: number, duration: number, type: OscillatorType, gain: number, attack: number, db: number, options: { bend?: number; filter?: number; destination?: AudioNode } = {}) {
+    if (!this.context || !this.sfx) return
     const now = this.context.currentTime
     const osc = this.context.createOscillator()
     const filter = this.context.createBiquadFilter()
     const amp = this.context.createGain()
     osc.type = type
     osc.frequency.setValueAtTime(freq, now)
+    if (options.bend) osc.frequency.exponentialRampToValueAtTime(Math.max(24, freq + options.bend), now + duration)
     filter.type = 'lowpass'
-    filter.frequency.setValueAtTime(1800 + freq, now)
+    filter.frequency.setValueAtTime(options.filter ?? 1800 + freq, now)
     amp.gain.setValueAtTime(0.0001, now)
     amp.gain.exponentialRampToValueAtTime(gain * Math.pow(10, db / 20), now + attack)
     amp.gain.exponentialRampToValueAtTime(0.0001, now + duration)
     osc.connect(filter)
     filter.connect(amp)
-    amp.connect(this.master)
+    amp.connect(options.destination ?? this.sfx)
     osc.start(now)
     osc.stop(now + duration + 0.02)
   }
 
-  private noise(duration: number, gain: number, db: number) {
-    if (!this.context || !this.master) return
+  private noise(duration: number, gain: number, db: number, options: { filter?: number; type?: BiquadFilterType; destination?: AudioNode } = {}) {
+    if (!this.context || !this.sfx) return
     const now = this.context.currentTime
     const buffer = this.context.createBuffer(1, this.context.sampleRate * duration, this.context.sampleRate)
     const data = buffer.getChannelData(0)
-    for (let i = 0; i < data.length; i += 1) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length)
+    for (let i = 0; i < data.length; i += 1) {
+      const crush = i % 5 === 0 ? Math.random() * 2 - 1 : data[i - 1] || 0
+      data[i] = crush * (1 - i / data.length)
+    }
     const source = this.context.createBufferSource()
     const filter = this.context.createBiquadFilter()
     const amp = this.context.createGain()
     source.buffer = buffer
-    filter.type = 'bandpass'
-    filter.frequency.value = 420 + Math.random() * 1400
+    filter.type = options.type ?? 'bandpass'
+    filter.frequency.value = options.filter ?? 420 + Math.random() * 1400
     filter.Q.value = 1.8
     amp.gain.value = gain * Math.pow(10, db / 20)
     source.connect(filter)
     filter.connect(amp)
-    amp.connect(this.master)
+    amp.connect(options.destination ?? this.sfx)
     source.start(now)
   }
 }
@@ -1180,7 +1306,7 @@ class VectorShooter {
 
   private update(dt: number) {
     const intensity = this.state === 'surface' ? 0.18 : clamp(this.stats.time / 360 + this.enemies.length / 120, 0, 1)
-    this.audio.update(dt, intensity)
+    this.audio.update(dt, intensity, this.audioMood())
     if (this.state === 'landing') {
       this.updateLanding(dt)
       return
@@ -1234,6 +1360,23 @@ class VectorShooter {
     this.updateCamera(dt)
     this.updateHud()
     if (this.player.hull <= 0) this.gameOver()
+  }
+
+  private audioMood(): PlanetAudioMood {
+    if (this.state === 'title' || this.state === 'scores' || this.state === 'gameover') return 'title'
+    if (this.surface) return this.surface.planet.archetype
+    if (this.planetChoice) return this.planetChoice.archetype
+    let best: Planet | null = null
+    let bestD = Number.POSITIVE_INFINITY
+    for (const planet of this.planets) {
+      const d = dist2(planet, this.player)
+      if (d < bestD) {
+        bestD = d
+        best = planet
+      }
+    }
+    if (best && bestD < (best.radius + 760) ** 2) return best.archetype
+    return 'deepSpace'
   }
 
   private drawTitleDrift(dt: number) {
@@ -1629,7 +1772,14 @@ class VectorShooter {
         chain: storm ? 2 : 0
       })
     }
-    this.audio.fire(this.stats.level + rapid)
+    this.audio.fire(this.weaponSoundKind(rail, needle, count), this.stats.level + rapid)
+  }
+
+  private weaponSoundKind(rail: boolean, needle: boolean, count: number): WeaponSoundKind {
+    if (needle) return 'needle'
+    if (rail) return 'rail'
+    if (count > 1 || this.build.split > 0) return 'prism'
+    return 'pulse'
   }
 
   private updateBullets(dt: number) {
@@ -1990,7 +2140,7 @@ class VectorShooter {
     const big = e.kind === 'warden' || e.kind === 'brute'
     const highLoad = this.isHighLoad()
     if (big || !highLoad || this.collisionFxCooldown <= 0) {
-      this.audio.boom(big)
+      this.audio.boom(big ? 'heavy' : 'small')
       this.camera.shake = Math.max(this.camera.shake, big ? 16 : highLoad ? 2 : 5)
       this.burst(e.x, e.y, e.color, big ? 42 : highLoad ? 4 : 12, big ? 330 : highLoad ? 120 : 150)
       this.collisionFxCooldown = highLoad ? 0.04 : 0
@@ -2085,7 +2235,7 @@ class VectorShooter {
   }
 
   private collect(p: Pickup) {
-    this.audio.pickup()
+    this.audio.pickup(p.kind)
     if (p.kind === 'xp') {
       this.stats.xp += p.value
       this.stats.score += p.value
@@ -2293,7 +2443,7 @@ class VectorShooter {
           this.autoNavActive = true
           this.autoNavHeading = Math.atan2(target.y - this.player.y, target.x - this.player.x)
           this.toast(`NAV GHOST LOCKED: ${target.name}`)
-          this.audio.pickup()
+          this.audio.pickup('nav')
           return
         }
       }
@@ -2324,6 +2474,7 @@ class VectorShooter {
     this.transitionDuration = 1.35
     this.showOnly(null)
     this.audio.land()
+    this.audio.planetSignal(planet.archetype)
     this.surface = this.createSurfaceRun(planet)
     this.player.vx *= 0.1
     this.player.vy *= 0.1
@@ -2692,7 +2843,7 @@ class VectorShooter {
       if ((resource.x - this.surface.pilot.x) ** 2 + (resource.y - this.surface.pilot.y) ** 2 > rr * rr) continue
       resource.collected = true
       this.surface.collected += 1
-      this.audio.pickup()
+      this.audio.pickup(resource.kind)
       this.burst(resource.x, resource.y, resource.color, resource.kind === 'cache' ? 22 : 10, resource.kind === 'cache' ? 240 : 140)
       if (resource.kind === 'crystal') {
         const gained = Math.ceil(resource.value * (1 + this.build.cargo * 0.15))
@@ -2790,7 +2941,7 @@ class VectorShooter {
       }
       if (threat.hp <= 0) {
         this.burst(threat.x, threat.y, threat.color, threat.boss ? 42 : 24, threat.boss ? 360 : 260)
-        this.audio.boom(false)
+        this.audio.boom(threat.boss ? 'heavy' : 'surface')
         this.stats.score += threat.boss ? 1200 : 160
         if (threat.boss) this.dropSurfaceBossCache(threat)
         this.surface.threats.splice(i, 1)
@@ -2960,7 +3111,7 @@ class VectorShooter {
       this.stats.score += 900
       this.surface.message = 'THE COIN LANDS EDGE-UP. IMPOSSIBLE. PROFITABLE.'
     }
-    this.audio.pickup()
+    this.audio.pickup('gift')
     this.burst(alien.x, alien.y, alien.color, 22, 220)
     this.toast('ALIEN GIFT ACCEPTED')
   }
@@ -2994,7 +3145,7 @@ class VectorShooter {
       this.damagePlayer(12)
       this.surface.message = 'THE COIN LANDS ON A SIDE YOU DO NOT HAVE.'
     }
-    this.audio.boom(false)
+    this.audio.boom('surface')
     this.burst(alien.x, alien.y, '#ff5d73', 24, 240)
     this.toast('ALIEN GIFT WAS BAD')
   }
@@ -3047,7 +3198,7 @@ class VectorShooter {
       : this.surface.pilot.facing
     this.surface.pilot.facing = angle
     this.surface.pilot.gunCd = 0.22
-    this.audio.fire(1)
+    this.audio.fire('surface', 1)
     const muzzleX = this.surface.pilot.x + Math.cos(angle) * 19
     const muzzleY = this.surface.pilot.y + Math.sin(angle) * 19
     const speed = 540
@@ -4659,7 +4810,7 @@ class VectorShooter {
     }
     this.workbenchInstalling = true
     const rare = choice.kind !== 'upgrade' || choice.upgrade.rarity < 65
-    this.audio.install(rare)
+    this.audio.install(this.installCueFor(choice), rare)
     this.camera.shake = Math.max(this.camera.shake, rare ? 10 : 6)
     const color = choice.kind === 'evolution' || choice.kind === 'relic' ? '#fff27a' : choice.kind === 'limit' ? '#70a8ff' : choice.upgrade.category === 'weapon' ? '#57fff3' : '#8fff7d'
     const anchor = this.surface?.ship ?? this.player
@@ -4672,6 +4823,11 @@ class VectorShooter {
       banner.classList.add('visible')
     }
     window.setTimeout(() => this.applyWorkbenchChoice(choice), rare ? 760 : 560)
+  }
+
+  private installCueFor(choice: WorkbenchChoice): AudioUpgradeCue {
+    if (choice.kind === 'upgrade') return choice.upgrade.bucket
+    return choice.kind
   }
 
   private canApplyWorkbenchChoice(choice: WorkbenchChoice) {
@@ -4860,7 +5016,7 @@ class VectorShooter {
 
   private gameOver() {
     this.state = 'gameover'
-    this.audio.boom(true)
+    this.audio.boom('gameover')
     this.renderGameOver()
   }
 
