@@ -854,7 +854,6 @@ class VectorShooter {
   private previousState: GameState = 'title'
   private graphicsMode: GraphicsMode = (localStorage.getItem('vector_shooter_graphics') as GraphicsMode) || 'LOW'
   private perf: PerfStats = { updateMs: 0, renderMs: 0, frameMs: 16.7, fps: 60 }
-  private perfVisible = true
   private keys = new Set<string>()
   private pressed = new Set<string>()
   private mouse = { x: 0, y: 0, down: false }
@@ -980,8 +979,8 @@ class VectorShooter {
     this.mini.className = 'minimap'
     this.miniCtx = this.mini.getContext('2d')!
     shell.append(this.canvas)
-    shell.append(this.makeHud())
     shell.append(this.mini)
+    shell.append(this.makeHud())
     shell.append(this.makeScreens())
     this.app.append(shell)
     this.resize()
@@ -1026,20 +1025,12 @@ class VectorShooter {
     top.className = 'topbar'
     const left = document.createElement('div')
     left.className = 'hud-cluster hud-cluster-left'
-    const right = document.createElement('div')
-    right.className = 'hud-cluster hud-cluster-right'
-    left.append(this.chip('SCORE', this.ui.score), this.chip('TIME', this.ui.time), this.chip('KILLS', this.ui.wave))
-    right.append(this.chip('HULL', this.ui.hull, 'vital'), this.chip('SALVAGE', this.ui.resources, 'wide'), this.chip('HIGH', this.ui.high))
-    const xp = document.createElement('div')
-    xp.className = 'xp-wrap'
-    xp.innerHTML = `<div class="xp-title"><span>LEVEL <b></b></span><span>XP SIGNAL</span></div><div class="xp-bar"></div>`
-    xp.querySelector('b')!.replaceWith(this.ui.level)
-    xp.querySelector('.xp-bar')!.append(this.ui.xpFill)
+    left.append(this.chip('HULL', this.ui.hull, 'vital'), this.chip('TIME', this.ui.time), this.chip('SCORE', this.ui.score))
     this.ui.xpFill.className = 'xp-fill'
     this.ui.toast.className = 'toast'
     this.ui.perf.className = 'perf'
-    hud.append(top, this.ui.toast, this.ui.perf, this.makeTouchControls())
-    top.append(left, xp, right)
+    hud.append(top, this.ui.toast, this.makeTouchControls())
+    top.append(left)
     return hud
   }
 
@@ -1229,7 +1220,6 @@ class VectorShooter {
       this.keys.add(e.code)
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault()
       if (e.code === 'Escape') this.togglePause()
-      if (e.code === 'KeyP') this.perfVisible = !this.perfVisible
       if (e.code === 'Enter' && this.state === 'title') this.start()
       if (e.code === 'Enter' && this.state === 'gameover') this.restartFromGameOver()
     })
@@ -4829,8 +4819,7 @@ class VectorShooter {
   }
 
   private updatePerfHud() {
-    this.ui.perf.classList.toggle('visible', this.perfVisible)
-    this.ui.perf.textContent = `${this.graphicsMode} ${this.perf.fps.toFixed(0)}fps U${this.perf.updateMs.toFixed(1)} R${this.perf.renderMs.toFixed(1)} E${this.enemies.length} B${this.bullets.length} P${this.particles.length}`
+    this.ui.perf.textContent = ''
   }
 
   private updateTouchHud() {
