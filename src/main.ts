@@ -632,6 +632,8 @@ class AudioDirector {
   private master: GainNode | null = null
   private sfx: GainNode | null = null
   private bed: GainNode | null = null
+  private weaponBus: GainNode | null = null
+  private flangerLfo: OscillatorNode | null = null
   private musicTimer = 0
   private ambientTimer = 0
   private mood: PlanetAudioMood = 'title'
@@ -665,6 +667,7 @@ class AudioDirector {
     this.master.gain.value = 0.36
     this.sfx.gain.value = 1
     this.bed.gain.value = 0.55
+    this.setupWeaponFlanger()
     const limiter = this.context.createDynamicsCompressor()
     limiter.threshold.value = -18
     limiter.ratio.value = 9
@@ -701,9 +704,10 @@ class AudioDirector {
     const drive = Math.min(9, power)
     const low = profile.base + drive * 14
     const high = profile.upper + drive * 28
-    this.tone(low, profile.duration, profile.wave, profile.gain, 0.006, kind === 'rail' ? -10 : -12, { filter: profile.filter, bend: profile.bend })
-    this.tone(high, profile.duration * 0.72, kind === 'prism' ? 'sine' : 'triangle', profile.gain * 0.46, 0.004, kind === 'needle' ? -13 : -16, { filter: profile.filter + 900, bend: profile.bend * 0.5 })
-    if (profile.noise > 0) this.noise(profile.duration * 0.75, profile.noise, kind === 'rail' ? -14 : -19, { filter: profile.filter * 0.72, type: kind === 'surface' ? 'highpass' : 'bandpass' })
+    const destination = this.weaponDestination(kind)
+    this.tone(low, profile.duration, profile.wave, profile.gain, 0.006, kind === 'rail' ? -10 : -12, { destination, filter: profile.filter, bend: profile.bend })
+    this.tone(high, profile.duration * 0.72, kind === 'prism' ? 'sine' : 'triangle', profile.gain * 0.46, 0.004, kind === 'needle' ? -13 : -16, { destination, filter: profile.filter + 900, bend: profile.bend * 0.5 })
+    if (profile.noise > 0) this.noise(profile.duration * 0.75, profile.noise, kind === 'rail' ? -14 : -19, { destination, filter: profile.filter * 0.72, type: kind === 'surface' ? 'highpass' : 'bandpass' })
   }
 
   hit() {
@@ -792,6 +796,42 @@ class AudioDirector {
 
   private note(root: number, semitones: number) {
     return root * Math.pow(2, semitones / 12)
+  }
+
+  private setupWeaponFlanger() {
+    if (!this.context || !this.sfx) return
+    const weaponBus = this.context.createGain()
+    const flangerDelay = this.context.createDelay(0.03)
+    const flangerFeedback = this.context.createGain()
+    const flangerWet = this.context.createGain()
+    const flangerLfo = this.context.createOscillator()
+    const flangerDepth = this.context.createGain()
+
+    weaponBus.gain.value = 1
+    flangerDelay.delayTime.value = 0.006
+    flangerFeedback.gain.value = 0.18
+    flangerWet.gain.value = 0.16
+    flangerLfo.type = 'sine'
+    flangerLfo.frequency.value = 0.16
+    flangerDepth.gain.value = 0.0038
+
+    flangerLfo.connect(flangerDepth)
+    flangerDepth.connect(flangerDelay.delayTime)
+    weaponBus.connect(this.sfx)
+    weaponBus.connect(flangerDelay)
+    flangerDelay.connect(flangerFeedback)
+    flangerFeedback.connect(flangerDelay)
+    flangerDelay.connect(flangerWet)
+    flangerWet.connect(this.sfx)
+    flangerLfo.start()
+
+    this.weaponBus = weaponBus
+    this.flangerLfo = flangerLfo
+  }
+
+  private weaponDestination(kind: WeaponSoundKind) {
+    if (kind === 'surface') return undefined
+    return this.weaponBus ?? undefined
   }
 
   private tone(freq: number, duration: number, type: OscillatorType, gain: number, attack: number, db: number, options: { bend?: number; filter?: number; destination?: AudioNode } = {}) {
@@ -3338,14 +3378,36 @@ class VectorShooter {
         const rr = threat.radius + bullet.radius
         if ((threat.x - bullet.x) ** 2 + (threat.y - bullet.y) ** 2 > rr * rr) continue
         threat.hp -= bullet.damage
-        threat.hit = 0.1
+        threat.hit = 0.035
         const push = norm(threat.x - bullet.x, threat.y - bullet.y)
         threat.vx += push.x * 70
         threat.vy += push.y * 70
-        this.burst(bullet.x, bullet.y, bullet.color, 5, 110)
+        this.surfaceHitSpark(bullet.x, bullet.y, bullet.color)
         this.surface.bullets.splice(i, 1)
         break
       }
+    }
+  }
+
+  private surfaceHitSpark(x: number, y: number, color: string) {
+    for (let i = 0; i < 1; i += 1) {
+      if (this.particles.length >= MAX_PARTICLES) this.particles.shift()
+      const a = rand(-0.45, 0.45) + (i ? Math.PI : 0)
+      const speed = rand(32, 58)
+      const life = rand(0.1, 0.16)
+      this.particles.push({
+        x,
+        y,
+        vx: Math.cos(a) * speed,
+        vy: Math.sin(a) * speed,
+        life,
+        maxLife: life,
+        color,
+        size: rand(0.8, 1.5),
+        angle: a,
+        length: rand(3, 7),
+        glow: 0
+      })
     }
   }
 
@@ -3792,7 +3854,7 @@ class VectorShooter {
       ctx.save()
       ctx.translate(p.x, p.y)
       ctx.rotate(threat.phase)
-      ctx.strokeStyle = threat.hit > 0 ? '#ffffff' : threat.color
+      ctx.strokeStyle = threat.hit > 0 ? '#fff27a' : threat.color
       ctx.shadowColor = threat.color
       ctx.shadowBlur = 18
       ctx.lineWidth = 2
@@ -3823,19 +3885,19 @@ class VectorShooter {
     const sw = sheet.naturalWidth / frameCount
     const sh = sheet.naturalHeight
     const bob = Math.sin(this.stats.time * 5 + threat.phase) * 3
-    const scale = threat.hit > 0 ? 0.49 : 0.46
+    const scale = threat.hit > 0 ? 0.475 : 0.46
     const dw = sw * scale
     const dh = sh * scale
     ctx.save()
     ctx.globalCompositeOperation = 'lighter'
-    ctx.globalAlpha = threat.hit > 0 ? 1 : 0.92
+    ctx.globalAlpha = threat.hit > 0 ? 0.96 : 0.92
     ctx.shadowColor = '#57fff3'
     ctx.shadowBlur = this.allowGlow() ? 20 : 8
     ctx.drawImage(sheet, frame * sw, 0, sw, sh, p.x - dw / 2, p.y - dh * 0.54 + bob, dw, dh)
     if (threat.hit > 0) {
       ctx.globalCompositeOperation = 'screen'
-      ctx.globalAlpha = 0.45
-      ctx.fillStyle = '#ffffff'
+      ctx.globalAlpha = 0.16
+      ctx.fillStyle = '#57fff3'
       ctx.beginPath()
       ctx.arc(p.x, p.y - 14 + bob, threat.radius + 14, 0, TAU)
       ctx.fill()
@@ -3855,17 +3917,17 @@ class VectorShooter {
     const sw = sheet.naturalWidth / BOSS_CATALOG_FRAMES
     const sh = sheet.naturalHeight / BOSS_CATALOG_ROWS
     const bob = Math.sin(this.stats.time * 3.2 + threat.phase) * 4
-    const scale = threat.hit > 0 ? 0.58 : 0.54
+    const scale = threat.hit > 0 ? 0.56 : 0.54
     const dw = sw * scale
     const dh = sh * scale
     ctx.save()
     ctx.globalCompositeOperation = 'lighter'
-    ctx.globalAlpha = threat.hit > 0 ? 1 : 0.94
+    ctx.globalAlpha = threat.hit > 0 ? 0.98 : 0.94
     ctx.shadowColor = threat.color
     ctx.shadowBlur = this.allowGlow() ? 24 : 8
     ctx.drawImage(sheet, frame * sw, row * sh, sw, sh, p.x - dw / 2, p.y - dh * 0.55 + bob, dw, dh)
     ctx.globalAlpha = 0.45
-    ctx.strokeStyle = threat.hit > 0 ? '#ffffff' : threat.color
+    ctx.strokeStyle = threat.color
     ctx.lineWidth = 2
     ctx.beginPath()
     ctx.arc(p.x, p.y + bob, threat.radius + 9 + Math.sin(this.stats.time * 4 + threat.phase) * 4, 0, TAU)
@@ -3876,7 +3938,7 @@ class VectorShooter {
   private renderFallbackMite(ctx: CanvasRenderingContext2D, threat: SurfaceThreat, p: Vec) {
     ctx.save()
     ctx.translate(p.x, p.y)
-    ctx.strokeStyle = threat.hit > 0 ? '#ffffff' : '#57fff3'
+    ctx.strokeStyle = threat.hit > 0 ? '#fff27a' : '#57fff3'
     ctx.shadowColor = '#57fff3'
     ctx.shadowBlur = 16
     ctx.lineWidth = 2
@@ -3972,8 +4034,9 @@ class VectorShooter {
     ctx.strokeStyle = '#fff27a'
     ctx.fillStyle = '#fff27a'
     ctx.shadowColor = '#fff27a'
-    ctx.shadowBlur = this.allowGlow() ? 14 : 7
-    ctx.lineWidth = 2
+    ctx.shadowBlur = this.allowGlow() ? 4 : 0
+    ctx.lineWidth = 1.1
+    ctx.globalAlpha = 0.58
     for (const bullet of s.bullets) {
       const p = this.surfaceToScreen(bullet.x, bullet.y)
       const angle = Math.atan2(bullet.vy, bullet.vx)
@@ -3981,9 +4044,6 @@ class VectorShooter {
       ctx.moveTo(p.x - Math.cos(angle) * 7, p.y - Math.sin(angle) * 7)
       ctx.lineTo(p.x + Math.cos(angle) * 6, p.y + Math.sin(angle) * 6)
       ctx.stroke()
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, bullet.radius * 0.6, 0, TAU)
-      ctx.fill()
     }
     ctx.restore()
   }
@@ -4010,14 +4070,6 @@ class VectorShooter {
       ctx.shadowColor = s.pilot.invuln > 0 ? '#fff27a' : '#57fff3'
       ctx.shadowBlur = this.allowGlow() ? 14 : 5
       ctx.drawImage(sheet, frame * sw, 0, sw, sh, -dw / 2, -dh * 0.62, dw, dh)
-      if (s.pilot.gunCd > 0.14) {
-        ctx.fillStyle = '#fff27a'
-        ctx.shadowColor = '#fff27a'
-        ctx.shadowBlur = 12
-        ctx.beginPath()
-        ctx.arc(dw * 0.44, -dh * 0.2, 2.8, 0, TAU)
-        ctx.fill()
-      }
       ctx.restore()
       return
     }
@@ -4054,12 +4106,6 @@ class VectorShooter {
     ctx.moveTo(Math.cos(aim) * 8, Math.sin(aim) * 8 - 3)
     ctx.lineTo(Math.cos(aim) * (22 - gunKick), Math.sin(aim) * (22 - gunKick) - 3)
     ctx.stroke()
-    if (s.pilot.gunCd > 0.14) {
-      ctx.fillStyle = '#fff27a'
-      ctx.beginPath()
-      ctx.arc(Math.cos(aim) * 27, Math.sin(aim) * 27 - 3, 3, 0, TAU)
-      ctx.fill()
-    }
     ctx.restore()
   }
 
@@ -5028,10 +5074,7 @@ class VectorShooter {
       button.addEventListener('click', () => this.beginWorkbenchInstall(choice, button))
       grid.append(button)
     }
-    const banner = document.createElement('div')
-    banner.className = 'install-banner'
-    banner.textContent = 'INSTALLING MUTATION...'
-    if (this.workbenchView === 'upgrades') view.append(grid, banner)
+    if (this.workbenchView === 'upgrades') view.append(grid)
     else if (this.workbenchView === 'manifest') view.append(this.renderBuildManifest())
     else view.append(this.renderArtifactsCollection())
     panel.append(h, p, tabs, view)
@@ -5059,11 +5102,6 @@ class VectorShooter {
     this.burst(anchor.x, anchor.y, color, rare ? 28 : 18, rare ? 260 : 190)
     button.classList.add('selected')
     for (const el of Array.from(this.ui.levelup.querySelectorAll<HTMLButtonElement>('.choice'))) el.disabled = true
-    const banner = this.ui.levelup.querySelector<HTMLElement>('.install-banner')
-    if (banner) {
-      banner.textContent = `${this.choiceTitle(choice).toUpperCase()} INSTALLED`
-      banner.classList.add('visible')
-    }
     window.setTimeout(() => this.applyWorkbenchChoice(choice), rare ? 760 : 560)
   }
 

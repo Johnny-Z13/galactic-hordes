@@ -761,22 +761,6 @@ canvas {
   border-color: rgba(185, 144, 255, 0.62);
 }
 
-.install-banner {
-  display: none;
-  margin-top: 12px;
-  border: 1px solid rgba(255, 242, 122, 0.74);
-  color: var(--yellow);
-  background: rgba(38, 30, 4, 0.74);
-  padding: 10px 12px;
-  text-align: center;
-  box-shadow: 0 0 28px rgba(255, 242, 122, 0.18);
-}
-
-.install-banner.visible {
-  display: block;
-  animation: install-scan 620ms ease both;
-}
-
 .build-manifest {
   margin-top: 0;
   border: 1px solid rgba(87, 255, 243, 0.3);

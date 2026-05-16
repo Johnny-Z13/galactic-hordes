@@ -23,3 +23,13 @@ test('gameplay events route to specialized audio cues', () => {
   expect(main).toContain('this.audio.planetSignal(planet.archetype)')
   expect(main).toContain('this.audio.boom(big ? ')
 })
+
+test('weapon pulse audio uses a slow flanger path', () => {
+  const main = source()
+
+  expect(main).toContain('private weaponBus: GainNode | null = null')
+  expect(main).toContain('private setupWeaponFlanger()')
+  expect(main).toContain('flangerLfo.frequency.value = 0.16')
+  expect(main).toContain('flangerDepth.gain.value = 0.0038')
+  expect(main).toContain('const destination = this.weaponDestination(kind)')
+})
