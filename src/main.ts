@@ -8,6 +8,7 @@ type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
 type UpgradeCategory = 'weapon' | 'system'
 type RelicId = 'staticIdol' | 'glassReactor' | 'deadSunCoin' | 'hungryCompass' | 'blackBoxSaint' | 'mirrorSeed' | 'saintCapacitor' | 'forbiddenMap'
 type LimitId = 'might' | 'cooldown' | 'amount' | 'speed' | 'magnet' | 'hull'
+type SurfaceEventKind = 'jackpot' | 'swarm' | 'relic' | 'repair' | 'volatile' | 'standard'
 type UpgradeId =
   | 'rapid'
   | 'split'
@@ -108,6 +109,7 @@ interface Shockwave {
 }
 
 interface Planet {
+  id: string
   name: string
   x: number
   y: number
@@ -115,6 +117,17 @@ interface Planet {
   color: string
   visited: boolean
   reward: string
+  chunkX: number
+  chunkY: number
+  archetype: 'cache' | 'hostile' | 'repair' | 'relic' | 'strange'
+}
+
+interface SpaceChunk {
+  key: string
+  x: number
+  y: number
+  stars: Vec[]
+  planets: Planet[]
 }
 
 interface SurfaceResource {
@@ -141,6 +154,7 @@ interface SurfaceThreat {
 
 interface SurfaceRun {
   planet: Planet
+  event: SurfaceEventKind
   width: number
   height: number
   pilot: {
@@ -212,8 +226,9 @@ interface PerfStats {
 }
 
 const TAU = Math.PI * 2
-const WORLD_W = 6200
-const WORLD_H = 6200
+const CHUNK_SIZE = 3600
+const CHUNK_LOAD_RADIUS = 1
+const CHUNK_KEEP_RADIUS = 3
 const STORAGE_KEY = 'vector_shooter_high_scores'
 const GRID_CELL = 180
 const GRID_STRIDE = 1000
@@ -457,6 +472,20 @@ const angleLerp = (a: number, b: number, t: number) => {
   const diff = Math.atan2(Math.sin(b - a), Math.cos(b - a))
   return a + diff * t
 }
+const hash32 = (x: number, y: number, salt = 0) => {
+  let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(salt, 2246822519)
+  h = Math.imul(h ^ (h >>> 13), 1274126177)
+  return (h ^ (h >>> 16)) >>> 0
+}
+const rngFrom = (seed: number) => {
+  let t = seed >>> 0
+  return () => {
+    t += 0x6d2b79f5
+    let r = Math.imul(t ^ (t >>> 15), 1 | t)
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r)
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296
+  }
+}
 const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60)
   const s = Math.floor(seconds % 60)
@@ -609,7 +638,9 @@ class VectorShooter {
   private spawnTimer = 0
   private bossTimer = 75
   private chestTimer = 30
+  private chunks = new Map<string, SpaceChunk>()
   private stars: Vec[] = []
+  private activeChunkKey = ''
   private highs: ScoreEntry[] = []
   private resources = { scrap: 0, crystal: 0, cores: 0 }
   private relics = new Set<RelicId>()
@@ -624,13 +655,8 @@ class VectorShooter {
   private pickups: Pickup[] = []
   private particles: Particle[] = []
   private shockwaves: Shockwave[] = []
-  private planets: Planet[] = [
-    { name: 'LUX MORGUE', x: 1020, y: 1240, radius: 88, color: '#57fff3', visited: false, reward: 'Repairs hull and grants an experimental upgrade.' },
-    { name: 'RED MERCY', x: 5030, y: 1110, radius: 112, color: '#ff5d73', visited: false, reward: 'Awakens tougher waves, then doubles the landing score.' },
-    { name: 'SAINT STATIC', x: 1780, y: 4870, radius: 130, color: '#fff27a', visited: false, reward: 'Tunes the signal magnet and drops a chest.' },
-    { name: 'GREEN CHOIR', x: 4870, y: 4800, radius: 96, color: '#8fff7d', visited: false, reward: 'Adds shield charge and maps nearby pickups.' },
-    { name: 'NULL CATHEDRAL', x: 3100, y: 3070, radius: 150, color: '#b990ff', visited: false, reward: 'Summons a warden and offers rare salvage.' }
-  ]
+  private planets: Planet[] = []
+  private visitedPlanets = new Set<string>()
 
   private stats = {
     time: 0,
@@ -706,15 +732,15 @@ class VectorShooter {
     this.bind()
     this.highs = this.loadScores()
     this.stats.highScore = this.highs[0]?.score ?? 0
-    for (let i = 0; i < 680; i += 1) this.stars.push({ x: Math.random() * WORLD_W, y: Math.random() * WORLD_H })
+    this.updateSpaceChunks()
     this.showTitle()
     requestAnimationFrame((t) => this.frame(t))
   }
 
   private makePlayer() {
     return {
-      x: WORLD_W / 2,
-      y: WORLD_H / 2,
+      x: 0,
+      y: 0,
       vx: 0,
       vy: 0,
       angle: -Math.PI / 2,
@@ -785,6 +811,80 @@ class VectorShooter {
     buttons.append(this.ui.touchAction, this.ui.touchDash)
     this.ui.touchControls.append(this.ui.touchStick, buttons)
     return this.ui.touchControls
+  }
+
+  private chunkKey(x: number, y: number) {
+    return `${x},${y}`
+  }
+
+  private currentChunk() {
+    return { x: Math.floor(this.player.x / CHUNK_SIZE), y: Math.floor(this.player.y / CHUNK_SIZE) }
+  }
+
+  private updateSpaceChunks(force = false) {
+    const center = this.currentChunk()
+    const centerKey = this.chunkKey(center.x, center.y)
+    if (!force && centerKey === this.activeChunkKey && this.planets.length) return
+    this.activeChunkKey = centerKey
+    for (let x = center.x - CHUNK_LOAD_RADIUS; x <= center.x + CHUNK_LOAD_RADIUS; x += 1) {
+      for (let y = center.y - CHUNK_LOAD_RADIUS; y <= center.y + CHUNK_LOAD_RADIUS; y += 1) {
+        const key = this.chunkKey(x, y)
+        if (!this.chunks.has(key)) this.chunks.set(key, this.generateChunk(x, y))
+      }
+    }
+    for (const [key, chunk] of this.chunks) {
+      if (Math.abs(chunk.x - center.x) > CHUNK_KEEP_RADIUS || Math.abs(chunk.y - center.y) > CHUNK_KEEP_RADIUS) this.chunks.delete(key)
+    }
+    this.stars = []
+    this.planets = []
+    for (const chunk of this.chunks.values()) {
+      if (Math.abs(chunk.x - center.x) <= CHUNK_LOAD_RADIUS && Math.abs(chunk.y - center.y) <= CHUNK_LOAD_RADIUS) {
+        this.stars.push(...chunk.stars)
+        this.planets.push(...chunk.planets)
+      }
+    }
+  }
+
+  private generateChunk(x: number, y: number): SpaceChunk {
+    const key = this.chunkKey(x, y)
+    const rng = rngFrom(hash32(x, y, 17))
+    const stars: Vec[] = []
+    const starCount = 120 + Math.floor(rng() * 90)
+    for (let i = 0; i < starCount; i += 1) {
+      stars.push({ x: x * CHUNK_SIZE + rng() * CHUNK_SIZE, y: y * CHUNK_SIZE + rng() * CHUNK_SIZE })
+    }
+    const planets: Planet[] = []
+    const planetCount = key === '0,0' ? 3 : 1 + Math.floor(rng() * 3)
+    for (let i = 0; i < planetCount; i += 1) planets.push(this.generatePlanet(x, y, i, rng))
+    return { key, x, y, stars, planets }
+  }
+
+  private generatePlanet(chunkX: number, chunkY: number, index: number, rng: () => number): Planet {
+    const archetypes: Planet['archetype'][] = ['cache', 'hostile', 'repair', 'relic', 'strange']
+    const archetype = chunkX === 0 && chunkY === 0 && index === 0 ? 'cache' : archetypes[Math.floor(rng() * archetypes.length)]
+    const prefix = ['LUX', 'RED', 'SAINT', 'GREEN', 'NULL', 'IRON', 'GHOST', 'VOID', 'GLASS', 'STATIC', 'DUST', 'HALO']
+    const suffix = ['MORGUE', 'MERCY', 'CHOIR', 'CATHEDRAL', 'WELL', 'ENGINE', 'RELIQUARY', 'ORCHARD', 'VAULT', 'CRADLE', 'WAKE', 'BEACON']
+    const color = {
+      cache: '#57fff3',
+      hostile: '#ff5d73',
+      repair: '#8fff7d',
+      relic: '#fff27a',
+      strange: '#b990ff'
+    }[archetype]
+    const name = chunkX === 0 && chunkY === 0 && index === 0 ? 'LUX MORGUE' : `${prefix[Math.floor(rng() * prefix.length)]} ${suffix[Math.floor(rng() * suffix.length)]}`
+    const margin = 420
+    const centerBias = chunkX === 0 && chunkY === 0 && index === 0
+    const x = centerBias ? 720 : chunkX * CHUNK_SIZE + margin + rng() * (CHUNK_SIZE - margin * 2)
+    const y = centerBias ? 220 : chunkY * CHUNK_SIZE + margin + rng() * (CHUNK_SIZE - margin * 2)
+    const reward = {
+      cache: 'Cache-heavy salvage and mutation signals.',
+      hostile: 'Hostile planet. Better rewards, uglier landing.',
+      repair: 'Repair-rich safe dock with quieter salvage.',
+      relic: 'Relic signatures and rare cache odds.',
+      strange: 'Unstable signal. Anything could be waiting.'
+    }[archetype]
+    const id = `${chunkX}:${chunkY}:${index}`
+    return { id, name, x, y, radius: 82 + rng() * 72, color, visited: this.visitedPlanets.has(id), reward, chunkX, chunkY, archetype }
   }
 
   private chip(label: string, value: HTMLElement) {
@@ -962,8 +1062,9 @@ class VectorShooter {
   private drawTitleDrift(dt: number) {
     this.stats.time += dt * 0.08
     this.updateParticles(dt)
-    this.camera.x = WORLD_W / 2 - this.width / 2 + Math.cos(performance.now() / 8000) * 80
-    this.camera.y = WORLD_H / 2 - this.height / 2 + Math.sin(performance.now() / 9000) * 80
+    this.camera.x = -this.width / 2 + Math.cos(performance.now() / 8000) * 80
+    this.camera.y = -this.height / 2 + Math.sin(performance.now() / 9000) * 80
+    this.updateSpaceChunks()
     this.updateHud()
   }
 
@@ -990,8 +1091,9 @@ class VectorShooter {
     }
     this.player.vx *= Math.pow(0.06, dt)
     this.player.vy *= Math.pow(0.06, dt)
-    this.player.x = clamp(this.player.x + this.player.vx * dt, 80, WORLD_W - 80)
-    this.player.y = clamp(this.player.y + this.player.vy * dt, 80, WORLD_H - 80)
+    this.player.x += this.player.vx * dt
+    this.player.y += this.player.vy * dt
+    this.updateSpaceChunks()
 
     if (input.aiming) this.player.aimAngle = input.aimAngle
     if (speed > 20) this.player.angle = angleLerp(this.player.angle, Math.atan2(this.player.vy, this.player.vx), 0.12)
@@ -1271,7 +1373,7 @@ class VectorShooter {
       b.life -= dt
       b.x += b.vx * dt
       b.y += b.vy * dt
-      if (b.life <= 0 || b.x < 0 || b.x > WORLD_W || b.y < 0 || b.y > WORLD_H) {
+      if (b.life <= 0 || Math.abs(b.x - this.player.x) > 1900 || Math.abs(b.y - this.player.y) > 1900) {
         this.bullets.splice(i, 1)
         continue
       }
@@ -1566,8 +1668,8 @@ class VectorShooter {
     const a = Math.random() * TAU
     const r = rand(minR, maxR)
     return {
-      x: clamp(this.player.x + Math.cos(a) * r, 40, WORLD_W - 40),
-      y: clamp(this.player.y + Math.sin(a) * r, 40, WORLD_H - 40)
+      x: this.player.x + Math.cos(a) * r,
+      y: this.player.y + Math.sin(a) * r
     }
   }
 
@@ -1874,31 +1976,52 @@ class VectorShooter {
   private createSurfaceRun(planet: Planet): SurfaceRun {
     const resources: SurfaceResource[] = []
     const first = !planet.visited
-    const count = first ? 10 + Math.floor(Math.random() * 5) : 5 + Math.floor(Math.random() * 4)
+    const event = this.rollSurfaceEvent(planet, first)
+    const count =
+      event === 'jackpot' ? 28 + Math.floor(Math.random() * 14) :
+      event === 'relic' ? 12 + Math.floor(Math.random() * 6) :
+      event === 'repair' ? 8 + Math.floor(Math.random() * 5) :
+      event === 'volatile' ? 16 + Math.floor(Math.random() * 8) :
+      first ? 10 + Math.floor(Math.random() * 5) :
+      5 + Math.floor(Math.random() * 4)
     for (let i = 0; i < count; i += 1) {
       const kindRoll = Math.random()
-      const kind: SurfaceResourceKind = i === 0 && first ? 'cache' : kindRoll < 0.58 ? 'crystal' : kindRoll < 0.84 ? 'scrap' : 'repair'
+      const kind: SurfaceResourceKind =
+        i === 0 && first ? 'cache' :
+        event === 'relic' && i < 3 ? 'cache' :
+        event === 'jackpot' && kindRoll < 0.16 ? 'cache' :
+        event === 'repair' && kindRoll < 0.55 ? 'repair' :
+        event === 'volatile' && kindRoll < 0.24 ? 'cache' :
+        kindRoll < 0.58 ? 'crystal' :
+        kindRoll < 0.84 ? 'scrap' :
+        'repair'
       const color = kind === 'cache' ? '#fff27a' : kind === 'crystal' ? planet.color : kind === 'scrap' ? '#70a8ff' : '#8fff7d'
+      const cluster = this.surfaceEventPoint(event, i, count)
       resources.push({
         kind,
-        x: rand(180, 1420),
-        y: rand(170, 1010),
+        x: cluster.x,
+        y: cluster.y,
         radius: kind === 'cache' ? 18 : 12,
-        value: kind === 'crystal' ? 8 : kind === 'scrap' ? 120 : kind === 'repair' ? 18 : 1,
+        value: kind === 'crystal' ? (event === 'jackpot' ? 12 : 8) : kind === 'scrap' ? (event === 'jackpot' ? 165 : 120) : kind === 'repair' ? (event === 'repair' ? 28 : 18) : 1,
         color,
         collected: false
       })
     }
     const threats: SurfaceThreat[] = []
-    const threatCount = (first ? 1 : 0) + (Math.random() < 0.45 || planet.name === 'NULL CATHEDRAL' ? 1 : 0)
+    const threatCount =
+      event === 'swarm' ? 12 + Math.floor(this.stats.time / 35) :
+      event === 'volatile' ? 5 + Math.floor(this.stats.time / 70) :
+      (first ? 1 : 0) + (Math.random() < 0.45 || planet.name === 'NULL CATHEDRAL' ? 1 : 0)
     for (let i = 0; i < threatCount; i += 1) {
+      const a = (i / Math.max(1, threatCount)) * TAU + rand(-0.25, 0.25)
+      const r = event === 'swarm' ? rand(260, 520) : rand(120, 440)
       threats.push({
-        x: rand(300, 1300),
-        y: rand(250, 950),
+        x: clamp(800 + Math.cos(a) * r, 90, 1510),
+        y: clamp(590 + Math.sin(a) * r, 90, 1090),
         vx: 0,
         vy: 0,
-        hp: planet.name === 'NULL CATHEDRAL' ? 46 : 28,
-        radius: planet.name === 'NULL CATHEDRAL' ? 22 : 16,
+        hp: event === 'swarm' ? 20 + this.stats.time * 0.12 : planet.name === 'NULL CATHEDRAL' ? 46 : 28,
+        radius: event === 'swarm' ? 13 : planet.name === 'NULL CATHEDRAL' ? 22 : 16,
         phase: rand(0, TAU),
         color: planet.name === 'RED MERCY' || planet.name === 'NULL CATHEDRAL' ? '#ff5d73' : '#fff27a',
         hit: 0
@@ -1906,6 +2029,7 @@ class VectorShooter {
     }
     return {
       planet,
+      event,
       width: 1600,
       height: 1180,
       pilot: { x: 840, y: 660, vx: 0, vy: 0, facing: 0, mineCd: 0, invuln: 0 },
@@ -1915,8 +2039,54 @@ class VectorShooter {
       threats,
       collected: 0,
       pendingUpgrade: false,
-      message: first ? 'UNKNOWN SURFACE. MINE THE SIGNAL CACHE.' : 'OLD LANDING SITE. QUICK SALVAGE ONLY.'
+      message: this.surfaceEventMessage(event, first)
     }
+  }
+
+  private rollSurfaceEvent(planet: Planet, first: boolean): SurfaceEventKind {
+    if (planet.archetype === 'hostile' && Math.random() < 0.65) return 'swarm'
+    if (planet.archetype === 'repair' && Math.random() < 0.68) return 'repair'
+    if (planet.archetype === 'relic' && first && Math.random() < 0.72) return 'relic'
+    if (planet.archetype === 'strange' && Math.random() < 0.55) return 'volatile'
+    if (planet.archetype === 'cache' && Math.random() < 0.45) return 'jackpot'
+    if (planet.name === 'NULL CATHEDRAL' && first) return 'swarm'
+    if (planet.name === 'SAINT STATIC' && first) return 'relic'
+    const luck = this.build.luck * 0.025 + this.build.survey * 0.02
+    const roll = Math.random()
+    if (roll < 0.16 + luck) return 'jackpot'
+    if (roll < 0.32 + luck) return 'swarm'
+    if (roll < 0.44 + luck && first) return 'relic'
+    if (roll < 0.56) return 'volatile'
+    if (roll < 0.68) return 'repair'
+    return 'standard'
+  }
+
+  private surfaceEventPoint(event: SurfaceEventKind, i: number, count: number): Vec {
+    if (event === 'jackpot') {
+      const a = (i / count) * TAU * 3
+      const r = 60 + i * 8
+      return { x: clamp(800 + Math.cos(a) * r + rand(-18, 18), 110, 1490), y: clamp(590 + Math.sin(a) * r + rand(-18, 18), 110, 1070) }
+    }
+    if (event === 'swarm') {
+      return { x: rand(220, 1380), y: rand(190, 990) }
+    }
+    if (event === 'repair') {
+      return { x: rand(560, 1040), y: rand(400, 780) }
+    }
+    if (event === 'relic') {
+      const a = (i / Math.max(1, count)) * TAU
+      return { x: clamp(800 + Math.cos(a) * rand(80, 360), 130, 1470), y: clamp(590 + Math.sin(a) * rand(80, 360), 130, 1050) }
+    }
+    return { x: rand(180, 1420), y: rand(170, 1010) }
+  }
+
+  private surfaceEventMessage(event: SurfaceEventKind, first: boolean) {
+    if (event === 'jackpot') return 'SIGNAL JACKPOT. GRAB EVERYTHING.'
+    if (event === 'swarm') return 'BAD PLANET. CONTACTS EVERYWHERE.'
+    if (event === 'relic') return 'RELIC SIGNATURES BELOW. CACHE HUNT.'
+    if (event === 'repair') return 'QUIET DOCK. PATCH UP AND SCAVENGE.'
+    if (event === 'volatile') return 'VOLATILE CACHE FIELD. EXPECT TROUBLE.'
+    return first ? 'UNKNOWN SURFACE. MINE THE SIGNAL CACHE.' : 'OLD LANDING SITE. QUICK SALVAGE ONLY.'
   }
 
   private confirmLanding() {
@@ -1924,7 +2094,8 @@ class VectorShooter {
     const p = this.planetChoice
     const first = !p.visited
     p.visited = true
-    this.stats.planets = this.planets.filter((planet) => planet.visited).length
+    this.visitedPlanets.add(p.id)
+    this.stats.planets = this.visitedPlanets.size
     this.stats.score += first ? 900 + this.stats.planets * 300 : 120
     this.player.hull = clamp(this.player.hull + (first ? 45 : 14), 0, this.player.maxHull)
     if (p.name === 'NULL CATHEDRAL' && first) this.spawnEnemy('warden')
@@ -2096,7 +2267,8 @@ class VectorShooter {
     if (!this.surface) return
     const first = !this.surface.planet.visited
     this.surface.planet.visited = true
-    this.stats.planets = this.planets.filter((planet) => planet.visited).length
+    this.visitedPlanets.add(this.surface.planet.id)
+    this.stats.planets = this.visitedPlanets.size
     this.stats.score += first ? 420 + this.surface.collected * 45 : this.surface.collected * 25
     this.player.landedCd = 2.2
     this.player.invuln = 0.8
@@ -2116,8 +2288,6 @@ class VectorShooter {
     const targetY = this.player.y - this.height / 2
     this.camera.x += (targetX - this.camera.x) * clamp(dt * 7, 0, 1)
     this.camera.y += (targetY - this.camera.y) * clamp(dt * 7, 0, 1)
-    this.camera.x = clamp(this.camera.x, 0, WORLD_W - this.width)
-    this.camera.y = clamp(this.camera.y, 0, WORLD_H - this.height)
     this.camera.shake = Math.max(0, this.camera.shake - dt * 35)
   }
 
@@ -2448,9 +2618,20 @@ class VectorShooter {
     ctx.font = '14px Courier New'
     ctx.textAlign = 'center'
     const message = nearShip ? 'PRESS E / Y TO BOARD SHIP' : s.message
-    ctx.fillText(`${s.planet.name} SURFACE: ${s.collected}/${s.resources.length} SIGNALS`, this.width / 2, 86)
+    ctx.fillText(`${s.planet.name} // ${this.surfaceEventLabel(s.event)} // ${s.collected}/${s.resources.length} SIGNALS`, this.width / 2, 86)
     ctx.fillText(message, this.width / 2, this.height - 42)
     ctx.restore()
+  }
+
+  private surfaceEventLabel(event: SurfaceEventKind) {
+    return {
+      jackpot: 'JACKPOT',
+      swarm: 'INFESTED',
+      relic: 'RELIC SITE',
+      repair: 'SAFE DOCK',
+      volatile: 'VOLATILE',
+      standard: 'UNKNOWN'
+    }[event]
   }
 
   private renderTransitionOverlay(ctx: CanvasRenderingContext2D, t: number, label: string) {
@@ -2497,14 +2678,33 @@ class VectorShooter {
       ctx.lineTo(this.width, sy)
       ctx.stroke()
     }
+    ctx.strokeStyle = 'rgba(255,242,122,0.16)'
+    ctx.fillStyle = 'rgba(255,242,122,0.42)'
+    ctx.font = '11px Courier New'
+    const chunkStartX = Math.floor(this.camera.x / CHUNK_SIZE) * CHUNK_SIZE
+    const chunkStartY = Math.floor(this.camera.y / CHUNK_SIZE) * CHUNK_SIZE
+    for (let x = chunkStartX; x < this.camera.x + this.width + CHUNK_SIZE; x += CHUNK_SIZE) {
+      const sx = x - this.camera.x
+      ctx.beginPath()
+      ctx.moveTo(sx, 0)
+      ctx.lineTo(sx, this.height)
+      ctx.stroke()
+    }
+    for (let y = chunkStartY; y < this.camera.y + this.height + CHUNK_SIZE; y += CHUNK_SIZE) {
+      const sy = y - this.camera.y
+      ctx.beginPath()
+      ctx.moveTo(0, sy)
+      ctx.lineTo(this.width, sy)
+      ctx.stroke()
+    }
+    const sector = this.currentChunk()
+    ctx.fillText(`SECTOR ${sector.x}:${sector.y}`, 14, this.height - 18)
     for (const s of this.stars) {
       const p = this.worldToScreen(s.x, s.y)
       if (p.x < -10 || p.x > this.width + 10 || p.y < -10 || p.y > this.height + 10) continue
       ctx.fillStyle = 'rgba(215,255,247,0.5)'
       ctx.fillRect(p.x, p.y, 1.4, 1.4)
     }
-    ctx.strokeStyle = 'rgba(255,242,122,0.18)'
-    ctx.strokeRect(-this.camera.x, -this.camera.y, WORLD_W, WORLD_H)
     ctx.restore()
   }
 
@@ -2814,31 +3014,62 @@ class VectorShooter {
   }
 
   private renderPickups(ctx: CanvasRenderingContext2D) {
+    const highLoad = this.isHighLoad()
     for (const p of this.pickups) {
       const s = this.worldToScreen(p.x, p.y)
       if (s.x < -60 || s.x > this.width + 60 || s.y < -60 || s.y > this.height + 60) continue
       ctx.save()
-      ctx.strokeStyle = p.color
-      ctx.shadowColor = p.color
-      ctx.shadowBlur = this.isHighLoad() ? 0 : 12
-      ctx.lineWidth = 2
       ctx.translate(s.x, s.y)
-      ctx.rotate(this.stats.time * 2)
+      ctx.strokeStyle = p.color
+      ctx.fillStyle = p.color
+      ctx.shadowColor = p.color
+      ctx.shadowBlur = highLoad ? 0 : this.allowGlow() ? 18 : 10
+      ctx.lineWidth = 2
+      const pulse = 1 + Math.sin(this.stats.time * 5 + p.value) * 0.08
+      const r = p.radius * pulse
+      ctx.globalAlpha = 0.28
+      ctx.beginPath()
+      ctx.arc(0, 0, r + 8, 0, TAU)
+      ctx.stroke()
+      ctx.globalAlpha = 0.95
       ctx.beginPath()
       if (p.kind === 'xp') {
-        ctx.moveTo(0, -p.radius)
-        ctx.lineTo(p.radius, 0)
-        ctx.lineTo(0, p.radius)
-        ctx.lineTo(-p.radius, 0)
+        ctx.arc(0, 0, Math.max(4, r * 0.55), 0, TAU)
+        ctx.fill()
+        ctx.globalAlpha = 1
+        ctx.beginPath()
+        ctx.moveTo(-r - 3, 0)
+        ctx.lineTo(r + 3, 0)
+        ctx.moveTo(0, -r - 3)
+        ctx.lineTo(0, r + 3)
       } else if (p.kind === 'chest') {
-        ctx.rect(-p.radius, -p.radius, p.radius * 2, p.radius * 2)
-        ctx.moveTo(-p.radius, 0)
-        ctx.lineTo(p.radius, 0)
+        ctx.roundRect(-r, -r * 0.72, r * 2, r * 1.44, 4)
+        ctx.moveTo(-r, -r * 0.18)
+        ctx.lineTo(r, -r * 0.18)
+        ctx.moveTo(0, -r * 0.72)
+        ctx.lineTo(0, r * 0.72)
+      } else if (p.kind === 'repair') {
+        ctx.arc(0, 0, r, 0, TAU)
+        ctx.moveTo(-r * 0.58, 0)
+        ctx.lineTo(r * 0.58, 0)
+        ctx.moveTo(0, -r * 0.58)
+        ctx.lineTo(0, r * 0.58)
+      } else if (p.kind === 'magnet') {
+        ctx.arc(0, 0, r, Math.PI * 0.18, Math.PI * 0.82)
+        ctx.moveTo(-r * 0.82, r * 0.18)
+        ctx.lineTo(-r * 0.82, r * 0.76)
+        ctx.moveTo(r * 0.82, r * 0.18)
+        ctx.lineTo(r * 0.82, r * 0.76)
       } else {
-        ctx.arc(0, 0, p.radius, 0, TAU)
+        ctx.arc(0, 0, r, 0, TAU)
       }
-      ctx.closePath()
       ctx.stroke()
+      if (p.kind === 'xp') {
+        ctx.globalAlpha = 0.42
+        ctx.beginPath()
+        ctx.arc(0, 0, r + 14, 0, TAU)
+        ctx.stroke()
+      }
       ctx.restore()
     }
   }
@@ -3008,24 +3239,40 @@ class VectorShooter {
     const ctx = this.miniCtx
     const w = 154
     const h = 154
+    const scale = CHUNK_SIZE * (CHUNK_LOAD_RADIUS * 2 + 1)
+    const toMini = (x: number, y: number) => ({
+      x: w / 2 + ((x - this.player.x) / scale) * w,
+      y: h / 2 + ((y - this.player.y) / scale) * h
+    })
     ctx.clearRect(0, 0, w, h)
     ctx.fillStyle = 'rgba(2,8,12,0.72)'
     ctx.fillRect(0, 0, w, h)
     ctx.strokeStyle = 'rgba(87,255,243,0.5)'
     ctx.strokeRect(0.5, 0.5, w - 1, h - 1)
+    ctx.strokeStyle = 'rgba(87,255,243,0.18)'
+    ctx.beginPath()
+    ctx.moveTo(w / 2, 8)
+    ctx.lineTo(w / 2, h - 8)
+    ctx.moveTo(8, h / 2)
+    ctx.lineTo(w - 8, h / 2)
+    ctx.stroke()
     for (const p of this.planets) {
+      const m = toMini(p.x, p.y)
+      if (m.x < -6 || m.x > w + 6 || m.y < -6 || m.y > h + 6) continue
       ctx.strokeStyle = p.visited ? '#8fff7d' : p.color
       ctx.beginPath()
-      ctx.arc((p.x / WORLD_W) * w, (p.y / WORLD_H) * h, p.visited ? 4 : 3, 0, TAU)
+      ctx.arc(m.x, m.y, p.visited ? 4 : 3, 0, TAU)
       ctx.stroke()
     }
     for (const e of this.enemies.slice(0, 70)) {
+      const m = toMini(e.x, e.y)
+      if (m.x < 0 || m.x > w || m.y < 0 || m.y > h) continue
       ctx.fillStyle = e.kind === 'warden' ? '#b990ff' : '#ff5d73'
-      ctx.fillRect((e.x / WORLD_W) * w - 1, (e.y / WORLD_H) * h - 1, 2, 2)
+      ctx.fillRect(m.x - 1, m.y - 1, 2, 2)
     }
     ctx.fillStyle = '#57fff3'
     ctx.beginPath()
-    ctx.arc((this.player.x / WORLD_W) * w, (this.player.y / WORLD_H) * h, 4, 0, TAU)
+    ctx.arc(w / 2, h / 2, 4, 0, TAU)
     ctx.fill()
   }
 
@@ -3149,30 +3396,38 @@ class VectorShooter {
     this.state = 'title'
     this.ui.title.innerHTML = ''
     const panel = document.createElement('div')
-    panel.className = 'panel'
+    panel.className = 'panel title-panel'
     const h = document.createElement('h1')
-    h.className = 'title'
-    h.textContent = 'VECTOR SHOOTER'
+    h.className = 'title title-logo'
+    h.innerHTML = '<span>VECTOR</span><span>SHOOTER</span>'
     const k = document.createElement('p')
     k.className = 'kicker'
-    k.textContent = 'Vampire Survivors pressure, Asteroids handling, Vectrex glow.'
+    k.textContent = 'Survive the vector horde. Land. Salvage. Evolve.'
     const grid = document.createElement('div')
-    grid.className = 'menu-grid'
+    grid.className = 'title-stack'
     const left = document.createElement('div')
+    left.className = 'title-primary'
     const copy = document.createElement('p')
     copy.className = 'copy'
-    copy.textContent = 'Explore a large signal map, land on strange planets, run surface salvage in a tiny pressure suit, crack treasure cores, and build a ridiculous little ship while the vector horde thickens.'
+    copy.textContent = 'Auto-fire space survival built for portrait play. Drag anywhere to move through endless procedural sectors, hit planets for mystery caches, then install upgrades at the ship.'
     const row = document.createElement('div')
-    row.className = 'button-row'
+    row.className = 'title-actions'
     const start = document.createElement('button')
-    start.className = 'vector-button'
+    start.className = 'vector-button start-button'
     start.textContent = 'Start Run'
     start.addEventListener('click', () => this.start())
     const scores = document.createElement('button')
     scores.className = 'vector-button secondary'
-    scores.textContent = 'High Scores'
+    scores.textContent = 'Scores'
     scores.addEventListener('click', () => this.showScores())
     row.append(start, scores)
+    const quick = document.createElement('div')
+    quick.className = 'title-quick'
+    quick.innerHTML = `
+      <span>Thumb-drag to steer</span>
+      <span>Auto-fire locks targets</span>
+      <span>Endless sector map</span>
+    `
     const graphics = document.createElement('div')
     graphics.className = 'graphics-row'
     ;(['LOW', 'MED', 'GLOW'] as GraphicsMode[]).forEach((mode) => {
@@ -3185,15 +3440,13 @@ class VectorShooter {
       })
       graphics.append(button)
     })
-    left.append(copy, row, graphics)
+    left.append(copy, row, quick, graphics)
     const meta = document.createElement('div')
-    meta.className = 'meta-list'
+    meta.className = 'meta-list title-meta'
     meta.innerHTML = `
-      <div>WASD move. Mouse, arrows, IJKL, or right stick aim and fire.</div>
-      <div>Space or right trigger fires. Shift, B, or RB dashes.</div>
-      <div>Press E or Y near a planet to descend, then return to the ship when the cache is clear.</div>
-      <div>On foot, move with WASD or left stick. Space, mouse, A, or RT fires the mining pulse.</div>
-      <div>LOW mode is tuned for phones and low-GPU machines. Press P to show or hide the frame meter.</div>
+      <div><b>Mobile</b><span>Drag anywhere. Use LAND and DASH.</span></div>
+      <div><b>Gamepad</b><span>Left stick move. Right stick aims.</span></div>
+      <div><b>Keyboard</b><span>WASD move. E lands. Shift dashes.</span></div>
     `
     grid.append(left, meta)
     panel.append(h, k, grid)
@@ -3239,7 +3492,6 @@ class VectorShooter {
   private gameOver() {
     this.state = 'gameover'
     this.audio.boom(true)
-    this.saveScore()
     this.renderGameOver()
   }
 
@@ -3252,25 +3504,39 @@ class VectorShooter {
     h.textContent = 'SIGNAL LOST'
     const copy = document.createElement('p')
     copy.className = 'copy'
-    copy.textContent = `Score ${Math.floor(this.stats.score)}. Survived ${formatTime(this.stats.time)}. Level ${this.stats.level}. Kills ${this.stats.kills}. Planets landed ${this.stats.planets}/${this.planets.length}.`
+    copy.textContent = `Score ${Math.floor(this.stats.score)}. Survived ${formatTime(this.stats.time)}. Level ${this.stats.level}. Kills ${this.stats.kills}. Planets landed ${this.stats.planets}.`
     const input = document.createElement('input')
     input.className = 'name-entry'
     input.maxLength = 12
-    input.value = this.scoreName
+    input.placeholder = 'ACE'
+    input.autocapitalize = 'characters'
+    input.autocomplete = 'name'
+    input.inputMode = 'text'
+    input.value = this.scoreName === 'ACE' ? '' : this.scoreName
     input.addEventListener('input', () => {
-      this.scoreName = input.value.toUpperCase().replace(/[^A-Z0-9 _-]/g, '').slice(0, 12) || 'ACE'
+      this.scoreName = input.value.toUpperCase().replace(/[^A-Z0-9 _-]/g, '').slice(0, 12)
       input.value = this.scoreName
+    })
+    input.addEventListener('focus', () => input.select())
+    input.addEventListener('blur', () => {
+      if (!this.scoreName.trim()) this.scoreName = 'ACE'
     })
     const row = document.createElement('div')
     row.className = 'button-row'
     const retry = document.createElement('button')
     retry.className = 'vector-button'
     retry.textContent = 'Run Again'
-    retry.addEventListener('click', () => this.restartFromGameOver())
+    retry.addEventListener('click', () => {
+      this.saveScoreFromInput(input)
+      this.restartFromGameOver()
+    })
     const scores = document.createElement('button')
     scores.className = 'vector-button secondary'
     scores.textContent = 'Scores'
-    scores.addEventListener('click', () => this.showScores())
+    scores.addEventListener('click', () => {
+      this.saveScoreFromInput(input)
+      this.showScores()
+    })
     row.append(retry, scores)
     panel.append(h, copy, input, document.createElement('br'), document.createElement('br'), row)
     this.ui.gameover.append(panel)
@@ -3290,13 +3556,25 @@ class VectorShooter {
     this.start()
   }
 
+  private saveScoreFromInput(input: HTMLInputElement) {
+    this.scoreName = input.value.toUpperCase().replace(/[^A-Z0-9 _-]/g, '').slice(0, 12).trim() || 'ACE'
+    input.value = this.scoreName
+    this.saveScore()
+  }
+
   private reset() {
     this.player = this.makePlayer()
     this.bullets = []
     this.enemies = []
+    this.enemyGrid.clear()
     this.pickups = []
     this.particles = []
     this.shockwaves = []
+    this.chunks.clear()
+    this.stars = []
+    this.planets = []
+    this.visitedPlanets.clear()
+    this.activeChunkKey = ''
     this.surface = null
     this.transitionTimer = 0
     this.pendingUpgrades = 0
@@ -3305,7 +3583,6 @@ class VectorShooter {
     this.relics.clear()
     this.evolved.clear()
     this.limitBreaks = { might: 0, cooldown: 0, amount: 0, speed: 0, magnet: 0, hull: 0 }
-    this.planets.forEach((p) => (p.visited = false))
     this.stats = { time: 0, kills: 0, level: 1, xp: 0, nextXp: 24, highScore: this.highs[0]?.score ?? 0, planets: 0, score: 0 }
     for (const k of Object.keys(this.build) as UpgradeId[]) this.build[k] = 0
     this.spawnTimer = 0.4
@@ -3314,6 +3591,7 @@ class VectorShooter {
     this.scoreSaved = false
     this.camera.x = this.player.x - this.width / 2
     this.camera.y = this.player.y - this.height / 2
+    this.updateSpaceChunks(true)
   }
 
   private togglePause() {

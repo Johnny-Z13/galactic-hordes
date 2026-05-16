@@ -300,6 +300,16 @@ canvas {
     0 0 36px rgba(87, 255, 243, 0.14);
 }
 
+.title-panel {
+  width: min(520px, calc(100vw - 22px));
+  min-height: min(760px, calc(100vh - 22px));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(18px, 5vw, 30px);
+  border-color: rgba(87, 255, 243, 0.54);
+}
+
 .title {
   margin: 0 0 8px;
   color: #f6fffe;
@@ -308,6 +318,19 @@ canvas {
   text-shadow:
     0 0 12px rgba(87, 255, 243, 0.95),
     0 0 34px rgba(87, 255, 243, 0.35);
+}
+
+.title-logo {
+  display: grid;
+  margin-bottom: 10px;
+  font-size: clamp(48px, 16vw, 78px);
+}
+
+.title-logo span:last-child {
+  color: var(--yellow);
+  text-shadow:
+    0 0 12px rgba(255, 242, 122, 0.86),
+    0 0 30px rgba(255, 242, 122, 0.28);
 }
 
 .kicker {
@@ -330,9 +353,25 @@ canvas {
   align-items: end;
 }
 
+.title-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.title-primary {
+  display: grid;
+  gap: 14px;
+}
+
 .button-row {
   display: flex;
   flex-wrap: wrap;
+  gap: 10px;
+}
+
+.title-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
   gap: 10px;
 }
 
@@ -344,6 +383,13 @@ canvas {
   padding: 10px 16px;
   cursor: pointer;
   box-shadow: 0 0 18px rgba(87, 255, 243, 0.32);
+}
+
+.start-button {
+  min-height: 58px;
+  font-size: 18px;
+  color: #001112;
+  box-shadow: 0 0 28px rgba(87, 255, 243, 0.42);
 }
 
 .vector-button.secondary {
@@ -371,6 +417,25 @@ canvas {
   margin-top: 12px;
 }
 
+.title-panel .graphics-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 0;
+}
+
+.title-quick {
+  display: grid;
+  gap: 7px;
+  color: rgba(215, 255, 247, 0.78);
+  font-size: 12px;
+}
+
+.title-quick span {
+  border-left: 2px solid rgba(143, 255, 125, 0.58);
+  background: rgba(143, 255, 125, 0.045);
+  padding: 5px 0 5px 9px;
+}
+
 .vector-button:focus-visible,
 .choice:focus-visible,
 .name-entry:focus-visible {
@@ -395,6 +460,28 @@ canvas {
 .meta-list div {
   border-left: 2px solid rgba(143, 255, 125, 0.72);
   padding-left: 10px;
+}
+
+.title-meta {
+  gap: 7px;
+  font-size: 12px;
+}
+
+.title-meta div {
+  display: grid;
+  gap: 2px;
+  border-left-color: rgba(87, 255, 243, 0.55);
+  background: rgba(87, 255, 243, 0.04);
+  padding: 7px 9px;
+}
+
+.title-meta b {
+  color: #e8fffb;
+  font-size: 11px;
+}
+
+.title-meta span {
+  color: rgba(215, 255, 247, 0.68);
 }
 
 .choice-grid {
@@ -459,6 +546,10 @@ canvas {
   text-transform: uppercase;
 }
 
+.name-entry::placeholder {
+  color: rgba(215, 255, 247, 0.36);
+}
+
 .score-table {
   width: 100%;
   border-collapse: collapse;
@@ -485,6 +576,10 @@ canvas {
 }
 
 @media (max-width: 760px) {
+  .screen {
+    padding: 10px;
+  }
+
   .topbar {
     grid-template-columns: 1fr;
     top: max(8px, env(safe-area-inset-top));
@@ -548,12 +643,44 @@ canvas {
     padding: 18px;
   }
 
+  .title-panel {
+    width: calc(100vw - 20px);
+    min-height: calc(100vh - 20px);
+    max-height: calc(100vh - 20px);
+    padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+  }
+
   .title {
     font-size: clamp(38px, 15vw, 68px);
   }
 
+  .title-logo {
+    font-size: clamp(48px, 18vw, 74px);
+  }
+
+  .title-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .start-button {
+    min-height: 64px;
+  }
+
   .copy {
     line-height: 1.42;
+    margin-bottom: 0;
+  }
+
+  .title-panel .copy {
+    font-size: 13px;
+  }
+
+  .title-panel .vector-button.tiny {
+    min-height: 40px;
+  }
+
+  .title-meta {
+    font-size: 11px;
   }
 
   .touch-controls.visible {
