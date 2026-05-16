@@ -1,5 +1,6 @@
 import './style.css'
 import glassMiteOracleSheetUrl from './assets/glass-mite-oracle-sheet-alpha.png'
+import surfaceSpacemanSheetUrl from './assets/surface-spaceman-sheet-alpha.png'
 
 type GameState = 'title' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'takeoff' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
@@ -649,6 +650,7 @@ class VectorShooter {
   private audio = new AudioDirector()
   private camera = { x: 0, y: 0, shake: 0 }
   private glassMiteOracleSheet = new Image()
+  private surfaceSpacemanSheet = new Image()
   private scoreSaved = false
   private scoreName = 'ACE'
   private toastTimer = 0
@@ -760,6 +762,7 @@ class VectorShooter {
     this.resize()
     this.bind()
     this.glassMiteOracleSheet.src = glassMiteOracleSheetUrl
+    this.surfaceSpacemanSheet.src = surfaceSpacemanSheetUrl
     this.highs = this.loadScores()
     this.stats.highScore = this.highs[0]?.score ?? 0
     this.updateSpaceChunks()
@@ -2948,6 +2951,41 @@ class VectorShooter {
 
   private renderSurfacePilot(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
     const p = this.surfaceToScreen(s.pilot.x, s.pilot.y)
+    const sheet = this.surfaceSpacemanSheet
+    if (sheet.complete && sheet.naturalWidth > 0) {
+      const frameCount = 8
+      const moving = len(s.pilot.vx, s.pilot.vy) > 12
+      const frame = moving ? Math.floor(this.stats.time * 11) % frameCount : 0
+      const sw = sheet.naturalWidth / frameCount
+      const sh = sheet.naturalHeight
+      const scale = s.pilot.invuln > 0 ? 0.45 : 0.42
+      const dw = sw * scale
+      const dh = sh * scale
+      const flip = Math.cos(s.pilot.facing) < 0 ? -1 : 1
+      const bob = moving ? Math.sin(this.stats.time * 18) * 1.5 : Math.sin(this.stats.time * 3) * 0.8
+      ctx.save()
+      ctx.translate(p.x, p.y + bob)
+      ctx.scale(flip, 1)
+      ctx.globalCompositeOperation = 'lighter'
+      ctx.globalAlpha = s.pilot.invuln > 0 ? 1 : 0.96
+      ctx.shadowColor = s.pilot.invuln > 0 ? '#fff27a' : '#57fff3'
+      ctx.shadowBlur = this.allowGlow() ? 14 : 5
+      ctx.drawImage(sheet, frame * sw, 0, sw, sh, -dw / 2, -dh * 0.62, dw, dh)
+      if (s.pilot.gunCd > 0.14) {
+        ctx.fillStyle = '#fff27a'
+        ctx.shadowColor = '#fff27a'
+        ctx.shadowBlur = 12
+        ctx.beginPath()
+        ctx.arc(dw * 0.44, -dh * 0.2, 2.8, 0, TAU)
+        ctx.fill()
+      }
+      ctx.restore()
+      return
+    }
+    this.renderFallbackSurfacePilot(ctx, s, p)
+  }
+
+  private renderFallbackSurfacePilot(ctx: CanvasRenderingContext2D, s: SurfaceRun, p: Vec) {
     const step = Math.sin(this.stats.time * 11) * 4
     const facing = Math.sign(Math.cos(s.pilot.facing)) || 1
     const aim = s.pilot.facing

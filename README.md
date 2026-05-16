@@ -14,6 +14,7 @@ Vector Shooter is a mobile-first portrait survival shooter: Vampire Survivors pr
 - Planet relics, weapon evolutions, limit breaks, treasure cores, and mystery cache ambushes.
 - Quiet planet encounters with one-time alien bargains.
 - A generated Glass Mite Oracle test sprite is temporarily forced onto every planet surface for creature-art evaluation.
+- A generated 8-frame surface spaceman sprite replaces the original stick pilot.
 - High scores with editable pilot names.
 - LOW/MED/GLOW graphics modes for phones, low-GPU Macs, and high-end PCs.
 
