@@ -12,6 +12,7 @@ Vector Shooter is a mobile-first portrait survival shooter: Vampire Survivors pr
 - Workbench upgrades happen when returning to the ship.
 - Weighted upgrade choices inspired by Vampire Survivors.
 - Planet relics, weapon evolutions, limit breaks, treasure cores, and mystery cache ambushes.
+- Quiet planet encounters with one-time alien bargains.
 - High scores with editable pilot names.
 - LOW/MED/GLOW graphics modes for phones, low-GPU Macs, and high-end PCs.
 
@@ -84,7 +85,7 @@ Visited planets stay remembered for the run even if their sector is unloaded and
 
 ## Planet Salvage
 
-Planets are mystery boxes. Landing can produce jackpot fields, hostile swarms, relic hunts, repair docks, volatile cache fields, or a quieter standard salvage run. Surface caches can grant:
+Planets are mystery boxes. Landing can produce jackpot fields, hostile swarms, relic hunts, repair docks, volatile cache fields, alien bargains, or a quieter standard salvage run. Surface caches can grant:
 
 - scrap
 - crystals
@@ -95,6 +96,8 @@ Planets are mystery boxes. Landing can produce jackpot fields, hostile swarms, r
 - evolution catalysts
 
 Relics can unlock weapon evolutions, but many come with downsides.
+
+Some quiet planets also contain strange alien entities. Walk up and tap `TALK`/press `E` to hear the offer. Taking the gift is a one-time roll: it may heal, reveal, or enrich you, but it can also bite, steal resources, or wake hostile things.
 
 ## Development
 

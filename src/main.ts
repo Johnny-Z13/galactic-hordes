@@ -1,6 +1,6 @@
 import './style.css'
 
-type GameState = 'title' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'takeoff' | 'gameover' | 'scores'
+type GameState = 'title' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'takeoff' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
 type EnemyKind = 'chaser' | 'splinter' | 'lancer' | 'mine' | 'warden'
 type SurfaceResourceKind = 'crystal' | 'scrap' | 'repair' | 'cache'
@@ -9,6 +9,7 @@ type UpgradeCategory = 'weapon' | 'system'
 type RelicId = 'staticIdol' | 'glassReactor' | 'deadSunCoin' | 'hungryCompass' | 'blackBoxSaint' | 'mirrorSeed' | 'saintCapacitor' | 'forbiddenMap'
 type LimitId = 'might' | 'cooldown' | 'amount' | 'speed' | 'magnet' | 'hull'
 type SurfaceEventKind = 'jackpot' | 'swarm' | 'relic' | 'repair' | 'volatile' | 'standard'
+type AlienGiftKind = 'herb' | 'idol' | 'map' | 'coin'
 type UpgradeId =
   | 'rapid'
   | 'split'
@@ -163,6 +164,17 @@ interface SurfaceBullet {
   color: string
 }
 
+interface SurfaceAlien {
+  x: number
+  y: number
+  radius: number
+  phase: number
+  color: string
+  name: string
+  gift: AlienGiftKind
+  resolved: boolean
+}
+
 interface SurfaceRun {
   planet: Planet
   event: SurfaceEventKind
@@ -182,6 +194,7 @@ interface SurfaceRun {
   resources: SurfaceResource[]
   threats: SurfaceThreat[]
   bullets: SurfaceBullet[]
+  aliens: SurfaceAlien[]
   collected: number
   pendingUpgrade: boolean
   message: string
@@ -639,6 +652,7 @@ class VectorShooter {
   private toastText = ''
   private upgradeChoices: WorkbenchChoice[] = []
   private planetChoice: Planet | null = null
+  private alienChoice: SurfaceAlien | null = null
   private transitionTimer = 0
   private transitionDuration = 1.25
   private surface: SurfaceRun | null = null
@@ -1028,6 +1042,14 @@ class VectorShooter {
       this.updateLanding(dt)
       return
     }
+    if (this.state === 'alien' && this.surface) {
+      this.stats.time += dt * 0.08
+      this.toastTimer -= dt
+      if (this.toastTimer <= 0) this.ui.toast.classList.remove('visible')
+      this.updateParticles(dt)
+      this.updateHud()
+      return
+    }
     if (this.state === 'surface') {
       this.updateSurface(dt)
       return
@@ -1166,7 +1188,9 @@ class VectorShooter {
     this.updateSurfaceThreats(dt)
 
     const nearShip = Math.sqrt(dist2(this.surface.pilot, this.surface.ship)) < 64
-    if (input.interact && nearShip) this.startTakeoff()
+    const alien = this.findNearbyAlien()
+    if (input.interact && alien) this.openAlienEncounter(alien)
+    else if (input.interact && nearShip) this.startTakeoff()
     if (this.surface.collected >= this.surface.resources.length && !nearShip) {
       this.surface.message = 'CACHE CLEARED. RETURN TO SHIP.'
     }
@@ -2040,6 +2064,7 @@ class VectorShooter {
         hit: 0
       })
     }
+    const aliens = this.createSurfaceAliens(event, threatCount)
     return {
       planet,
       event,
@@ -2051,10 +2076,36 @@ class VectorShooter {
       resources,
       threats,
       bullets: [],
+      aliens,
       collected: 0,
       pendingUpgrade: false,
       message: this.surfaceEventMessage(event, first)
     }
+  }
+
+  private createSurfaceAliens(event: SurfaceEventKind, threatCount: number): SurfaceAlien[] {
+    const quiet = threatCount === 0
+    const chance =
+      event === 'swarm' ? 0.06 :
+      event === 'volatile' ? 0.22 :
+      event === 'repair' ? 0.72 :
+      event === 'standard' ? 0.58 :
+      event === 'relic' ? 0.46 :
+      0.28
+    if (Math.random() > chance + (quiet ? 0.18 : 0)) return []
+    const colors = ['#b990ff', '#fff27a', '#57fff3', '#8fff7d']
+    const names = ['THE SMALL ORACLE', 'A STATIC PILGRIM', 'THE GLASS HERBALIST', 'A COIN-EYED STRANGER', 'THE SOFT MACHINE']
+    const gifts: AlienGiftKind[] = ['herb', 'idol', 'map', 'coin']
+    return [{
+      x: rand(260, 1340),
+      y: rand(210, 960),
+      radius: 24,
+      phase: rand(0, TAU),
+      color: colors[Math.floor(Math.random() * colors.length)],
+      name: names[Math.floor(Math.random() * names.length)],
+      gift: gifts[Math.floor(Math.random() * gifts.length)],
+      resolved: false
+    }]
   }
 
   private rollSurfaceEvent(planet: Planet, first: boolean): SurfaceEventKind {
@@ -2237,6 +2288,128 @@ class VectorShooter {
     }
   }
 
+  private findNearbyAlien() {
+    if (!this.surface) return null
+    return this.surface.aliens.find((alien) => !alien.resolved && Math.sqrt(dist2(alien, this.surface!.pilot)) < alien.radius + 34) ?? null
+  }
+
+  private openAlienEncounter(alien: SurfaceAlien) {
+    if (!this.surface || alien.resolved) return
+    this.state = 'alien'
+    this.alienChoice = alien
+    this.surface.pilot.vx = 0
+    this.surface.pilot.vy = 0
+    this.ui.planet.innerHTML = ''
+    const panel = document.createElement('div')
+    panel.className = 'panel'
+    const h = document.createElement('h1')
+    h.className = 'title'
+    h.textContent = alien.name
+    const copy = document.createElement('p')
+    copy.className = 'copy'
+    copy.textContent = this.alienOfferCopy(alien)
+    const row = document.createElement('div')
+    row.className = 'button-row'
+    const take = document.createElement('button')
+    take.className = 'vector-button'
+    take.textContent = 'Take Gift'
+    take.addEventListener('click', () => this.resolveAlienGift(true))
+    const leave = document.createElement('button')
+    leave.className = 'vector-button secondary'
+    leave.textContent = 'Leave It'
+    leave.addEventListener('click', () => this.resolveAlienGift(false))
+    row.append(take, leave)
+    panel.append(h, copy, row)
+    this.ui.planet.append(panel)
+    this.showOnly('planet')
+  }
+
+  private alienOfferCopy(alien: SurfaceAlien) {
+    return {
+      herb: 'It unfolds a luminous herb in both hands. The suit reads medicine, poison, and prayer in equal measure.',
+      idol: 'It offers a tiny idol made of cooled lightning. The object is either a charm or a trap pretending to be polite.',
+      map: 'It draws a living map in the dust. The route keeps changing when you blink.',
+      coin: 'It flips a black coin into the air and waits for your glove to open.'
+    }[alien.gift]
+  }
+
+  private resolveAlienGift(take: boolean) {
+    if (!this.surface || !this.alienChoice) return
+    const alien = this.alienChoice
+    alien.resolved = true
+    this.alienChoice = null
+    this.state = 'surface'
+    this.showOnly(null)
+    if (!take) {
+      this.surface.message = `${alien.name} FADES WITHOUT OFFENCE.`
+      this.toast('ALIEN GIFT REFUSED')
+      return
+    }
+    const luck = this.build.luck * 0.04 + this.build.survey * 0.025
+    const good = Math.random() < 0.62 + luck
+    if (good) this.applyGoodAlienGift(alien)
+    else this.applyBadAlienGift(alien)
+  }
+
+  private applyGoodAlienGift(alien: SurfaceAlien) {
+    if (!this.surface) return
+    if (alien.gift === 'herb') {
+      this.player.hull = clamp(this.player.hull + 34, 0, this.player.maxHull)
+      this.resources.crystal += 4
+      this.surface.message = 'THE HERB IS SWEET. HULL KNITS SHUT.'
+    } else if (alien.gift === 'idol') {
+      this.bankUpgrade('ALIEN IDOL BANKED A MUTATION SIGNAL')
+      this.resources.cores += 1
+      this.surface.message = 'THE IDOL HUMS IN TUNE WITH THE SHIP.'
+    } else if (alien.gift === 'map') {
+      this.build.survey = clamp(this.build.survey + 1, 0, upgrades.find((u) => u.id === 'survey')?.max ?? 6)
+      this.stats.score += 650
+      this.surface.message = 'THE MAP BURNS A BETTER PLANET SENSE INTO YOUR HUD.'
+    } else {
+      this.resources.scrap += 180
+      this.resources.cores += 1
+      this.stats.score += 900
+      this.surface.message = 'THE COIN LANDS EDGE-UP. IMPOSSIBLE. PROFITABLE.'
+    }
+    this.audio.pickup()
+    this.burst(alien.x, alien.y, alien.color, 22, 220)
+    this.toast('ALIEN GIFT ACCEPTED')
+  }
+
+  private applyBadAlienGift(alien: SurfaceAlien) {
+    if (!this.surface) return
+    if (alien.gift === 'herb') {
+      this.damagePlayer(18)
+      this.surface.message = 'THE HERB BITES BACK. YOUR SUIT HATES IT.'
+    } else if (alien.gift === 'idol') {
+      this.damagePlayer(9)
+      for (let i = 0; i < 3; i += 1) {
+        this.surface.threats.push({
+          x: clamp(alien.x + rand(-150, 150), 60, this.surface.width - 60),
+          y: clamp(alien.y + rand(-150, 150), 60, this.surface.height - 60),
+          vx: 0,
+          vy: 0,
+          hp: 22 + this.stats.time * 0.1,
+          radius: 13,
+          phase: rand(0, TAU),
+          color: '#ff5d73',
+          hit: 0
+        })
+      }
+      this.surface.message = 'THE IDOL OPENS. SMALL HUNGRY THINGS FALL OUT.'
+    } else if (alien.gift === 'map') {
+      this.resources.crystal = Math.max(0, this.resources.crystal - 8)
+      this.surface.message = 'THE MAP IS A MOUTH. IT EATS YOUR CRYSTALS.'
+    } else {
+      this.resources.scrap = Math.max(0, this.resources.scrap - 120)
+      this.damagePlayer(12)
+      this.surface.message = 'THE COIN LANDS ON A SIDE YOU DO NOT HAVE.'
+    }
+    this.audio.boom(false)
+    this.burst(alien.x, alien.y, '#ff5d73', 24, 240)
+    this.toast('ALIEN GIFT WAS BAD')
+  }
+
   private updateSurfaceBullets(dt: number) {
     if (!this.surface) return
     for (let i = this.surface.bullets.length - 1; i >= 0; i -= 1) {
@@ -2327,6 +2500,7 @@ class VectorShooter {
     this.player.invuln = 0.8
     const planetName = this.surface.planet.name
     this.surface = null
+    this.alienChoice = null
     this.state = 'playing'
     this.showOnly(null)
     this.toast(`${planetName}: SURFACE CACHE EXTRACTED`)
@@ -2425,7 +2599,7 @@ class VectorShooter {
     ctx.clearRect(0, 0, this.width, this.height)
     ctx.fillStyle = '#020305'
     ctx.fillRect(0, 0, this.width, this.height)
-    if (this.state === 'levelup' && this.surface) {
+    if ((this.state === 'levelup' || this.state === 'alien') && this.surface) {
       this.mini.style.display = 'none'
       this.renderSurface(ctx)
       return
@@ -2540,6 +2714,7 @@ class VectorShooter {
 
     this.renderSurfaceShip(ctx, s)
     this.renderSurfaceResources(ctx, s)
+    this.renderSurfaceAliens(ctx, s)
     this.renderSurfaceBullets(ctx, s)
     this.renderSurfaceThreats(ctx, s)
     this.renderSurfacePilot(ctx, s)
@@ -2631,6 +2806,44 @@ class VectorShooter {
     }
   }
 
+  private renderSurfaceAliens(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
+    for (const alien of s.aliens) {
+      if (alien.resolved) continue
+      const p = this.surfaceToScreen(alien.x, alien.y)
+      const bob = Math.sin(this.stats.time * 2.4 + alien.phase) * 5
+      ctx.save()
+      ctx.translate(p.x, p.y + bob)
+      ctx.strokeStyle = alien.color
+      ctx.fillStyle = alien.color
+      ctx.shadowColor = alien.color
+      ctx.shadowBlur = 18
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.ellipse(0, -8, 13, 23, Math.sin(alien.phase) * 0.25, 0, TAU)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(0, -30, 11, 0, TAU)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(-4, -31, 1.8, 0, TAU)
+      ctx.arc(4, -31, 1.8, 0, TAU)
+      ctx.arc(0, -25, 1.8, 0, TAU)
+      ctx.fill()
+      ctx.globalAlpha = 0.45
+      ctx.beginPath()
+      ctx.arc(0, -10, alien.radius + Math.sin(this.stats.time * 3) * 3, 0, TAU)
+      ctx.stroke()
+      ctx.globalAlpha = 1
+      ctx.beginPath()
+      ctx.moveTo(-8, 10)
+      ctx.lineTo(-16, 24)
+      ctx.moveTo(8, 10)
+      ctx.lineTo(16, 24)
+      ctx.stroke()
+      ctx.restore()
+    }
+  }
+
   private renderSurfaceBullets(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
     ctx.save()
     ctx.strokeStyle = '#fff27a'
@@ -2694,15 +2907,18 @@ class VectorShooter {
 
   private renderSurfaceHud(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
     const nearShip = Math.sqrt(dist2(s.pilot, s.ship)) < 64
+    const nearAlien = this.findNearbyAlien()
     ctx.save()
     ctx.fillStyle = '#fff27a'
     ctx.shadowColor = '#fff27a'
     ctx.shadowBlur = 12
-    ctx.font = '14px Courier New'
+    ctx.font = this.width < 560 ? '12px Courier New' : '14px Courier New'
     ctx.textAlign = 'center'
-    const message = nearShip ? 'PRESS E / Y TO BOARD SHIP' : s.message
-    ctx.fillText(`${s.planet.name} // ${this.surfaceEventLabel(s.event)} // ${s.collected}/${s.resources.length} SIGNALS`, this.width / 2, 86)
-    ctx.fillText(message, this.width / 2, this.height - 42)
+    const message = nearAlien ? `PRESS E / Y TO SPEAK: ${nearAlien.name}` : nearShip ? 'PRESS E / Y TO BOARD SHIP' : s.message
+    ctx.fillText(`${s.planet.name} // ${this.surfaceEventLabel(s.event)} // ${s.collected}/${s.resources.length} SIGNALS`, this.width / 2, 86, this.width - 16)
+    const actionInset = this.width < 560 ? 132 : 0
+    const messageX = actionInset ? (this.width - actionInset) / 2 : this.width / 2
+    ctx.fillText(message, messageX, this.height - 42, this.width - actionInset - 18)
     ctx.restore()
   }
 
@@ -3396,7 +3612,8 @@ class VectorShooter {
       this.ui.touchStick.style.setProperty('--touch-line', '0px')
     }
     if (this.state === 'surface') {
-      this.ui.touchAction.textContent = this.surface && Math.sqrt(dist2(this.surface.pilot, this.surface.ship)) < 64 ? 'BOARD' : 'USE'
+      const alien = this.findNearbyAlien()
+      this.ui.touchAction.textContent = alien ? 'TALK' : this.surface && Math.sqrt(dist2(this.surface.pilot, this.surface.ship)) < 64 ? 'BOARD' : 'USE'
       this.ui.touchDash.textContent = 'SHOOT'
       return
     }
