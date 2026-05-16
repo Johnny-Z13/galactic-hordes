@@ -565,7 +565,7 @@ canvas {
 
 .workbench-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin: 0 0 14px;
 }
@@ -830,6 +830,184 @@ canvas {
   line-height: 1.35;
 }
 
+.artifact-collection {
+  margin-top: 0;
+  border: 1px solid rgba(185, 144, 255, 0.34);
+  background: rgba(7, 5, 14, 0.74);
+  padding: 10px;
+}
+
+.artifact-summary div {
+  border-color: rgba(185, 144, 255, 0.24);
+  background: rgba(185, 144, 255, 0.055);
+}
+
+.artifact-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  max-height: min(52vh, 430px);
+  overflow: auto;
+}
+
+.artifact-card {
+  min-height: 92px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  border: 1px solid rgba(215, 255, 247, 0.18);
+  background: rgba(215, 255, 247, 0.035);
+  padding: 8px;
+}
+
+.artifact-card.found.relic {
+  border-color: rgba(255, 242, 122, 0.6);
+  background: rgba(255, 242, 122, 0.06);
+}
+
+.artifact-card.found.alien {
+  border-color: rgba(185, 144, 255, 0.58);
+  background: rgba(185, 144, 255, 0.07);
+}
+
+.artifact-card.found.lore {
+  border-color: rgba(112, 168, 255, 0.52);
+  background: rgba(112, 168, 255, 0.055);
+}
+
+.artifact-card.found.planet,
+.artifact-card.found.cache {
+  border-color: rgba(87, 255, 243, 0.44);
+  background: rgba(87, 255, 243, 0.045);
+}
+
+.artifact-card.locked {
+  opacity: 0.55;
+}
+
+.artifact-icon {
+  --artifact-color: #57fff3;
+  --artifact-spin: 0deg;
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border: 1px solid color-mix(in srgb, var(--artifact-color) 72%, transparent);
+  background: radial-gradient(circle, color-mix(in srgb, var(--artifact-color) 18%, transparent), rgba(0, 8, 12, 0.18) 62%);
+  box-shadow: inset 0 0 14px color-mix(in srgb, var(--artifact-color) 14%, transparent), 0 0 14px color-mix(in srgb, var(--artifact-color) 18%, transparent);
+  transform: rotate(var(--artifact-spin));
+}
+
+.artifact-icon.locked {
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.artifact-mark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: block;
+  border: 1px solid var(--artifact-color);
+  transform: translate(-50%, -50%);
+}
+
+.artifact-mark.m1 {
+  width: 18px;
+  height: 18px;
+}
+
+.artifact-mark.m2 {
+  width: 26px;
+  height: 1px;
+  border-width: 1px 0 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.artifact-mark.m3 {
+  width: 6px;
+  height: 6px;
+  background: var(--artifact-color);
+  box-shadow: 0 0 10px var(--artifact-color);
+}
+
+.artifact-mark.m4 {
+  width: 1px;
+  height: 26px;
+  border-width: 0 0 0 1px;
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.artifact-icon.shape-1 .m1,
+.artifact-icon.shape-5 .m1,
+.artifact-icon.shape-9 .m1 {
+  border-radius: 50%;
+}
+
+.artifact-icon.shape-2 .m1,
+.artifact-icon.shape-6 .m1,
+.artifact-icon.shape-10 .m1 {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.artifact-icon.shape-3 .m2,
+.artifact-icon.shape-7 .m2,
+.artifact-icon.shape-11 .m2 {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.artifact-icon.alien .m1 {
+  border-radius: 50% 50% 42% 42%;
+}
+
+.artifact-icon.lore .m1 {
+  width: 20px;
+  height: 14px;
+  transform: translate(-50%, -50%) skew(-12deg);
+}
+
+.artifact-icon.planet {
+  border-radius: 50%;
+}
+
+.artifact-icon.cache .m1 {
+  width: 20px;
+  height: 12px;
+}
+
+.artifact-meta {
+  min-width: 0;
+}
+
+.artifact-meta strong,
+.artifact-meta span,
+.artifact-meta em {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.artifact-meta strong {
+  color: #f6fffe;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.artifact-meta span {
+  margin-top: 4px;
+  color: rgba(215, 255, 247, 0.66);
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+.artifact-meta em {
+  margin-top: 5px;
+  color: rgba(255, 242, 122, 0.72);
+  font-size: 8px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
 @keyframes install-pop {
   0% { transform: scale(1); filter: brightness(1); }
   45% { transform: scale(1.055); filter: brightness(1.45); }
@@ -931,11 +1109,29 @@ canvas {
     gap: 6px;
   }
 
+  .artifact-grid {
+    grid-template-columns: 1fr;
+    max-height: min(56vh, 460px);
+    gap: 6px;
+  }
+
+  .artifact-card {
+    min-height: 76px;
+    grid-template-columns: 38px minmax(0, 1fr);
+    padding: 7px;
+  }
+
+  .artifact-icon {
+    width: 32px;
+    height: 32px;
+  }
+
   .workbench-view {
     min-height: 0;
   }
 
-  .workbench-view.manifest {
+  .workbench-view.manifest,
+  .workbench-view.artifacts {
     min-height: 0;
   }
 

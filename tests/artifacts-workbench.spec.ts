@@ -1,0 +1,26 @@
+import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+const styles = () => readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8')
+
+test('workbench exposes an artifacts collection tab', () => {
+  const main = source()
+
+  expect(main).toContain("type WorkbenchView = 'upgrades' | 'manifest' | 'artifacts'")
+  expect(main).toContain("artifactsTab.textContent = 'Artifacts'")
+  expect(main).toContain('this.renderArtifactsCollection()')
+})
+
+test('artifacts track relics aliens lore and planet finds with generated icons', () => {
+  const main = source()
+  const css = styles()
+
+  expect(main).toContain('interface ArtifactRecord')
+  expect(main).toContain('private artifacts = new Map<string, ArtifactRecord>()')
+  expect(main).toContain('this.recordArtifact(')
+  expect(main).toContain('private artifactIcon(')
+  expect(css).toContain('.artifact-icon')
+  expect(css).toContain('.artifact-grid')
+})

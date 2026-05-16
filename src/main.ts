@@ -17,7 +17,8 @@ type LimitId = 'might' | 'cooldown' | 'amount' | 'speed' | 'magnet' | 'hull'
 type SurfaceEventKind = 'jackpot' | 'swarm' | 'relic' | 'repair' | 'volatile' | 'standard'
 type SurfaceScenarioKind = 'salvage' | 'boss' | 'friendly' | 'mixed' | 'lore'
 type AlienGiftKind = 'herb' | 'idol' | 'map' | 'coin'
-type WorkbenchView = 'upgrades' | 'manifest'
+type ArtifactKind = 'relic' | 'alien' | 'lore' | 'planet' | 'cache'
+type WorkbenchView = 'upgrades' | 'manifest' | 'artifacts'
 type UpgradeId =
   | 'rapid'
   | 'split'
@@ -254,6 +255,17 @@ interface Evolution {
   relic: RelicId
   name: string
   description: string
+}
+
+interface ArtifactRecord {
+  id: string
+  kind: ArtifactKind
+  title: string
+  detail: string
+  source: string
+  color: string
+  icon: number
+  count: number
 }
 
 type WorkbenchChoice =
@@ -882,6 +894,7 @@ class VectorShooter {
   private resources = { scrap: 0, crystal: 0, cores: 0 }
   private relics = new Set<RelicId>()
   private evolved = new Set<UpgradeId>()
+  private artifacts = new Map<string, ArtifactRecord>()
   private limitBreaks: Record<LimitId, number> = { might: 0, cooldown: 0, amount: 0, speed: 0, magnet: 0, hull: 0 }
 
   private player = this.makePlayer()
@@ -2410,6 +2423,15 @@ class VectorShooter {
       return
     }
     this.relics.add(relic.id)
+    this.recordArtifact({
+      id: `relic:${relic.id}`,
+      kind: 'relic',
+      title: relic.name,
+      detail: relic.description,
+      source: message,
+      color: this.artifactColor('relic', relic.id),
+      icon: hashString(relic.id, 41) % 12
+    })
     this.stats.score += 500 + this.relics.size * 120
     this.audio.level()
     const anchor = this.fxAnchor()
@@ -2430,6 +2452,18 @@ class VectorShooter {
 
   private fxAnchor(): Vec {
     return this.surface?.ship ?? this.player
+  }
+
+  private recordPlanetArtifact(planet: Planet, source: string) {
+    this.recordArtifact({
+      id: `planet:${planet.id}`,
+      kind: 'planet',
+      title: planet.name,
+      detail: planet.reward,
+      source: `${source} // ${planet.archetype.toUpperCase()}`,
+      color: planet.color,
+      icon: hashString(planet.id, 19) % 12
+    })
   }
 
   private tryLand() {
@@ -2820,6 +2854,7 @@ class VectorShooter {
     this.visitedPlanets.add(p.id)
     this.stats.planets = this.visitedPlanets.size
     this.stats.score += first ? 900 + this.stats.planets * 300 : 120
+    if (first) this.recordPlanetArtifact(p, 'Docked from orbit')
     this.player.hull = clamp(this.player.hull + (first ? 45 : 14), 0, this.player.maxHull)
     if (p.name === 'NULL CATHEDRAL' && first) this.spawnEnemy('warden')
     if (p.name === 'SAINT STATIC' && first) this.drop('chest', p.x, p.y, 1)
@@ -2871,6 +2906,15 @@ class VectorShooter {
 
   private resolvePlanetCache(resource: SurfaceResource) {
     if (!this.surface) return
+    this.recordArtifact({
+      id: `cache:${this.surface.planet.id}:${Math.round(resource.x)}:${Math.round(resource.y)}`,
+      kind: 'cache',
+      title: 'Surface Cache',
+      detail: `${this.surface.event.toUpperCase()} cache cracked open.`,
+      source: this.surface.planet.name,
+      color: this.artifactColor('cache', `${this.surface.planet.id}:${resource.x}:${resource.y}`),
+      icon: hashString(`${this.surface.planet.id}:${resource.x}:${resource.y}`, 67) % 12
+    })
     const luck = this.build.luck * 0.06 + this.build.survey * 0.035
     const cargoBonus = 1 + this.build.cargo * 0.15
     this.stats.score += Math.floor((450 + this.stats.level * 45) * (1 + this.build.cargo * 0.06))
@@ -2988,6 +3032,15 @@ class VectorShooter {
     const score = 260 + this.stats.level * 35
     this.stats.score += score
     this.resources.crystal += 1
+    this.recordArtifact({
+      id: `lore:${this.surface.planet.id}:${site.title}`,
+      kind: 'lore',
+      title: site.title,
+      detail: site.copy,
+      source: this.surface.planet.name,
+      color: this.artifactColor('lore', `${this.surface.planet.id}:${site.kind}`),
+      icon: hashString(`${site.kind}:${site.title}`, 31) % 12
+    })
     let decodedSignal = false
     if (Math.random() < 0.18 + this.build.survey * 0.04) {
       this.surface.pendingUpgrade = true
@@ -3072,6 +3125,15 @@ class VectorShooter {
     const alien = this.alienChoice
     alien.resolved = true
     this.alienChoice = null
+    this.recordArtifact({
+      id: `alien:${this.surface.planet.id}:${alien.name}:${alien.gift}`,
+      kind: 'alien',
+      title: alien.name,
+      detail: `${take ? 'Accepted' : 'Refused'} ${alien.gift.toUpperCase()} gift.`,
+      source: this.surface.planet.name,
+      color: alien.color,
+      icon: hashString(`${alien.name}:${alien.gift}`, 53) % 12
+    })
     this.state = 'surface'
     this.showOnly(null)
     if (!take) {
@@ -3235,6 +3297,7 @@ class VectorShooter {
     this.surface.planet.visited = true
     this.visitedPlanets.add(this.surface.planet.id)
     this.stats.planets = this.visitedPlanets.size
+    if (first) this.recordPlanetArtifact(this.surface.planet, 'Surface expedition')
     this.stats.score += first ? 420 + this.surface.collected * 45 : this.surface.collected * 25
     this.player.landedCd = 2.2
     this.player.invuln = 0.8
@@ -4775,7 +4838,15 @@ class VectorShooter {
       this.workbenchView = 'manifest'
       this.renderLevelUp(title, copy)
     })
-    tabs.append(upgradesTab, manifestTab)
+    const artifactsTab = document.createElement('button')
+    artifactsTab.className = `workbench-tab ${this.workbenchView === 'artifacts' ? 'active' : ''}`
+    artifactsTab.textContent = 'Artifacts'
+    artifactsTab.addEventListener('click', () => {
+      if (this.workbenchInstalling || this.workbenchView === 'artifacts') return
+      this.workbenchView = 'artifacts'
+      this.renderLevelUp(title, copy)
+    })
+    tabs.append(upgradesTab, manifestTab, artifactsTab)
     const view = document.createElement('div')
     view.className = `workbench-view ${this.workbenchView}`
     const grid = document.createElement('div')
@@ -4792,7 +4863,8 @@ class VectorShooter {
     banner.className = 'install-banner'
     banner.textContent = 'INSTALLING MUTATION...'
     if (this.workbenchView === 'upgrades') view.append(grid, banner)
-    else view.append(this.renderBuildManifest())
+    else if (this.workbenchView === 'manifest') view.append(this.renderBuildManifest())
+    else view.append(this.renderArtifactsCollection())
     panel.append(h, p, tabs, view)
     this.ui.levelup.append(panel)
     this.showOnly('levelup')
@@ -4893,6 +4965,103 @@ class VectorShooter {
       : 'No relics installed yet.'
     wrap.append(title, summary, chips, relicLine)
     return wrap
+  }
+
+  private renderArtifactsCollection() {
+    const wrap = document.createElement('div')
+    wrap.className = 'artifact-collection'
+    const title = document.createElement('div')
+    title.className = 'manifest-title'
+    title.innerHTML = '<b>ARTEFACT ARCHIVE</b><span>relics, contacts, ruins, caches, and planet firsts</span>'
+    const summary = document.createElement('div')
+    summary.className = 'manifest-summary artifact-summary'
+    const unlocked = Array.from(this.artifacts.values())
+    const counts: Record<ArtifactKind, number> = { relic: 0, alien: 0, lore: 0, planet: 0, cache: 0 }
+    for (const artifact of unlocked) counts[artifact.kind] += 1
+    summary.innerHTML = `
+      <div><b>${counts.relic}/${relics.length}</b><span>relics</span></div>
+      <div><b>${counts.alien}</b><span>contacts</span></div>
+      <div><b>${counts.lore}</b><span>ruins</span></div>
+      <div><b>${counts.planet}</b><span>planets</span></div>
+      <div><b>${counts.cache}</b><span>caches</span></div>
+    `
+    const grid = document.createElement('div')
+    grid.className = 'artifact-grid'
+    for (const card of this.artifactCards()) grid.append(this.artifactCard(card.record, card.locked))
+    wrap.append(title, summary, grid)
+    return wrap
+  }
+
+  private artifactCards() {
+    const cards: Array<{ record: ArtifactRecord; locked: boolean }> = []
+    for (const relic of relics) {
+      const id = `relic:${relic.id}`
+      const found = this.artifacts.get(id)
+      cards.push({
+        locked: !found,
+        record: found ?? {
+          id,
+          kind: 'relic',
+          title: 'Unknown Relic',
+          detail: 'Signature not recovered this run.',
+          source: 'Relic signal',
+          color: '#fff27a',
+          icon: hashString(relic.id, 41) % 12,
+          count: 0
+        }
+      })
+    }
+    for (const artifact of this.artifacts.values()) {
+      if (artifact.kind !== 'relic') cards.push({ record: artifact, locked: false })
+    }
+    return cards
+  }
+
+  private artifactCard(record: ArtifactRecord, locked: boolean) {
+    const card = document.createElement('div')
+    card.className = `artifact-card ${record.kind} ${locked ? 'locked' : 'found'}`
+    const meta = document.createElement('div')
+    meta.className = 'artifact-meta'
+    const count = record.count > 1 ? ` x${record.count}` : ''
+    meta.innerHTML = `<strong>${this.escape(record.title)}${count}</strong><span>${this.escape(record.detail)}</span><em>${this.escape(record.source)}</em>`
+    card.append(this.artifactIcon(record, locked), meta)
+    return card
+  }
+
+  private artifactIcon(record: ArtifactRecord, locked = false) {
+    const icon = document.createElement('div')
+    icon.className = `artifact-icon ${record.kind} shape-${record.icon % 12} ${locked ? 'locked' : ''}`
+    icon.style.setProperty('--artifact-color', locked ? 'rgba(215, 255, 247, 0.28)' : record.color)
+    icon.style.setProperty('--artifact-spin', `${(record.icon % 8) * 45}deg`)
+    for (let i = 0; i < 4; i += 1) {
+      const mark = document.createElement('span')
+      mark.className = `artifact-mark m${i + 1}`
+      icon.append(mark)
+    }
+    return icon
+  }
+
+  private recordArtifact(record: Omit<ArtifactRecord, 'count'>) {
+    const existing = this.artifacts.get(record.id)
+    if (existing) {
+      existing.count += 1
+      existing.detail = record.detail
+      existing.source = record.source
+      return
+    }
+    this.artifacts.set(record.id, { ...record, count: 1 })
+  }
+
+  private artifactColor(kind: ArtifactKind, key: string) {
+    const palettes: Record<ArtifactKind, string[]> = {
+      relic: ['#fff27a', '#f8fffb', '#b990ff'],
+      alien: ['#b990ff', '#57fff3', '#8fff7d'],
+      lore: ['#d7fff7', '#70a8ff', '#fff27a'],
+      planet: ['#57fff3', '#8fff7d', '#ff5d73', '#b990ff'],
+      cache: ['#fff27a', '#70a8ff', '#57fff3']
+    }
+    const colors = palettes[kind]
+    return colors[hashString(key, 73) % colors.length]
   }
 
   private choiceMarkup(choice: WorkbenchChoice) {
@@ -5111,6 +5280,7 @@ class VectorShooter {
     this.resources = { scrap: 0, crystal: 0, cores: 0 }
     this.relics.clear()
     this.evolved.clear()
+    this.artifacts.clear()
     this.limitBreaks = { might: 0, cooldown: 0, amount: 0, speed: 0, magnet: 0, hull: 0 }
     this.stats = { time: 0, kills: 0, level: 1, xp: 0, nextXp: 24, highScore: this.highs[0]?.score ?? 0, planets: 0, score: 0 }
     for (const k of Object.keys(this.build) as UpgradeId[]) this.build[k] = 0
