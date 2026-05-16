@@ -14,6 +14,7 @@ Vector Shooter is a mobile-first portrait survival shooter: Vampire Survivors pr
 - Weighted upgrade choices inspired by Vampire Survivors.
 - Planet relics, weapon evolutions, limit breaks, treasure cores, and mystery cache ambushes.
 - Procedural planet encounter types: salvage, boss, friendly contact, and mixed mystery sites.
+- Lore planets with inspectable fossils, pyramids, graves, machines, and other short narrative nuggets.
 - Generated boss and friendly alien sprite catalogs for stranger planet discoveries.
 - Quiet planet encounters with one-time alien bargains and rare artefact rolls.
 - A generated 8-frame surface spaceman sprite replaces the original stick pilot.
@@ -108,6 +109,7 @@ The main encounter scenarios are:
 - `boss`: a bespoke generated creature guarding richer cache rewards.
 - `friendly`: a strange alien NPC with a one-time offer.
 - `mixed`: some combination of dangerous life, resources, and alien weirdness.
+- `lore`: quiet ruins with inspectable two-sentence discoveries and small rewards.
 
 Surface caches can grant:
 

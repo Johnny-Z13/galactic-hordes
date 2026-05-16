@@ -5,7 +5,7 @@ import planetBossCatalogUrl from './assets/planet-boss-catalog-alpha.png'
 import surfaceSpacemanSheetUrl from './assets/surface-spaceman-sheet-alpha.png'
 import titleLogoMarkUrl from './assets/title-logo-mark.png'
 
-type GameState = 'title' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'takeoff' | 'gameover' | 'scores'
+type GameState = 'title' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
 type EnemyKind = 'chaser' | 'splinter' | 'lancer' | 'mine' | 'brute' | 'shooter' | 'warden'
 type SurfaceResourceKind = 'crystal' | 'scrap' | 'repair' | 'cache'
@@ -15,7 +15,7 @@ type UpgradeBucket = 'weapons' | 'navigation' | 'survival' | 'economy' | 'planet
 type RelicId = 'staticIdol' | 'glassReactor' | 'deadSunCoin' | 'hungryCompass' | 'blackBoxSaint' | 'mirrorSeed' | 'saintCapacitor' | 'forbiddenMap'
 type LimitId = 'might' | 'cooldown' | 'amount' | 'speed' | 'magnet' | 'hull'
 type SurfaceEventKind = 'jackpot' | 'swarm' | 'relic' | 'repair' | 'volatile' | 'standard'
-type SurfaceScenarioKind = 'salvage' | 'boss' | 'friendly' | 'mixed'
+type SurfaceScenarioKind = 'salvage' | 'boss' | 'friendly' | 'mixed' | 'lore'
 type AlienGiftKind = 'herb' | 'idol' | 'map' | 'coin'
 type WorkbenchView = 'upgrades' | 'manifest'
 type UpgradeId =
@@ -129,7 +129,7 @@ interface Planet {
   reward: string
   chunkX: number
   chunkY: number
-  archetype: 'cache' | 'hostile' | 'repair' | 'relic' | 'strange'
+  archetype: 'cache' | 'hostile' | 'repair' | 'relic' | 'strange' | 'lore'
 }
 
 interface SpaceChunk {
@@ -189,6 +189,17 @@ interface SurfaceAlien {
   spriteRow?: number
 }
 
+interface SurfaceLoreSite {
+  x: number
+  y: number
+  radius: number
+  phase: number
+  kind: 'fossils' | 'pyramid' | 'grave' | 'machine' | 'choir'
+  title: string
+  copy: string
+  resolved: boolean
+}
+
 interface SurfaceRun {
   planet: Planet
   event: SurfaceEventKind
@@ -210,6 +221,7 @@ interface SurfaceRun {
   threats: SurfaceThreat[]
   bullets: SurfaceBullet[]
   aliens: SurfaceAlien[]
+  loreSites: SurfaceLoreSite[]
   collected: number
   pendingUpgrade: boolean
   message: string
@@ -869,12 +881,11 @@ class VectorShooter {
     const top = document.createElement('div')
     top.className = 'topbar'
     const left = document.createElement('div')
-    left.className = 'hud-cluster'
+    left.className = 'hud-cluster hud-cluster-left'
     const right = document.createElement('div')
-    right.className = 'hud-cluster'
-    right.style.justifyContent = 'flex-end'
+    right.className = 'hud-cluster hud-cluster-right'
     left.append(this.chip('SCORE', this.ui.score), this.chip('TIME', this.ui.time), this.chip('KILLS', this.ui.wave))
-    right.append(this.chip('HULL', this.ui.hull), this.chip('SALVAGE', this.ui.resources), this.chip('HIGH', this.ui.high))
+    right.append(this.chip('HULL', this.ui.hull, 'vital'), this.chip('SALVAGE', this.ui.resources, 'wide'), this.chip('HIGH', this.ui.high))
     const xp = document.createElement('div')
     xp.className = 'xp-wrap'
     xp.innerHTML = `<div class="xp-title"><span>LEVEL <b></b></span><span>XP SIGNAL</span></div><div class="xp-bar"></div>`
@@ -964,16 +975,19 @@ class VectorShooter {
   }
 
   private generatePlanet(chunkX: number, chunkY: number, index: number, rng: () => number, existing: Planet[] = []): Planet {
-    const archetypes: Planet['archetype'][] = ['cache', 'hostile', 'repair', 'relic', 'strange']
+    const archetypes: Planet['archetype'][] = ['cache', 'hostile', 'repair', 'relic', 'strange', 'lore']
     const archetype = chunkX === 0 && chunkY === 0 && index === 0 ? 'cache' : archetypes[Math.floor(rng() * archetypes.length)]
     const prefix = ['LUX', 'RED', 'SAINT', 'GREEN', 'NULL', 'IRON', 'GHOST', 'VOID', 'GLASS', 'STATIC', 'DUST', 'HALO']
-    const suffix = ['MORGUE', 'MERCY', 'CHOIR', 'CATHEDRAL', 'WELL', 'ENGINE', 'RELIQUARY', 'ORCHARD', 'VAULT', 'CRADLE', 'WAKE', 'BEACON']
+    const suffix = archetype === 'lore'
+      ? ['OSSUARY', 'PYRAMID', 'GRAVE', 'FOSSIL SEA', 'TOMB', 'SCRIPTURE', 'BONE ORCHARD', 'MEMORIAL']
+      : ['MORGUE', 'MERCY', 'CHOIR', 'CATHEDRAL', 'WELL', 'ENGINE', 'RELIQUARY', 'ORCHARD', 'VAULT', 'CRADLE', 'WAKE', 'BEACON']
     const color = {
       cache: '#57fff3',
       hostile: '#ff5d73',
       repair: '#8fff7d',
       relic: '#fff27a',
-      strange: '#b990ff'
+      strange: '#b990ff',
+      lore: '#d7fff7'
     }[archetype]
     const name = chunkX === 0 && chunkY === 0 && index === 0 ? 'LUX MORGUE' : `${prefix[Math.floor(rng() * prefix.length)]} ${suffix[Math.floor(rng() * suffix.length)]}`
     const margin = 420
@@ -1007,7 +1021,8 @@ class VectorShooter {
       hostile: 'Hostile planet. Better rewards, uglier landing.',
       repair: 'Repair-rich safe dock with quieter salvage.',
       relic: 'Relic signatures and rare cache odds.',
-      strange: 'Unstable signal. Anything could be waiting.'
+      strange: 'Unstable signal. Anything could be waiting.',
+      lore: 'Quiet ruins, fossils, graves, and inspectable narrative signals.'
     }[archetype]
     const id = `${chunkX}:${chunkY}:${index}`
     return { id, name, x, y, radius, color, visited: this.visitedPlanets.has(id), reward, chunkX, chunkY, archetype }
@@ -1026,9 +1041,9 @@ class VectorShooter {
     return slots[(index + existingCount) % slots.length]
   }
 
-  private chip(label: string, value: HTMLElement) {
+  private chip(label: string, value: HTMLElement, tone = '') {
     const chip = document.createElement('div')
-    chip.className = 'hud-chip'
+    chip.className = `hud-chip ${tone}`.trim()
     const l = document.createElement('span')
     l.className = 'hud-label'
     l.textContent = label
@@ -1170,7 +1185,7 @@ class VectorShooter {
       this.updateLanding(dt)
       return
     }
-    if (this.state === 'alien' && this.surface) {
+    if ((this.state === 'alien' || this.state === 'lore') && this.surface) {
       this.stats.time += dt * 0.08
       this.toastTimer -= dt
       if (this.toastTimer <= 0) this.ui.toast.classList.remove('visible')
@@ -1397,8 +1412,10 @@ class VectorShooter {
     this.updateSurfaceThreats(dt)
 
     const nearShip = Math.sqrt(dist2(this.surface.pilot, this.surface.ship)) < 64
+    const lore = this.findNearbyLoreSite()
     const alien = this.findNearbyAlien()
-    if (input.interact && alien) this.openAlienEncounter(alien)
+    if (input.interact && lore) this.inspectLoreSite(lore)
+    else if (input.interact && alien) this.openAlienEncounter(alien)
     else if (input.interact && nearShip) this.startTakeoff()
     if (this.surface.collected >= this.surface.resources.length && !nearShip) {
       this.surface.message = 'CACHE CLEARED. RETURN TO SHIP.'
@@ -2319,6 +2336,7 @@ class VectorShooter {
     const event = this.rollSurfaceEvent(planet, first)
     const scenario = this.rollSurfaceScenario(planet, event, first)
     const count =
+      scenario === 'lore' ? 5 + Math.floor(Math.random() * 5) :
       scenario === 'friendly' ? 9 + Math.floor(Math.random() * 7) :
       event === 'jackpot' ? 28 + Math.floor(Math.random() * 14) :
       event === 'relic' ? 12 + Math.floor(Math.random() * 6) :
@@ -2338,7 +2356,7 @@ class VectorShooter {
         kindRoll < 0.84 ? 'scrap' :
         'repair'
       const color = kind === 'cache' ? '#fff27a' : kind === 'crystal' ? planet.color : kind === 'scrap' ? '#70a8ff' : '#8fff7d'
-      const cluster = this.surfaceEventPoint(event, i, count)
+      const cluster = this.surfaceSafePoint(this.surfaceEventPoint(event, i, count), kind === 'cache' ? 240 : 210)
       resources.push({
         kind,
         x: cluster.x,
@@ -2351,6 +2369,7 @@ class VectorShooter {
     }
     const threats: SurfaceThreat[] = []
     const threatCount =
+      scenario === 'lore' ? (event === 'swarm' ? 3 : Math.random() < 0.16 ? 1 : 0) :
       scenario === 'friendly' ? (event === 'swarm' ? 4 : Math.random() < 0.18 ? 1 : 0) :
       scenario === 'salvage' ? (event === 'swarm' ? 7 + Math.floor(this.stats.time / 55) : Math.random() < 0.32 ? 1 : 0) :
       event === 'swarm' ? 10 + Math.floor(this.stats.time / 45) :
@@ -2365,6 +2384,7 @@ class VectorShooter {
       threats.push(this.createGlassMiteOracleThreat())
     }
     const aliens = this.createSurfaceAliens(planet, event, threatCount, scenario)
+    const loreSites = this.createSurfaceLoreSites(planet, scenario, event)
     return {
       planet,
       event,
@@ -2378,6 +2398,7 @@ class VectorShooter {
       threats,
       bullets: [],
       aliens,
+      loreSites,
       collected: 0,
       pendingUpgrade: false,
       message: this.surfaceEventMessage(event, first, scenario)
@@ -2385,12 +2406,14 @@ class VectorShooter {
   }
 
   private rollSurfaceScenario(planet: Planet, event: SurfaceEventKind, first: boolean): SurfaceScenarioKind {
+    if (planet.archetype === 'lore') return 'lore'
     const interest = this.surfaceInterest()
     const roll = Math.random()
     let salvage = first ? 0.52 - interest * 0.24 : 0.72 - interest * 0.12
     let boss = 0.11 + interest * 0.24
     let friendly = 0.18 + interest * 0.14
     let mixed = 0.04 + interest * 0.16
+    let lore = 0.06 + interest * 0.1
     if (planet.archetype === 'hostile' || event === 'swarm') {
       boss += 0.24
       friendly -= 0.08
@@ -2399,27 +2422,32 @@ class VectorShooter {
     if (planet.archetype === 'repair' || event === 'repair') {
       friendly += 0.24
       boss -= 0.08
+      lore += 0.05
     }
     if (planet.archetype === 'relic' || planet.archetype === 'strange' || event === 'relic' || event === 'volatile') {
       mixed += 0.16
       boss += 0.08
       friendly += 0.08
+      lore += 0.08
       salvage -= 0.12
     }
     if (!first) {
       mixed *= 0.55
       boss *= 0.72
+      lore *= 0.52
     }
     salvage = Math.max(0.12, salvage)
     boss = Math.max(0.04, boss)
     friendly = Math.max(0.06, friendly)
     mixed = Math.max(0.02, mixed)
-    const total = salvage + boss + friendly + mixed
+    lore = Math.max(0.02, lore)
+    const total = salvage + boss + friendly + mixed + lore
     const pick = roll * total
     if (pick < salvage) return 'salvage'
     if (pick < salvage + boss) return 'boss'
     if (pick < salvage + boss + friendly) return 'friendly'
-    return 'mixed'
+    if (pick < salvage + boss + friendly + mixed) return 'mixed'
+    return 'lore'
   }
 
   private surfaceInterest() {
@@ -2508,7 +2536,62 @@ class VectorShooter {
     }]
   }
 
+  private createSurfaceLoreSites(planet: Planet, scenario: SurfaceScenarioKind, event: SurfaceEventKind): SurfaceLoreSite[] {
+    if (scenario !== 'lore' && event !== 'relic' && planet.archetype !== 'strange') return []
+    const count = scenario === 'lore' ? 2 + Math.floor(Math.random() * 3) : Math.random() < 0.34 ? 1 : 0
+    const sites: SurfaceLoreSite[] = []
+    const library = this.loreLibrary(planet)
+    for (let i = 0; i < count; i += 1) {
+      const entry = library[(hashString(planet.id, i + this.stats.planets * 11) + i) % library.length]
+      const a = (i / Math.max(1, count)) * TAU + rand(-0.42, 0.42)
+      const point = this.surfaceSafePoint({ x: 800 + Math.cos(a) * rand(260, 520), y: 590 + Math.sin(a) * rand(220, 420) }, 260)
+      sites.push({
+        x: point.x,
+        y: point.y,
+        radius: entry.kind === 'pyramid' ? 36 : 30,
+        phase: rand(0, TAU),
+        kind: entry.kind,
+        title: entry.title,
+        copy: entry.copy,
+        resolved: false
+      })
+    }
+    return sites
+  }
+
+  private loreLibrary(planet: Planet): Array<Pick<SurfaceLoreSite, 'kind' | 'title' | 'copy'>> {
+    const name = planet.name
+    return [
+      {
+        kind: 'fossils',
+        title: 'FOSSIL BED',
+        copy: `The fossils are arranged in spirals, not by tide but by ritual. Whatever lived on ${name} learned to count the stars before it learned to leave.`
+      },
+      {
+        kind: 'pyramid',
+        title: 'VECTOR PYRAMID',
+        copy: `The pyramid has no entrance, only a black seam humming under the dust. Your suit translates one repeated phrase: "We aimed the sky at ourselves."`
+      },
+      {
+        kind: 'grave',
+        title: 'GLASS GRAVES',
+        copy: `Each grave marker contains a tiny preserved storm. The names are gone, but the weather inside them still remembers the dead.`
+      },
+      {
+        kind: 'machine',
+        title: 'SLEEPING MACHINE',
+        copy: `A buried engine ticks once when your shadow crosses it. It is still waiting for pilots who became fossils long before your species had radios.`
+      },
+      {
+        kind: 'choir',
+        title: 'BONE CHOIR',
+        copy: `Rib-like arches vibrate when you walk between them. The song is only two notes, but your ship answers from orbit.`
+      }
+    ]
+  }
+
   private rollSurfaceEvent(planet: Planet, first: boolean): SurfaceEventKind {
+    if (planet.archetype === 'lore' && first && Math.random() < 0.62) return 'relic'
     if (planet.archetype === 'hostile' && Math.random() < 0.65) return 'swarm'
     if (planet.archetype === 'repair' && Math.random() < 0.68) return 'repair'
     if (planet.archetype === 'relic' && first && Math.random() < 0.72) return 'relic'
@@ -2545,7 +2628,28 @@ class VectorShooter {
     return { x: rand(180, 1420), y: rand(170, 1010) }
   }
 
+  private surfaceSafePoint(point: Vec, minDistance = 210): Vec {
+    const ship = { x: 780, y: 590 }
+    const pilot = { x: 840, y: 660 }
+    let x = clamp(point.x, 110, 1490)
+    let y = clamp(point.y, 110, 1070)
+    for (let pass = 0; pass < 3; pass += 1) {
+      for (const anchor of [ship, pilot]) {
+        const dx = x - anchor.x
+        const dy = y - anchor.y
+        const distance = Math.hypot(dx, dy)
+        if (distance >= minDistance) continue
+        const angle = distance > 1 ? Math.atan2(dy, dx) : rand(0, TAU)
+        const push = minDistance + rand(18, 96)
+        x = clamp(anchor.x + Math.cos(angle) * push, 110, 1490)
+        y = clamp(anchor.y + Math.sin(angle) * push, 110, 1070)
+      }
+    }
+    return { x, y }
+  }
+
   private surfaceEventMessage(event: SurfaceEventKind, first: boolean, scenario?: SurfaceScenarioKind) {
+    if (scenario === 'lore') return 'QUIET RUINS BELOW. INSPECT THE OLD SIGNALS.'
     if (scenario === 'boss') return 'LARGE BIO-SIGNAL BELOW. KILL IT OR RUN.'
     if (scenario === 'friendly') return 'SINGLE LIFEFORM HAILING YOUR SUIT. APPROACH CAREFULLY.'
     if (scenario === 'mixed') return 'WEIRD SURFACE. CONTACTS AND A RARE SIGNAL SHARE THE SAME GROUND.'
@@ -2700,10 +2804,11 @@ class VectorShooter {
     for (let i = 0; i < count; i += 1) {
       const a = (i / count) * TAU + rand(-0.2, 0.2)
       const r = rand(22, 96)
+      const point = this.surfaceSafePoint({ x: threat.x + Math.cos(a) * r, y: threat.y + Math.sin(a) * r }, 190)
       this.surface.resources.push({
         kind: i === 0 ? 'cache' : Math.random() < 0.65 ? 'crystal' : 'scrap',
-        x: clamp(threat.x + Math.cos(a) * r, 80, this.surface.width - 80),
-        y: clamp(threat.y + Math.sin(a) * r, 80, this.surface.height - 80),
+        x: point.x,
+        y: point.y,
         radius: i === 0 ? 18 : 12,
         value: i === 0 ? 1 : i % 2 ? 12 + this.stats.level : 150 + this.stats.level * 8,
         color: i === 0 ? '#fff27a' : i % 2 ? threat.color : '#70a8ff',
@@ -2717,6 +2822,58 @@ class VectorShooter {
   private findNearbyAlien() {
     if (!this.surface) return null
     return this.surface.aliens.find((alien) => !alien.resolved && Math.sqrt(dist2(alien, this.surface!.pilot)) < alien.radius + 34) ?? null
+  }
+
+  private findNearbyLoreSite() {
+    if (!this.surface) return null
+    return this.surface.loreSites.find((site) => !site.resolved && Math.sqrt(dist2(site, this.surface!.pilot)) < site.radius + 30) ?? null
+  }
+
+  private inspectLoreSite(site: SurfaceLoreSite) {
+    if (!this.surface || site.resolved) return
+    this.state = 'lore'
+    site.resolved = true
+    this.surface.message = `${site.title}: ${site.copy}`
+    const score = 260 + this.stats.level * 35
+    this.stats.score += score
+    this.resources.crystal += 1
+    let decodedSignal = false
+    if (Math.random() < 0.18 + this.build.survey * 0.04) {
+      this.surface.pendingUpgrade = true
+      this.bankUpgrade('OLD SIGNAL DECODED: MUTATION SIGNAL BANKED')
+      decodedSignal = true
+    } else {
+      this.toast(`${site.title} INSPECTED`)
+    }
+    this.audio.level()
+    this.burst(site.x, site.y, '#d7fff7', 18, 210)
+    this.surface.pilot.vx = 0
+    this.surface.pilot.vy = 0
+    this.ui.planet.innerHTML = ''
+    const panel = document.createElement('div')
+    panel.className = 'panel'
+    const h = document.createElement('h1')
+    h.className = 'title'
+    h.textContent = site.title
+    const copy = document.createElement('p')
+    copy.className = 'copy'
+    copy.textContent = site.copy
+    const reward = document.createElement('p')
+    reward.className = 'copy'
+    reward.textContent = decodedSignal ? `Recovered 1 crystal, ${score} score, and a mutation signal.` : `Recovered 1 crystal and ${score} score.`
+    const row = document.createElement('div')
+    row.className = 'button-row'
+    const close = document.createElement('button')
+    close.className = 'vector-button'
+    close.textContent = 'Continue'
+    close.addEventListener('click', () => {
+      this.state = 'surface'
+      this.showOnly(null)
+    })
+    row.append(close)
+    panel.append(h, copy, reward, row)
+    this.ui.planet.append(panel)
+    this.showOnly('planet')
   }
 
   private openAlienEncounter(alien: SurfaceAlien) {
@@ -3031,7 +3188,7 @@ class VectorShooter {
     ctx.clearRect(0, 0, this.width, this.height)
     ctx.fillStyle = '#020305'
     ctx.fillRect(0, 0, this.width, this.height)
-    if ((this.state === 'levelup' || this.state === 'alien') && this.surface) {
+    if ((this.state === 'levelup' || this.state === 'alien' || this.state === 'lore') && this.surface) {
       this.mini.style.display = 'none'
       this.renderSurface(ctx)
       return
@@ -3147,6 +3304,7 @@ class VectorShooter {
 
     this.renderSurfaceShip(ctx, s)
     this.renderSurfaceResources(ctx, s)
+    this.renderSurfaceLoreSites(ctx, s)
     this.renderSurfaceAliens(ctx, s)
     this.renderSurfaceBullets(ctx, s)
     this.renderSurfaceThreats(ctx, s)
@@ -3224,6 +3382,71 @@ class VectorShooter {
         ctx.lineTo(-r.radius, 0)
         ctx.closePath()
       }
+      ctx.stroke()
+      ctx.restore()
+    }
+  }
+
+  private renderSurfaceLoreSites(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
+    for (const site of s.loreSites) {
+      if (site.resolved) continue
+      const p = this.surfaceToScreen(site.x, site.y)
+      const pulse = Math.sin(this.stats.time * 2.8 + site.phase)
+      ctx.save()
+      ctx.translate(p.x, p.y)
+      ctx.strokeStyle = '#d7fff7'
+      ctx.shadowColor = '#d7fff7'
+      ctx.shadowBlur = this.allowGlow() ? 18 : 8
+      ctx.lineWidth = 2
+      ctx.globalAlpha = 0.9
+      if (site.kind === 'pyramid') {
+        ctx.beginPath()
+        ctx.moveTo(0, -site.radius)
+        ctx.lineTo(site.radius * 0.95, site.radius * 0.62)
+        ctx.lineTo(-site.radius * 0.95, site.radius * 0.62)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(0, -site.radius)
+        ctx.lineTo(0, site.radius * 0.62)
+        ctx.stroke()
+      } else if (site.kind === 'grave') {
+        ctx.beginPath()
+        ctx.moveTo(-site.radius * 0.72, site.radius * 0.62)
+        ctx.lineTo(-site.radius * 0.72, -site.radius * 0.2)
+        ctx.quadraticCurveTo(0, -site.radius, site.radius * 0.72, -site.radius * 0.2)
+        ctx.lineTo(site.radius * 0.72, site.radius * 0.62)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(-site.radius * 0.32, -site.radius * 0.1)
+        ctx.lineTo(site.radius * 0.32, -site.radius * 0.1)
+        ctx.moveTo(0, -site.radius * 0.42)
+        ctx.lineTo(0, site.radius * 0.28)
+        ctx.stroke()
+      } else if (site.kind === 'fossils') {
+        for (let i = 0; i < 5; i += 1) {
+          ctx.beginPath()
+          ctx.ellipse((i - 2) * 10, Math.sin(i) * 5, 7, 18, i * 0.65, 0, TAU)
+          ctx.stroke()
+        }
+      } else if (site.kind === 'machine') {
+        ctx.beginPath()
+        ctx.rect(-site.radius * 0.7, -site.radius * 0.45, site.radius * 1.4, site.radius * 0.9)
+        ctx.moveTo(-site.radius, -site.radius * 0.72)
+        ctx.lineTo(site.radius, site.radius * 0.72)
+        ctx.moveTo(site.radius, -site.radius * 0.72)
+        ctx.lineTo(-site.radius, site.radius * 0.72)
+        ctx.stroke()
+      } else {
+        for (let i = 0; i < 4; i += 1) {
+          ctx.beginPath()
+          ctx.arc(0, 0, site.radius * (0.35 + i * 0.18), i * 0.7, Math.PI + i * 0.7)
+          ctx.stroke()
+        }
+      }
+      ctx.globalAlpha = 0.32 + pulse * 0.08
+      ctx.beginPath()
+      ctx.arc(0, 0, site.radius + 10 + pulse * 3, 0, TAU)
       ctx.stroke()
       ctx.restore()
     }
@@ -3516,6 +3739,7 @@ class VectorShooter {
 
   private renderSurfaceHud(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
     const nearShip = Math.sqrt(dist2(s.pilot, s.ship)) < 64
+    const nearLore = this.findNearbyLoreSite()
     const nearAlien = this.findNearbyAlien()
     ctx.save()
     ctx.fillStyle = '#fff27a'
@@ -3523,7 +3747,7 @@ class VectorShooter {
     ctx.shadowBlur = 12
     ctx.font = this.width < 560 ? '12px Courier New' : '14px Courier New'
     ctx.textAlign = 'center'
-    const message = nearAlien ? `PRESS E / Y TO SPEAK: ${nearAlien.name}` : nearShip ? 'PRESS E / Y TO BOARD SHIP' : s.message
+    const message = nearLore ? `PRESS E / Y TO INSPECT: ${nearLore.title}` : nearAlien ? `PRESS E / Y TO SPEAK: ${nearAlien.name}` : nearShip ? 'PRESS E / Y TO BOARD SHIP' : s.message
     ctx.fillText(`${s.planet.name} // ${this.surfaceScenarioLabel(s.scenario)} // ${this.surfaceEventLabel(s.event)} // ${s.collected}/${s.resources.length} SIGNALS`, this.width / 2, 86, this.width - 16)
     const actionInset = this.width < 560 ? 132 : 0
     const messageX = actionInset ? (this.width - actionInset) / 2 : this.width / 2
@@ -3547,7 +3771,8 @@ class VectorShooter {
       salvage: 'SALVAGE',
       boss: 'BOSS',
       friendly: 'CONTACT',
-      mixed: 'MYSTERY'
+      mixed: 'MYSTERY',
+      lore: 'RUINS'
     }[scenario]
   }
 
@@ -4331,7 +4556,7 @@ class VectorShooter {
     const shield = this.player.maxShield > 0 ? ` +${Math.floor(this.player.shield)}` : ''
     this.ui.hull.textContent = `${Math.ceil(Math.max(0, this.player.hull))}/${this.player.maxHull}${shield}`
     this.ui.high.textContent = Math.max(this.stats.highScore, this.stats.score).toString()
-    this.ui.resources.textContent = `${this.resources.scrap}|${this.resources.crystal}|${this.resources.cores}`
+    this.ui.resources.textContent = `S ${this.resources.scrap} C ${this.resources.crystal} K ${this.resources.cores}`
     this.ui.xpFill.style.width = `${clamp((this.stats.xp / this.stats.nextXp) * 100, 0, 100)}%`
     this.updateTouchHud()
     this.updatePerfHud()
@@ -4360,8 +4585,9 @@ class VectorShooter {
       this.ui.touchStick.style.setProperty('--touch-line', '0px')
     }
     if (this.state === 'surface') {
+      const lore = this.findNearbyLoreSite()
       const alien = this.findNearbyAlien()
-      this.ui.touchAction.textContent = alien ? 'TALK' : this.surface && Math.sqrt(dist2(this.surface.pilot, this.surface.ship)) < 64 ? 'BOARD' : 'USE'
+      this.ui.touchAction.textContent = lore ? 'INSPECT' : alien ? 'TALK' : this.surface && Math.sqrt(dist2(this.surface.pilot, this.surface.ship)) < 64 ? 'BOARD' : 'USE'
       this.ui.touchDash.textContent = 'SHOOT'
       return
     }
@@ -4471,6 +4697,18 @@ class VectorShooter {
     const title = document.createElement('div')
     title.className = 'manifest-title'
     title.innerHTML = '<b>BUILD MANIFEST</b><span>locked systems, owned ranks, and evolution routes</span>'
+    const summary = document.createElement('div')
+    summary.className = 'manifest-summary'
+    const ownedCount = upgrades.filter((upgrade) => this.build[upgrade.id] > 0).length
+    const maxedCount = upgrades.filter((upgrade) => this.build[upgrade.id] >= upgrade.max).length
+    const limitCount = Object.values(this.limitBreaks).reduce((sum, value) => sum + value, 0)
+    summary.innerHTML = `
+      <div><b>${ownedCount}/${upgrades.length}</b><span>systems</span></div>
+      <div><b>${maxedCount}</b><span>maxed</span></div>
+      <div><b>${this.relics.size}/${relics.length}</b><span>relics</span></div>
+      <div><b>${this.evolved.size}/${evolutions.length}</b><span>evolved</span></div>
+      <div><b>${limitCount}</b><span>limits</span></div>
+    `
     const chips = document.createElement('div')
     chips.className = 'manifest-grid'
     for (const upgrade of upgrades) {
@@ -4482,13 +4720,22 @@ class VectorShooter {
       const chip = document.createElement('div')
       chip.className = `manifest-chip ${level > 0 ? 'owned' : 'locked'} ${maxed ? 'maxed' : ''} ${ready ? 'ready' : ''} ${evolved ? 'evolved' : ''}`
       const route = evolved ? 'EVOLVED' : ready ? 'EVOLUTION READY' : catalyst ? `CATALYST: ${catalyst.name}` : this.bucketLabel(upgrade.bucket)
-      chip.innerHTML = `<strong>${this.escape(upgrade.name)}</strong><span>${level}/${upgrade.max} ${this.escape(route)}</span>`
+      chip.innerHTML = `
+        <div class="manifest-chip-head">
+          <strong>${this.escape(upgrade.name)}</strong>
+          <b>${level}/${upgrade.max}</b>
+        </div>
+        <span>${this.escape(route)}</span>
+        <em>${this.bucketLabel(upgrade.bucket)}</em>
+      `
       chips.append(chip)
     }
     const relicLine = document.createElement('div')
     relicLine.className = 'manifest-relics'
-    relicLine.textContent = `Relics ${this.relics.size}/${relics.length} // Evolutions ${this.evolved.size}/${evolutions.length} // Limit breaks ${Object.values(this.limitBreaks).reduce((sum, value) => sum + value, 0)}`
-    wrap.append(title, chips, relicLine)
+    relicLine.textContent = this.relics.size > 0
+      ? Array.from(this.relics).map((id) => relics.find((relic) => relic.id === id)?.name ?? id).join(' // ')
+      : 'No relics installed yet.'
+    wrap.append(title, summary, chips, relicLine)
     return wrap
   }
 
