@@ -2094,8 +2094,8 @@ class VectorShooter {
       y: rand(760, 880),
       vx: 0,
       vy: 0,
-      hp: 54 + this.stats.time * 0.16,
-      radius: 24,
+      hp: 70 + this.stats.time * 0.18,
+      radius: 32,
       phase: rand(0, TAU),
       color: '#57fff3',
       hit: 0,
@@ -2842,7 +2842,7 @@ class VectorShooter {
     const sw = sheet.naturalWidth / frameCount
     const sh = sheet.naturalHeight
     const bob = Math.sin(this.stats.time * 5 + threat.phase) * 3
-    const scale = threat.hit > 0 ? 0.205 : 0.19
+    const scale = threat.hit > 0 ? 0.49 : 0.46
     const dw = sw * scale
     const dh = sh * scale
     ctx.save()
@@ -2850,7 +2850,7 @@ class VectorShooter {
     ctx.globalAlpha = threat.hit > 0 ? 1 : 0.92
     ctx.shadowColor = '#57fff3'
     ctx.shadowBlur = this.allowGlow() ? 20 : 8
-    ctx.drawImage(sheet, frame * sw, 0, sw, sh, p.x - dw / 2, p.y - dh * 0.58 + bob, dw, dh)
+    ctx.drawImage(sheet, frame * sw, 0, sw, sh, p.x - dw / 2, p.y - dh * 0.54 + bob, dw, dh)
     if (threat.hit > 0) {
       ctx.globalCompositeOperation = 'screen'
       ctx.globalAlpha = 0.45
