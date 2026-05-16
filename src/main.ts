@@ -152,6 +152,17 @@ interface SurfaceThreat {
   hit: number
 }
 
+interface SurfaceBullet {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  life: number
+  radius: number
+  damage: number
+  color: string
+}
+
 interface SurfaceRun {
   planet: Planet
   event: SurfaceEventKind
@@ -163,13 +174,14 @@ interface SurfaceRun {
     vx: number
     vy: number
     facing: number
-    mineCd: number
+    gunCd: number
     invuln: number
   }
   ship: Vec
   camera: Vec
   resources: SurfaceResource[]
   threats: SurfaceThreat[]
+  bullets: SurfaceBullet[]
   collected: number
   pendingUpgrade: boolean
   message: string
@@ -329,7 +341,7 @@ const upgrades: Upgrade[] = [
     rarity: 50,
     catalyst: 'saintCapacitor',
     evolutionName: 'Storm Liturgy',
-    evolutionDescription: 'Chain lightning erupts from pulse impacts and mining pulses.',
+    evolutionDescription: 'Chain lightning erupts from pulse impacts and surface pistol shots.',
     levels: ['+1 chain hop', '+10% arc damage', '+1 chain hop', '+1 chain hop', 'Evolution-ready']
   },
   {
@@ -1130,7 +1142,7 @@ class VectorShooter {
     this.stats.time += dt * 0.25
     this.toastTimer -= dt
     if (this.toastTimer <= 0) this.ui.toast.classList.remove('visible')
-    this.surface.pilot.mineCd -= dt
+    this.surface.pilot.gunCd -= dt
     this.surface.pilot.invuln -= dt
 
     const accel = 920 * dt
@@ -1148,8 +1160,9 @@ class VectorShooter {
     this.surface.pilot.y = clamp(this.surface.pilot.y + this.surface.pilot.vy * dt, 40, this.surface.height - 40)
     if (Math.abs(input.move.x) + Math.abs(input.move.y) > 0.05) this.surface.pilot.facing = Math.atan2(input.move.y, input.move.x)
 
-    if (input.firing && this.surface.pilot.mineCd <= 0) this.fireMiningPulse()
+    if (input.firing && this.surface.pilot.gunCd <= 0) this.fireSurfaceGun()
     this.collectSurfaceResources()
+    this.updateSurfaceBullets(dt)
     this.updateSurfaceThreats(dt)
 
     const nearShip = Math.sqrt(dist2(this.surface.pilot, this.surface.ship)) < 64
@@ -2032,11 +2045,12 @@ class VectorShooter {
       event,
       width: 1600,
       height: 1180,
-      pilot: { x: 840, y: 660, vx: 0, vy: 0, facing: 0, mineCd: 0, invuln: 0 },
+      pilot: { x: 840, y: 660, vx: 0, vy: 0, facing: 0, gunCd: 0, invuln: 0 },
       ship: { x: 780, y: 590 },
       camera: { x: 0, y: 0 },
       resources,
       threats,
+      bullets: [],
       collected: 0,
       pendingUpgrade: false,
       message: this.surfaceEventMessage(event, first)
@@ -2223,30 +2237,69 @@ class VectorShooter {
     }
   }
 
-  private fireMiningPulse() {
+  private updateSurfaceBullets(dt: number) {
     if (!this.surface) return
-    this.surface.pilot.mineCd = 0.28
-    this.audio.fire(2)
-    this.shockwaves.push({
-      x: this.surface.pilot.x,
-      y: this.surface.pilot.y,
-      radius: 8,
-      speed: 220,
-      life: 0.24,
-      maxLife: 0.24,
-      color: '#57fff3',
-      jag: rand(0, TAU)
-    })
-    for (const threat of this.surface.threats) {
-      const d = Math.sqrt((threat.x - this.surface.pilot.x) ** 2 + (threat.y - this.surface.pilot.y) ** 2)
-      if (d > 92) continue
-      threat.hp -= 18
-      threat.hit = 0.08
-      const away = norm(threat.x - this.surface.pilot.x, threat.y - this.surface.pilot.y)
-      threat.vx += away.x * 180
-      threat.vy += away.y * 180
-      this.burst(threat.x, threat.y, '#57fff3', 6, 120)
+    for (let i = this.surface.bullets.length - 1; i >= 0; i -= 1) {
+      const bullet = this.surface.bullets[i]
+      bullet.life -= dt
+      bullet.x += bullet.vx * dt
+      bullet.y += bullet.vy * dt
+      if (bullet.life <= 0 || bullet.x < -20 || bullet.y < -20 || bullet.x > this.surface.width + 20 || bullet.y > this.surface.height + 20) {
+        this.surface.bullets.splice(i, 1)
+        continue
+      }
+      for (const threat of this.surface.threats) {
+        const rr = threat.radius + bullet.radius
+        if ((threat.x - bullet.x) ** 2 + (threat.y - bullet.y) ** 2 > rr * rr) continue
+        threat.hp -= bullet.damage
+        threat.hit = 0.1
+        const push = norm(threat.x - bullet.x, threat.y - bullet.y)
+        threat.vx += push.x * 70
+        threat.vy += push.y * 70
+        this.burst(bullet.x, bullet.y, bullet.color, 5, 110)
+        this.surface.bullets.splice(i, 1)
+        break
+      }
     }
+  }
+
+  private findSurfaceTarget() {
+    if (!this.surface) return null
+    let best: SurfaceThreat | null = null
+    let bestD = 420 * 420
+    for (const threat of this.surface.threats) {
+      const d = (threat.x - this.surface.pilot.x) ** 2 + (threat.y - this.surface.pilot.y) ** 2
+      if (d < bestD) {
+        bestD = d
+        best = threat
+      }
+    }
+    return best
+  }
+
+  private fireSurfaceGun() {
+    if (!this.surface) return
+    const target = this.findSurfaceTarget()
+    const angle = target
+      ? Math.atan2(target.y - this.surface.pilot.y, target.x - this.surface.pilot.x)
+      : this.surface.pilot.facing
+    this.surface.pilot.facing = angle
+    this.surface.pilot.gunCd = 0.22
+    this.audio.fire(1)
+    const muzzleX = this.surface.pilot.x + Math.cos(angle) * 19
+    const muzzleY = this.surface.pilot.y + Math.sin(angle) * 19
+    const speed = 540
+    this.surface.bullets.push({
+      x: muzzleX,
+      y: muzzleY,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 0.62,
+      radius: 4,
+      damage: 18,
+      color: '#fff27a'
+    })
+    this.burst(muzzleX, muzzleY, '#fff27a', 4, 90)
   }
 
   private startTakeoff() {
@@ -2487,6 +2540,7 @@ class VectorShooter {
 
     this.renderSurfaceShip(ctx, s)
     this.renderSurfaceResources(ctx, s)
+    this.renderSurfaceBullets(ctx, s)
     this.renderSurfaceThreats(ctx, s)
     this.renderSurfacePilot(ctx, s)
     this.renderShockwaves(ctx)
@@ -2577,10 +2631,33 @@ class VectorShooter {
     }
   }
 
+  private renderSurfaceBullets(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
+    ctx.save()
+    ctx.strokeStyle = '#fff27a'
+    ctx.fillStyle = '#fff27a'
+    ctx.shadowColor = '#fff27a'
+    ctx.shadowBlur = this.allowGlow() ? 14 : 7
+    ctx.lineWidth = 2
+    for (const bullet of s.bullets) {
+      const p = this.surfaceToScreen(bullet.x, bullet.y)
+      const angle = Math.atan2(bullet.vy, bullet.vx)
+      ctx.beginPath()
+      ctx.moveTo(p.x - Math.cos(angle) * 7, p.y - Math.sin(angle) * 7)
+      ctx.lineTo(p.x + Math.cos(angle) * 6, p.y + Math.sin(angle) * 6)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, bullet.radius * 0.6, 0, TAU)
+      ctx.fill()
+    }
+    ctx.restore()
+  }
+
   private renderSurfacePilot(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
     const p = this.surfaceToScreen(s.pilot.x, s.pilot.y)
     const step = Math.sin(this.stats.time * 11) * 4
     const facing = Math.sign(Math.cos(s.pilot.facing)) || 1
+    const aim = s.pilot.facing
+    const gunKick = Math.max(0, s.pilot.gunCd) * 18
     ctx.save()
     ctx.translate(p.x, p.y)
     ctx.strokeStyle = s.pilot.invuln > 0 ? '#fff27a' : '#d7fff7'
@@ -2592,7 +2669,7 @@ class VectorShooter {
     ctx.moveTo(0, -11)
     ctx.lineTo(0, 6)
     ctx.moveTo(0, -5)
-    ctx.lineTo(facing * (10 + step * 0.4), 1)
+    ctx.lineTo(Math.cos(aim) * 11, Math.sin(aim) * 11 - 3)
     ctx.moveTo(0, -4)
     ctx.lineTo(facing * -8, 2)
     ctx.moveTo(0, 6)
@@ -2600,11 +2677,17 @@ class VectorShooter {
     ctx.moveTo(0, 6)
     ctx.lineTo(7, 20 - step)
     ctx.stroke()
-    if (s.pilot.mineCd > 0.18) {
-      ctx.strokeStyle = '#57fff3'
+    ctx.strokeStyle = '#fff27a'
+    ctx.shadowColor = '#fff27a'
+    ctx.beginPath()
+    ctx.moveTo(Math.cos(aim) * 8, Math.sin(aim) * 8 - 3)
+    ctx.lineTo(Math.cos(aim) * (22 - gunKick), Math.sin(aim) * (22 - gunKick) - 3)
+    ctx.stroke()
+    if (s.pilot.gunCd > 0.14) {
+      ctx.fillStyle = '#fff27a'
       ctx.beginPath()
-      ctx.arc(0, 0, 34, 0, TAU)
-      ctx.stroke()
+      ctx.arc(Math.cos(aim) * 27, Math.sin(aim) * 27 - 3, 3, 0, TAU)
+      ctx.fill()
     }
     ctx.restore()
   }
@@ -3314,7 +3397,7 @@ class VectorShooter {
     }
     if (this.state === 'surface') {
       this.ui.touchAction.textContent = this.surface && Math.sqrt(dist2(this.surface.pilot, this.surface.ship)) < 64 ? 'BOARD' : 'USE'
-      this.ui.touchDash.textContent = 'PULSE'
+      this.ui.touchDash.textContent = 'SHOOT'
       return
     }
     const planet = this.planets.find((p) => Math.sqrt(dist2(p, this.player)) < p.radius + 86)

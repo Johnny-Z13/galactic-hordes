@@ -24,7 +24,7 @@ The default experience is designed for an iPhone-style portrait screen.
 - Tap `LAND` near a planet.
 - On a planet, tap `BOARD` near the ship to leave.
 - Tap `DASH` in space.
-- Tap `PULSE` on planet surfaces.
+- Tap `SHOOT` on planet surfaces.
 
 The lower-right action buttons are protected from movement input, so tapping them will not accidentally steer the player.
 
@@ -35,7 +35,7 @@ Keyboard:
 - `WASD`: move
 - `E` or `Enter`: land / interact / board
 - `Shift`: dash
-- `Space`: fire / mining pulse
+- `Space`: fire ship weapons / surface pistol
 - `P`: show or hide the performance meter
 
 Gamepad:
