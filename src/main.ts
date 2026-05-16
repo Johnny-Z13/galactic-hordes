@@ -1,4 +1,5 @@
 import './style.css'
+import glassMiteOracleSheetUrl from './assets/glass-mite-oracle-sheet-alpha.png'
 
 type GameState = 'title' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'takeoff' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
@@ -151,6 +152,7 @@ interface SurfaceThreat {
   phase: number
   color: string
   hit: number
+  sprite?: 'glassMiteOracle'
 }
 
 interface SurfaceBullet {
@@ -646,6 +648,7 @@ class VectorShooter {
   private mobileFireQueued = false
   private audio = new AudioDirector()
   private camera = { x: 0, y: 0, shake: 0 }
+  private glassMiteOracleSheet = new Image()
   private scoreSaved = false
   private scoreName = 'ACE'
   private toastTimer = 0
@@ -756,6 +759,7 @@ class VectorShooter {
     this.app.append(shell)
     this.resize()
     this.bind()
+    this.glassMiteOracleSheet.src = glassMiteOracleSheetUrl
     this.highs = this.loadScores()
     this.stats.highScore = this.highs[0]?.score ?? 0
     this.updateSpaceChunks()
@@ -2064,6 +2068,7 @@ class VectorShooter {
         hit: 0
       })
     }
+    threats.push(this.createGlassMiteOracleThreat())
     const aliens = this.createSurfaceAliens(event, threatCount)
     return {
       planet,
@@ -2080,6 +2085,21 @@ class VectorShooter {
       collected: 0,
       pendingUpgrade: false,
       message: this.surfaceEventMessage(event, first)
+    }
+  }
+
+  private createGlassMiteOracleThreat(): SurfaceThreat {
+    return {
+      x: rand(990, 1080),
+      y: rand(760, 880),
+      vx: 0,
+      vy: 0,
+      hp: 54 + this.stats.time * 0.16,
+      radius: 24,
+      phase: rand(0, TAU),
+      color: '#57fff3',
+      hit: 0,
+      sprite: 'glassMiteOracle'
     }
   }
 
@@ -2783,6 +2803,10 @@ class VectorShooter {
 
   private renderSurfaceThreats(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
     for (const threat of s.threats) {
+      if (threat.sprite === 'glassMiteOracle') {
+        this.renderGlassMiteOracleThreat(ctx, threat)
+        continue
+      }
       const p = this.surfaceToScreen(threat.x, threat.y)
       ctx.save()
       ctx.translate(p.x, p.y)
@@ -2804,6 +2828,63 @@ class VectorShooter {
       ctx.stroke()
       ctx.restore()
     }
+  }
+
+  private renderGlassMiteOracleThreat(ctx: CanvasRenderingContext2D, threat: SurfaceThreat) {
+    const p = this.surfaceToScreen(threat.x, threat.y)
+    const sheet = this.glassMiteOracleSheet
+    if (!sheet.complete || sheet.naturalWidth === 0) {
+      this.renderFallbackMite(ctx, threat, p)
+      return
+    }
+    const frameCount = 5
+    const frame = Math.floor((this.stats.time * 8 + threat.phase) % frameCount)
+    const sw = sheet.naturalWidth / frameCount
+    const sh = sheet.naturalHeight
+    const bob = Math.sin(this.stats.time * 5 + threat.phase) * 3
+    const scale = threat.hit > 0 ? 0.205 : 0.19
+    const dw = sw * scale
+    const dh = sh * scale
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    ctx.globalAlpha = threat.hit > 0 ? 1 : 0.92
+    ctx.shadowColor = '#57fff3'
+    ctx.shadowBlur = this.allowGlow() ? 20 : 8
+    ctx.drawImage(sheet, frame * sw, 0, sw, sh, p.x - dw / 2, p.y - dh * 0.58 + bob, dw, dh)
+    if (threat.hit > 0) {
+      ctx.globalCompositeOperation = 'screen'
+      ctx.globalAlpha = 0.45
+      ctx.fillStyle = '#ffffff'
+      ctx.beginPath()
+      ctx.arc(p.x, p.y - 14 + bob, threat.radius + 14, 0, TAU)
+      ctx.fill()
+    }
+    ctx.restore()
+  }
+
+  private renderFallbackMite(ctx: CanvasRenderingContext2D, threat: SurfaceThreat, p: Vec) {
+    ctx.save()
+    ctx.translate(p.x, p.y)
+    ctx.strokeStyle = threat.hit > 0 ? '#ffffff' : '#57fff3'
+    ctx.shadowColor = '#57fff3'
+    ctx.shadowBlur = 16
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(0, -34)
+    ctx.lineTo(22, -2)
+    ctx.lineTo(10, 25)
+    ctx.lineTo(-12, 24)
+    ctx.lineTo(-22, -2)
+    ctx.closePath()
+    ctx.stroke()
+    ctx.strokeStyle = '#fff27a'
+    ctx.beginPath()
+    ctx.moveTo(-14, 16)
+    ctx.lineTo(-34, 34)
+    ctx.moveTo(14, 16)
+    ctx.lineTo(34, 34)
+    ctx.stroke()
+    ctx.restore()
   }
 
   private renderSurfaceAliens(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
