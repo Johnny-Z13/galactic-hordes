@@ -5,6 +5,7 @@ import planetBossCatalogUrl from './assets/planet-boss-catalog-alpha.png'
 import surfaceSpacemanSheetUrl from './assets/surface-spaceman-sheet-alpha.png'
 import titleLogoMarkUrl from './assets/title-logo-mark.png'
 import { navigationCruiseScalar, navigationTrailProfile } from './navigation-cruise'
+import { ONBOARDING_PLANET_COUNT, onboardingPlanetSlot, useOnboardingPlanetField } from './onboarding-planets'
 import { pickupMagnetRange, pickupMagnetStrength } from './pickup-magnet'
 import { pressurePackSize, shouldRecycleEnemy } from './spawn-pressure'
 import { planSurfaceEncounter, rollPlanetArchetype, type PlanetArchetype, type SurfaceEventKind, type SurfaceScenarioKind } from './surface-encounters'
@@ -1257,7 +1258,8 @@ class VectorShooter {
       stars.push({ x: x * CHUNK_SIZE + rng() * CHUNK_SIZE, y: y * CHUNK_SIZE + rng() * CHUNK_SIZE })
     }
     const planets: Planet[] = []
-    const planetCount = key === '0,0' ? 3 : 1 + Math.floor(rng() * 3)
+    const onboardingField = useOnboardingPlanetField(x, y, this.visitedPlanets.size)
+    const planetCount = onboardingField ? ONBOARDING_PLANET_COUNT : key === '0,0' ? 3 : 1 + Math.floor(rng() * 3)
     for (let i = 0; i < planetCount; i += 1) planets.push(this.generatePlanet(x, y, i, rng, planets))
     return { key, x, y, stars, planets }
   }
@@ -1281,11 +1283,13 @@ class VectorShooter {
     }[archetype]
     const name = chunkX === 0 && chunkY === 0 && index === 0 ? 'LUX MORGUE' : `${prefix[Math.floor(rng() * prefix.length)]} ${suffix[Math.floor(rng() * suffix.length)]}`
     const margin = 420
+    const onboardingField = useOnboardingPlanetField(chunkX, chunkY, this.visitedPlanets.size)
     const centerBias = chunkX === 0 && chunkY === 0 && index === 0
     const radius = 92 + rng() * 80
-    let x = centerBias ? 720 : chunkX * CHUNK_SIZE + margin + rng() * (CHUNK_SIZE - margin * 2)
-    let y = centerBias ? 220 : chunkY * CHUNK_SIZE + margin + rng() * (CHUNK_SIZE - margin * 2)
-    if (!centerBias) {
+    const onboardingSlot = onboardingField ? onboardingPlanetSlot(index) : null
+    let x = onboardingSlot ? onboardingSlot.x : centerBias ? 720 : chunkX * CHUNK_SIZE + margin + rng() * (CHUNK_SIZE - margin * 2)
+    let y = onboardingSlot ? onboardingSlot.y : centerBias ? 220 : chunkY * CHUNK_SIZE + margin + rng() * (CHUNK_SIZE - margin * 2)
+    if (!centerBias && !onboardingSlot) {
       let placed = false
       for (let attempt = 0; attempt < 28; attempt += 1) {
         const candidate = {
@@ -3741,6 +3745,11 @@ class VectorShooter {
     this.surface.planet.visited = true
     this.visitedPlanets.add(this.surface.planet.id)
     this.stats.planets = this.visitedPlanets.size
+    if (this.stats.planets === 1) {
+      this.chunks.clear()
+      this.activeChunkKey = ''
+      this.updateSpaceChunks(true)
+    }
     if (first) this.recordPlanetArtifact(this.surface.planet, 'Surface expedition')
     this.stats.score += first ? 420 + this.surface.collected * 45 : this.surface.collected * 25
     this.player.landedCd = 2.2
