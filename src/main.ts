@@ -28,7 +28,7 @@ import {
   returnBeaconEligible
 } from './return-beacons'
 
-type GameState = 'title' | 'mothership' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'debrief' | 'gameover' | 'scores'
+type GameState = 'title' | 'mothership' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
 type EnemyKind = 'chaser' | 'splinter' | 'lancer' | 'mine' | 'brute' | 'shooter' | 'warden'
 type SurfaceResourceKind = 'crystal' | 'scrap' | 'repair' | 'cache'
@@ -1002,6 +1002,7 @@ class VectorShooter {
   private orbitReturnPoint: Vec | null = null
   private transitionTimer = 0
   private transitionDuration = 1.25
+  private deathTimer = 0
   private surface: SurfaceRun | null = null
   private returnBeacon: ReturnBeacon | null = null
   private nextReturnBeaconAt = 0
@@ -1491,6 +1492,10 @@ class VectorShooter {
       this.updateTakeoff(dt)
       return
     }
+    if (this.state === 'dying') {
+      this.updateDying(dt)
+      return
+    }
     if (this.state !== 'playing') {
       this.drawTitleDrift(dt)
       return
@@ -1528,7 +1533,7 @@ class VectorShooter {
   }
 
   private audioMood(): PlanetAudioMood {
-    if (this.state === 'title' || this.state === 'mothership' || this.state === 'scores' || this.state === 'debrief' || this.state === 'gameover') return 'title'
+    if (this.state === 'title' || this.state === 'mothership' || this.state === 'scores' || this.state === 'dying' || this.state === 'debrief' || this.state === 'gameover') return 'title'
     if (this.surface) return this.surface.planet.archetype
     if (this.planetChoice) return this.planetChoice.archetype
     let best: Planet | null = null
@@ -1773,6 +1778,25 @@ class VectorShooter {
     this.updateHud()
     if (this.transitionTimer >= this.transitionDuration * 0.5) this.snapToOrbitReturnPoint()
     if (this.transitionTimer >= this.transitionDuration) this.finishTakeoff()
+  }
+
+  private updateDying(dt: number) {
+    this.deathTimer += dt
+    this.toastTimer -= dt
+    if (this.toastTimer <= 0) this.ui.toast.classList.remove('visible')
+    this.player.vx *= Math.pow(0.02, dt)
+    this.player.vy *= Math.pow(0.02, dt)
+    this.player.x += this.player.vx * dt
+    this.player.y += this.player.vy * dt
+    this.camera.shake = Math.max(this.camera.shake, 18 * Math.max(0, 1 - this.deathTimer / 1.6))
+    this.updateBullets(dt)
+    this.updateEnemies(dt)
+    this.updatePickups(dt)
+    this.updateParticles(dt)
+    this.updateOrbitals(dt)
+    this.updateCamera(dt)
+    this.updateHud()
+    if (this.deathTimer >= 2.35) this.finishRun('destroyed')
   }
 
   private snapToOrbitReturnPoint() {
@@ -3847,11 +3871,16 @@ class VectorShooter {
       this.renderTransitionOverlay(ctx, t, 'TAKEOFF')
       return
     }
+    if (this.state === 'dying') {
+      this.renderSpaceScene(ctx)
+      this.renderDeathOverlay(ctx)
+      return
+    }
     this.renderSpaceScene(ctx)
   }
 
   private renderSpaceScene(ctx: CanvasRenderingContext2D) {
-    this.mini.style.display = ''
+    this.mini.style.display = this.state === 'dying' ? 'none' : ''
     this.renderBackground(ctx)
     this.renderPlanets(ctx)
     this.renderReturnBeacon(ctx)
@@ -3860,7 +3889,7 @@ class VectorShooter {
     this.renderEnemies(ctx)
     this.renderOrbitals(ctx)
     this.renderAutopilot(ctx)
-    this.renderPlayer(ctx)
+    if (this.state !== 'dying' || this.deathTimer < 0.16) this.renderPlayer(ctx)
     this.renderShockwaves(ctx)
     this.renderParticles(ctx)
     this.renderLandingPrompt(ctx)
@@ -4418,6 +4447,63 @@ class VectorShooter {
     ctx.font = '18px Courier New'
     ctx.textAlign = 'center'
     ctx.fillText(label, this.width / 2, this.height / 2)
+    ctx.restore()
+  }
+
+  private renderDeathOverlay(ctx: CanvasRenderingContext2D) {
+    const t = clamp(this.deathTimer / 2.35, 0, 1)
+    const flash = Math.max(0, 1 - this.deathTimer * 2.6)
+    const p = this.worldToScreen(this.player.x, this.player.y)
+    ctx.save()
+    ctx.fillStyle = `rgba(0,0,0,${0.2 + t * 0.52})`
+    ctx.fillRect(0, 0, this.width, this.height)
+    ctx.globalCompositeOperation = 'lighter'
+    const boom = clamp(this.deathTimer / 1.1, 0, 1)
+    for (let i = 0; i < 4; i += 1) {
+      const ring = boom * (70 + i * 38)
+      const alpha = Math.max(0, 0.52 - boom * 0.42 - i * 0.06)
+      ctx.strokeStyle = i % 2 === 0 ? `rgba(255,93,115,${alpha})` : `rgba(255,242,122,${alpha})`
+      ctx.shadowColor = i % 2 === 0 ? '#ff5d73' : '#fff27a'
+      ctx.shadowBlur = 22
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, ring, 0, TAU)
+      ctx.stroke()
+    }
+    for (let i = 0; i < 12; i += 1) {
+      const a = (i / 12) * TAU + this.deathTimer * 0.9
+      const length = 54 + boom * 120
+      ctx.strokeStyle = i % 3 === 0 ? 'rgba(255,242,122,0.46)' : 'rgba(87,255,243,0.34)'
+      ctx.beginPath()
+      ctx.moveTo(p.x + Math.cos(a) * 18, p.y + Math.sin(a) * 18)
+      ctx.lineTo(p.x + Math.cos(a) * length, p.y + Math.sin(a) * length)
+      ctx.stroke()
+    }
+    ctx.globalCompositeOperation = 'source-over'
+    if (flash > 0) {
+      ctx.globalCompositeOperation = 'lighter'
+      ctx.fillStyle = `rgba(255,242,122,${flash * 0.42})`
+      ctx.fillRect(0, 0, this.width, this.height)
+    }
+    ctx.globalCompositeOperation = 'source-over'
+    ctx.textAlign = 'center'
+    ctx.shadowColor = '#ff5d73'
+    ctx.shadowBlur = 26
+    ctx.fillStyle = '#ffedf1'
+    ctx.font = '24px Courier New'
+    ctx.fillText('YOU DIED', this.width / 2, this.height * 0.42)
+    ctx.shadowColor = '#57fff3'
+    ctx.shadowBlur = 18
+    ctx.fillStyle = '#d7fff7'
+    ctx.font = '13px Courier New'
+    ctx.fillText('BLACK BOX TRANSMITTING TO MOTHERSHIP', this.width / 2, this.height * 0.42 + 34)
+    const barWidth = Math.min(320, this.width - 52)
+    const x = (this.width - barWidth) / 2
+    const y = this.height * 0.42 + 58
+    ctx.strokeStyle = 'rgba(87,255,243,0.62)'
+    ctx.strokeRect(x, y, barWidth, 7)
+    ctx.fillStyle = '#57fff3'
+    ctx.fillRect(x, y, barWidth * t, 7)
     ctx.restore()
   }
 
@@ -5883,16 +5969,17 @@ class VectorShooter {
     this.state = 'mothership'
     this.ui.title.innerHTML = ''
     this.ui.title.className = 'screen mothership-screen'
-    const panel = document.createElement('div')
-    panel.className = 'mothership-command'
-    const header = document.createElement('div')
-    header.className = 'mothership-header'
+    const shell = document.createElement('div')
+    shell.className = 'mothership-command'
+    const header = document.createElement('header')
+    header.className = 'mothership-command-top'
     const intro = document.createElement('div')
-    intro.innerHTML = '<h1 class="title">MOTHERSHIP COMMAND</h1><p class="copy">Scout docked. Archive linked. Expedition systems waiting.</p>'
+    intro.className = 'mothership-command-title'
+    intro.innerHTML = '<span>COMMAND DECK</span><h1>MOTHERSHIP</h1><p>Scout systems docked. Spend recovered cargo, review the ship, then launch the next expedition.</p>'
     if (this.debrief) {
       const lastRun = document.createElement('p')
-      lastRun.className = 'copy small'
-      lastRun.textContent = `Last report: ${this.debrief.title} // ${this.debrief.discoveries.length} discoveries // S ${this.debrief.resources.recovered.scrap} C ${this.debrief.resources.recovered.crystal} K ${this.debrief.resources.recovered.cores}`
+      lastRun.className = 'mothership-last-report'
+      lastRun.textContent = `${this.debrief.title} // ${this.debrief.discoveries.length} discoveries // S ${this.debrief.resources.recovered.scrap} C ${this.debrief.resources.recovered.crystal} K ${this.debrief.resources.recovered.cores}`
       intro.append(lastRun)
     }
     const resources = document.createElement('div')
@@ -5903,19 +5990,110 @@ class VectorShooter {
       <span>K ${this.mothership.resources.cores}</span>
     `
     header.append(intro, resources)
-    const grid = document.createElement('div')
+
+    const flight = document.createElement('section')
+    flight.className = 'mothership-flight'
+    const status = document.createElement('div')
+    status.className = 'mothership-status-stack'
+    const hullPct = clamp(Math.max(0, this.player.hull) / Math.max(1, this.player.maxHull), 0, 1)
+    const xpPct = clamp(this.stats.xp / Math.max(1, this.stats.nextXp), 0, 1)
+    status.append(
+      this.mothershipMeter('Hull Integrity', `${Math.ceil(Math.max(0, this.player.hull))}/${this.player.maxHull}`, hullPct, 'health'),
+      this.mothershipMeter('Mutation XP', `LV ${this.stats.level} // ${Math.floor(this.stats.xp)}/${this.stats.nextXp}`, xpPct, 'xp'),
+      this.mothershipMeter('Archive Signal', `${Object.keys(this.mothership.archive.records).length} records`, clamp(Object.keys(this.mothership.archive.records).length / 18, 0, 1), 'archive')
+    )
+    const shipBay = document.createElement('div')
+    shipBay.className = 'mothership-ship-bay'
+    const ship = document.createElement('img')
+    ship.src = titleLogoMarkUrl
+    ship.alt = 'Scout ship docked nose north'
+    ship.className = 'mothership-ship-art'
+    const launch = document.createElement('button')
+    launch.className = 'vector-button start-button mothership-launch'
+    launch.textContent = 'Launch Expedition'
+    launch.addEventListener('click', () => this.start())
+    shipBay.append(ship, launch)
+    const consolePanel = document.createElement('div')
+    consolePanel.className = 'mothership-console'
+    consolePanel.innerHTML = `
+      <h2>Shipboard Workbench</h2>
+      <p>Run upgrades are installed between landings. From command, you can inspect the build manifest and archive before launch.</p>
+    `
+    const consoleActions = document.createElement('div')
+    consoleActions.className = 'station-actions'
+    const manifest = document.createElement('button')
+    manifest.className = 'vector-button secondary'
+    manifest.textContent = 'Manifest'
+    manifest.addEventListener('click', () => this.showMothershipConsole('manifest'))
+    const archive = document.createElement('button')
+    archive.className = 'vector-button secondary'
+    archive.textContent = 'Archive'
+    archive.addEventListener('click', () => this.showMothershipConsole('artifacts'))
+    consoleActions.append(manifest, archive)
+    consolePanel.append(consoleActions)
+    flight.append(status, shipBay, consolePanel)
+
+    const systemsHeader = document.createElement('div')
+    systemsHeader.className = 'mothership-section-title'
+    systemsHeader.innerHTML = '<h2>Meta Systems</h2><span>Permanent upgrades bought with recovered cargo</span>'
+    const grid = document.createElement('section')
     grid.className = 'station-grid'
     grid.append(
-      this.mothershipStation('Launch Deck', 'Start the next expedition.', 'Launch Expedition', () => this.start()),
       this.departmentStation('scanner'),
       this.departmentStation('workbench'),
       this.departmentStation('archive'),
-      this.lockedStation('Shipyard', 'Starting loadouts and scout prep. Offline.'),
-      this.lockedStation('Signal Core', 'Deep signal decoding. Offline.')
+      this.lockedStation('Shipyard', 'Starting hull frames, launch loadouts, and scout prep. Planned for the next progression pass.'),
+      this.lockedStation('Signal Core', 'Deep signal decoding, beacon variants, and strange run modifiers. Planned.'),
+      this.lockedStation('Hangar Crew', 'Crew assignments that bend early-run economy and planet outcomes. Planned.')
     )
-    panel.append(header, grid)
-    this.ui.title.append(panel)
+    shell.append(header, flight, systemsHeader, grid)
+    this.ui.title.append(shell)
     this.showOnly('title')
+  }
+
+  private mothershipMeter(label: string, value: string, pct: number, tone: string) {
+    const meter = document.createElement('div')
+    meter.className = `mothership-meter ${tone}`
+    meter.innerHTML = `
+      <div><span>${this.escape(label)}</span><b>${this.escape(value)}</b></div>
+      <i><em style="width:${clamp(pct, 0, 1) * 100}%"></em></i>
+    `
+    return meter
+  }
+
+  private showMothershipConsole(viewName: WorkbenchView) {
+    this.state = 'mothership'
+    this.workbenchView = viewName
+    this.ui.levelup.innerHTML = ''
+    const panel = document.createElement('div')
+    panel.className = 'panel workbench-panel mothership-workbench-console'
+    const h = document.createElement('h1')
+    h.className = 'title'
+    h.textContent = viewName === 'artifacts' ? 'ARCHIVE CONSOLE' : 'BUILD MANIFEST'
+    const p = document.createElement('p')
+    p.className = 'copy'
+    p.textContent = 'Read-only drydock console. Mutation choices are installed from the shipboard workbench during an expedition.'
+    const tabs = document.createElement('div')
+    tabs.className = 'workbench-tabs'
+    const manifest = document.createElement('button')
+    manifest.className = `workbench-tab ${viewName === 'manifest' ? 'active' : ''}`
+    manifest.textContent = 'Manifest'
+    manifest.addEventListener('click', () => this.showMothershipConsole('manifest'))
+    const artifacts = document.createElement('button')
+    artifacts.className = `workbench-tab ${viewName === 'artifacts' ? 'active' : ''}`
+    artifacts.textContent = 'Artifacts'
+    artifacts.addEventListener('click', () => this.showMothershipConsole('artifacts'))
+    const back = document.createElement('button')
+    back.className = 'workbench-tab'
+    back.textContent = 'Command'
+    back.addEventListener('click', () => this.showMothership())
+    tabs.append(manifest, artifacts, back)
+    const view = document.createElement('div')
+    view.className = `workbench-view ${viewName}`
+    view.append(viewName === 'artifacts' ? this.renderArtifactsCollection() : this.renderBuildManifest())
+    panel.append(h, p, tabs, view)
+    this.ui.levelup.append(panel)
+    this.showOnly('levelup')
   }
 
   private mothershipStation(title: string, copy: string, actionLabel: string, action: () => void) {
@@ -6010,8 +6188,16 @@ class VectorShooter {
   }
 
   private gameOver() {
+    if (this.state === 'dying' || this.state === 'debrief') return
+    this.state = 'dying'
+    this.deathTimer = 0
+    this.player.hull = 0
+    this.showOnly(null)
     this.audio.boom('gameover')
-    this.finishRun('destroyed')
+    this.camera.shake = Math.max(this.camera.shake, 28)
+    this.burst(this.player.x, this.player.y, '#ff5d73', 46, 360)
+    this.burst(this.player.x, this.player.y, '#fff27a', 32, 300)
+    this.toast('SCOUT DESTROYED')
   }
 
   private finishRun(outcome: RunOutcomeKind) {
