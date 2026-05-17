@@ -43,6 +43,9 @@ type UpgradeId =
   | 'cargo'
   | 'heat'
   | 'phase'
+  | 'suitO2'
+  | 'suitHealth'
+  | 'suitBlaster'
 
 interface Vec {
   x: number
@@ -218,6 +221,10 @@ interface SurfaceRun {
     facing: number
     gunCd: number
     invuln: number
+    health: number
+    maxHealth: number
+    oxygen: number
+    maxOxygen: number
   }
   ship: Vec
   camera: Vec
@@ -229,6 +236,7 @@ interface SurfaceRun {
   collected: number
   pendingUpgrade: boolean
   bossCacheCount: number
+  o2Returning: boolean
   message: string
 }
 
@@ -533,6 +541,36 @@ const upgrades: Upgrade[] = [
     max: 4,
     rarity: 58,
     levels: ['+0.08s dash invulnerability', '-8% collision damage', '+0.08s dash invulnerability', 'Dash shockwave knocks enemies back harder']
+  },
+  {
+    id: 'suitO2',
+    name: 'Exo-Lung',
+    category: 'system',
+    bucket: 'planetcraft',
+    description: 'The surface timer bucket: longer oxygen reserves for planet runs.',
+    max: 5,
+    rarity: 64,
+    levels: ['+14s max O2', '+12s max O2', 'Low-O2 return starts later', '+14s max O2', '+18s max O2']
+  },
+  {
+    id: 'suitHealth',
+    name: 'Skinweave Suit',
+    category: 'system',
+    bucket: 'survival',
+    description: 'The human survival bucket: more surface health and better field repairs.',
+    max: 4,
+    rarity: 66,
+    levels: ['+18 max human health', '+15% surface repair', '+18 max human health', '+24 max human health']
+  },
+  {
+    id: 'suitBlaster',
+    name: 'Field Blaster',
+    category: 'weapon',
+    bucket: 'planetcraft',
+    description: 'The human weapon bucket: surface pistol shots hit harder and cycle faster.',
+    max: 5,
+    rarity: 58,
+    levels: ['+4 surface gun damage', '-6% surface gun cooldown', '+4 surface gun damage', '+40 surface shot speed', '-8% surface gun cooldown']
   }
 ]
 
@@ -986,13 +1024,18 @@ class VectorShooter {
     luck: 0,
     cargo: 0,
     heat: 0,
-    phase: 0
+    phase: 0,
+    suitO2: 0,
+    suitHealth: 0,
+    suitBlaster: 0
   }
 
   private ui = {
     score: document.createElement('span'),
     time: document.createElement('span'),
+    hullLabel: document.createElement('span'),
     level: document.createElement('span'),
+    xpLabel: document.createElement('span'),
     hull: document.createElement('span'),
     wave: document.createElement('span'),
     high: document.createElement('span'),
@@ -1069,7 +1112,7 @@ class VectorShooter {
     top.className = 'topbar'
     const meters = document.createElement('div')
     meters.className = 'hud-meters'
-    meters.append(this.meter('HULL', this.ui.hull, this.ui.hullFill, 'health'), this.meter('XP', this.ui.level, this.ui.xpFill, 'xp'))
+    meters.append(this.meter('HULL', this.ui.hull, this.ui.hullFill, 'health', this.ui.hullLabel), this.meter('XP', this.ui.level, this.ui.xpFill, 'xp', this.ui.xpLabel))
     const left = document.createElement('div')
     left.className = 'hud-cluster hud-cluster-left'
     left.append(this.chip('TIME', this.ui.time), this.chip('SCORE', this.ui.score))
@@ -1080,12 +1123,11 @@ class VectorShooter {
     return hud
   }
 
-  private meter(label: string, value: HTMLElement, fill: HTMLElement, tone: string) {
+  private meter(label: string, value: HTMLElement, fill: HTMLElement, tone: string, labelEl = document.createElement('span')) {
     const meter = document.createElement('div')
     meter.className = `hud-meter ${tone}`
     const meta = document.createElement('div')
     meta.className = 'hud-meter-meta'
-    const labelEl = document.createElement('span')
     labelEl.textContent = label
     value.className = 'hud-meter-value'
     meta.append(labelEl, value)
@@ -1622,10 +1664,18 @@ class VectorShooter {
     if (this.toastTimer <= 0) this.ui.toast.classList.remove('visible')
     this.surface.pilot.gunCd -= dt
     this.surface.pilot.invuln -= dt
+    this.updateSurfaceOxygen(dt)
+    if (this.state !== 'surface' || !this.surface) return
 
     const accel = 1080 * dt
     this.surface.pilot.vx += input.move.x * accel
     this.surface.pilot.vy += input.move.y * accel
+    if (this.surface.o2Returning) {
+      const toShip = norm(this.surface.ship.x - this.surface.pilot.x, this.surface.ship.y - this.surface.pilot.y)
+      this.surface.pilot.vx += toShip.x * 1360 * dt
+      this.surface.pilot.vy += toShip.y * 1360 * dt
+      this.surface.pilot.facing = Math.atan2(toShip.y, toShip.x)
+    }
     const speed = len(this.surface.pilot.vx, this.surface.pilot.vy)
     const maxSpeed = 178 + this.build.engine * 10
     if (speed > maxSpeed) {
@@ -1646,7 +1696,8 @@ class VectorShooter {
     const nearShip = Math.sqrt(dist2(this.surface.pilot, this.surface.ship)) < 64
     const lore = this.findNearbyLoreSite()
     const alien = this.findNearbyAlien()
-    if (input.interact && lore) this.inspectLoreSite(lore)
+    if (this.surface.o2Returning && nearShip) this.startTakeoff({ urgent: true })
+    else if (input.interact && lore) this.inspectLoreSite(lore)
     else if (input.interact && alien) this.openAlienEncounter(alien)
     else if (input.interact && nearShip) this.startTakeoff()
     if (this.surface.collected >= this.surface.resources.length && !nearShip) {
@@ -1661,6 +1712,18 @@ class VectorShooter {
     this.updateParticles(dt)
     this.updateHud()
     if (this.player.hull <= 0) this.gameOver()
+  }
+
+  private updateSurfaceOxygen(dt: number) {
+    if (!this.surface) return
+    this.surface.pilot.oxygen = Math.max(0, this.surface.pilot.oxygen - dt)
+    const low = this.surface.pilot.oxygen <= this.surface.pilot.maxOxygen * this.surfaceLowOxygenRatio()
+    if (low && !this.surface.o2Returning) {
+      this.surface.o2Returning = true
+      this.surface.message = 'O2 LOW - RETURNING TO SHIP'
+      this.toast('O2 LOW - RETURNING TO SHIP')
+    }
+    if (this.surface.pilot.oxygen <= 0) this.startTakeoff({ urgent: true })
   }
 
   private getInput() {
@@ -2313,6 +2376,10 @@ class VectorShooter {
   }
 
   private damagePlayer(amount: number) {
+    if (this.state === 'surface' && this.surface) {
+      this.damageSurfacePilot(amount)
+      return
+    }
     if (this.player.invuln > 0) return
     this.player.invuln = 0.42
     this.player.shieldDelay = 2.4
@@ -2326,6 +2393,21 @@ class VectorShooter {
     this.audio.hit()
     this.camera.shake = Math.max(this.camera.shake, 12)
     this.burst(this.player.x, this.player.y, '#ff5d73', 16, 210)
+  }
+
+  private damageSurfacePilot(amount: number) {
+    if (!this.surface || this.surface.pilot.invuln > 0) return
+    const pilot = this.surface.pilot
+    pilot.invuln = 0.65
+    pilot.health = Math.max(0, pilot.health - Math.max(1, amount * (1 - this.build.phase * 0.05)))
+    this.audio.hit()
+    this.camera.shake = Math.max(this.camera.shake, 10)
+    this.burst(pilot.x, pilot.y, '#ff5d73', 12, 180)
+    if (pilot.health <= 0) {
+      this.surface.message = 'SUIT CRITICAL - RETURNING TO SHIP'
+      this.toast('SUIT CRITICAL - RETURNING TO SHIP')
+      this.startTakeoff({ urgent: true })
+    }
   }
 
   private drop(kind: PickupKind, x: number, y: number, value: number) {
@@ -2506,6 +2588,14 @@ class VectorShooter {
       this.player.maxHull += 18
       this.player.hull = this.player.maxHull
     }
+    if (upgrade.id === 'suitHealth' && this.surface) {
+      this.surface.pilot.maxHealth = this.surfaceMaxHealth()
+      this.surface.pilot.health = this.surface.pilot.maxHealth
+    }
+    if (upgrade.id === 'suitO2' && this.surface) {
+      this.surface.pilot.maxOxygen = this.surfaceMaxOxygen()
+      this.surface.pilot.oxygen = this.surface.pilot.maxOxygen
+    }
     if (upgrade.id === 'magnet') this.stats.score += 60
     this.camera.shake = Math.max(this.camera.shake, upgrade.category === 'weapon' ? 7 : 5)
     const anchor = this.fxAnchor()
@@ -2679,7 +2769,19 @@ class VectorShooter {
 
   private createSurfaceRun(planet: Planet): SurfaceRun {
     const resources: SurfaceResource[] = []
-    const pilot = { x: 840, y: 660, vx: 0, vy: 0, facing: 0, gunCd: 0, invuln: 0 }
+    const pilot = {
+      x: 840,
+      y: 660,
+      vx: 0,
+      vy: 0,
+      facing: 0,
+      gunCd: 0,
+      invuln: 0,
+      health: this.surfaceMaxHealth(),
+      maxHealth: this.surfaceMaxHealth(),
+      oxygen: this.surfaceMaxOxygen(),
+      maxOxygen: this.surfaceMaxOxygen()
+    }
     const ship = { x: 780, y: 590 }
     const threatKeepouts = this.surfaceThreatKeepouts(pilot, ship)
     const first = !planet.visited
@@ -2753,12 +2855,37 @@ class VectorShooter {
       collected: 0,
       pendingUpgrade: false,
       bossCacheCount: profile.bossCacheCount,
+      o2Returning: false,
       message: this.surfaceEventMessage(event, first, scenario)
     }
   }
 
   private surfaceInterest() {
     return clamp(this.stats.time / 420 + this.stats.planets * 0.075 + this.stats.level * 0.012, 0, 1)
+  }
+
+  private surfaceMaxHealth() {
+    return 86 + this.build.suitHealth * 18
+  }
+
+  private surfaceMaxOxygen() {
+    return 42 + this.build.suitO2 * 14
+  }
+
+  private surfaceLowOxygenRatio() {
+    return this.build.suitO2 >= 3 ? 0.12 : 0.18
+  }
+
+  private surfaceGunDamage() {
+    return 18 + this.build.suitBlaster * 4
+  }
+
+  private surfaceGunCooldown() {
+    return clamp(0.22 - this.build.suitBlaster * 0.014, 0.14, 0.22)
+  }
+
+  private surfaceGunSpeed() {
+    return 540 + this.build.suitBlaster * 40
   }
 
   private surfaceThreatKeepouts(pilot: Vec, ship: Vec) {
@@ -3029,7 +3156,8 @@ class VectorShooter {
         this.resources.scrap += gained
         this.stats.score += gained
       } else if (resource.kind === 'repair') {
-        this.player.hull = clamp(this.player.hull + resource.value, 0, this.player.maxHull)
+        const surfaceRepair = resource.value * (1 + this.build.suitHealth * 0.15)
+        this.surface.pilot.health = clamp(this.surface.pilot.health + surfaceRepair, 0, this.surface.pilot.maxHealth)
       } else if (resource.kind === 'cache') {
         this.resolvePlanetCache(resource)
       }
@@ -3116,7 +3244,6 @@ class VectorShooter {
       threat.y = clamp(threat.y + threat.vy * dt, 40, this.surface.height - 40)
       const rr = threat.radius + 13
       if ((threat.x - this.surface.pilot.x) ** 2 + (threat.y - this.surface.pilot.y) ** 2 < rr * rr && this.surface.pilot.invuln <= 0) {
-        this.surface.pilot.invuln = 0.65
         this.damagePlayer(threat.boss ? 16 : 9)
         this.burst(this.surface.pilot.x, this.surface.pilot.y, '#ff5d73', 10, 160)
       }
@@ -3417,11 +3544,11 @@ class VectorShooter {
     if (!target) return
     const angle = Math.atan2(target.y - this.surface.pilot.y, target.x - this.surface.pilot.x)
     this.surface.pilot.facing = angle
-    this.surface.pilot.gunCd = 0.22
+    this.surface.pilot.gunCd = this.surfaceGunCooldown()
     this.audio.fire('surface', 1)
     const muzzleX = this.surface.pilot.x + Math.cos(angle) * 19
     const muzzleY = this.surface.pilot.y + Math.sin(angle) * 19
-    const speed = 540
+    const speed = this.surfaceGunSpeed()
     this.surface.bullets.push({
       x: muzzleX,
       y: muzzleY,
@@ -3429,15 +3556,15 @@ class VectorShooter {
       vy: Math.sin(angle) * speed,
       life: 0.62,
       radius: 4,
-      damage: 18,
+      damage: this.surfaceGunDamage(),
       color: '#fff27a'
     })
     this.burst(muzzleX, muzzleY, '#fff27a', 4, 90)
   }
 
-  private startTakeoff() {
+  private startTakeoff(options: { urgent?: boolean } = {}) {
     if (!this.surface) return
-    if (this.pendingUpgrades > 0) {
+    if (this.pendingUpgrades > 0 && !options.urgent) {
       this.takeoffAfterWorkbench = true
       this.openLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} banked mutation signal${this.pendingUpgrades === 1 ? '' : 's'} available. Spend before takeoff.`)
       return
@@ -3446,7 +3573,7 @@ class VectorShooter {
     this.transitionTimer = 0
     this.transitionDuration = 1.2
     this.audio.land()
-    this.toast('RETURNING TO ORBIT')
+    this.toast(options.urgent ? 'O2 LOW - RETURNING TO SHIP' : 'RETURNING TO ORBIT')
   }
 
   private finishTakeoff() {
@@ -5087,14 +5214,25 @@ class VectorShooter {
   private updateHud() {
     this.ui.score.textContent = Math.floor(this.stats.score).toString()
     this.ui.time.textContent = formatTime(this.stats.time)
-    this.ui.level.textContent = `LV ${this.stats.level}`
     this.ui.wave.textContent = this.stats.kills.toString()
-    const shield = this.player.maxShield > 0 ? ` +${Math.floor(this.player.shield)}` : ''
-    this.ui.hull.textContent = `${Math.ceil(Math.max(0, this.player.hull))}/${this.player.maxHull}${shield}`
     this.ui.high.textContent = Math.max(this.stats.highScore, this.stats.score).toString()
     this.ui.resources.textContent = `S ${this.resources.scrap} C ${this.resources.crystal} K ${this.resources.cores}`
-    this.ui.hullFill.style.width = `${clamp((Math.max(0, this.player.hull) / this.player.maxHull) * 100, 0, 100)}%`
-    this.ui.xpFill.style.width = `${clamp((this.stats.xp / this.stats.nextXp) * 100, 0, 100)}%`
+    if (this.state === 'surface' && this.surface) {
+      this.ui.hullLabel.textContent = 'HEALTH'
+      this.ui.xpLabel.textContent = 'O2'
+      this.ui.hull.textContent = `${Math.ceil(this.surface.pilot.health)}/${this.surface.pilot.maxHealth}`
+      this.ui.level.textContent = `${Math.ceil(this.surface.pilot.oxygen)}s`
+      this.ui.hullFill.style.width = `${clamp((this.surface.pilot.health / this.surface.pilot.maxHealth) * 100, 0, 100)}%`
+      this.ui.xpFill.style.width = `${clamp((this.surface.pilot.oxygen / this.surface.pilot.maxOxygen) * 100, 0, 100)}%`
+    } else {
+      this.ui.hullLabel.textContent = 'HULL'
+      this.ui.xpLabel.textContent = 'XP'
+      this.ui.level.textContent = `LV ${this.stats.level}`
+      const shield = this.player.maxShield > 0 ? ` +${Math.floor(this.player.shield)}` : ''
+      this.ui.hull.textContent = `${Math.ceil(Math.max(0, this.player.hull))}/${this.player.maxHull}${shield}`
+      this.ui.hullFill.style.width = `${clamp((Math.max(0, this.player.hull) / this.player.maxHull) * 100, 0, 100)}%`
+      this.ui.xpFill.style.width = `${clamp((this.stats.xp / this.stats.nextXp) * 100, 0, 100)}%`
+    }
     this.updateTouchHud()
     this.updatePerfHud()
   }
