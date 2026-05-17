@@ -19,6 +19,9 @@ Galactic Hordes is a mobile-first portrait survival shooter: Vampire Survivors p
 - Generated boss and friendly alien sprite catalogs for stranger planet discoveries.
 - Quiet planet encounters with one-time alien bargains and rare artefact rolls.
 - A generated 8-frame surface spaceman sprite replaces the original stick pilot.
+- Mothership command hub wraps launch, archive, and department upgrades.
+- Return beacons allow clean extraction after a meaningful expedition.
+- Destroyed runs recover black-box archive data and partial resources.
 - High scores with editable pilot names.
 - LOW/MED/GLOW graphics modes for phones, low-GPU Macs, and high-end PCs.
 

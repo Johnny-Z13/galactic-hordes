@@ -9,8 +9,25 @@ import { pickupMagnetRange, pickupMagnetStrength } from './pickup-magnet'
 import { pressurePackSize, shouldRecycleEnemy } from './spawn-pressure'
 import { planSurfaceEncounter, rollPlanetArchetype, type PlanetArchetype, type SurfaceEventKind, type SurfaceScenarioKind } from './surface-encounters'
 import { surfaceThreatSpawnPoint } from './surface-spawn'
+import {
+  applyRunRecovery,
+  defaultMothershipState,
+  mothershipDepartments,
+  normalizeMothershipState,
+  purchaseMothershipTier,
+  type MothershipDepartmentId,
+  type MothershipState,
+  type PersistentArchiveRecord,
+  type RunOutcomeKind
+} from './mothership-progression'
+import {
+  BEACON_HOLD_SECONDS,
+  beaconSpawnDistance,
+  nextBeaconWindow,
+  returnBeaconEligible
+} from './return-beacons'
 
-type GameState = 'title' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'gameover' | 'scores'
+type GameState = 'title' | 'mothership' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'debrief' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
 type EnemyKind = 'chaser' | 'splinter' | 'lancer' | 'mine' | 'brute' | 'shooter' | 'warden'
 type SurfaceResourceKind = 'crystal' | 'scrap' | 'repair' | 'cache'
@@ -280,6 +297,26 @@ interface ArtifactRecord {
   count: number
 }
 
+interface DebriefReport {
+  outcome: RunOutcomeKind
+  title: string
+  copy: string
+  resources: {
+    earned: { scrap: number; crystal: number; cores: number }
+    recovered: { scrap: number; crystal: number; cores: number }
+  }
+  discoveries: PersistentArchiveRecord[]
+  skippedBeacons: number
+}
+
+interface ReturnBeacon {
+  x: number
+  y: number
+  radius: number
+  hold: number
+  phase: number
+}
+
 type WorkbenchChoice =
   | { kind: 'upgrade'; upgrade: Upgrade }
   | { kind: 'evolution'; evolution: Evolution }
@@ -307,6 +344,7 @@ const CHUNK_SIZE = 3600
 const CHUNK_LOAD_RADIUS = 1
 const CHUNK_KEEP_RADIUS = 3
 const STORAGE_KEY = 'vector_shooter_high_scores'
+const MOTHERSHIP_STORAGE_KEY = 'galactic_hordes_mothership_v1'
 const GRID_CELL = 180
 const GRID_STRIDE = 1000
 const MAX_PARTICLES = 300
@@ -952,15 +990,21 @@ class VectorShooter {
   private scoreName = 'ACE'
   private toastTimer = 0
   private toastText = ''
+  private mothership: MothershipState = defaultMothershipState()
+  private debrief: DebriefReport | null = null
   private upgradeChoices: WorkbenchChoice[] = []
   private workbenchInstalling = false
   private workbenchView: WorkbenchView = 'upgrades'
+  private workbenchRerolls = 0
   private planetChoice: Planet | null = null
   private alienChoice: SurfaceAlien | null = null
   private orbitReturnPoint: Vec | null = null
   private transitionTimer = 0
   private transitionDuration = 1.25
   private surface: SurfaceRun | null = null
+  private returnBeacon: ReturnBeacon | null = null
+  private nextReturnBeaconAt = 0
+  private skippedReturnBeacons = 0
   private collisionFxCooldown = 0
   private pendingUpgrades = 0
   private takeoffAfterWorkbench = false
@@ -1077,6 +1121,7 @@ class VectorShooter {
     this.planetBossCatalog.src = planetBossCatalogUrl
     this.surfaceSpacemanSheet.src = surfaceSpacemanSheetUrl
     this.highs = this.loadScores()
+    this.mothership = this.loadMothership()
     this.stats.highScore = this.highs[0]?.score ?? 0
     this.updateSpaceChunks()
     this.showTitle()
@@ -1328,7 +1373,8 @@ class VectorShooter {
       this.keys.add(e.code)
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault()
       if (e.code === 'Escape') this.togglePause()
-      if (e.code === 'Enter' && this.state === 'title') this.start()
+      if (e.code === 'Enter' && this.state === 'title') this.showMothership()
+      if (e.code === 'Enter' && this.state === 'mothership') this.start()
       if (e.code === 'Enter' && this.state === 'gameover') this.restartFromGameOver()
     })
     window.addEventListener('keyup', (e) => this.keys.delete(e.code))
@@ -1473,13 +1519,14 @@ class VectorShooter {
     this.updateParticles(dt)
     this.updateOrbitals(dt)
     this.updateSpawning()
+    this.updateReturnBeacon(dt)
     this.updateCamera(dt)
     this.updateHud()
     if (this.player.hull <= 0) this.gameOver()
   }
 
   private audioMood(): PlanetAudioMood {
-    if (this.state === 'title' || this.state === 'scores' || this.state === 'gameover') return 'title'
+    if (this.state === 'title' || this.state === 'mothership' || this.state === 'scores' || this.state === 'debrief' || this.state === 'gameover') return 'title'
     if (this.surface) return this.surface.planet.archetype
     if (this.planetChoice) return this.planetChoice.archetype
     let best: Planet | null = null
@@ -1602,6 +1649,56 @@ class VectorShooter {
       }
     }
     return best
+  }
+
+  private updateReturnBeacon(dt: number) {
+    if (this.state !== 'playing') return
+    if (!this.returnBeacon && returnBeaconEligible({
+      time: this.stats.time,
+      planetsVisited: this.stats.planets,
+      activeBeacon: false,
+      nextBeaconAt: this.nextReturnBeaconAt
+    })) {
+      this.spawnReturnBeacon()
+    }
+    if (!this.returnBeacon) return
+    this.returnBeacon.phase += dt
+    const distance = Math.sqrt(dist2(this.returnBeacon, this.player))
+    if (distance > 1700) {
+      this.skipReturnBeacon()
+      return
+    }
+    if (distance < this.returnBeacon.radius) {
+      this.returnBeacon.hold += dt
+      if (this.returnBeacon.hold >= BEACON_HOLD_SECONDS) {
+        this.finishRun(this.skippedReturnBeacons > 0 ? 'deepExtraction' : 'cleanExtraction')
+        return
+      }
+    } else {
+      this.returnBeacon.hold = Math.max(0, this.returnBeacon.hold - dt * 1.5)
+    }
+  }
+
+  private spawnReturnBeacon() {
+    const angle = this.player.angle + rand(-0.9, 0.9)
+    const distance = beaconSpawnDistance(this.skippedReturnBeacons)
+    this.returnBeacon = {
+      x: this.player.x + Math.cos(angle) * distance,
+      y: this.player.y + Math.sin(angle) * distance,
+      radius: 96,
+      hold: 0,
+      phase: 0
+    }
+    this.toast('RETURN BEACON DETECTED')
+    this.audio.pickup('nav')
+  }
+
+  private skipReturnBeacon() {
+    if (!this.returnBeacon) return
+    this.returnBeacon = null
+    this.skippedReturnBeacons += 1
+    this.nextReturnBeaconAt = nextBeaconWindow(this.stats.time)
+    this.toast('RETURN BEACON SKIPPED. DEEP EXTRACTION BONUS RISING.')
   }
 
   private applyThreatWeave(dt: number, level: number) {
@@ -2469,7 +2566,9 @@ class VectorShooter {
     this.audio.level()
     this.workbenchInstalling = false
     this.workbenchView = 'upgrades'
-    const count = 3 + (rare || Math.random() < 0.08 + this.build.luck * 0.08 ? 1 : 0)
+    const benchTier = this.mothership.departments.workbench
+    const fourthChoiceChance = 0.08 + this.build.luck * 0.08 + (benchTier >= 2 ? 0.08 : 0)
+    const count = 3 + (rare || Math.random() < fourthChoiceChance ? 1 : 0)
     this.upgradeChoices = this.rollUpgrades(count, rare)
     this.renderLevelUp(title, copy)
   }
@@ -2498,7 +2597,8 @@ class VectorShooter {
   }
 
   private weightedUpgrade(pool: Upgrade[], rare: boolean) {
-    const ownedBias = 1.55 + this.build.luck * 0.08
+    const benchTier = this.mothership.departments.workbench
+    const ownedBias = 1.55 + this.build.luck * 0.08 + (benchTier >= 3 ? 0.2 : 0)
     const rareBias = rare ? 0.72 : 1
     const weights = pool.map((upgrade) => {
       const owned = this.build[upgrade.id] > 0
@@ -3720,6 +3820,7 @@ class VectorShooter {
     this.mini.style.display = ''
     this.renderBackground(ctx)
     this.renderPlanets(ctx)
+    this.renderReturnBeacon(ctx)
     this.renderPickups(ctx)
     this.renderBullets(ctx)
     this.renderEnemies(ctx)
@@ -4514,6 +4615,31 @@ class VectorShooter {
     }
   }
 
+  private renderReturnBeacon(ctx: CanvasRenderingContext2D) {
+    if (!this.returnBeacon) return
+    const p = this.worldToScreen(this.returnBeacon.x, this.returnBeacon.y)
+    if (p.x < -180 || p.x > this.width + 180 || p.y < -180 || p.y > this.height + 180) return
+    const pulse = Math.sin(this.returnBeacon.phase * 4) * 0.5 + 0.5
+    ctx.save()
+    ctx.strokeStyle = '#fff27a'
+    ctx.shadowColor = '#fff27a'
+    ctx.shadowBlur = this.allowGlow() ? 24 : 8
+    ctx.lineWidth = 2 + pulse
+    ctx.beginPath()
+    ctx.arc(p.x, p.y, this.returnBeacon.radius, 0, TAU)
+    ctx.stroke()
+    ctx.strokeStyle = '#57fff3'
+    ctx.beginPath()
+    ctx.arc(p.x, p.y, this.returnBeacon.radius * clamp(this.returnBeacon.hold / BEACON_HOLD_SECONDS, 0, 1), 0, TAU)
+    ctx.stroke()
+    ctx.shadowBlur = 0
+    ctx.fillStyle = '#fff27a'
+    ctx.font = '12px Courier New'
+    ctx.textAlign = 'center'
+    ctx.fillText('RETURN BEACON', p.x, p.y - this.returnBeacon.radius - 12)
+    ctx.restore()
+  }
+
   private renderAutopilot(ctx: CanvasRenderingContext2D) {
     if (this.state !== 'playing' || !this.autoNavActive) return
     const p = this.worldToScreen(this.player.x, this.player.y)
@@ -5216,7 +5342,10 @@ class VectorShooter {
     this.ui.time.textContent = formatTime(this.stats.time)
     this.ui.wave.textContent = this.stats.kills.toString()
     this.ui.high.textContent = Math.max(this.stats.highScore, this.stats.score).toString()
-    this.ui.resources.textContent = `S ${this.resources.scrap} C ${this.resources.crystal} K ${this.resources.cores}`
+    const beaconText = this.returnBeacon && this.mothership.departments.scanner >= 2
+      ? ` // BEACON ${Math.floor(Math.sqrt(dist2(this.returnBeacon, this.player)))}`
+      : ''
+    this.ui.resources.textContent = `S ${this.resources.scrap} C ${this.resources.crystal} K ${this.resources.cores}${beaconText}`
     if (this.state === 'surface' && this.surface) {
       this.ui.hullLabel.textContent = 'HEALTH'
       this.ui.xpLabel.textContent = 'O2'
@@ -5307,6 +5436,18 @@ class VectorShooter {
       this.renderLevelUp(title, copy)
     })
     tabs.append(upgradesTab, manifestTab, artifactsTab)
+    if (this.workbenchView === 'upgrades' && this.workbenchRerolls > 0) {
+      const reroll = document.createElement('button')
+      reroll.className = 'workbench-tab reroll'
+      reroll.textContent = `Reroll (${this.workbenchRerolls})`
+      reroll.addEventListener('click', () => {
+        if (this.workbenchRerolls <= 0 || this.workbenchInstalling) return
+        this.workbenchRerolls -= 1
+        this.upgradeChoices = this.rollUpgrades(this.upgradeChoices.length || 3)
+        this.renderLevelUp(title, copy)
+      })
+      tabs.append(reroll)
+    }
     const view = document.createElement('div')
     view.className = `workbench-view ${this.workbenchView}`
     const grid = document.createElement('div')
@@ -5319,12 +5460,40 @@ class VectorShooter {
       button.addEventListener('click', () => this.beginWorkbenchInstall(choice, button))
       grid.append(button)
     }
+    if (this.workbenchView === 'upgrades' && this.mothership.departments.workbench >= 4 && this.pendingUpgrades > 0) {
+      const recycle = document.createElement('button')
+      recycle.className = 'choice limit'
+      recycle.innerHTML = '<strong>Recycle Signal</strong><em>WORKBENCH BAY</em><span>Convert this mutation signal into salvage instead of installing an upgrade.</span>'
+      recycle.addEventListener('click', () => this.recycleWorkbenchSignal())
+      grid.append(recycle)
+    }
     if (this.workbenchView === 'upgrades') view.append(grid)
     else if (this.workbenchView === 'manifest') view.append(this.renderBuildManifest())
     else view.append(this.renderArtifactsCollection())
     panel.append(h, p, tabs, view)
     this.ui.levelup.append(panel)
     this.showOnly('levelup')
+  }
+
+  private recycleWorkbenchSignal() {
+    if (this.workbenchInstalling || this.pendingUpgrades <= 0 || this.mothership.departments.workbench < 4) return
+    const scrap = 70 + Math.floor(this.stats.level * 8)
+    const crystal = 4 + Math.floor(this.stats.planets * 2)
+    this.resources.scrap += scrap
+    this.resources.crystal += crystal
+    this.pendingUpgrades = Math.max(0, this.pendingUpgrades - 1)
+    this.toast(`SIGNAL RECYCLED: +${scrap} SCRAP +${crystal} CRYSTALS`)
+    if (this.pendingUpgrades > 0) {
+      this.openLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
+      return
+    }
+    this.showOnly(null)
+    if (this.takeoffAfterWorkbench) {
+      this.takeoffAfterWorkbench = false
+      this.startTakeoff()
+    } else {
+      this.state = 'playing'
+    }
   }
 
   private beginWorkbenchInstall(choice: WorkbenchChoice, button: HTMLButtonElement) {
@@ -5555,7 +5724,15 @@ class VectorShooter {
     h.textContent = p.name
     const copy = document.createElement('p')
     copy.className = 'copy'
-    copy.textContent = p.visited ? 'The dock remembers you. It offers a small repair and a moment of quiet.' : p.reward
+    const scanner = this.mothership.departments.scanner
+    const risk = this.planetRiskLabel(p)
+    copy.textContent = p.visited
+      ? 'The dock remembers you. It offers a small repair and a moment of quiet.'
+      : scanner >= 3
+        ? `${p.reward} Risk: ${risk}.`
+        : scanner >= 1
+          ? `${p.archetype.toUpperCase()} SIGNAL // ${p.reward}`
+          : p.reward
     const row = document.createElement('div')
     row.className = 'button-row'
     const land = document.createElement('button')
@@ -5575,6 +5752,13 @@ class VectorShooter {
     this.showOnly('planet')
   }
 
+  private planetRiskLabel(p: Planet) {
+    if (p.archetype === 'horde') return 'EXTREME'
+    if (p.archetype === 'hostile' || p.archetype === 'strange') return 'HOSTILE'
+    if (p.archetype === 'relic' || p.archetype === 'cache') return 'UNSTABLE'
+    return 'QUIET'
+  }
+
   private showTitle() {
     this.state = 'title'
     this.ui.title.innerHTML = ''
@@ -5592,8 +5776,8 @@ class VectorShooter {
     row.className = 'title-actions'
     const start = document.createElement('button')
     start.className = 'vector-button start-button'
-    start.textContent = 'Start Run'
-    start.addEventListener('click', () => this.start())
+    start.textContent = 'Mothership'
+    start.addEventListener('click', () => this.showMothership())
     const scores = document.createElement('button')
     scores.className = 'vector-button secondary'
     scores.textContent = 'Scores'
@@ -5602,6 +5786,101 @@ class VectorShooter {
     panel.append(logo, wordmark, row)
     this.ui.title.append(panel)
     this.showOnly('title')
+  }
+
+  private showMothership() {
+    this.state = 'mothership'
+    this.ui.title.innerHTML = ''
+    this.ui.title.className = 'screen mothership-screen'
+    const panel = document.createElement('div')
+    panel.className = 'mothership-command'
+    const header = document.createElement('div')
+    header.className = 'mothership-header'
+    const intro = document.createElement('div')
+    intro.innerHTML = '<h1 class="title">MOTHERSHIP COMMAND</h1><p class="copy">Scout docked. Archive linked. Expedition systems waiting.</p>'
+    if (this.debrief) {
+      const lastRun = document.createElement('p')
+      lastRun.className = 'copy small'
+      lastRun.textContent = `Last report: ${this.debrief.title} // ${this.debrief.discoveries.length} discoveries // S ${this.debrief.resources.recovered.scrap} C ${this.debrief.resources.recovered.crystal} K ${this.debrief.resources.recovered.cores}`
+      intro.append(lastRun)
+    }
+    const resources = document.createElement('div')
+    resources.className = 'mothership-resources'
+    resources.innerHTML = `
+      <span>S ${this.mothership.resources.scrap}</span>
+      <span>C ${this.mothership.resources.crystal}</span>
+      <span>K ${this.mothership.resources.cores}</span>
+    `
+    header.append(intro, resources)
+    const grid = document.createElement('div')
+    grid.className = 'station-grid'
+    grid.append(
+      this.mothershipStation('Launch Deck', 'Start the next expedition.', 'Launch Expedition', () => this.start()),
+      this.departmentStation('scanner'),
+      this.departmentStation('workbench'),
+      this.departmentStation('archive'),
+      this.lockedStation('Shipyard', 'Starting loadouts and scout prep. Offline.'),
+      this.lockedStation('Signal Core', 'Deep signal decoding. Offline.')
+    )
+    panel.append(header, grid)
+    this.ui.title.append(panel)
+    this.showOnly('title')
+  }
+
+  private mothershipStation(title: string, copy: string, actionLabel: string, action: () => void) {
+    const card = document.createElement('div')
+    card.className = 'station-card'
+    const h = document.createElement('h2')
+    h.textContent = title
+    const p = document.createElement('p')
+    p.textContent = copy
+    const button = document.createElement('button')
+    button.className = 'vector-button'
+    button.textContent = actionLabel
+    button.addEventListener('click', action)
+    card.append(h, p, button)
+    return card
+  }
+
+  private lockedStation(title: string, copy: string) {
+    const card = document.createElement('div')
+    card.className = 'station-card locked'
+    card.innerHTML = `<h2>${this.escape(title)}</h2><p>${this.escape(copy)}</p><span>OFFLINE</span>`
+    return card
+  }
+
+  private departmentStation(id: MothershipDepartmentId) {
+    const definition = mothershipDepartments[id]
+    const tier = this.mothership.departments[id]
+    const next = definition.tiers[tier]
+    const card = document.createElement('div')
+    card.className = 'station-card'
+    const h = document.createElement('h2')
+    h.textContent = `${definition.name} ${tier}/${definition.tiers.length}`
+    const p = document.createElement('p')
+    p.textContent = next ? next.description : 'Department maxed.'
+    const cost = document.createElement('span')
+    cost.className = 'station-cost'
+    cost.textContent = next ? `S ${next.cost.scrap} // C ${next.cost.crystal} // K ${next.cost.cores}` : 'MAXED'
+    const button = document.createElement('button')
+    button.className = 'vector-button secondary'
+    button.textContent = next ? 'Upgrade' : 'Online'
+    button.disabled = !next
+    button.addEventListener('click', () => this.buyMothershipDepartment(id))
+    card.append(h, p, cost, button)
+    return card
+  }
+
+  private buyMothershipDepartment(id: MothershipDepartmentId) {
+    const result = purchaseMothershipTier(this.mothership, id)
+    if (!result.ok) {
+      this.toast(result.reason)
+      return
+    }
+    this.mothership = result.state
+    this.saveMothership()
+    this.toast(`${result.purchased.name.toUpperCase()} ONLINE`)
+    this.showMothership()
   }
 
   private showScores() {
@@ -5640,9 +5919,125 @@ class VectorShooter {
   }
 
   private gameOver() {
-    this.state = 'gameover'
     this.audio.boom('gameover')
-    this.renderGameOver()
+    this.finishRun('destroyed')
+  }
+
+  private finishRun(outcome: RunOutcomeKind) {
+    if (this.state === 'debrief') return
+    const before = { ...this.mothership.resources }
+    const archiveRecords = this.currentRunArchiveRecords()
+    const discoveries = Object.values(archiveRecords)
+    this.mothership = applyRunRecovery(this.mothership, {
+      outcome,
+      resources: this.resources,
+      archiveRecords,
+      skippedBeacons: this.skippedReturnBeacons
+    })
+    this.saveMothership()
+    const recovered = {
+      scrap: this.mothership.resources.scrap - before.scrap,
+      crystal: this.mothership.resources.crystal - before.crystal,
+      cores: this.mothership.resources.cores - before.cores
+    }
+    this.debrief = {
+      outcome,
+      title: outcome === 'destroyed' ? 'BLACK BOX RECOVERED' : outcome === 'deepExtraction' ? 'DEEP EXPEDITION EXTRACTED' : 'EXPEDITION EXTRACTED',
+      copy: outcome === 'destroyed'
+        ? 'The scout ship was lost. The mothership recovered partial cargo and all transmitted discoveries.'
+        : 'The scout ship returned through a beacon. Cargo, signals, and discoveries were processed cleanly.',
+      resources: {
+        earned: { ...this.resources },
+        recovered
+      },
+      discoveries,
+      skippedBeacons: this.skippedReturnBeacons
+    }
+    this.returnBeacon = null
+    this.state = 'debrief'
+    this.renderDebrief()
+  }
+
+  private currentRunArchiveRecords(): Record<string, PersistentArchiveRecord> {
+    const records: Record<string, PersistentArchiveRecord> = {}
+    for (const artifact of this.artifacts.values()) {
+      records[artifact.id] = {
+        id: artifact.id,
+        kind: artifact.kind,
+        title: artifact.title,
+        detail: artifact.detail,
+        source: artifact.source,
+        color: artifact.color,
+        icon: artifact.icon,
+        count: artifact.count
+      }
+    }
+    return records
+  }
+
+  private renderDebrief() {
+    if (!this.debrief) return
+    this.ui.gameover.innerHTML = ''
+    const panel = document.createElement('div')
+    panel.className = 'panel debrief-panel'
+    const h = document.createElement('h1')
+    h.className = 'title'
+    h.textContent = this.debrief.title
+    const copy = document.createElement('p')
+    copy.className = 'copy'
+    copy.textContent = this.debrief.copy
+    const resources = document.createElement('div')
+    resources.className = 'debrief-grid'
+    resources.innerHTML = `
+      <div><b>${this.debrief.resources.recovered.scrap}</b><span>Scrap Recovered</span></div>
+      <div><b>${this.debrief.resources.recovered.crystal}</b><span>Crystals Recovered</span></div>
+      <div><b>${this.debrief.resources.recovered.cores}</b><span>Cores Recovered</span></div>
+      <div><b>${this.debrief.discoveries.length}</b><span>Discoveries Logged</span></div>
+    `
+    const discoveries = document.createElement('p')
+    discoveries.className = 'copy small'
+    discoveries.textContent = this.debrief.discoveries.length
+      ? this.debrief.discoveries.slice(0, 4).map((record) => record.title).join(' // ')
+      : 'No new archive records.'
+    const bonus = document.createElement('p')
+    bonus.className = 'copy small'
+    bonus.textContent = this.debrief.skippedBeacons > 0 ? `Deep extraction bonus from ${this.debrief.skippedBeacons} skipped beacon${this.debrief.skippedBeacons === 1 ? '' : 's'}.` : ''
+    const input = document.createElement('input')
+    input.className = 'name-entry'
+    input.maxLength = 12
+    input.placeholder = 'ACE'
+    input.autocapitalize = 'characters'
+    input.autocomplete = 'name'
+    input.inputMode = 'text'
+    input.value = this.scoreName === 'ACE' ? '' : this.scoreName
+    input.addEventListener('input', () => {
+      this.scoreName = input.value.toUpperCase().replace(/[^A-Z0-9 _-]/g, '').slice(0, 12)
+      input.value = this.scoreName
+    })
+    input.addEventListener('focus', () => input.select())
+    input.addEventListener('blur', () => {
+      if (!this.scoreName.trim()) this.scoreName = 'ACE'
+    })
+    const row = document.createElement('div')
+    row.className = 'button-row'
+    const continueButton = document.createElement('button')
+    continueButton.className = 'vector-button'
+    continueButton.textContent = 'Return to Mothership'
+    continueButton.addEventListener('click', () => {
+      this.saveScoreFromInput(input)
+      this.showMothership()
+    })
+    const scores = document.createElement('button')
+    scores.className = 'vector-button secondary'
+    scores.textContent = 'Scores'
+    scores.addEventListener('click', () => {
+      this.saveScoreFromInput(input)
+      this.showScores()
+    })
+    row.append(continueButton, scores)
+    panel.append(h, copy, resources, discoveries, bonus, input, row)
+    this.ui.gameover.append(panel)
+    this.showOnly('gameover')
   }
 
   private renderGameOver() {
@@ -5730,10 +6125,14 @@ class VectorShooter {
     this.autoNavTargetPlanetId = null
     this.orbitReturnPoint = null
     this.surface = null
+    this.returnBeacon = null
+    this.nextReturnBeaconAt = 0
+    this.skippedReturnBeacons = 0
     this.transitionTimer = 0
     this.pendingUpgrades = 0
     this.workbenchInstalling = false
     this.takeoffAfterWorkbench = false
+    this.workbenchRerolls = this.mothership.departments.workbench >= 1 ? 1 : 0
     this.resources = { scrap: 0, crystal: 0, cores: 0 }
     this.relics.clear()
     this.evolved.clear()
@@ -5789,6 +6188,18 @@ class VectorShooter {
     } catch {
       return []
     }
+  }
+
+  private loadMothership() {
+    try {
+      return normalizeMothershipState(JSON.parse(localStorage.getItem(MOTHERSHIP_STORAGE_KEY) || 'null'))
+    } catch {
+      return defaultMothershipState()
+    }
+  }
+
+  private saveMothership() {
+    localStorage.setItem(MOTHERSHIP_STORAGE_KEY, JSON.stringify(this.mothership))
   }
 
   private saveScore() {
