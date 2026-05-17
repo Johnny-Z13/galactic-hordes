@@ -24,6 +24,7 @@ import {
   BEACON_HOLD_SECONDS,
   beaconSpawnDistance,
   nextBeaconWindow,
+  returnBeaconAutopilotVector,
   returnBeaconEligible
 } from './return-beacons'
 
@@ -1605,6 +1606,7 @@ class VectorShooter {
     }
 
     const targetPlanet = this.autoNavTargetPlanetId ? this.planets.find((planet) => planet.id === this.autoNavTargetPlanetId) : null
+    const beaconTarget = this.autoNavTargetBeacon ? this.returnBeacon : null
     if (targetPlanet) {
       const targetAngle = Math.atan2(targetPlanet.y - this.player.y, targetPlanet.x - this.player.x)
       this.autoNavHeading = angleLerp(this.autoNavHeading, targetAngle, clamp(dt * (1.7 + level * 0.24), 0, 0.22))
@@ -1612,13 +1614,9 @@ class VectorShooter {
         this.autoNavTargetPlanetId = null
         this.toast('LANDING BEACON IN RANGE')
       }
-    } else if (this.autoNavTargetBeacon && this.returnBeacon) {
-      const targetAngle = Math.atan2(this.returnBeacon.y - this.player.y, this.returnBeacon.x - this.player.x)
+    } else if (beaconTarget) {
+      const targetAngle = Math.atan2(beaconTarget.y - this.player.y, beaconTarget.x - this.player.x)
       this.autoNavHeading = angleLerp(this.autoNavHeading, targetAngle, clamp(dt * 1.9, 0, 0.24))
-      if (Math.sqrt(dist2(this.returnBeacon, this.player)) < this.returnBeacon.radius + 16) {
-        this.autoNavTargetBeacon = false
-        this.toast('RETURN BEACON IN RANGE - HOLD POSITION')
-      }
     } else if (!manualActive && level >= 5) {
       const pickup = this.bestNavigationPickup()
       if (pickup) {
@@ -1628,6 +1626,20 @@ class VectorShooter {
     }
 
     if (level >= 4) this.applyThreatWeave(dt, level)
+
+    if (beaconTarget && !manualActive) {
+      const beaconMove = returnBeaconAutopilotVector({
+        dx: beaconTarget.x - this.player.x,
+        dy: beaconTarget.y - this.player.y,
+        vx: this.player.vx,
+        vy: this.player.vy,
+        radius: beaconTarget.radius
+      })
+      if (Math.abs(beaconMove.x) + Math.abs(beaconMove.y) > 0.01) {
+        this.autoNavHeading = Math.atan2(beaconMove.y, beaconMove.x)
+      }
+      return beaconMove
+    }
 
     const cruise = navigationCruiseScalar({ navRank: this.build.nav, targetLocked: !!targetPlanet })
     const influence = manualActive ? 0.58 + level * 0.035 : 0

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { beaconExtractionBonus, nextBeaconWindow, returnBeaconEligible } from '../src/return-beacons'
+import { beaconExtractionBonus, nextBeaconWindow, returnBeaconAutopilotVector, returnBeaconEligible } from '../src/return-beacons'
 
 test('blocks first beacon before five minutes or before first planet', () => {
   expect(returnBeaconEligible({ time: 299, planetsVisited: 1, activeBeacon: false, nextBeaconAt: 0 })).toBe(false)
@@ -27,4 +27,14 @@ test('caps skipped beacon extraction bonus', () => {
 
 test('schedules the next beacon four minutes later', () => {
   expect(nextBeaconWindow(320)).toBe(560)
+})
+
+test('beacon autopilot brakes inside the extraction ring instead of flying through', () => {
+  const approach = returnBeaconAutopilotVector({ dx: 600, dy: 0, vx: 0, vy: 0, radius: 96 })
+  expect(approach.x).toBeGreaterThan(0.9)
+  expect(Math.abs(approach.y)).toBeLessThan(0.01)
+
+  const brake = returnBeaconAutopilotVector({ dx: 20, dy: 0, vx: 230, vy: 0, radius: 96 })
+  expect(brake.x).toBeLessThan(-0.9)
+  expect(Math.abs(brake.y)).toBeLessThan(0.01)
 })
