@@ -4,7 +4,9 @@ import planetAlienCatalogUrl from './assets/planet-alien-catalog-alpha.png'
 import planetBossCatalogUrl from './assets/planet-boss-catalog-alpha.png'
 import surfaceSpacemanSheetUrl from './assets/surface-spaceman-sheet-alpha.png'
 import titleLogoMarkUrl from './assets/title-logo-mark.png'
+import { pickupMagnetRange, pickupMagnetStrength } from './pickup-magnet'
 import { pressurePackSize, shouldRecycleEnemy } from './spawn-pressure'
+import { surfaceThreatSpawnPoint } from './surface-spawn'
 
 type GameState = 'title' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
@@ -2069,15 +2071,19 @@ class VectorShooter {
   }
 
   private updatePickups(dt: number) {
-    const compass = this.relics.has('hungryCompass') ? 120 : 0
-    const magnet = 105 + this.build.magnet * 62 + this.limitBreaks.magnet * 12 + compass
+    const magnetInput = {
+      magnetLevel: this.build.magnet,
+      limitMagnet: this.limitBreaks.magnet,
+      hasHungryCompass: this.relics.has('hungryCompass')
+    }
     for (let i = this.pickups.length - 1; i >= 0; i -= 1) {
       const p = this.pickups[i]
       p.life -= dt
       const d = Math.sqrt(dist2(p, this.player))
+      const magnet = pickupMagnetRange(p.kind, magnetInput)
       if (d < magnet || p.kind === 'magnet') {
         const pull = norm(this.player.x - p.x, this.player.y - p.y)
-        const strength = p.kind === 'xp' ? 720 : 540
+        const strength = pickupMagnetStrength(p.kind)
         p.vx += pull.x * strength * dt
         p.vy += pull.y * strength * dt
       }
@@ -2668,6 +2674,9 @@ class VectorShooter {
 
   private createSurfaceRun(planet: Planet): SurfaceRun {
     const resources: SurfaceResource[] = []
+    const pilot = { x: 840, y: 660, vx: 0, vy: 0, facing: 0, gunCd: 0, invuln: 0 }
+    const ship = { x: 780, y: 590 }
+    const threatKeepouts = this.surfaceThreatKeepouts(pilot, ship)
     const first = !planet.visited
     const event = this.rollSurfaceEvent(planet, first)
     const scenario = this.rollSurfaceScenario(planet, event, first)
@@ -2712,12 +2721,12 @@ class VectorShooter {
       event === 'volatile' ? 4 + Math.floor(this.stats.time / 80) :
       (first ? 1 : 0) + (Math.random() < 0.45 || planet.name === 'NULL CATHEDRAL' ? 1 : 0)
     for (let i = 0; i < threatCount; i += 1) {
-      threats.push(this.createGenericSurfaceThreat(planet, event, i, threatCount))
+      threats.push(this.createGenericSurfaceThreat(planet, event, i, threatCount, threatKeepouts))
     }
     if (scenario === 'boss' || scenario === 'mixed') {
-      threats.push(this.createPlanetBossThreat(planet, scenario === 'mixed'))
+      threats.push(this.createPlanetBossThreat(planet, scenario === 'mixed', threatKeepouts))
     } else if (event === 'volatile' && first && Math.random() < 0.18) {
-      threats.push(this.createGlassMiteOracleThreat())
+      threats.push(this.createGlassMiteOracleThreat(threatKeepouts))
     }
     const aliens = this.createSurfaceAliens(planet, event, threatCount, scenario)
     const loreSites = this.createSurfaceLoreSites(planet, scenario, event)
@@ -2727,8 +2736,8 @@ class VectorShooter {
       scenario,
       width: 1600,
       height: 1180,
-      pilot: { x: 840, y: 660, vx: 0, vy: 0, facing: 0, gunCd: 0, invuln: 0 },
-      ship: { x: 780, y: 590 },
+      pilot,
+      ship,
       camera: { x: 0, y: 0 },
       resources,
       threats,
@@ -2790,12 +2799,27 @@ class VectorShooter {
     return clamp(this.stats.time / 420 + this.stats.planets * 0.075 + this.stats.level * 0.012, 0, 1)
   }
 
-  private createGenericSurfaceThreat(planet: Planet, event: SurfaceEventKind, i: number, total: number): SurfaceThreat {
+  private surfaceThreatKeepouts(pilot: Vec, ship: Vec) {
+    return [
+      { x: pilot.x, y: pilot.y, radius: 26 },
+      { x: ship.x, y: ship.y, radius: 34 }
+    ]
+  }
+
+  private safeSurfaceThreatPoint(candidate: Vec, keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>, clearance = 120, fallbackAngle = 0) {
+    return surfaceThreatSpawnPoint(candidate, keepouts, { minX: 40, maxX: 1560, minY: 40, maxY: 1140 }, clearance, fallbackAngle)
+  }
+
+  private createGenericSurfaceThreat(planet: Planet, event: SurfaceEventKind, i: number, total: number, keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>): SurfaceThreat {
     const a = (i / Math.max(1, total)) * TAU + rand(-0.25, 0.25)
     const r = event === 'swarm' ? rand(260, 520) : rand(120, 440)
+    const point = this.safeSurfaceThreatPoint({
+      x: 800 + Math.cos(a) * r,
+      y: 590 + Math.sin(a) * r
+    }, keepouts, event === 'swarm' ? 150 : 132, a)
     return {
-      x: clamp(800 + Math.cos(a) * r, 90, 1510),
-      y: clamp(590 + Math.sin(a) * r, 90, 1090),
+      x: point.x,
+      y: point.y,
       vx: 0,
       vy: 0,
       hp: event === 'swarm' ? 20 + this.stats.time * 0.12 : planet.name === 'NULL CATHEDRAL' ? 46 : 28,
@@ -2806,14 +2830,18 @@ class VectorShooter {
     }
   }
 
-  private createPlanetBossThreat(planet: Planet, crowded: boolean): SurfaceThreat {
+  private createPlanetBossThreat(planet: Planet, crowded: boolean, keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>): SurfaceThreat {
     const seed = hashString(planet.id, this.stats.planets + Math.floor(this.stats.time / 60))
     const row = seed % BOSS_CATALOG_ROWS
     const angle = ((seed >>> 4) / 0xfffffff) * TAU
     const distance = crowded ? rand(280, 420) : rand(170, 320)
+    const point = this.safeSurfaceThreatPoint({
+      x: 800 + Math.cos(angle) * distance,
+      y: 590 + Math.sin(angle) * distance
+    }, keepouts, 170, angle)
     return {
-      x: clamp(800 + Math.cos(angle) * distance, 130, 1470),
-      y: clamp(590 + Math.sin(angle) * distance, 130, 1050),
+      x: point.x,
+      y: point.y,
       vx: 0,
       vy: 0,
       hp: 120 + this.stats.time * 0.36 + this.stats.level * 6,
@@ -2827,10 +2855,11 @@ class VectorShooter {
     }
   }
 
-  private createGlassMiteOracleThreat(): SurfaceThreat {
+  private createGlassMiteOracleThreat(keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>): SurfaceThreat {
+    const point = this.safeSurfaceThreatPoint({ x: rand(990, 1080), y: rand(760, 880) }, keepouts, 150, Math.PI * 0.25)
     return {
-      x: rand(990, 1080),
-      y: rand(760, 880),
+      x: point.x,
+      y: point.y,
       vx: 0,
       vy: 0,
       hp: 70 + this.stats.time * 0.18,
@@ -3091,10 +3120,15 @@ class VectorShooter {
     const cacheMessage = this.surface.message
     const ambushChance = Math.max(0.08, 0.28 - this.build.survey * 0.04 + (this.relics.has('staticIdol') ? 0.06 : 0))
     if (Math.random() < ambushChance) {
+      const keepouts = this.surfaceThreatKeepouts(this.surface.pilot, this.surface.ship)
       for (let i = 0; i < 2 + Math.floor(this.stats.time / 90); i += 1) {
+        const point = this.safeSurfaceThreatPoint({
+          x: resource.x + rand(-180, 180),
+          y: resource.y + rand(-180, 180)
+        }, keepouts, 132, rand(0, TAU))
         this.surface.threats.push({
-          x: clamp(resource.x + rand(-180, 180), 40, this.surface.width - 40),
-          y: clamp(resource.y + rand(-180, 180), 40, this.surface.height - 40),
+          x: point.x,
+          y: point.y,
           vx: 0,
           vy: 0,
           hp: 24 + this.stats.time * 0.25,
