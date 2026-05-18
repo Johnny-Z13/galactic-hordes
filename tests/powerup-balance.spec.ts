@@ -37,3 +37,19 @@ test('workbench roll tuning is configurable', () => {
   expect(workbenchBalance.ownedBiasBase).toBeGreaterThan(1)
   expect(workbenchBalance.relicChanceRare).toBeGreaterThan(workbenchBalance.relicChanceBase)
 })
+
+test('signal magnet upgrade copy matches range tuning', () => {
+  const magnet = upgrades.find((upgrade) => upgrade.id === 'magnet')
+
+  expect(powerupBalance.pickupMagnet.rangePerMagnetRank).toBe(62)
+  expect(magnet?.levels).toHaveLength(magnet?.max)
+  expect(magnet?.levels.every((level) => level === `+${powerupBalance.pickupMagnet.rangePerMagnetRank} pickup range`)).toBe(true)
+  expect(magnet?.levels.some((level) => level.includes('pickup speed'))).toBe(false)
+})
+
+test('workbench upgrade cards distinguish next rank from current manifest rank', () => {
+  const main = mainSource()
+
+  expect(main).toContain('INSTALL RANK ${level}/${choice.upgrade.max}')
+  expect(main).toContain('upgradeLevelDetail(upgrade, level)')
+})

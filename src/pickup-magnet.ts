@@ -1,3 +1,5 @@
+import { powerupBalance } from './powerup-balance'
+
 export type PickupMagnetKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
 
 interface PickupMagnetInput {
@@ -7,13 +9,14 @@ interface PickupMagnetInput {
 }
 
 export const pickupMagnetRange = (kind: PickupMagnetKind, input: PickupMagnetInput) => {
-  const compass = input.hasHungryCompass ? 120 : 0
-  const base = 105 + input.magnetLevel * 62 + input.limitMagnet * 12 + compass
+  const balance = powerupBalance.pickupMagnet
+  const compass = input.hasHungryCompass ? balance.hungryCompassBonus : 0
+  const base = balance.baseRange + input.magnetLevel * balance.rangePerMagnetRank + input.limitMagnet * balance.rangePerLimitRank + compass
   if (kind !== 'xp') return base
-  return base + 64 + input.magnetLevel * 16 + input.limitMagnet * 4
+  return base + balance.xpBaseBonus + input.magnetLevel * balance.xpRangePerMagnetRank + input.limitMagnet * balance.xpRangePerLimitRank
 }
 
 export const pickupMagnetStrength = (kind: PickupMagnetKind) => {
-  if (kind === 'xp') return 980
-  return 540
+  if (kind === 'xp') return powerupBalance.pickupMagnet.xpStrength
+  return powerupBalance.pickupMagnet.defaultStrength
 }

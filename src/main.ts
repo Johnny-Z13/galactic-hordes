@@ -85,7 +85,6 @@ type SurfaceResourceKind = 'crystal' | 'scrap' | 'repair' | 'cache'
 type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
 type AlienGiftKind = 'herb' | 'idol' | 'map' | 'coin'
 type ArtifactKind = 'relic' | 'alien' | 'lore' | 'planet' | 'cache' | 'enemy'
-type WorkbenchView = 'upgrades' | 'manifest'
 type MothershipConsoleView = 'workbench' | 'manifest' | 'collection'
 type MothershipCollectionFilter = 'all' | 'found' | 'locked' | ArtifactKind
 interface Vec {
@@ -745,7 +744,6 @@ class VectorShooter {
   private debrief: DebriefReport | null = null
   private upgradeChoices: WorkbenchChoice[] = []
   private workbenchInstalling = false
-  private workbenchView: WorkbenchView = 'upgrades'
   private workbenchRerolls = 0
   private mothershipConsoleView: MothershipConsoleView = 'workbench'
   private mothershipCollectionFilter: MothershipCollectionFilter = 'all'
@@ -2624,7 +2622,6 @@ class VectorShooter {
     this.state = 'levelup'
     this.audio.level()
     this.workbenchInstalling = false
-    this.workbenchView = 'upgrades'
     const benchTier = this.mothership.departments.workbench
     const fourthChoiceChance = workbenchBalance.fourthChoiceBaseChance
       + this.build.luck * workbenchBalance.fourthChoiceLuckChancePerRank
@@ -5779,28 +5776,11 @@ class VectorShooter {
     const p = document.createElement('p')
     p.className = 'copy'
     p.textContent = copy
-    const tabs = document.createElement('div')
-    tabs.className = 'workbench-tabs'
-    const upgradesTab = document.createElement('button')
-    upgradesTab.className = `workbench-tab ${this.workbenchView === 'upgrades' ? 'active' : ''}`
-    upgradesTab.textContent = 'Upgrades'
-    upgradesTab.addEventListener('click', () => {
-      if (this.workbenchInstalling || this.workbenchView === 'upgrades') return
-      this.workbenchView = 'upgrades'
-      this.renderLevelUp(title, copy)
-    })
-    const manifestTab = document.createElement('button')
-    manifestTab.className = `workbench-tab ${this.workbenchView === 'manifest' ? 'active' : ''}`
-    manifestTab.textContent = 'Manifest'
-    manifestTab.addEventListener('click', () => {
-      if (this.workbenchInstalling || this.workbenchView === 'manifest') return
-      this.workbenchView = 'manifest'
-      this.renderLevelUp(title, copy)
-    })
-    tabs.append(upgradesTab, manifestTab)
-    if (this.workbenchView === 'upgrades' && this.workbenchRerolls > 0) {
+    const actions = document.createElement('div')
+    actions.className = 'workbench-actions'
+    if (this.workbenchRerolls > 0) {
       const reroll = document.createElement('button')
-      reroll.className = 'workbench-tab reroll'
+      reroll.className = 'workbench-command reroll'
       reroll.textContent = `Reroll (${this.workbenchRerolls})`
       reroll.addEventListener('click', () => {
         if (this.workbenchRerolls <= 0 || this.workbenchInstalling) return
@@ -5808,30 +5788,21 @@ class VectorShooter {
         this.upgradeChoices = this.rollUpgrades(this.upgradeChoices.length || workbenchBalance.baseChoiceCount)
         this.renderLevelUp(title, copy)
       })
-      tabs.append(reroll)
+      actions.append(reroll)
     }
     const view = document.createElement('div')
-    view.className = `workbench-view ${this.workbenchView}`
-    const grid = document.createElement('div')
-    grid.className = 'choice-grid workbench-list'
-    for (const choice of this.upgradeChoices) {
-      const button = document.createElement('button')
-      button.className = `choice ${choice.kind}${choice.kind === 'upgrade' ? ` ${choice.upgrade.bucket}` : ''}`
-      button.innerHTML = this.choiceMarkup(choice)
-      button.disabled = !this.canApplyWorkbenchChoice(choice)
-      button.addEventListener('click', () => this.beginWorkbenchInstall(choice, button))
-      grid.append(button)
-    }
-    if (this.workbenchView === 'upgrades' && this.mothership.departments.workbench >= 4 && this.pendingUpgrades > 0) {
+    view.className = 'workbench-view manifest'
+    if (this.mothership.departments.workbench >= 4 && this.pendingUpgrades > 0) {
       const recycle = document.createElement('button')
-      recycle.className = 'choice limit'
-      recycle.innerHTML = '<strong>Recycle Signal</strong><em>WORKBENCH BAY</em><span>Convert this mutation signal into salvage instead of installing an upgrade.</span>'
+      recycle.className = 'workbench-command recycle'
+      recycle.textContent = 'Recycle Signal'
       recycle.addEventListener('click', () => this.recycleWorkbenchSignal())
-      grid.append(recycle)
+      actions.append(recycle)
     }
-    if (this.workbenchView === 'upgrades') view.append(grid)
-    else view.append(this.renderBuildManifest())
-    panel.append(h, p, tabs, view)
+    view.append(this.renderBuildManifest('workbench'))
+    panel.append(h, p)
+    if (actions.children.length) panel.append(actions)
+    panel.append(view)
     this.ui.levelup.append(panel)
     this.showOnly('levelup')
   }
@@ -5876,7 +5847,7 @@ class VectorShooter {
     const anchor = this.surface?.ship ?? this.player
     this.burst(anchor.x, anchor.y, color, rare ? 28 : 18, rare ? 260 : 190)
     button.classList.add('selected')
-    for (const el of Array.from(this.ui.levelup.querySelectorAll<HTMLButtonElement>('.choice'))) el.disabled = true
+    for (const el of Array.from(this.ui.levelup.querySelectorAll<HTMLButtonElement>('.workbench-install-choice'))) el.disabled = true
     window.setTimeout(
       () => this.applyWorkbenchChoice(choice),
       (rare ? workbenchBalance.rareInstallDelaySeconds : workbenchBalance.installDelaySeconds) * 1000
@@ -5905,12 +5876,52 @@ class VectorShooter {
     return choice.name
   }
 
-  private renderBuildManifest() {
+  private workbenchChoiceForUpgrade(upgrade: Upgrade) {
+    return this.upgradeChoices.find((choice) => (
+      choice.kind === 'upgrade'
+        ? choice.upgrade.id === upgrade.id
+        : choice.kind === 'evolution'
+          ? choice.evolution.weapon === upgrade.id
+          : false
+    )) ?? null
+  }
+
+  private workbenchChoiceRoute(choice: WorkbenchChoice, currentLevel: number) {
+    if (choice.kind === 'upgrade') return `INSTALL RANK ${Math.min(currentLevel + 1, choice.upgrade.max)}/${choice.upgrade.max}`
+    if (choice.kind === 'evolution') return 'EVOLUTION READY'
+    if (choice.kind === 'relic') return 'RELIC SIGNAL'
+    return 'LIMIT BREAK'
+  }
+
+  private choiceDetail(choice: WorkbenchChoice) {
+    if (choice.kind === 'upgrade') return this.upgradeLevelDetail(choice.upgrade, this.build[choice.upgrade.id] + 1)
+    if (choice.kind === 'evolution') return choice.evolution.description
+    if (choice.kind === 'relic') return choice.relic.description + (choice.relic.downside ? ` Risk: ${choice.relic.downside}` : '')
+    return choice.description
+  }
+
+  private choiceKindLabel(choice: WorkbenchChoice) {
+    if (choice.kind === 'upgrade') return `${this.build[choice.upgrade.id]}/${choice.upgrade.max}`
+    if (choice.kind === 'evolution') return 'EVOLVE'
+    if (choice.kind === 'relic') return 'RELIC'
+    return 'LIMIT'
+  }
+
+  private choiceCategoryLabel(choice: WorkbenchChoice) {
+    if (choice.kind === 'upgrade') return this.bucketLabel(choice.upgrade.bucket)
+    if (choice.kind === 'evolution') return 'EVOLUTION'
+    if (choice.kind === 'relic') return 'RELIC'
+    return 'LIMIT BREAK'
+  }
+
+  private renderBuildManifest(mode: 'overview' | 'workbench' = 'overview') {
     const wrap = document.createElement('div')
-    wrap.className = 'build-manifest'
+    wrap.className = `build-manifest ${mode}`
     const title = document.createElement('div')
     title.className = 'manifest-title'
-    title.innerHTML = '<b>BUILD MANIFEST</b><span>locked systems, owned ranks, and evolution routes</span>'
+    title.innerHTML = mode === 'workbench'
+      ? '<b>BUILD MANIFEST</b><span>tap highlighted systems to install banked signals</span>'
+      : '<b>BUILD MANIFEST</b><span>locked systems, owned ranks, and evolution routes</span>'
     const summary = document.createElement('div')
     summary.className = 'manifest-summary'
     const ownedCount = upgrades.filter((upgrade) => this.build[upgrade.id] > 0).length
@@ -5925,31 +5936,70 @@ class VectorShooter {
     `
     const chips = document.createElement('div')
     chips.className = 'manifest-grid'
+    const mappedChoices = new Set<WorkbenchChoice>()
     for (const upgrade of upgrades) {
       const level = this.build[upgrade.id]
       const maxed = level >= upgrade.max
       const evolved = this.evolved.has(upgrade.id)
       const catalyst = upgrade.catalyst ? relics.find((relic) => relic.id === upgrade.catalyst) : null
       const ready = maxed && catalyst && this.relics.has(catalyst.id) && !evolved
-      const chip = document.createElement('div')
-      chip.className = `manifest-chip ${level > 0 ? 'owned' : 'locked'} ${maxed ? 'maxed' : ''} ${ready ? 'ready' : ''} ${evolved ? 'evolved' : ''}`
-      const route = evolved ? 'EVOLVED' : ready ? 'EVOLUTION READY' : catalyst ? `CATALYST: ${catalyst.name}` : upgrade.category === 'weapon' ? 'WEAPON SYSTEM' : 'SHIP SYSTEM'
+      const choice = mode === 'workbench' ? this.workbenchChoiceForUpgrade(upgrade) : null
+      if (choice) mappedChoices.add(choice)
+      const available = Boolean(choice && this.canApplyWorkbenchChoice(choice))
+      const chipClass = `manifest-chip ${level > 0 ? 'owned' : 'locked'} ${maxed ? 'maxed' : ''} ${ready ? 'ready' : ''} ${evolved ? 'evolved' : ''} ${available ? 'available workbench-install-choice' : ''} ${upgrade.bucket}`
+      let chip: HTMLDivElement | HTMLButtonElement
+      if (choice) {
+        const button = document.createElement('button')
+        button.className = chipClass
+        button.type = 'button'
+        button.disabled = !available
+        button.addEventListener('click', () => this.beginWorkbenchInstall(choice, button))
+        chip = button
+      } else {
+        chip = document.createElement('div')
+        chip.className = chipClass
+      }
+      const route = choice ? this.workbenchChoiceRoute(choice, level) : evolved ? 'EVOLVED' : ready ? 'EVOLUTION READY' : catalyst ? `CATALYST: ${catalyst.name}` : upgrade.category === 'weapon' ? 'WEAPON SYSTEM' : 'SHIP SYSTEM'
+      const currentEffect = choice ? ` // ${this.choiceDetail(choice)}` : level > 0 ? ` // ${this.upgradeLevelDetail(upgrade, level)}` : ''
       chip.innerHTML = `
         <div class="manifest-chip-head">
           <strong>${this.escape(upgrade.name)}</strong>
           <b>${level}/${upgrade.max}</b>
         </div>
-        <span>${this.escape(route)}</span>
+        <span>${this.escape(route + currentEffect)}</span>
         <em>${this.bucketLabel(upgrade.bucket)}</em>
       `
       chips.append(chip)
+    }
+    const specialChoices = mode === 'workbench'
+      ? this.upgradeChoices.filter((choice) => !mappedChoices.has(choice))
+      : []
+    const specialGrid = document.createElement('div')
+    specialGrid.className = 'manifest-special-grid'
+    for (const choice of specialChoices) {
+      const chip = document.createElement('button')
+      chip.type = 'button'
+      chip.className = `manifest-chip special available workbench-install-choice ${choice.kind}`
+      chip.disabled = !this.canApplyWorkbenchChoice(choice)
+      chip.addEventListener('click', () => this.beginWorkbenchInstall(choice, chip))
+      chip.innerHTML = `
+        <div class="manifest-chip-head">
+          <strong>${this.escape(this.choiceTitle(choice))}</strong>
+          <b>${this.choiceKindLabel(choice)}</b>
+        </div>
+        <span>${this.escape(this.choiceDetail(choice))}</span>
+        <em>${this.escape(this.choiceCategoryLabel(choice))}</em>
+      `
+      specialGrid.append(chip)
     }
     const relicLine = document.createElement('div')
     relicLine.className = 'manifest-relics'
     relicLine.textContent = this.relics.size > 0
       ? Array.from(this.relics).map((id) => relics.find((relic) => relic.id === id)?.name ?? id).join(' // ')
       : 'No relics installed yet.'
-    wrap.append(title, summary, chips, relicLine)
+    wrap.append(title, summary, chips)
+    if (specialGrid.children.length) wrap.append(specialGrid)
+    wrap.append(relicLine)
     return wrap
   }
 
@@ -6281,10 +6331,10 @@ class VectorShooter {
   private choiceMarkup(choice: WorkbenchChoice) {
     if (choice.kind === 'upgrade') {
       const level = this.build[choice.upgrade.id] + 1
-      const detail = choice.upgrade.levels[level - 1] ?? choice.upgrade.description
+      const detail = this.upgradeLevelDetail(choice.upgrade, level)
       const systemLabel = choice.upgrade.bucket === 'spacesuit' ? 'SUIT' : choice.upgrade.category === 'weapon' ? 'WEAPON' : 'SHIP'
       const tag = `${this.bucketLabel(choice.upgrade.bucket)} // ${systemLabel}`
-      return `<strong>${this.escape(choice.upgrade.name)} ${level}/${choice.upgrade.max}</strong><em>${tag}</em><span>${this.escape(detail)}</span>`
+      return `<strong>${this.escape(choice.upgrade.name)}</strong><em>INSTALL RANK ${level}/${choice.upgrade.max} // ${tag}</em><span>${this.escape(detail)}</span>`
     }
     if (choice.kind === 'evolution') {
       return `<strong>${this.escape(choice.evolution.name)}</strong><em>EVOLUTION</em><span>${this.escape(choice.evolution.description)}</span>`
@@ -6294,6 +6344,10 @@ class VectorShooter {
       return `<strong>${this.escape(choice.relic.name)}</strong><em>RELIC</em><span>${this.escape(choice.relic.description + downside)}</span>`
     }
     return `<strong>${this.escape(choice.name)}</strong><em>LIMIT BREAK</em><span>${this.escape(choice.description)}</span>`
+  }
+
+  private upgradeLevelDetail(upgrade: Upgrade, level: number) {
+    return upgrade.levels[level - 1] ?? upgrade.description
   }
 
   private bucketLabel(bucket: UpgradeBucket) {

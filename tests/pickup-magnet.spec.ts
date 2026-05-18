@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { pickupMagnetRange, pickupMagnetStrength } from '../src/pickup-magnet'
+import { powerupBalance } from '../src/powerup-balance'
 
 test('xp pickups get extra attraction range over other drops', () => {
   const xpRange = pickupMagnetRange('xp', { magnetLevel: 0, limitMagnet: 0, hasHungryCompass: false })
@@ -8,7 +9,17 @@ test('xp pickups get extra attraction range over other drops', () => {
   expect(xpRange).toBeGreaterThanOrEqual(repairRange + 55)
 })
 
+test('signal magnet range uses named balance values', () => {
+  const base = pickupMagnetRange('repair', { magnetLevel: 0, limitMagnet: 0, hasHungryCompass: false })
+  const rankOne = pickupMagnetRange('repair', { magnetLevel: 1, limitMagnet: 0, hasHungryCompass: false })
+  const limited = pickupMagnetRange('repair', { magnetLevel: 1, limitMagnet: 1, hasHungryCompass: false })
+
+  expect(base).toBe(powerupBalance.pickupMagnet.baseRange)
+  expect(rankOne - base).toBe(powerupBalance.pickupMagnet.rangePerMagnetRank)
+  expect(limited - rankOne).toBe(powerupBalance.pickupMagnet.rangePerLimitRank)
+})
+
 test('xp pickups pull harder than other drops', () => {
-  expect(pickupMagnetStrength('xp')).toBeGreaterThanOrEqual(960)
+  expect(pickupMagnetStrength('xp')).toBe(powerupBalance.pickupMagnet.xpStrength)
   expect(pickupMagnetStrength('xp')).toBeGreaterThan(pickupMagnetStrength('repair'))
 })

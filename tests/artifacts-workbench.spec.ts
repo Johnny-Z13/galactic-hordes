@@ -10,10 +10,25 @@ const styles = () => readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8
 test('shipboard workbench keeps discoveries in the mothership collection', () => {
   const main = source()
 
-  expect(main).toContain("type WorkbenchView = 'upgrades' | 'manifest'")
+  expect(main).not.toContain('type WorkbenchView')
   expect(main).not.toContain("artifactsTab.textContent = 'Artifacts'")
-  expect(main).not.toContain('this.workbenchView === \'artifacts\'')
+  expect(main).not.toContain('this.workbenchView')
   expect(main).toContain("this.mothershipConsoleTab('Collection'")
+})
+
+test('shipboard workbench uses one manifest surface for upgrade choices', () => {
+  const main = source()
+  const css = styles()
+
+  expect(main).not.toContain("type WorkbenchView = 'upgrades' | 'manifest'")
+  expect(main).not.toContain("upgradesTab.textContent = 'Upgrades'")
+  expect(main).not.toContain("manifestTab.textContent = 'Manifest'")
+  expect(main).toContain("view.append(this.renderBuildManifest('workbench'))")
+  expect(main).toContain('private workbenchChoiceForUpgrade')
+  expect(main).toContain('workbench-install-choice')
+  expect(main).toContain('this.beginWorkbenchInstall(choice, chip)')
+  expect(css).toContain('.manifest-chip.available')
+  expect(css).toContain('.manifest-chip.selected')
 })
 
 test('mothership command integrates workbench manifest and collection tabs', () => {
@@ -135,17 +150,16 @@ test('artifact archive lists found cards before locked unknowns', () => {
   ])
 })
 
-test('desktop workbench uses one fixed scrollable list panel across tabs', () => {
+test('desktop workbench uses one fixed scrollable manifest panel', () => {
   const main = source()
   const css = styles()
 
   expect(main).toContain("panel.className = 'panel workbench-panel'")
-  expect(main).toContain("grid.className = 'choice-grid workbench-list'")
+  expect(main).toContain("view.className = 'workbench-view manifest'")
   expect(css).toContain('.workbench-panel')
   expect(css).toContain('height: min(760px, calc(100vh - 54px))')
   expect(css).toContain('.workbench-view')
   expect(css).toContain('overflow-y: auto')
-  expect(css).toContain('.choice-grid.workbench-list')
   expect(css).toContain('.manifest-grid,')
   expect(css).toContain('.artifact-grid {')
   expect(css).toContain('max-height: none')

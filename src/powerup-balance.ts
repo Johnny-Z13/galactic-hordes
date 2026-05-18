@@ -75,6 +75,17 @@ export const powerupBalance = {
     navPickupReachPerMagnetRank: 26,
     navPickupMinScoreDistance: 120
   },
+  pickupMagnet: {
+    baseRange: 105,
+    rangePerMagnetRank: 62,
+    rangePerLimitRank: 12,
+    hungryCompassBonus: 120,
+    xpBaseBonus: 64,
+    xpRangePerMagnetRank: 16,
+    xpRangePerLimitRank: 4,
+    xpStrength: 980,
+    defaultStrength: 540
+  },
   dash: {
     durationBase: 0.14,
     durationPerEngineRank: 0.014,
@@ -293,6 +304,8 @@ export const limitBreakChoices: Array<{ id: LimitId; name: string; description: 
   { id: 'hull', name: 'Limit: Hull', description: '+3 max hull and a small repair.' }
 ]
 
+const magnetRangeLevel = () => `+${powerupBalance.pickupMagnet.rangePerMagnetRank} pickup range`
+
 export const upgrades: Upgrade[] = [
   { id: 'rapid', name: 'Pulse Cannon', category: 'weapon', bucket: 'weapons', description: 'The main damage bucket: faster pulse rhythm, harder hits, and double-pulse pressure.', max: 8, rarity: 100, catalyst: 'staticIdol', evolutionName: 'Choir Cannon', evolutionDescription: 'Pulse fire becomes a three-note volley with a brighter synth chord.', levels: ['Base pulse stabilizer', '-8% fire cooldown', '+12% pulse damage', '-8% fire cooldown', 'Every fifth shot double-pulses', '+15% projectile speed', '-10% fire cooldown', 'Evolution-ready'] },
   { id: 'split', name: 'Prism Barrel', category: 'weapon', bucket: 'weapons', description: 'The screen-control bucket: more rays, a wider fan, and better crowd trimming.', max: 6, rarity: 86, catalyst: 'glassReactor', evolutionName: 'Shatter Prism', evolutionDescription: 'The fan gains two extra rays and cracks through nearby targets.', levels: ['+1 side ray', 'Tighter fan control', '+1 side ray', '+10% ray damage', '+1 side ray', 'Evolution-ready'] },
@@ -305,7 +318,7 @@ export const upgrades: Upgrade[] = [
   { id: 'rift', name: 'Rift Needle', category: 'weapon', bucket: 'weapons', description: 'The boss-hunter bucket: rare heavy needles punch through elite targets.', max: 5, rarity: 45, catalyst: 'mirrorSeed', evolutionName: 'Black Needle', evolutionDescription: 'Rare needles execute wounded elites and bosses.', levels: ['Every 11th shot fires a needle', '+18% needle damage', 'Every 9th shot fires a needle', '+2 needle pierce', 'Evolution-ready'] },
   { id: 'engine', name: 'Drift Engine', category: 'system', bucket: 'navigation', description: 'The manual handling bucket: more speed, longer dash burns, sharper recovery, shorter dash cooldown.', max: 6, rarity: 95, levels: ['+18 move speed', 'Dash carries farther', '-8% dash cooldown', '+18 move speed', '+0.08s dash invulnerability', '+22 move speed'] },
   { id: 'nav', name: 'Nav Ghost', category: 'system', bucket: 'navigation', description: 'The low-input autonomy bucket: base cruise gets faster, smarter, and better at holding intent.', max: 7, rarity: 82, levels: ['Vector Memory: stronger course hold and faster cruise', 'Course Bend: nudges have more authority', 'Planet Lock: USE locks onto the nearest planet beacon', 'Threat Weave: autopilot curves away from nearby enemies', 'Salvage Bias: idle cruise bends toward valuable drops', 'Overdrive Nav: faster cruise and sharper heading changes', 'Ghost Pilot: stronger autonomous steering when your thumb lifts'] },
-  { id: 'magnet', name: 'Signal Magnet', category: 'system', bucket: 'economy', description: 'The collection bucket: fewer missed shards, richer routes, more numbers vacuumed in.', max: 6, rarity: 92, levels: ['+62 pickup range', '+12% pickup speed', '+62 pickup range', '+12% pickup speed', '+72 pickup range', 'Vacuum pings last longer'] },
+  { id: 'magnet', name: 'Signal Magnet', category: 'system', bucket: 'economy', description: 'The collection bucket: fewer missed shards, richer routes, more numbers vacuumed in.', max: 6, rarity: 92, levels: [magnetRangeLevel(), magnetRangeLevel(), magnetRangeLevel(), magnetRangeLevel(), magnetRangeLevel(), magnetRangeLevel()] },
   { id: 'shield', name: 'Halo Battery', category: 'system', bucket: 'survival', description: 'The mistake-forgiveness bucket: a regenerating buffer before hull damage matters.', max: 5, rarity: 78, levels: ['+18 max shield', '+20% shield regen', '+18 max shield', '-12% recharge delay', '+28 max shield'] },
   { id: 'repair', name: 'Hull Stitcher', category: 'system', bucket: 'survival', description: 'The long-run hull bucket: bigger maximum hull and full repairs on install.', max: 5, rarity: 78, levels: ['+18 max hull and full repair', '+12% repair value', '+18 max hull and full repair', '+12% repair value', '+26 max hull and full repair'] },
   { id: 'vampire', name: 'Salvage Hunger', category: 'system', bucket: 'survival', description: 'The sustain bucket: enemy wreckage can become emergency repair.', max: 4, rarity: 52, levels: ['+2.5% repair drop chance', '+2.5% repair drop chance', 'Repair drops pull faster', '+3.5% repair drop chance'] },
