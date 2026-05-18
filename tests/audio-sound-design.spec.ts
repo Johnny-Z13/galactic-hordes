@@ -33,3 +33,13 @@ test('weapon pulse audio uses a slow flanger path', () => {
   expect(main).toContain('flangerDepth.gain.value = 0.0038')
   expect(main).toContain('const destination = this.weaponDestination(kind)')
 })
+
+test('ambient pulse is an explicit heartbeat clock for synced cues', () => {
+  const main = source()
+
+  expect(main).toContain('private beatTimer = 0')
+  expect(main).toContain('private beatInterval = 0.7')
+  expect(main).toContain('private updateBeatClock(dt: number, intensity: number, mood: PlanetAudioMood)')
+  expect(main).toContain('private nextBeatDelay(subdivision = 1)')
+  expect(main).toContain('this.syncToBeat(() => this.tone')
+})

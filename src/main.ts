@@ -2,6 +2,7 @@ import './style.css'
 import glassMiteOracleSheetUrl from './assets/glass-mite-oracle-sheet-alpha.png'
 import planetAlienCatalogUrl from './assets/planet-alien-catalog-alpha.png'
 import planetBossCatalogUrl from './assets/planet-boss-catalog-alpha.png'
+import spaceEnemyCatalogUrl from './assets/space-enemy-catalog-alpha.png'
 import surfaceSpacemanSheetUrl from './assets/surface-spaceman-sheet-alpha.png'
 import titleLogoMarkUrl from './assets/title-logo-mark.png'
 import { orderArtifactArchiveCards } from './artifact-archive'
@@ -10,6 +11,7 @@ import { ONBOARDING_PLANET_COUNT, onboardingPlanetSlot, useOnboardingPlanetField
 import { pickupMagnetRange, pickupMagnetStrength } from './pickup-magnet'
 import { planetRadius } from './planet-sizing'
 import { pressurePackSize, shouldRecycleEnemy } from './spawn-pressure'
+import { isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, type SpaceEnemyKind } from './space-enemies'
 import { planSurfaceEncounter, rollPlanetArchetype, type PlanetArchetype, type SurfaceEventKind, type SurfaceScenarioKind } from './surface-encounters'
 import { surfaceThreatSpawnPoint } from './surface-spawn'
 import { dashVector, touchActionLabel } from './mobile-controls'
@@ -34,7 +36,7 @@ import {
 
 type GameState = 'title' | 'mothership' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
-type EnemyKind = 'chaser' | 'splinter' | 'lancer' | 'mine' | 'brute' | 'shooter' | 'warden'
+type EnemyKind = SpaceEnemyKind
 type SurfaceResourceKind = 'crystal' | 'scrap' | 'repair' | 'cache'
 type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
 type UpgradeCategory = 'weapon' | 'system'
@@ -718,7 +720,9 @@ class AudioDirector {
   private bed: GainNode | null = null
   private weaponBus: GainNode | null = null
   private flangerLfo: OscillatorNode | null = null
-  private musicTimer = 0
+  private beatTimer = 0
+  private beatInterval = 0.7
+  private beatIndex = 0
   private ambientTimer = 0
   private mood: PlanetAudioMood = 'title'
   private unlocked = false
@@ -767,21 +771,12 @@ class AudioDirector {
 
   update(dt: number, intensity: number, mood: PlanetAudioMood) {
     if (!this.context || !this.master || !this.bed) return
-    const bed = this.bed
     this.mood = mood
     this.ambientTimer -= dt
-    this.musicTimer -= dt
     if (this.ambientTimer <= 0) {
       this.ambientTimer = this.emitAmbientMood(mood, intensity)
     }
-    if (this.musicTimer <= 0) {
-      const profile = this.planetMoods[mood]
-      this.musicTimer = clamp(profile.pulse - intensity * 0.2, 0.24, 0.9)
-      const semitone = profile.chord[Math.floor(Math.random() * profile.chord.length)] + Math.floor(intensity * 5)
-      const note = this.note(profile.root, semitone)
-      this.tone(note, 0.075, 'sawtooth', 0.024, 0.035, -18, { destination: bed, filter: profile.filter + note })
-      if (Math.random() < 0.36 + intensity * 0.24) this.noise(0.055, profile.noise, -23, { destination: bed, filter: profile.filter, type: 'bandpass' })
-    }
+    this.updateBeatClock(dt, intensity, mood)
   }
 
   fire(kind: WeaponSoundKind, power: number) {
@@ -822,6 +817,7 @@ class AudioDirector {
     this.tone(360, 0.12, 'triangle', 0.05, 0.02, -12, { filter: 1800 })
     setTimeout(() => this.tone(540, 0.14, 'triangle', 0.055, 0.02, -12, { filter: 2200 }), 70)
     setTimeout(() => this.tone(810, 0.18, 'triangle', 0.07, 0.02, -12, { filter: 2800 }), 140)
+    this.syncToBeat(() => this.tone(720, 0.08, 'sine', 0.026, 0.012, -18, { filter: 2600 }), 2)
   }
 
   install(cue: AudioUpgradeCue, rare = false) {
@@ -862,7 +858,7 @@ class AudioDirector {
     const profile = this.planetMoods[mood]
     for (let i = 0; i < profile.chord.length; i += 1) {
       const note = this.note(profile.root, profile.chord[i] + 12)
-      setTimeout(() => this.tone(note, 0.12, i === 1 ? 'square' : 'triangle', 0.032, 0.014, -15, { filter: profile.filter + note * 2, bend: profile.wobble * 16 }), i * 68)
+      setTimeout(() => this.syncToBeat(() => this.tone(note, 0.12, i === 1 ? 'square' : 'triangle', 0.032, 0.014, -15, { filter: profile.filter + note * 2, bend: profile.wobble * 16 }), 2), i * 68)
     }
     this.noise(0.11, profile.noise * 2.6, -21, { filter: profile.filter, type: 'bandpass' })
   }
@@ -877,6 +873,40 @@ class AudioDirector {
     this.tone(low + rand(-profile.wobble * 3, profile.wobble * 3), dur, mood === 'hostile' ? 'sawtooth' : 'triangle', 0.024, 0.08, -24, { destination: bed, filter: profile.filter, bend: rand(-profile.wobble * 18, profile.wobble * 18) })
     if (Math.random() < 0.62) this.noise(0.08 + profile.noise * 4, profile.noise, -25, { destination: bed, filter: profile.filter + rand(-120, 220), type: mood === 'repair' ? 'lowpass' : 'bandpass' })
     return clamp(profile.pulse * 1.65 + Math.random() * 0.5, 0.55, 1.8)
+  }
+
+  private updateBeatClock(dt: number, intensity: number, mood: PlanetAudioMood) {
+    if (!this.bed) return
+    this.beatTimer -= dt
+    if (this.beatTimer > 0) return
+    const profile = this.planetMoods[mood]
+    this.beatInterval = clamp(profile.pulse - intensity * 0.2, 0.24, 0.9)
+    this.beatTimer = this.beatInterval
+    this.heartbeat(mood, intensity)
+    this.beatIndex += 1
+  }
+
+  private heartbeat(mood: PlanetAudioMood, intensity: number) {
+    if (!this.bed) return
+    const profile = this.planetMoods[mood]
+    const accent = this.beatIndex % 4 === 0
+    const chord = profile.chord[this.beatIndex % profile.chord.length]
+    const note = this.note(profile.root, chord + Math.floor(intensity * 5))
+    this.tone(note, 0.075, 'sawtooth', 0.024, 0.035, -18, { destination: this.bed, filter: profile.filter + note })
+    this.tone(profile.root * 0.5, accent ? 0.12 : 0.08, 'sine', accent ? 0.02 : 0.012, 0.025, accent ? -23 : -27, { destination: this.bed, filter: profile.filter * 0.7 })
+    if (Math.random() < 0.36 + intensity * 0.24) this.noise(0.055, profile.noise, -23, { destination: this.bed, filter: profile.filter, type: 'bandpass' })
+  }
+
+  private nextBeatDelay(subdivision = 1) {
+    const step = this.beatInterval / Math.max(1, subdivision)
+    if (step <= 0) return 0
+    return clamp(this.beatTimer % step, 0, step)
+  }
+
+  private syncToBeat(fn: () => void, subdivision = 1) {
+    const delay = this.nextBeatDelay(subdivision)
+    if (delay <= 0.018) fn()
+    else setTimeout(fn, delay * 1000)
   }
 
   private note(root: number, semitones: number) {
@@ -990,6 +1020,7 @@ class VectorShooter {
   private glassMiteOracleSheet = new Image()
   private planetAlienCatalog = new Image()
   private planetBossCatalog = new Image()
+  private spaceEnemyCatalog = new Image()
   private surfaceSpacemanSheet = new Image()
   private scoreSaved = false
   private scoreName = 'ACE'
@@ -1126,6 +1157,7 @@ class VectorShooter {
     this.glassMiteOracleSheet.src = glassMiteOracleSheetUrl
     this.planetAlienCatalog.src = planetAlienCatalogUrl
     this.planetBossCatalog.src = planetBossCatalogUrl
+    this.spaceEnemyCatalog.src = spaceEnemyCatalogUrl
     this.surfaceSpacemanSheet.src = surfaceSpacemanSheetUrl
     this.highs = this.loadScores()
     this.mothership = this.loadMothership()
@@ -2242,6 +2274,71 @@ class VectorShooter {
           }
           this.burst(e.x, e.y, '#ff61d8', 5, 100)
         }
+      } else if (e.kind === 'razor') {
+        const sideSign = e.id % 2 === 0 ? 1 : -1
+        const side = { x: -toP.y * sideSign, y: toP.x * sideSign }
+        e.vx += (side.x * e.speed * 5.4 + toP.x * e.speed * 0.7) * dt
+        e.vy += (side.y * e.speed * 5.4 + toP.y * e.speed * 0.7) * dt
+        if (e.cd <= 0) {
+          e.cd = 1.15
+          e.vx += side.x * 220 + toP.x * 90
+          e.vy += side.y * 220 + toP.y * 90
+          this.emitEnemyTrail(e, '#57fff3', 2)
+        }
+      } else if (e.kind === 'skimmer') {
+        const d = Math.sqrt(dist2(e, this.player))
+        const sideSign = e.id % 2 === 0 ? 1 : -1
+        const side = { x: -toP.y * sideSign, y: toP.x * sideSign }
+        const rangePull = d > 650 ? 0.72 : d < 390 ? -1.15 : -0.04
+        const wave = Math.sin(e.phase * 3.6) * e.speed * 0.35
+        e.vx += (toP.x * rangePull * e.speed + side.x * e.speed * 1.28 + side.x * wave) * dt
+        e.vy += (toP.y * rangePull * e.speed + side.y * e.speed * 1.28 + side.y * wave) * dt
+        if (e.cd <= 0 && d < 840) {
+          e.cd = clamp(2.15 - this.stats.time / 320, 1.35, 2.15)
+          const baseAngle = Math.atan2(toP.y, toP.x)
+          for (let shot = -1; shot <= 1; shot += 1) {
+            const a = baseAngle + shot * 0.24
+            this.bullets.push({
+              x: e.x + Math.cos(a) * e.radius,
+              y: e.y + Math.sin(a) * e.radius,
+              vx: Math.cos(a) * 340,
+              vy: Math.sin(a) * 340,
+              life: 1.55,
+              damage: 11,
+              radius: 4.5,
+              color: '#ffe66d',
+              pierce: 0,
+              hostile: true
+            })
+          }
+          this.burst(e.x, e.y, '#ffe66d', 6, 120)
+        }
+      } else if (e.kind === 'bulwark') {
+        const d = Math.sqrt(dist2(e, this.player))
+        const side = { x: -toP.y, y: toP.x }
+        const rangePull = d > 620 ? 0.95 : d < 460 ? -1.25 : -0.1
+        const drift = Math.sin(e.phase * 1.6 + e.id) * e.speed * 0.65
+        e.vx += (toP.x * rangePull * e.speed + side.x * drift) * dt
+        e.vy += (toP.y * rangePull * e.speed + side.y * drift) * dt
+        if (e.cd <= 0 && d < 900) {
+          e.cd = 1.55
+          for (let k = 0; k < 10; k += 1) {
+            const a = (k / 10) * TAU + e.phase * 0.55
+            this.bullets.push({
+              x: e.x + Math.cos(a) * e.radius,
+              y: e.y + Math.sin(a) * e.radius,
+              vx: Math.cos(a) * 235,
+              vy: Math.sin(a) * 235,
+              life: 1.45,
+              damage: 9,
+              radius: 4,
+              color: '#f46cff',
+              pierce: 0,
+              hostile: true
+            })
+          }
+          this.burst(e.x, e.y, '#f46cff', 10, 150)
+        }
       } else if (e.kind === 'lancer') {
         const d = Math.sqrt(dist2(e, this.player))
         if (e.cd <= 0 && d < 520) {
@@ -2284,7 +2381,7 @@ class VectorShooter {
           }
         }
       }
-      const max = e.kind === 'lancer' ? 460 : e.kind === 'brute' ? e.speed * 0.84 : e.speed
+      const max = e.kind === 'razor' ? 690 : e.kind === 'lancer' ? 460 : e.kind === 'brute' ? e.speed * 0.84 : e.speed
       const s = len(e.vx, e.vy)
       if (s > max) {
         e.vx = (e.vx / s) * max
@@ -2294,11 +2391,12 @@ class VectorShooter {
       e.vy *= Math.pow(0.2, dt)
       e.x += e.vx * dt
       e.y += e.vy * dt
+      if (isSpriteEnemyKind(e.kind)) this.emitEnemyTrail(e, e.color, e.kind === 'razor' ? 1.6 : 1)
 
       const rr = e.radius + this.player.radius
       if (dist2(e, this.player) < rr * rr) {
-        this.damagePlayer(e.kind === 'warden' ? 24 : e.kind === 'brute' ? 19 : 13)
-        if (e.kind === 'brute') {
+        this.damagePlayer(e.kind === 'warden' ? 24 : e.kind === 'bulwark' ? 22 : e.kind === 'brute' ? 19 : e.kind === 'razor' ? 17 : 13)
+        if (e.kind === 'brute' || e.kind === 'bulwark') {
           e.vx -= toP.x * 260
           e.vy -= toP.y * 260
         } else if (e.kind !== 'warden') this.killEnemy(e, false)
@@ -2352,6 +2450,31 @@ class VectorShooter {
       p.vy *= Math.pow(0.12, dt)
       if (p.life <= 0) this.particles.splice(i, 1)
     }
+  }
+
+  private emitEnemyTrail(e: Enemy, color: string, intensity = 1) {
+    if (this.isHighLoad() || this.particles.length >= MAX_PARTICLES) return
+    const speed = Math.hypot(e.vx, e.vy)
+    if (speed < 85 || Math.random() > 0.42 * intensity) return
+    const back = norm(-e.vx, -e.vy)
+    const side = { x: -back.y, y: back.x }
+    const spread = e.kind === 'bulwark' ? 18 : e.kind === 'skimmer' ? 13 : 8
+    const life = e.kind === 'razor' ? 0.34 : 0.46
+    this.particles.push({
+      x: e.x + back.x * e.radius * 0.75 + side.x * rand(-spread, spread),
+      y: e.y + back.y * e.radius * 0.75 + side.y * rand(-spread, spread),
+      vx: back.x * rand(30, 90) + side.x * rand(-24, 24),
+      vy: back.y * rand(30, 90) + side.y * rand(-24, 24),
+      life,
+      maxLife: life,
+      color,
+      size: e.kind === 'bulwark' ? rand(3, 7) : rand(2, 5),
+      angle: Math.atan2(e.vy, e.vx),
+      spin: rand(-2, 2),
+      sides: e.kind === 'bulwark' ? 4 : undefined,
+      length: e.kind === 'razor' ? rand(34, 68) : rand(20, 44),
+      glow: this.allowGlow() ? 28 : 14
+    })
   }
 
   private updateOrbitals(dt: number) {
@@ -2428,27 +2551,22 @@ class VectorShooter {
   private pickEnemyKind(): EnemyKind {
     const t = this.stats.time
     const r = Math.random()
-    if (t > 180 && r < 0.13) return 'brute'
-    if (t > 120 && r < 0.22) return 'shooter'
-    if (t > 100 && r < 0.31) return 'mine'
-    if (t > 55 && r < 0.44) return 'lancer'
-    if (t > 25 && r < 0.62) return 'splinter'
+    if (t > 270 && r < 0.07) return 'bulwark'
+    if (t > 205 && r < 0.18) return 'razor'
+    if (t > 165 && r < 0.29) return 'skimmer'
+    if (t > 180 && r < 0.39) return 'brute'
+    if (t > 120 && r < 0.49) return 'shooter'
+    if (t > 100 && r < 0.58) return 'mine'
+    if (t > 55 && r < 0.7) return 'lancer'
+    if (t > 25 && r < 0.82) return 'splinter'
     return 'chaser'
   }
 
   private spawnEnemy(kind: EnemyKind) {
     if (this.enemies.length >= MAX_ENEMIES) return
-    const p = this.randomNearPlayer(620, 980)
+    const p = spaceEnemySpawnPoint(kind, this.player, 620, 980)
     const scale = 1.12 + this.stats.time / 200 + this.stats.planets * 0.1
-    const base = {
-      chaser: { hp: 34, r: 17, speed: 123, value: 7, color: '#8fff7d' },
-      splinter: { hp: 23, r: 14, speed: 158, value: 5, color: '#70a8ff' },
-      lancer: { hp: 60, r: 18, speed: 154, value: 13, color: '#fff27a' },
-      mine: { hp: 46, r: 22, speed: 68, value: 10, color: '#ff5d73' },
-      brute: { hp: 170, r: 34, speed: 98, value: 24, color: '#ff9d5c' },
-      shooter: { hp: 72, r: 21, speed: 118, value: 18, color: '#ff61d8' },
-      warden: { hp: 520, r: 50, speed: 134, value: 90, color: '#b990ff' }
-    }[kind]
+    const base = spaceEnemyDefinitions[kind]
     this.enemies.push({
       id: this.enemyId++,
       kind,
@@ -2488,7 +2606,7 @@ class VectorShooter {
 
   private killEnemy(e: Enemy, reward: boolean) {
     this.removeEnemy(e)
-    const big = e.kind === 'warden' || e.kind === 'brute'
+    const big = e.kind === 'warden' || e.kind === 'brute' || e.kind === 'bulwark'
     const highLoad = this.isHighLoad()
     if (big || !highLoad || this.collisionFxCooldown <= 0) {
       this.audio.boom(big ? 'heavy' : 'small')
@@ -2499,9 +2617,9 @@ class VectorShooter {
     if (reward) {
       this.stats.kills += 1
       this.stats.score += e.value
-      const xpCount = e.kind === 'warden' ? 9 : e.kind === 'brute' ? 3 : e.kind === 'shooter' || e.kind === 'lancer' ? 2 : 1
+      const xpCount = e.kind === 'warden' ? 9 : e.kind === 'bulwark' ? 5 : e.kind === 'brute' ? 3 : e.kind === 'razor' || e.kind === 'skimmer' || e.kind === 'shooter' || e.kind === 'lancer' ? 2 : 1
       const xpDrops = highLoad && e.kind !== 'warden' ? 1 : xpCount
-      const xpValue = e.kind === 'warden' ? 8 : e.kind === 'brute' ? 4 : highLoad ? 3 * xpCount : 3
+      const xpValue = e.kind === 'warden' ? 8 : e.kind === 'bulwark' ? 5 : e.kind === 'brute' ? 4 : highLoad ? 3 * xpCount : 3
       for (let i = 0; i < xpDrops; i += 1) this.drop('xp', e.x, e.y, xpValue)
       if (e.kind === 'warden') this.drop('chest', e.x, e.y, 1)
       if (e.kind === 'splinter' && this.enemies.length < MAX_ENEMIES - 3 && Math.random() < 0.55) {
@@ -5050,6 +5168,10 @@ class VectorShooter {
     for (const e of this.enemies) {
       const p = this.worldToScreen(e.x, e.y)
       if (p.x < -90 || p.x > this.width + 90 || p.y < -90 || p.y > this.height + 90) continue
+      if (isSpriteEnemyKind(e.kind)) {
+        this.renderSpaceSpriteEnemy(ctx, e, p)
+        continue
+      }
       ctx.save()
       ctx.translate(p.x, p.y)
       ctx.rotate(e.phase)
@@ -5127,6 +5249,44 @@ class VectorShooter {
     }
   }
 
+  private renderSpaceSpriteEnemy(ctx: CanvasRenderingContext2D, e: Enemy, p: Vec) {
+    const sheet = this.spaceEnemyCatalog
+    if (!sheet.complete || sheet.naturalWidth === 0) {
+      this.renderEnemyLod(ctx, e, p)
+      return
+    }
+    const row = spaceEnemyDefinitions[e.kind].spriteRow ?? 0
+    const sw = sheet.naturalWidth / 4
+    const sh = sheet.naturalHeight / 3
+    const frame = Math.floor((e.phase * 8 + e.id) % 4)
+    const speed = Math.hypot(e.vx, e.vy)
+    const angle = e.kind === 'bulwark'
+      ? e.phase * 0.45
+      : speed > 8
+        ? Math.atan2(e.vy, e.vx)
+        : Math.atan2(this.player.y - e.y, this.player.x - e.x)
+    const scale = e.kind === 'bulwark' ? 4.55 : e.kind === 'skimmer' ? 5.35 : 5.85
+    const dw = e.radius * scale
+    const dh = e.radius * scale
+
+    ctx.save()
+    ctx.translate(p.x, p.y)
+    ctx.rotate(angle)
+    ctx.shadowColor = e.color
+    ctx.shadowBlur = this.allowGlow() ? (e.kind === 'bulwark' ? 18 : 14) : 0
+    ctx.globalAlpha = e.flash > 0 ? 0.92 : 1
+    ctx.drawImage(sheet, frame * sw, row * sh, sw, sh, -dw / 2, -dh / 2, dw, dh)
+    if (e.flash > 0) {
+      ctx.globalAlpha = 0.45
+      ctx.strokeStyle = '#ffffff'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(0, 0, e.radius * 1.35, 0, TAU)
+      ctx.stroke()
+    }
+    ctx.restore()
+  }
+
   private renderHordeEnemies(ctx: CanvasRenderingContext2D) {
     const camX = this.camera.x
     const camY = this.camera.y
@@ -5138,8 +5298,11 @@ class VectorShooter {
     this.strokeEnemyBatch(ctx, camX, camY, 'lancer', '#fff27a')
     this.strokeEnemyBatch(ctx, camX, camY, 'mine', '#ff5d73')
     this.strokeEnemyBatch(ctx, camX, camY, 'shooter', '#ff61d8')
+    this.strokeEnemyBatch(ctx, camX, camY, 'razor', '#57fff3')
+    this.strokeEnemyBatch(ctx, camX, camY, 'skimmer', '#ffe66d')
     ctx.lineWidth = 2.4
     this.strokeEnemyBatch(ctx, camX, camY, 'brute', '#ff9d5c')
+    this.strokeEnemyBatch(ctx, camX, camY, 'bulwark', '#f46cff')
     this.strokeEnemyBatch(ctx, camX, camY, 'warden', '#b990ff')
     ctx.lineWidth = 1.8
     ctx.strokeStyle = '#ffffff'
@@ -5206,6 +5369,34 @@ class VectorShooter {
       ctx.lineTo(x - ux * r * 0.88, y - uy * r * 0.88)
       ctx.lineTo(x - px * r * 0.72 - ux * r * 0.25, y - py * r * 0.72 - uy * r * 0.25)
       ctx.closePath()
+    } else if (e.kind === 'razor') {
+      const speed = Math.hypot(e.vx, e.vy)
+      const ux = speed > 8 ? e.vx / speed : 1
+      const uy = speed > 8 ? e.vy / speed : 0
+      const px = -uy
+      const py = ux
+      ctx.moveTo(x + ux * r * 1.9, y + uy * r * 1.9)
+      ctx.lineTo(x - ux * r * 1.15 + px * r * 0.72, y - uy * r * 1.15 + py * r * 0.72)
+      ctx.lineTo(x - ux * r * 0.32, y - uy * r * 0.32)
+      ctx.lineTo(x - ux * r * 1.15 - px * r * 0.72, y - uy * r * 1.15 - py * r * 0.72)
+      ctx.closePath()
+    } else if (e.kind === 'skimmer') {
+      ctx.moveTo(x + r * 1.1, y - r * 0.55)
+      ctx.lineTo(x - r * 0.2, y - r * 1.08)
+      ctx.lineTo(x - r * 1.15, y - r * 0.35)
+      ctx.lineTo(x - r * 0.88, y + r * 0.72)
+      ctx.lineTo(x + r * 0.86, y + r * 0.72)
+      ctx.closePath()
+    } else if (e.kind === 'bulwark') {
+      ctx.moveTo(x + r, y)
+      ctx.arc(x, y, r, 0, TAU)
+      ctx.moveTo(x + r * 0.62, y)
+      ctx.arc(x, y, r * 0.62, 0, TAU)
+      ctx.moveTo(x, y - r * 0.78)
+      ctx.lineTo(x + r * 0.62, y)
+      ctx.lineTo(x, y + r * 0.78)
+      ctx.lineTo(x - r * 0.62, y)
+      ctx.closePath()
     } else if (e.kind === 'warden') {
       ctx.moveTo(x + r, y)
       ctx.arc(x, y, r, 0, TAU)
@@ -5249,6 +5440,24 @@ class VectorShooter {
       ctx.lineTo(-r * 0.9, 0)
       ctx.lineTo(r * 0.22, -r * 0.72)
       ctx.closePath()
+    } else if (e.kind === 'razor') {
+      ctx.moveTo(r * 1.8, 0)
+      ctx.lineTo(-r * 1.05, r * 0.7)
+      ctx.lineTo(-r * 0.32, 0)
+      ctx.lineTo(-r * 1.05, -r * 0.7)
+      ctx.closePath()
+    } else if (e.kind === 'skimmer') {
+      ctx.moveTo(r * 1.1, -r * 0.55)
+      ctx.lineTo(-r * 0.2, -r * 1.05)
+      ctx.lineTo(-r * 1.1, -r * 0.35)
+      ctx.lineTo(-r * 0.85, r * 0.7)
+      ctx.lineTo(r * 0.85, r * 0.7)
+      ctx.closePath()
+    } else if (e.kind === 'bulwark') {
+      ctx.moveTo(r, 0)
+      ctx.arc(0, 0, r, 0, TAU)
+      ctx.moveTo(r * 0.62, 0)
+      ctx.arc(0, 0, r * 0.62, 0, TAU)
     } else {
       ctx.moveTo(0, -r)
       ctx.lineTo(r, 0)
@@ -5531,7 +5740,7 @@ class VectorShooter {
     const beaconText = this.returnBeacon && this.mothership.departments.scanner >= 2
       ? ` // BEACON ${Math.floor(Math.sqrt(dist2(this.returnBeacon, this.player)))}`
       : ''
-    this.ui.resources.textContent = `S ${this.resources.scrap} C ${this.resources.crystal} K ${this.resources.cores}${beaconText}`
+    this.ui.resources.textContent = `Scrap ${this.resources.scrap}  Crystals ${this.resources.crystal}  Cores ${this.resources.cores}${beaconText}`
     if (this.state === 'surface' && this.surface) {
       this.ui.hullLabel.textContent = 'HEALTH'
       this.ui.xpLabel.textContent = 'O2'
@@ -5998,15 +6207,15 @@ class VectorShooter {
     if (this.debrief) {
       const lastRun = document.createElement('p')
       lastRun.className = 'mothership-last-report'
-      lastRun.textContent = `${this.debrief.title} // ${this.debrief.discoveries.length} discoveries // S ${this.debrief.resources.recovered.scrap} C ${this.debrief.resources.recovered.crystal} K ${this.debrief.resources.recovered.cores}`
+      lastRun.textContent = `${this.debrief.title} // ${this.debrief.discoveries.length} discoveries // Scrap ${this.debrief.resources.recovered.scrap} // Crystals ${this.debrief.resources.recovered.crystal} // Cores ${this.debrief.resources.recovered.cores}`
       intro.append(lastRun)
     }
     const resources = document.createElement('div')
     resources.className = 'mothership-resources'
     resources.innerHTML = `
-      <span>S ${this.mothership.resources.scrap}</span>
-      <span>C ${this.mothership.resources.crystal}</span>
-      <span>K ${this.mothership.resources.cores}</span>
+      <span><b>Scrap</b>${this.mothership.resources.scrap}</span>
+      <span><b>Crystals</b>${this.mothership.resources.crystal}</span>
+      <span><b>Cores</b>${this.mothership.resources.cores}</span>
     `
     header.append(intro, resources)
 
@@ -6032,24 +6241,7 @@ class VectorShooter {
     launch.textContent = 'Launch Expedition'
     launch.addEventListener('click', () => this.start())
     shipBay.append(ship, launch)
-    const consolePanel = document.createElement('div')
-    consolePanel.className = 'mothership-console'
-    consolePanel.innerHTML = `
-      <h2>Shipboard Workbench</h2>
-      <p>Run upgrades are installed between landings. From command, you can inspect the build manifest and archive before launch.</p>
-    `
-    const consoleActions = document.createElement('div')
-    consoleActions.className = 'station-actions'
-    const manifest = document.createElement('button')
-    manifest.className = 'vector-button secondary'
-    manifest.textContent = 'Manifest'
-    manifest.addEventListener('click', () => this.showMothershipConsole('manifest'))
-    const archive = document.createElement('button')
-    archive.className = 'vector-button secondary'
-    archive.textContent = 'Archive'
-    archive.addEventListener('click', () => this.showMothershipConsole('artifacts'))
-    consoleActions.append(manifest, archive)
-    consolePanel.append(consoleActions)
+    const consolePanel = this.renderMothershipConsoleStack()
     flight.append(status, shipBay, consolePanel)
 
     const systemsHeader = document.createElement('div')
@@ -6080,39 +6272,29 @@ class VectorShooter {
     return meter
   }
 
-  private showMothershipConsole(viewName: WorkbenchView) {
-    this.state = 'mothership'
-    this.workbenchView = viewName
-    this.ui.levelup.innerHTML = ''
-    const panel = document.createElement('div')
-    panel.className = 'panel workbench-panel mothership-workbench-console'
-    const h = document.createElement('h1')
-    h.className = 'title'
-    h.textContent = viewName === 'artifacts' ? 'ARCHIVE CONSOLE' : 'BUILD MANIFEST'
-    const p = document.createElement('p')
-    p.className = 'copy'
-    p.textContent = 'Read-only drydock console. Mutation choices are installed from the shipboard workbench during an expedition.'
-    const tabs = document.createElement('div')
-    tabs.className = 'workbench-tabs'
-    const manifest = document.createElement('button')
-    manifest.className = `workbench-tab ${viewName === 'manifest' ? 'active' : ''}`
-    manifest.textContent = 'Manifest'
-    manifest.addEventListener('click', () => this.showMothershipConsole('manifest'))
-    const artifacts = document.createElement('button')
-    artifacts.className = `workbench-tab ${viewName === 'artifacts' ? 'active' : ''}`
-    artifacts.textContent = 'Artifacts'
-    artifacts.addEventListener('click', () => this.showMothershipConsole('artifacts'))
-    const back = document.createElement('button')
-    back.className = 'workbench-tab'
-    back.textContent = 'Command'
-    back.addEventListener('click', () => this.showMothership())
-    tabs.append(manifest, artifacts, back)
-    const view = document.createElement('div')
-    view.className = `workbench-view ${viewName}`
-    view.append(viewName === 'artifacts' ? this.renderArtifactsCollection() : this.renderBuildManifest())
-    panel.append(h, p, tabs, view)
-    this.ui.levelup.append(panel)
-    this.showOnly('levelup')
+  private renderMothershipConsoleStack() {
+    const consolePanel = document.createElement('div')
+    consolePanel.className = 'mothership-console-stack'
+    const workbench = document.createElement('details')
+    workbench.className = 'mothership-console-section'
+    workbench.open = true
+    workbench.innerHTML = `
+      <summary><span>Workbench Bay</span><b>${this.pendingUpgrades} signals</b></summary>
+      <p>Mutation choices install during expeditions. Review the ship build and archive here without leaving command.</p>
+    `
+
+    const manifest = document.createElement('details')
+    manifest.className = 'mothership-console-section'
+    manifest.innerHTML = '<summary><span>Build Manifest</span><b>systems</b></summary>'
+    manifest.append(this.renderBuildManifest())
+
+    const archive = document.createElement('details')
+    archive.className = 'mothership-console-section'
+    archive.innerHTML = `<summary><span>Archive</span><b>${Object.keys(this.mothership.archive.records).length} records</b></summary>`
+    archive.append(this.renderArtifactsCollection())
+
+    consolePanel.append(workbench, manifest, archive)
+    return consolePanel
   }
 
   private mothershipStation(title: string, copy: string, actionLabel: string, action: () => void) {
@@ -6149,7 +6331,7 @@ class VectorShooter {
     p.textContent = next ? next.description : 'Department maxed.'
     const cost = document.createElement('span')
     cost.className = 'station-cost'
-    cost.textContent = next ? `S ${next.cost.scrap} // C ${next.cost.crystal} // K ${next.cost.cores}` : 'MAXED'
+    cost.textContent = next ? `Scrap ${next.cost.scrap} // Crystals ${next.cost.crystal} // Cores ${next.cost.cores}` : 'MAXED'
     const button = document.createElement('button')
     button.className = 'vector-button secondary'
     button.textContent = next ? 'Upgrade' : 'Online'

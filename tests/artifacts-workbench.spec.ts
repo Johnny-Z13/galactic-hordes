@@ -14,6 +14,21 @@ test('workbench exposes an artifacts collection tab', () => {
   expect(main).toContain('this.renderArtifactsCollection()')
 })
 
+test('mothership command integrates workbench manifest and archive as collapsible sections', () => {
+  const main = source()
+  const css = styles()
+
+  expect(main).toContain('private renderMothershipConsoleStack()')
+  expect(main).toContain("consolePanel.className = 'mothership-console-stack'")
+  expect(main).toContain("workbench.className = 'mothership-console-section'")
+  expect(main).toContain('<summary><span>Build Manifest</span><b>systems</b></summary>')
+  expect(main).toContain('<summary><span>Archive</span><b>${Object.keys(this.mothership.archive.records).length} records</b></summary>')
+  expect(main).not.toContain('private showMothershipConsole')
+  expect(css).toContain('font-family: "Rajdhani", "Oxanium"')
+  expect(css).toContain('.mothership-console-section[open]')
+  expect(css).toContain('clip-path: polygon(0 0, calc(100% - 16px) 0')
+})
+
 test('artifacts track relics aliens lore and planet finds with generated icons', () => {
   const main = source()
   const css = styles()
