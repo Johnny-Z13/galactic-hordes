@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import {
   applyRunRecovery,
   defaultMothershipState,
+  isMothershipDepartmentUnlocked,
   mergeArchiveRecords,
   mothershipDepartments,
   purchaseMothershipTier
@@ -14,6 +15,9 @@ test('starts with archive enabled and no persistent resources', () => {
   expect(state.departments.archive).toBe(1)
   expect(state.departments.scanner).toBe(0)
   expect(state.departments.workbench).toBe(0)
+  expect(state.departments.shipyard).toBe(0)
+  expect(state.departments.signalCore).toBe(0)
+  expect(state.departments.hangarCrew).toBe(0)
   expect(state.archive.records).toEqual({})
 })
 
@@ -46,6 +50,20 @@ test('beacon extraction keeps full resources and applies skipped beacon bonus', 
   expect(next.resources.scrap).toBe(125)
   expect(next.resources.crystal).toBe(25)
   expect(next.resources.cores).toBe(2)
+})
+
+test('signal core improves persistent extraction recovery', () => {
+  const state = defaultMothershipState()
+  state.departments.signalCore = 2
+  const next = applyRunRecovery(state, {
+    outcome: 'cleanExtraction',
+    resources: { scrap: 100, crystal: 50, cores: 0 },
+    archiveRecords: {},
+    skippedBeacons: 0
+  })
+
+  expect(next.resources.scrap).toBe(106)
+  expect(next.resources.crystal).toBe(53)
 })
 
 test('archive merge increments repeated discoveries without losing detail', () => {
@@ -85,4 +103,30 @@ test('department purchase fails cleanly when resources are short', () => {
   expect(result.ok).toBe(false)
   expect(result.reason).toBe('Not enough scrap.')
   expect(result.state.departments.workbench).toBe(0)
+})
+
+test('advanced departments stay locked until their core department is maxed', () => {
+  const state = defaultMothershipState()
+  state.resources = { scrap: 9999, crystal: 9999, cores: 9999 }
+
+  expect(isMothershipDepartmentUnlocked(state, 'shipyard')).toBe(false)
+
+  const locked = purchaseMothershipTier(state, 'shipyard')
+
+  expect(locked.ok).toBe(false)
+  expect(locked.reason).toContain('Workbench Bay 4/4')
+  expect(locked.state.departments.shipyard).toBe(0)
+})
+
+test('maxing a core department unlocks its advanced department', () => {
+  const state = defaultMothershipState()
+  state.departments.workbench = mothershipDepartments.workbench.tiers.length
+  state.resources = { scrap: 9999, crystal: 9999, cores: 9999 }
+
+  expect(isMothershipDepartmentUnlocked(state, 'shipyard')).toBe(true)
+
+  const result = purchaseMothershipTier(state, 'shipyard')
+
+  expect(result.ok).toBe(true)
+  expect(result.state.departments.shipyard).toBe(1)
 })

@@ -18,7 +18,9 @@ import { dashVector, touchActionLabel } from './mobile-controls'
 import {
   applyRunRecovery,
   defaultMothershipState,
+  isMothershipDepartmentUnlocked,
   mothershipDepartments,
+  mothershipDepartmentUnlockText,
   normalizeMothershipState,
   purchaseMothershipTier,
   type MothershipDepartmentId,
@@ -6253,9 +6255,9 @@ class VectorShooter {
       this.departmentStation('scanner'),
       this.departmentStation('workbench'),
       this.departmentStation('archive'),
-      this.lockedStation('Shipyard', 'Starting hull frames, launch loadouts, and scout prep. Planned for the next progression pass.'),
-      this.lockedStation('Signal Core', 'Deep signal decoding, beacon variants, and strange run modifiers. Planned.'),
-      this.lockedStation('Hangar Crew', 'Crew assignments that bend early-run economy and planet outcomes. Planned.')
+      this.departmentStation('shipyard'),
+      this.departmentStation('signalCore'),
+      this.departmentStation('hangarCrew')
     )
     shell.append(header, flight, systemsHeader, grid)
     this.ui.title.append(shell)
@@ -6323,19 +6325,20 @@ class VectorShooter {
     const definition = mothershipDepartments[id]
     const tier = this.mothership.departments[id]
     const next = definition.tiers[tier]
+    const unlocked = isMothershipDepartmentUnlocked(this.mothership, id)
     const card = document.createElement('div')
-    card.className = 'station-card'
+    card.className = `station-card ${unlocked ? '' : 'locked'}`.trim()
     const h = document.createElement('h2')
     h.textContent = `${definition.name} ${tier}/${definition.tiers.length}`
     const p = document.createElement('p')
-    p.textContent = next ? next.description : 'Department maxed.'
+    p.textContent = unlocked ? next ? next.description : 'Department maxed.' : definition.description
     const cost = document.createElement('span')
     cost.className = 'station-cost'
-    cost.textContent = next ? `Scrap ${next.cost.scrap} // Crystals ${next.cost.crystal} // Cores ${next.cost.cores}` : 'MAXED'
+    cost.textContent = unlocked ? next ? `Scrap ${next.cost.scrap} // Crystals ${next.cost.crystal} // Cores ${next.cost.cores}` : 'MAXED' : `Requires ${mothershipDepartmentUnlockText(id)}`
     const button = document.createElement('button')
     button.className = 'vector-button secondary'
-    button.textContent = next ? 'Upgrade' : 'Online'
-    button.disabled = !next
+    button.textContent = unlocked ? next ? 'Upgrade' : 'Online' : 'Offline'
+    button.disabled = !next || !unlocked
     button.addEventListener('click', () => this.buyMothershipDepartment(id))
     card.append(h, p, cost, button)
     return card
@@ -6588,6 +6591,10 @@ class VectorShooter {
 
   private reset() {
     this.player = this.makePlayer()
+    const shipyard = this.mothership.departments.shipyard
+    this.player.maxHull += shipyard * 12
+    this.player.hull = this.player.maxHull
+    this.player.speed += shipyard * 8
     this.bullets = []
     this.enemies = []
     this.enemyGrid.clear()
@@ -6613,7 +6620,12 @@ class VectorShooter {
     this.workbenchInstalling = false
     this.takeoffAfterWorkbench = false
     this.workbenchRerolls = this.mothership.departments.workbench >= 1 ? 1 : 0
-    this.resources = { scrap: 0, crystal: 0, cores: 0 }
+    const hangarCrew = this.mothership.departments.hangarCrew
+    this.resources = {
+      scrap: hangarCrew * 25,
+      crystal: hangarCrew >= 2 ? hangarCrew * 2 : 0,
+      cores: hangarCrew >= 4 ? 1 : 0
+    }
     this.relics.clear()
     this.evolved.clear()
     this.artifacts.clear()

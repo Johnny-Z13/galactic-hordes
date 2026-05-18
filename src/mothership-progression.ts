@@ -1,5 +1,5 @@
 export type PersistentResourceKey = 'scrap' | 'crystal' | 'cores'
-export type MothershipDepartmentId = 'scanner' | 'workbench' | 'archive'
+export type MothershipDepartmentId = 'scanner' | 'workbench' | 'archive' | 'shipyard' | 'signalCore' | 'hangarCrew'
 export type RunOutcomeKind = 'destroyed' | 'cleanExtraction' | 'deepExtraction'
 export type ArchiveKind = 'relic' | 'alien' | 'lore' | 'planet' | 'cache'
 
@@ -48,6 +48,10 @@ interface DepartmentDefinition {
   id: MothershipDepartmentId
   name: string
   description: string
+  unlock?: {
+    department: MothershipDepartmentId
+    tier: number
+  }
   tiers: DepartmentTier[]
 }
 
@@ -59,7 +63,10 @@ export const defaultMothershipState = (): MothershipState => ({
   departments: {
     scanner: 0,
     workbench: 0,
-    archive: 1
+    archive: 1,
+    shipyard: 0,
+    signalCore: 0,
+    hangarCrew: 0
   },
   archive: {
     records: {},
@@ -101,6 +108,42 @@ export const mothershipDepartments: Record<MothershipDepartmentId, DepartmentDef
       { name: 'Discovery Rewards', description: 'Archive milestones grant crystals and cores.', cost: { scrap: 340, crystal: 58, cores: 1 } },
       { name: 'Signal Decoding', description: 'Lore contributes to Signal Core fragments.', cost: { scrap: 520, crystal: 96, cores: 2 } }
     ]
+  },
+  shipyard: {
+    id: 'shipyard',
+    name: 'Shipyard',
+    description: 'Launch frames, hull prep, and scout handling upgrades.',
+    unlock: { department: 'workbench', tier: 4 },
+    tiers: [
+      { name: 'Reinforced Frame', description: 'Launch scouts with a stronger permanent hull frame.', cost: { scrap: 760, crystal: 86, cores: 2 } },
+      { name: 'Vector Thrusters', description: 'Improve launch handling and baseline scout speed.', cost: { scrap: 980, crystal: 124, cores: 3 } },
+      { name: 'Reserve Plating', description: 'Further improve hull integrity before every expedition.', cost: { scrap: 1240, crystal: 172, cores: 4 } },
+      { name: 'Elite Scout Frame', description: 'Maximize mothership-backed launch durability.', cost: { scrap: 1580, crystal: 230, cores: 5 } }
+    ]
+  },
+  signalCore: {
+    id: 'signalCore',
+    name: 'Signal Core',
+    description: 'Deep signal decoding, stronger extraction telemetry, and beacon analysis.',
+    unlock: { department: 'scanner', tier: 4 },
+    tiers: [
+      { name: 'Signal Triage', description: 'Recover a little more cargo from every completed extraction.', cost: { scrap: 720, crystal: 112, cores: 2 } },
+      { name: 'Beacon Memory', description: 'Improve deep extraction processing after skipped beacons.', cost: { scrap: 940, crystal: 152, cores: 3 } },
+      { name: 'Black Box Decode', description: 'Improve destroyed-run cargo reconstruction.', cost: { scrap: 1220, crystal: 198, cores: 4 } },
+      { name: 'Core Harmonics', description: 'Maximize persistent extraction signal processing.', cost: { scrap: 1560, crystal: 260, cores: 5 } }
+    ]
+  },
+  hangarCrew: {
+    id: 'hangarCrew',
+    name: 'Hangar Crew',
+    description: 'Crew assignments that improve launch cargo and planet-side preparation.',
+    unlock: { department: 'archive', tier: 4 },
+    tiers: [
+      { name: 'Salvage Crew', description: 'Start each expedition with a small scrap manifest.', cost: { scrap: 700, crystal: 104, cores: 2 } },
+      { name: 'Crystal Runners', description: 'Add starting crystal reserves to each expedition.', cost: { scrap: 920, crystal: 148, cores: 3 } },
+      { name: 'Dockside Scouts', description: 'Increase launch cargo and improve early economy.', cost: { scrap: 1180, crystal: 190, cores: 4 } },
+      { name: 'Core Handlers', description: 'Start elite expeditions with one prepared core.', cost: { scrap: 1500, crystal: 248, cores: 5 } }
+    ]
   }
 }
 
@@ -123,7 +166,10 @@ export const normalizeMothershipState = (value: unknown): MothershipState => {
     departments: {
       scanner: clampInt(input.departments?.scanner ?? 0),
       workbench: clampInt(input.departments?.workbench ?? 0),
-      archive: Math.max(1, clampInt(input.departments?.archive ?? 1))
+      archive: Math.max(1, clampInt(input.departments?.archive ?? 1)),
+      shipyard: clampInt(input.departments?.shipyard ?? 0),
+      signalCore: clampInt(input.departments?.signalCore ?? 0),
+      hangarCrew: clampInt(input.departments?.hangarCrew ?? 0)
     },
     archive: {
       records: input.archive?.records && typeof input.archive.records === 'object' ? input.archive.records : {},
@@ -149,14 +195,15 @@ export const mergeArchiveRecords = (
   return merged
 }
 
-const extractionMultiplier = (outcome: RunOutcomeKind, skippedBeacons: number) => {
-  if (outcome === 'destroyed') return 0.45
+const extractionMultiplier = (outcome: RunOutcomeKind, skippedBeacons: number, signalCore = 0) => {
+  if (outcome === 'destroyed') return 0.45 + signalCore * 0.015
   const skipBonus = Math.min(0.3, Math.max(0, skippedBeacons) * 0.1)
-  return outcome === 'deepExtraction' ? 1.05 + skipBonus : 1
+  const signalBonus = signalCore * 0.03
+  return outcome === 'deepExtraction' ? 1.05 + skipBonus + signalBonus : 1 + signalBonus
 }
 
 export const applyRunRecovery = (state: MothershipState, input: RunRecoveryInput): MothershipState => {
-  const multiplier = extractionMultiplier(input.outcome, input.skippedBeacons)
+  const multiplier = extractionMultiplier(input.outcome, input.skippedBeacons, state.departments.signalCore)
   const recovered = normalizeResources({
     scrap: input.resources.scrap * multiplier,
     crystal: input.resources.crystal * multiplier,
@@ -189,6 +236,18 @@ export const canAfford = (resources: ResourceBundle, cost: ResourceBundle) => (
   resources.scrap >= cost.scrap && resources.crystal >= cost.crystal && resources.cores >= cost.cores
 )
 
+export const isMothershipDepartmentUnlocked = (state: MothershipState, department: MothershipDepartmentId) => {
+  const unlock = mothershipDepartments[department].unlock
+  return !unlock || state.departments[unlock.department] >= unlock.tier
+}
+
+export const mothershipDepartmentUnlockText = (department: MothershipDepartmentId) => {
+  const unlock = mothershipDepartments[department].unlock
+  if (!unlock) return ''
+  const parent = mothershipDepartments[unlock.department]
+  return `${parent.name} ${unlock.tier}/${parent.tiers.length}`
+}
+
 const shortResource = (cost: ResourceBundle, resources: ResourceBundle) => {
   if (resources.scrap < cost.scrap) return 'Not enough scrap.'
   if (resources.crystal < cost.crystal) return 'Not enough crystals.'
@@ -198,6 +257,9 @@ const shortResource = (cost: ResourceBundle, resources: ResourceBundle) => {
 
 export const purchaseMothershipTier = (state: MothershipState, department: MothershipDepartmentId) => {
   const definition = mothershipDepartments[department]
+  if (!isMothershipDepartmentUnlocked(state, department)) {
+    return { ok: false as const, state, reason: `${definition.name} offline. Requires ${mothershipDepartmentUnlockText(department)}.` }
+  }
   const current = state.departments[department]
   const tier = definition.tiers[current]
   if (!tier || !canAfford(state.resources, tier.cost)) {
