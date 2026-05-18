@@ -18,6 +18,7 @@ import {
   worldToScreen as spaceWorldToScreen
 } from './space-camera'
 import { isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, type SpaceEnemyKind } from './space-enemies'
+import { SURFACE_PILOT_SIZE_SCALE, surfacePilotCollisionRadius, surfacePilotMuzzleOffset, surfacePilotSpawnKeepout, surfacePilotSpriteScale } from './surface-pilot'
 import { planSurfaceEncounter, rollPlanetArchetype, type PlanetArchetype, type SurfaceEventKind, type SurfaceScenarioKind } from './surface-encounters'
 import { surfaceThreatSpawnPoint } from './surface-spawn'
 import { dashVector, touchActionLabel } from './mobile-controls'
@@ -3266,7 +3267,7 @@ class VectorShooter {
 
   private surfaceThreatKeepouts(pilot: Vec, ship: Vec) {
     return [
-      { x: pilot.x, y: pilot.y, radius: 26 },
+      { x: pilot.x, y: pilot.y, radius: surfacePilotSpawnKeepout() },
       { x: ship.x, y: ship.y, radius: 34 }
     ]
   }
@@ -3618,7 +3619,7 @@ class VectorShooter {
       threat.vy *= Math.pow(0.16, dt)
       threat.x = clamp(threat.x + threat.vx * dt, 40, this.surface.width - 40)
       threat.y = clamp(threat.y + threat.vy * dt, 40, this.surface.height - 40)
-      const rr = threat.radius + 13
+      const rr = threat.radius + surfacePilotCollisionRadius()
       if ((threat.x - this.surface.pilot.x) ** 2 + (threat.y - this.surface.pilot.y) ** 2 < rr * rr && this.surface.pilot.invuln <= 0) {
         this.damagePlayer(threat.boss ? 16 : 9)
         this.burst(this.surface.pilot.x, this.surface.pilot.y, '#ff5d73', 10, 160)
@@ -3922,8 +3923,8 @@ class VectorShooter {
     this.surface.pilot.facing = angle
     this.surface.pilot.gunCd = this.surfaceGunCooldown()
     this.audio.fire('surface', 1)
-    const muzzleX = this.surface.pilot.x + Math.cos(angle) * 19
-    const muzzleY = this.surface.pilot.y + Math.sin(angle) * 19
+    const muzzleX = this.surface.pilot.x + Math.cos(angle) * surfacePilotMuzzleOffset()
+    const muzzleY = this.surface.pilot.y + Math.sin(angle) * surfacePilotMuzzleOffset()
     const speed = this.surfaceGunSpeed()
     this.surface.bullets.push({
       x: muzzleX,
@@ -4563,7 +4564,7 @@ class VectorShooter {
       const frame = moving ? Math.floor(this.stats.time * 11) % frameCount : 0
       const sw = sheet.naturalWidth / frameCount
       const sh = sheet.naturalHeight
-      const scale = s.pilot.invuln > 0 ? 0.45 : 0.42
+      const scale = surfacePilotSpriteScale(s.pilot.invuln > 0 ? 0.45 : 0.42)
       const dw = sw * scale
       const dh = sh * scale
       const flip = Math.cos(s.pilot.facing) < 0 ? -1 : 1
@@ -4589,6 +4590,7 @@ class VectorShooter {
     const gunKick = Math.max(0, s.pilot.gunCd) * 18
     ctx.save()
     ctx.translate(p.x, p.y)
+    ctx.scale(SURFACE_PILOT_SIZE_SCALE, SURFACE_PILOT_SIZE_SCALE)
     ctx.strokeStyle = s.pilot.invuln > 0 ? '#fff27a' : '#d7fff7'
     ctx.shadowColor = '#57fff3'
     ctx.shadowBlur = 10
