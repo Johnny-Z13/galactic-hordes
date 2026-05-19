@@ -53,6 +53,21 @@ test('mothership command integrates workbench manifest and collection tabs', () 
   expect(css).toContain('clip-path: polygon(0 0, calc(100% - 16px) 0')
 })
 
+test('desktop mothership console and health meters stack below launch controls', () => {
+  const main = source()
+  const css = styles()
+
+  expect(main).toContain("launchStack.className = 'mothership-launch-stack'")
+  expect(main).toContain("status.className = 'mothership-launch-meters'")
+  expect(main).toContain('shipBay.append(ship, launch, status)')
+  expect(main).toContain('launchStack.append(shipBay, consolePanel)')
+  expect(main).toContain('flight.append(launchStack)')
+  expect(css).toContain('.mothership-launch-stack')
+  expect(css).toContain('grid-template-columns: minmax(0, 920px)')
+  expect(css).toContain('.mothership-launch-meters')
+  expect(css).toContain('max-height: none')
+})
+
 test('mothership department upgrades preserve command scroll position', () => {
   const main = source()
 

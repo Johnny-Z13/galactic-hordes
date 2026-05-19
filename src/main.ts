@@ -6466,7 +6466,7 @@ class VectorShooter {
     const flight = document.createElement('section')
     flight.className = 'mothership-flight'
     const status = document.createElement('div')
-    status.className = 'mothership-status-stack'
+    status.className = 'mothership-launch-meters'
     const hullPct = clamp(Math.max(0, this.player.hull) / Math.max(1, this.player.maxHull), 0, 1)
     const xpPct = clamp(this.stats.xp / Math.max(1, this.stats.nextXp), 0, 1)
     status.append(
@@ -6484,9 +6484,12 @@ class VectorShooter {
     launch.className = 'vector-button start-button mothership-launch'
     launch.textContent = 'Launch Expedition'
     launch.addEventListener('click', () => this.start())
-    shipBay.append(ship, launch)
+    shipBay.append(ship, launch, status)
     const consolePanel = this.renderMothershipConsoleStack()
-    flight.append(status, shipBay, consolePanel)
+    const launchStack = document.createElement('div')
+    launchStack.className = 'mothership-launch-stack'
+    launchStack.append(shipBay, consolePanel)
+    flight.append(launchStack)
 
     const systemsHeader = document.createElement('div')
     systemsHeader.className = 'mothership-section-title'
