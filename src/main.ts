@@ -53,6 +53,15 @@ import {
   worldToScreen as spaceWorldToScreen
 } from './space-camera'
 import { isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, type SpaceEnemyKind } from './space-enemies'
+import {
+  chooseSpaceEncounter,
+  derelictCacheSignal,
+  hunterWingFormation,
+  meteorFrontAsteroids,
+  nextSpaceEncounterTime,
+  type MeteorAsteroidPlan,
+  type SpaceEncounterKind
+} from './space-encounters'
 import { SURFACE_PILOT_SIZE_SCALE, surfacePilotCollisionRadius, surfacePilotMuzzleOffset, surfacePilotSpawnKeepout, surfacePilotSpriteScale } from './surface-pilot'
 import { planSurfaceEncounter, rollPlanetArchetype, type PlanetArchetype, type SurfaceEventKind, type SurfaceScenarioKind } from './surface-encounters'
 import { surfaceThreatSpawnPoint } from './surface-spawn'
@@ -312,6 +321,18 @@ interface ReturnBeacon {
   age: number
   reminded: boolean
   assistTriggered: boolean
+}
+
+interface SpaceHazardAsteroid extends MeteorAsteroidPlan {
+  phase: number
+  hitCooldown: number
+}
+
+interface DerelictSignal {
+  x: number
+  y: number
+  phase: number
+  life: number
 }
 
 type WorkbenchChoice =
@@ -766,6 +787,7 @@ class VectorShooter {
   private spawnTimer = 0
   private bossTimer = 75
   private chestTimer = 30
+  private nextSpaceEncounterAt = nextSpaceEncounterTime(0)
   private chunks = new Map<string, SpaceChunk>()
   private stars: Vec[] = []
   private activeChunkKey = ''
@@ -788,6 +810,8 @@ class VectorShooter {
   private pickups: Pickup[] = []
   private particles: Particle[] = []
   private shockwaves: Shockwave[] = []
+  private spaceHazards: SpaceHazardAsteroid[] = []
+  private derelictSignals: DerelictSignal[] = []
   private planets: Planet[] = []
   private visitedPlanets = new Set<string>()
 
@@ -1283,6 +1307,7 @@ class VectorShooter {
     this.updatePlayer(dt)
     this.updateBullets(dt)
     this.updateEnemies(dt)
+    this.updateSpaceEncounters(dt)
     this.updatePickups(dt)
     this.updateParticles(dt)
     this.updateOrbitals(dt)
@@ -2375,6 +2400,102 @@ class VectorShooter {
     }
   }
 
+  private updateSpaceEncounters(dt: number) {
+    if (this.stats.time >= this.nextSpaceEncounterAt) {
+      const kind = chooseSpaceEncounter({
+        time: this.stats.time,
+        planetsVisited: this.stats.planets,
+        nearbyPlanetArchetype: this.nearbyPlanetArchetype()
+      })
+      this.triggerSpaceEncounter(kind)
+      this.nextSpaceEncounterAt = nextSpaceEncounterTime(this.stats.time)
+    }
+
+    for (let i = this.spaceHazards.length - 1; i >= 0; i -= 1) {
+      const hazard = this.spaceHazards[i]
+      hazard.life -= dt
+      hazard.phase += hazard.spin * dt
+      hazard.hitCooldown -= dt
+      hazard.x += hazard.vx * dt
+      hazard.y += hazard.vy * dt
+      if (hazard.life <= 0 || Math.abs(hazard.x - this.player.x) > 2600 || Math.abs(hazard.y - this.player.y) > 2600) {
+        this.spaceHazards.splice(i, 1)
+        continue
+      }
+
+      if (dist2(hazard, this.player) < (hazard.radius + this.player.radius) ** 2 && hazard.hitCooldown <= 0) {
+        hazard.hitCooldown = 0.72
+        this.damagePlayer(18)
+        this.camera.shake = Math.max(this.camera.shake, 14)
+        this.burst(hazard.x, hazard.y, '#fff27a', 10, 170)
+      }
+
+      for (const enemy of this.enemies) {
+        if (enemy.hp <= 0) continue
+        if (dist2(hazard, enemy) < (hazard.radius + enemy.radius) ** 2) {
+          this.damageEnemy(enemy, 54 * dt, '#fff27a')
+          enemy.vx += hazard.vx * 0.18 * dt
+          enemy.vy += hazard.vy * 0.18 * dt
+        }
+      }
+    }
+
+    for (let i = this.derelictSignals.length - 1; i >= 0; i -= 1) {
+      const signal = this.derelictSignals[i]
+      signal.life -= dt
+      signal.phase += dt
+      if (signal.life <= 0) this.derelictSignals.splice(i, 1)
+    }
+  }
+
+  private triggerSpaceEncounter(kind: SpaceEncounterKind) {
+    if (kind === 'meteorFront') {
+      this.spaceHazards.push(...meteorFrontAsteroids({ player: this.player }).map((hazard) => ({
+        ...hazard,
+        phase: Math.random() * TAU,
+        hitCooldown: 0
+      })))
+      this.toast('METEOR FRONT CROSSING')
+      this.audio.pickup('nav')
+      return
+    }
+
+    if (kind === 'hunterWing') {
+      for (const point of hunterWingFormation({ player: this.player })) {
+        if (this.enemies.length >= MAX_ENEMIES) break
+        this.spawnEnemyAt(point.kind, point.x, point.y)
+      }
+      this.toast('HUNTER WING VECTORING IN')
+      this.audio.level()
+      return
+    }
+
+    const signal = derelictCacheSignal({ player: this.player })
+    this.derelictSignals.push({ x: signal.x, y: signal.y, phase: 0, life: 34 })
+    if (this.pickups.length >= MAX_PICKUPS) this.pickups.shift()
+    this.pickups.push({ kind: signal.pickupKind, x: signal.x, y: signal.y, vx: 0, vy: 0, value: 1, radius: 18, life: 34, color: '#fff27a' })
+    for (const [index, guardian] of signal.guardians.entries()) {
+      if (this.enemies.length >= MAX_ENEMIES) break
+      const angle = (index / signal.guardians.length) * TAU
+      this.spawnEnemyAt(guardian, signal.x + Math.cos(angle) * 155, signal.y + Math.sin(angle) * 155)
+    }
+    this.toast('DERELICT CACHE BROADCASTING OFF ROUTE')
+    this.audio.pickup('chest')
+  }
+
+  private nearbyPlanetArchetype(): PlanetArchetype | undefined {
+    let best: Planet | null = null
+    let bestD = 1500 * 1500
+    for (const planet of this.planets) {
+      const d = dist2(planet, this.player)
+      if (d < bestD) {
+        bestD = d
+        best = planet
+      }
+    }
+    return best?.archetype
+  }
+
   private recycleDistantEnemies() {
     for (let i = this.enemies.length - 1; i >= 0; i -= 1) {
       if (shouldRecycleEnemy(this.enemies[i], this.player, ENEMY_RECYCLE_RADIUS)) this.enemies.splice(i, 1)
@@ -2414,14 +2535,19 @@ class VectorShooter {
   private spawnEnemy(kind: EnemyKind) {
     if (this.enemies.length >= MAX_ENEMIES) return
     const p = spaceEnemySpawnPoint(kind, this.player, 620, 980)
+    this.spawnEnemyAt(kind, p.x, p.y)
+  }
+
+  private spawnEnemyAt(kind: EnemyKind, x: number, y: number) {
+    if (this.enemies.length >= MAX_ENEMIES) return
     const scale = spaceEnemyRunScale(this.stats.time, this.stats.planets)
     const base = balancedSpaceEnemyDefinition(kind)
     this.recordEnemyDiscovery(`enemy:space:${kind}`, `${this.enemyDisplayName(kind)} Vector`, `Encountered in open space after ${formatTime(this.stats.time)}.`, 'Space horde telemetry', base.color)
     this.enemies.push({
       id: this.enemyId++,
       kind,
-      x: p.x,
-      y: p.y,
+      x,
+      y,
       vx: 0,
       vy: 0,
       hp: base.hp * scale,
@@ -3957,6 +4083,8 @@ class VectorShooter {
     this.mini.style.display = this.state === 'dying' ? 'none' : ''
     this.renderBackground(ctx)
     this.renderPlanets(ctx)
+    this.renderSpaceHazards(ctx)
+    this.renderDerelictSignals(ctx)
     this.renderReturnBeacon(ctx)
     this.renderPickups(ctx)
     this.renderBullets(ctx)
@@ -4821,6 +4949,115 @@ class VectorShooter {
       ctx.fillText(p.name, s.x, s.y + radius + 24 * scale)
       ctx.restore()
     }
+  }
+
+  private renderSpaceHazards(ctx: CanvasRenderingContext2D) {
+    if (!this.spaceHazards.length) return
+    const scale = this.spaceScale()
+    ctx.save()
+    ctx.lineJoin = 'round'
+    for (const hazard of this.spaceHazards) {
+      const p = this.worldToScreen(hazard.x, hazard.y)
+      const radius = hazard.radius * scale
+      if (p.x < -radius - 80 || p.x > this.width + radius + 80 || p.y < -radius - 80 || p.y > this.height + radius + 80) continue
+      const points = 10
+      ctx.save()
+      ctx.translate(p.x, p.y)
+      ctx.rotate(hazard.phase)
+      ctx.shadowColor = '#fff27a'
+      ctx.shadowBlur = this.allowGlow() ? 18 : 4
+      ctx.strokeStyle = 'rgba(255,242,122,0.82)'
+      ctx.fillStyle = 'rgba(88,62,38,0.42)'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      for (let i = 0; i < points; i += 1) {
+        const a = (i / points) * TAU
+        const wobble = 0.82 + ((hash32(Math.floor(hazard.x), Math.floor(hazard.y), i) % 34) / 100)
+        const x = Math.cos(a) * radius * wobble
+        const y = Math.sin(a) * radius * wobble
+        if (i === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      }
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+      ctx.globalAlpha = 0.34
+      ctx.beginPath()
+      ctx.arc(0, 0, radius * 1.28, 0, TAU)
+      ctx.stroke()
+      ctx.restore()
+    }
+    ctx.restore()
+  }
+
+  private renderDerelictSignals(ctx: CanvasRenderingContext2D) {
+    if (!this.derelictSignals.length) return
+    const scale = this.spaceScale()
+    ctx.save()
+    for (const signal of this.derelictSignals) {
+      const p = this.worldToScreen(signal.x, signal.y)
+      if (p.x < 34 || p.x > this.width - 34 || p.y < 92 || p.y > this.height - 34) {
+        const edge = {
+          x: clamp(p.x, 34, this.width - 34),
+          y: clamp(p.y, 92, this.height - 34)
+        }
+        const angle = Math.atan2(p.y - this.height / 2, p.x - this.width / 2)
+        ctx.save()
+        ctx.translate(edge.x, edge.y)
+        ctx.rotate(angle)
+        ctx.strokeStyle = '#fff27a'
+        ctx.fillStyle = 'rgba(255,242,122,0.2)'
+        ctx.shadowColor = '#fff27a'
+        ctx.shadowBlur = this.allowGlow() ? 14 : 0
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(18, 0)
+        ctx.lineTo(-10, -10)
+        ctx.lineTo(-4, 0)
+        ctx.lineTo(-10, 10)
+        ctx.closePath()
+        ctx.fill()
+        ctx.stroke()
+        ctx.restore()
+        ctx.save()
+        ctx.fillStyle = '#fff27a'
+        ctx.font = '12px Courier New'
+        ctx.textAlign = edge.x > this.width - 140 ? 'right' : edge.x < 140 ? 'left' : 'center'
+        ctx.fillText('DERELICT', clamp(edge.x, 62, this.width - 62), clamp(edge.y - 18, 92, this.height - 48))
+        ctx.restore()
+        continue
+      }
+      const pulse = 1 + Math.sin(signal.phase * 5) * 0.08
+      ctx.save()
+      ctx.translate(p.x, p.y)
+      ctx.rotate(signal.phase * 0.45)
+      ctx.strokeStyle = '#fff27a'
+      ctx.fillStyle = 'rgba(255,242,122,0.1)'
+      ctx.shadowColor = '#fff27a'
+      ctx.shadowBlur = this.allowGlow() ? 22 : 6
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.rect(-34 * scale * pulse, -18 * scale * pulse, 68 * scale * pulse, 36 * scale * pulse)
+      ctx.moveTo(-46 * scale * pulse, 0)
+      ctx.lineTo(-70 * scale * pulse, -16 * scale * pulse)
+      ctx.moveTo(46 * scale * pulse, 0)
+      ctx.lineTo(70 * scale * pulse, 16 * scale * pulse)
+      ctx.fill()
+      ctx.stroke()
+      ctx.setLineDash([7, 7])
+      ctx.beginPath()
+      ctx.arc(0, 0, 96 * scale, 0, TAU)
+      ctx.stroke()
+      ctx.restore()
+
+      ctx.save()
+      ctx.fillStyle = '#fff27a'
+      ctx.font = '12px Courier New'
+      ctx.textAlign = 'center'
+      ctx.fillText('DERELICT CACHE', p.x, p.y - 78 * scale)
+      ctx.restore()
+    }
+    ctx.restore()
   }
 
   private renderReturnBeacon(ctx: CanvasRenderingContext2D) {
@@ -6890,6 +7127,8 @@ class VectorShooter {
     this.pickups = []
     this.particles = []
     this.shockwaves = []
+    this.spaceHazards = []
+    this.derelictSignals = []
     this.chunks.clear()
     this.stars = []
     this.planets = []
@@ -6924,6 +7163,7 @@ class VectorShooter {
     this.spawnTimer = 0.4
     this.bossTimer = 75
     this.chestTimer = 28
+    this.nextSpaceEncounterAt = nextSpaceEncounterTime(0)
     this.scoreSaved = false
     const target = cameraTargetFor(this.player, this.width, this.height, this.spaceScale())
     this.camera.x = target.x
