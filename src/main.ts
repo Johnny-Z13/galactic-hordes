@@ -6495,7 +6495,7 @@ class VectorShooter {
     systemsHeader.className = 'mothership-section-title'
     systemsHeader.innerHTML = '<h2>Meta Systems</h2><span>Permanent upgrades bought with recovered cargo</span>'
     const grid = document.createElement('section')
-    grid.className = 'station-grid'
+    grid.className = 'station-grid permanent-upgrades-window'
     grid.append(
       this.departmentStation('scanner'),
       this.departmentStation('workbench'),
@@ -6597,14 +6597,29 @@ class VectorShooter {
   private departmentStation(id: MothershipDepartmentId) {
     const definition = mothershipDepartments[id]
     const tier = this.mothership.departments[id]
+    const maxTier = definition.tiers.length
+    const tierPct = clamp(tier / Math.max(1, maxTier), 0, 1)
     const next = definition.tiers[tier]
     const unlocked = isMothershipDepartmentUnlocked(this.mothership, id)
     const card = document.createElement('div')
     card.className = `station-card ${unlocked ? '' : 'locked'}`.trim()
+    const header = document.createElement('div')
+    header.className = 'station-card-header'
     const h = document.createElement('h2')
-    h.textContent = `${definition.name} ${tier}/${definition.tiers.length}`
+    h.textContent = definition.name
+    const tierLabel = document.createElement('span')
+    tierLabel.className = 'station-tier-label'
+    tierLabel.textContent = `Tier ${tier}/${maxTier}`
+    header.append(h, tierLabel)
     const p = document.createElement('p')
     p.textContent = unlocked ? next ? next.description : 'Department maxed.' : definition.description
+    const meter = document.createElement('div')
+    meter.className = 'station-tier-meter'
+    meter.setAttribute('aria-label', `${definition.name} tier ${tier} of ${maxTier}`)
+    const fill = document.createElement('i')
+    fill.className = 'station-tier-fill'
+    fill.style.width = `${tierPct * 100}%`
+    meter.append(fill)
     const cost = document.createElement('span')
     cost.className = 'station-cost'
     cost.textContent = unlocked ? next ? `Scrap ${next.cost.scrap} // Crystals ${next.cost.crystal} // Cores ${next.cost.cores}` : 'MAXED' : `Requires ${mothershipDepartmentUnlockText(id)}`
@@ -6613,7 +6628,7 @@ class VectorShooter {
     button.textContent = unlocked ? next ? 'Upgrade' : 'Online' : 'Offline'
     button.disabled = !next || !unlocked
     button.addEventListener('click', () => this.buyMothershipDepartment(id))
-    card.append(h, p, cost, button)
+    card.append(header, p, meter, cost, button)
     return card
   }
 

@@ -734,21 +734,47 @@ canvas {
 
 .station-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: 1fr;
+}
+
+.permanent-upgrades-window {
+  gap: 0;
+  padding: 10px;
+  border: 1px solid rgba(87, 255, 243, 0.28);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(87, 255, 243, 0.04) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(6, 17, 25, 0.86), rgba(2, 7, 12, 0.82));
+  background-size: 18px 100%, auto;
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  box-shadow: inset 0 1px 0 rgba(215, 255, 247, 0.08), 0 0 26px rgba(87, 255, 243, 0.07);
 }
 
 .station-card {
-  border: 1px solid rgba(87, 255, 243, 0.26);
-  background: linear-gradient(180deg, rgba(10, 24, 34, 0.92), rgba(4, 10, 18, 0.88));
-  min-height: 198px;
-  padding: 14px;
+  min-height: 0;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 0.36fr) minmax(132px, auto);
+  grid-template-areas:
+    "head meter action"
+    "copy cost action";
+  align-items: center;
+  gap: 8px 14px;
+  border-bottom: 1px solid rgba(87, 255, 243, 0.16);
+  background: linear-gradient(90deg, rgba(10, 24, 34, 0.62), rgba(4, 10, 18, 0.36));
+}
+
+.station-card:last-child {
+  border-bottom: 0;
+}
+
+.station-card-header {
+  grid-area: head;
+  min-width: 0;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  border-radius: 8px;
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
-  box-shadow: inset 0 1px 0 rgba(215, 255, 247, 0.08), 0 0 22px rgba(87, 255, 243, 0.06);
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .station-card h2 {
@@ -757,11 +783,39 @@ canvas {
   font-size: 16px;
 }
 
+.station-tier-label {
+  color: var(--yellow);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .station-card p {
+  grid-area: copy;
   margin: 0;
   color: rgba(215, 255, 247, 0.76);
   line-height: 1.35;
-  flex: 1;
+}
+
+.station-tier-meter {
+  grid-area: meter;
+  position: relative;
+  height: 12px;
+  border: 1px solid rgba(87, 255, 243, 0.52);
+  border-radius: 999px;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 23%, rgba(215, 255, 247, 0.16) 23% 25%),
+    rgba(87, 255, 243, 0.08);
+}
+
+.station-tier-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--cyan), var(--green), var(--yellow));
+  box-shadow: 0 0 14px rgba(87, 255, 243, 0.42);
 }
 
 .station-actions {
@@ -771,16 +825,22 @@ canvas {
 }
 
 .station-card.locked {
-  border-color: rgba(185, 144, 255, 0.24);
-  background: linear-gradient(180deg, rgba(18, 13, 28, 0.72), rgba(5, 7, 14, 0.84));
+  background: linear-gradient(90deg, rgba(18, 13, 28, 0.66), rgba(5, 7, 14, 0.42));
   opacity: 0.72;
 }
 
-.station-card.locked span,
+.station-card.locked > span,
 .station-cost {
+  grid-area: cost;
   color: var(--yellow);
   font-size: 12px;
   text-transform: uppercase;
+}
+
+.station-card > .vector-button {
+  grid-area: action;
+  min-width: 118px;
+  justify-self: end;
 }
 
 .debrief-panel {
@@ -2389,6 +2449,21 @@ button.manifest-chip:disabled {
   .station-grid,
   .debrief-grid {
     grid-template-columns: 1fr;
+  }
+
+  .station-card {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "head"
+      "copy"
+      "meter"
+      "cost"
+      "action";
+  }
+
+  .station-card > .vector-button {
+    width: 100%;
+    justify-self: stretch;
   }
 
   .touch-controls.visible {

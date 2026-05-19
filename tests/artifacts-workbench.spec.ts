@@ -68,6 +68,20 @@ test('desktop mothership console and health meters stack below launch controls',
   expect(css).toContain('max-height: none')
 })
 
+test('mothership permanent upgrades render as one vertical window with tier meters', () => {
+  const main = source()
+  const css = styles()
+
+  expect(main).toContain("grid.className = 'station-grid permanent-upgrades-window'")
+  expect(main).toContain("meter.className = 'station-tier-meter'")
+  expect(main).toContain("fill.className = 'station-tier-fill'")
+  expect(main).toContain("fill.style.width = `${tierPct * 100}%`")
+  expect(main).toContain('card.append(header, p, meter, cost, button)')
+  expect(css).toContain('.permanent-upgrades-window')
+  expect(css).toContain('grid-template-columns: minmax(0, 1fr) minmax(160px, 0.36fr) minmax(132px, auto)')
+  expect(css).toContain('.station-tier-fill')
+})
+
 test('mothership department upgrades preserve command scroll position', () => {
   const main = source()
 
