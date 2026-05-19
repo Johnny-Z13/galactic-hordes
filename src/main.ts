@@ -3540,7 +3540,7 @@ class VectorShooter {
     this.surface.pilot.vy = 0
     this.ui.planet.innerHTML = ''
     const panel = document.createElement('div')
-    panel.className = 'panel'
+    panel.className = 'panel planet-panel'
     const h = document.createElement('h1')
     h.className = 'title'
     h.textContent = site.title
@@ -3573,7 +3573,7 @@ class VectorShooter {
     this.surface.pilot.vy = 0
     this.ui.planet.innerHTML = ''
     const panel = document.createElement('div')
-    panel.className = 'panel'
+    panel.className = 'panel planet-panel'
     const h = document.createElement('h1')
     h.className = 'title'
     h.textContent = alien.name
@@ -6367,7 +6367,7 @@ class VectorShooter {
   private renderPlanet(p: Planet) {
     this.ui.planet.innerHTML = ''
     const panel = document.createElement('div')
-    panel.className = 'panel'
+    panel.className = 'panel planet-panel'
     const h = document.createElement('h1')
     h.className = 'title'
     h.textContent = p.name

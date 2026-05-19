@@ -1021,6 +1021,21 @@ canvas {
   touch-action: pan-y;
 }
 
+.planet-panel {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.planet-panel .copy {
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.planet-panel .button-row {
+  justify-content: center;
+}
+
 .workbench-panel {
   height: min(760px, calc(100vh - 54px));
   max-height: calc(100vh - 54px);
