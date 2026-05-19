@@ -221,3 +221,18 @@ test('mobile workbench install manifest uses full width touch targets', () => {
   expect(css).toContain('touch-action: manipulation')
   expect(css).toContain('overflow: visible')
 })
+
+test('workbench card selection does not shift card layout or shake the camera', () => {
+  const main = source()
+  const css = styles()
+  const beginInstall = main.slice(main.indexOf('private beginWorkbenchInstall'), main.indexOf('private installCueFor'))
+  const applyUpgrade = main.slice(main.indexOf('private applyUpgrade'), main.indexOf('private applyEvolution'))
+  const applyEvolution = main.slice(main.indexOf('private applyEvolution'), main.indexOf('private acquireRelic'))
+
+  expect(css).toContain('.manifest-chip.selected {')
+  expect(css).toContain('transform: none')
+  expect(css).toContain('animation: install-flash')
+  expect(beginInstall).not.toContain('this.camera.shake')
+  expect(applyUpgrade).not.toContain('this.camera.shake')
+  expect(applyEvolution).not.toContain('this.camera.shake')
+})

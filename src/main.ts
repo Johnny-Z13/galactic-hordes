@@ -579,6 +579,24 @@ class AudioDirector {
     if (rare) this.noise(0.1, 0.08, -17, { filter: cue === 'relic' ? 920 : 1700, type: 'bandpass' })
   }
 
+  upgrade(cue: AudioUpgradeCue, rare = false) {
+    const root = {
+      weapons: 640,
+      navigation: 820,
+      survival: 460,
+      economy: 920,
+      planetcraft: 560,
+      spacesuit: 700,
+      control: 740,
+      evolution: 380,
+      relic: 320,
+      limit: 980
+    }[cue]
+    this.tone(root, 0.06, 'triangle', 0.04, 0.006, rare ? -10 : -14, { filter: 2600, bend: 48 })
+    setTimeout(() => this.tone(root * 1.62, 0.09, 'sine', 0.036, 0.006, rare ? -10 : -15, { filter: 3600, bend: rare ? 86 : 38 }), 48)
+    if (rare) setTimeout(() => this.tone(root * 2.12, 0.12, 'square', 0.026, 0.008, -15, { filter: 4200 }), 112)
+  }
+
   boom(kind: ExplosionSoundKind = 'small') {
     const big = kind === 'heavy' || kind === 'gameover'
     const surface = kind === 'surface'
@@ -2840,6 +2858,8 @@ class VectorShooter {
       this.openLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
       return
     }
+    const rare = choice.kind !== 'upgrade' || choice.upgrade.rarity < workbenchBalance.rareInstallRarityThreshold
+    this.audio.upgrade(this.installCueFor(choice), rare)
     if (choice.kind === 'upgrade') this.applyUpgrade(choice.upgrade)
     else if (choice.kind === 'evolution') this.applyEvolution(choice.evolution)
     else if (choice.kind === 'relic') this.acquireRelic(choice.relic, 'WORKBENCH RELIC INSTALLED')
@@ -2888,7 +2908,6 @@ class VectorShooter {
       this.surface.pilot.oxygen = this.surface.pilot.maxOxygen
     }
     if (upgrade.id === 'magnet') this.stats.score += powerupBalance.upgradeApply.magnetInstallScore
-    this.camera.shake = Math.max(this.camera.shake, upgrade.category === 'weapon' ? 7 : 5)
     const anchor = this.fxAnchor()
     const color = this.upgradeFxColor(upgrade)
     this.upgradeSurge(anchor.x, anchor.y, color, upgrade.category === 'weapon' ? '#ffffff' : '#d7fff7', upgrade.category === 'weapon' ? 1.1 : 0.92)
@@ -2898,7 +2917,6 @@ class VectorShooter {
   private applyEvolution(evolution: Evolution) {
     this.evolved.add(evolution.weapon)
     this.audio.level()
-    this.camera.shake = Math.max(this.camera.shake, 12)
     const anchor = this.fxAnchor()
     this.upgradeSurge(anchor.x, anchor.y, '#fff27a', '#ffffff', 1.75)
     this.toast(`${evolution.name.toUpperCase()} EVOLVED`)
@@ -6080,7 +6098,6 @@ class VectorShooter {
     this.workbenchInstalling = true
     const rare = choice.kind !== 'upgrade' || choice.upgrade.rarity < workbenchBalance.rareInstallRarityThreshold
     this.audio.install(this.installCueFor(choice), rare)
-    this.camera.shake = Math.max(this.camera.shake, rare ? 10 : 6)
     const color = choice.kind === 'evolution' || choice.kind === 'relic' ? '#fff27a' : choice.kind === 'limit' ? '#70a8ff' : this.upgradeFxColor(choice.upgrade)
     button.style.setProperty('--install-color', color)
     const anchor = this.surface?.ship ?? this.player

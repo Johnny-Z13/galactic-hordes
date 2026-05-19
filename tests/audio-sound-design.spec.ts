@@ -20,6 +20,7 @@ test('gameplay events route to specialized audio cues', () => {
   expect(main).toContain('this.audio.fire(this.weaponSoundKind')
   expect(main).toContain("this.audio.fire('surface'")
   expect(main).toContain('this.audio.install(this.installCueFor(choice), rare)')
+  expect(main).toContain('this.audio.upgrade(this.installCueFor(choice),')
   expect(main).toContain('this.audio.planetSignal(planet.archetype)')
   expect(main).toContain('this.audio.boom(big ? ')
 })

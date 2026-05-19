@@ -1344,8 +1344,7 @@ button.manifest-chip:focus-visible,
   opacity: 0.48;
 }
 
-.choice.selected,
-.manifest-chip.selected {
+.choice.selected {
   opacity: 1;
   transform: scale(1.035);
   border-color: var(--install-color);
@@ -1356,6 +1355,19 @@ button.manifest-chip:focus-visible,
     0 0 42px color-mix(in srgb, var(--install-color) 54%, transparent),
     inset 0 0 38px color-mix(in srgb, var(--install-color) 22%, transparent);
   animation: install-pop 680ms cubic-bezier(.2, .9, .1, 1) both;
+}
+
+.manifest-chip.selected {
+  opacity: 1;
+  transform: none;
+  border-color: var(--install-color);
+  background:
+    radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--install-color) 22%, transparent), transparent 34%),
+    linear-gradient(180deg, rgba(4, 24, 22, 0.92), rgba(1, 8, 10, 0.86));
+  box-shadow:
+    0 0 42px color-mix(in srgb, var(--install-color) 54%, transparent),
+    inset 0 0 38px color-mix(in srgb, var(--install-color) 22%, transparent);
+  animation: install-flash 680ms cubic-bezier(.2, .9, .1, 1) both;
 }
 
 .choice.selected::before,
@@ -2076,6 +2088,12 @@ button.manifest-chip:disabled {
   0% { transform: scale(1); filter: brightness(1); }
   34% { transform: scale(1.07); filter: brightness(1.58) saturate(1.18); }
   100% { transform: scale(1.02); filter: brightness(1.15); }
+}
+
+@keyframes install-flash {
+  0% { filter: brightness(1); }
+  34% { filter: brightness(1.58) saturate(1.18); }
+  100% { filter: brightness(1.15); }
 }
 
 @keyframes install-sweep {
