@@ -16,7 +16,7 @@ test('shipboard workbench keeps discoveries in the mothership collection', () =>
   expect(main).toContain("this.mothershipConsoleTab('Collection'")
 })
 
-test('shipboard workbench shows clickable offers before maxed and locked context', () => {
+test('shipboard workbench shows clickable offers in a fixed system manifest', () => {
   const main = source()
   const css = styles()
 
@@ -24,16 +24,19 @@ test('shipboard workbench shows clickable offers before maxed and locked context
   expect(main).not.toContain("upgradesTab.textContent = 'Upgrades'")
   expect(main).not.toContain("manifestTab.textContent = 'Manifest'")
   expect(main).toContain("view.append(this.renderWorkbenchInstallSurface())")
-  expect(main).toContain("offerGrid.className = 'manifest-grid workbench-offers'")
-  expect(main).toContain("maxedGrid.className = 'manifest-grid workbench-maxed'")
-  expect(main).toContain("lockedGrid.className = 'manifest-grid workbench-locked'")
-  expect(main).toContain('workbenchLockedUpgrades(upgrades, this.build)')
+  expect(main).toContain('workbenchUpgradeRows(upgrades, this.build')
+  expect(main).toContain("systemGrid.className = 'manifest-grid workbench-offers workbench-systems'")
+  expect(main).toContain("this.workbenchSectionLabel('SYSTEM BAY')")
+  expect(main).toContain("row.status === 'maxed'")
+  expect(main).toContain("row.status === 'locked'")
+  expect(main).toContain("this.renderWorkbenchContextChip(row.upgrade, 'STANDBY'")
   expect(main).toContain('workbench-install-choice')
   expect(main).toContain('this.beginWorkbenchInstall(choice, chip)')
   expect(main).not.toContain('button.disabled = !available')
   expect(css).toContain('.workbench-section-label')
   expect(css).toContain('.manifest-chip.available')
   expect(css).toContain('.manifest-chip.future')
+  expect(css).toContain('.manifest-chip.standby')
   expect(css).toContain('.manifest-chip.selected')
 })
 
@@ -66,12 +69,15 @@ test('desktop mothership console and health meters stack below launch controls',
   expect(main).toContain("launchStack.className = 'mothership-launch-stack'")
   expect(main).toContain("status.className = 'mothership-launch-meters'")
   expect(main).toContain('shipBay.append(ship, launch, status)')
-  expect(main).toContain('launchStack.append(shipBay, consolePanel)')
+  expect(main).toContain('launchStack.append(shipBay)')
+  expect(main).toContain('if (firstCommand) {')
+  expect(main).toContain('this.renderFirstMothershipBriefing()')
   expect(main).toContain('flight.append(launchStack)')
   expect(css).toContain('.mothership-launch-stack')
   expect(css).toContain('grid-template-columns: minmax(0, 920px)')
   expect(css).toContain('.mothership-launch-meters')
   expect(css).toContain('max-height: none')
+  expect(css).toContain('.mothership-first-briefing')
 })
 
 test('mothership permanent upgrades render as one vertical window with tier meters', () => {
@@ -130,6 +136,7 @@ test('collection catalog only contains real discoverable game records', () => {
   expect(collectionCatalog.some((entry) => entry.id === 'enemy:space:chaser')).toBe(true)
   expect(collectionCatalog.some((entry) => entry.id === 'enemy:surface:oracle')).toBe(true)
   expect(collectionCatalog.some((entry) => entry.id === 'relic:staticIdol')).toBe(true)
+  expect(collectionCatalog.some((entry) => entry.id === 'alien:the-beacon-widow')).toBe(true)
   expect(collectionCatalog.some((entry) => entry.id.startsWith('locked:'))).toBe(false)
   expect(iconSet.size).toBe(collectionCatalog.length)
   expect(Math.max(...iconSet)).toBeLessThan(collectionIconAtlasColumns * collectionIconAtlasRows)
@@ -235,4 +242,15 @@ test('workbench card selection does not shift card layout or shake the camera', 
   expect(beginInstall).not.toContain('this.camera.shake')
   expect(applyUpgrade).not.toContain('this.camera.shake')
   expect(applyEvolution).not.toContain('this.camera.shake')
+})
+
+test('planet discoveries can force the first spacesuit workbench offer', () => {
+  const main = source()
+
+  expect(main).toContain('firstOpportunityUpgrade')
+  expect(main).toContain('private discoverySuitOffer = false')
+  expect(main).toContain("this.discoverySuitOffer = true")
+  expect(main).toContain("firstOpportunityUpgrade(upgrades, this.build, 'suitO2')")
+  expect(main).toContain('this.workbenchExtraUnlockedIds()')
+  expect(main).toContain("choice.upgrade.bucket === 'spacesuit'")
 })

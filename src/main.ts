@@ -12,13 +12,12 @@ import {
   activeBalanceProfile,
   balancedSpaceEnemyDefinition,
   enemyAttackCooldown,
+  pickSpaceEnemyKind,
   scaledBossTimer,
   scaledSpawnTimer,
   scaledSurfaceDamage,
   scaledSurfaceHp,
   scaledSurfaceSpeed,
-  spaceEnemyBalance,
-  spaceEnemyKinds,
   spaceEnemyRunScale,
   spaceEnemySpeedBonus,
   spaceSpawnBalance,
@@ -26,6 +25,7 @@ import {
 } from './game-balance'
 import { navigationCruiseScalar, navigationTrailProfile } from './navigation-cruise'
 import { ONBOARDING_PLANET_COUNT, onboardingPlanetSlot, useOnboardingPlanetField } from './onboarding-planets'
+import { selectPlanetBiome, type PlanetBiomeProfile } from './planet-biomes'
 import { pickupMagnetRange, pickupMagnetStrength } from './pickup-magnet'
 import { planetRadius } from './planet-sizing'
 import {
@@ -49,10 +49,11 @@ import { pressurePackSize, shouldRecycleEnemy } from './spawn-pressure'
 import {
   cameraTargetFor,
   screenToWorld as spaceScreenToWorld,
+  spaceProjectileLifeScale,
   spaceViewportScale,
   worldToScreen as spaceWorldToScreen
 } from './space-camera'
-import { isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, type SpaceEnemyKind } from './space-enemies'
+import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import {
   chooseSpaceEncounter,
   derelictCacheSignal,
@@ -87,17 +88,19 @@ import {
   returnBeaconEligible
 } from './return-beacons'
 import {
-  workbenchLockedUpgrades,
+  firstOpportunityUpgrade,
   workbenchRollableUpgrades,
-  workbenchUnlockEdges
+  workbenchUnlockEdges,
+  workbenchUpgradeRows
 } from './workbench-rolls'
+import { optionOrbProfile, pulseVolleyCount, starterSignatureFlags } from './weapon-signatures'
 
 type GameState = 'title' | 'mothership' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
 type EnemyKind = SpaceEnemyKind
 type SurfaceResourceKind = 'crystal' | 'scrap' | 'repair' | 'cache'
 type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
-type AlienGiftKind = 'herb' | 'idol' | 'map' | 'coin'
+type AlienGiftKind = 'herb' | 'idol' | 'map' | 'coin' | 'beacon'
 type ArtifactKind = 'relic' | 'alien' | 'lore' | 'planet' | 'cache' | 'enemy'
 type MothershipConsoleView = 'workbench' | 'manifest' | 'collection'
 type MothershipCollectionFilter = 'all' | 'found' | 'locked' | ArtifactKind
@@ -120,6 +123,7 @@ interface Bullet {
   hostile?: boolean
   chain?: number
   mine?: boolean
+  option?: boolean
 }
 
 interface Enemy {
@@ -191,6 +195,7 @@ interface Planet {
   chunkX: number
   chunkY: number
   archetype: PlanetArchetype
+  biome: PlanetBiomeProfile
 }
 
 interface SpaceChunk {
@@ -289,6 +294,8 @@ interface SurfaceRun {
   loreSites: SurfaceLoreSite[]
   collected: number
   pendingUpgrade: boolean
+  bankedSignals: number
+  overflowSignals: number
   bossCacheCount: number
   o2Returning: boolean
   message: string
@@ -789,6 +796,8 @@ class VectorShooter {
   private upgradeChoices: WorkbenchChoice[] = []
   private workbenchInstalling = false
   private workbenchRerolls = 0
+  private discoverySuitOffer = false
+  private summonReturnBeaconAfterTakeoff = false
   private mothershipConsoleView: MothershipConsoleView = 'workbench'
   private mothershipCollectionFilter: MothershipCollectionFilter = 'all'
   private selectedCollectionId: string | null = null
@@ -1068,6 +1077,7 @@ class VectorShooter {
 
   private generatePlanet(chunkX: number, chunkY: number, index: number, rng: () => number, existing: Planet[] = []): Planet {
     const archetype = rollPlanetArchetype({ chunkX, chunkY, index, random: rng })
+    const biome = selectPlanetBiome(archetype, chunkX, chunkY, index)
     const prefix = ['LUX', 'RED', 'SAINT', 'GREEN', 'NULL', 'IRON', 'GHOST', 'VOID', 'GLASS', 'STATIC', 'DUST', 'HALO']
     const suffix = archetype === 'lore'
       ? ['OSSUARY', 'PYRAMID', 'GRAVE', 'FOSSIL SEA', 'TOMB', 'SCRIPTURE', 'BONE ORCHARD', 'MEMORIAL']
@@ -1122,7 +1132,7 @@ class VectorShooter {
       horde: 'Vast enemy horde guarding a massive treasure vault.'
     }[archetype]
     const id = `${chunkX}:${chunkY}:${index}`
-    return { id, name, x, y, radius, color, visited: this.visitedPlanets.has(id), reward, chunkX, chunkY, archetype }
+    return { id, name, x, y, radius, color, visited: this.visitedPlanets.has(id), reward, chunkX, chunkY, archetype, biome }
   }
 
   private planetClearance(a: number, b: number) {
@@ -1911,6 +1921,49 @@ class VectorShooter {
     }
   }
 
+  private optionOrbAngle(index: number, count: number) {
+    return this.stats.time * (2.4 + count * 0.18) + (index / count) * TAU
+  }
+
+  private optionOrbWorldPosition(index: number, count: number, radius: number) {
+    const a = this.optionOrbAngle(index, count)
+    return {
+      x: this.player.x + Math.cos(a) * radius,
+      y: this.player.y + Math.sin(a) * radius,
+      angle: a
+    }
+  }
+
+  private fireOptionOrbs(serial: number, damage: number, speed: number, lifeScale: number) {
+    const evolved = this.evolved.has('orbit')
+    const profile = optionOrbProfile({ orbitRank: this.build.orbit, fireSerial: serial, evolved })
+    if (!profile.fires || profile.count <= 0) return
+
+    const radius = powerupBalance.orbit.radiusBase + this.build.orbit * powerupBalance.orbit.radiusPerRank
+    const boltSpeed = speed * powerupBalance.orbit.boltSpeedMultiplier
+    const boltLife = powerupBalance.weapon.pulseBaseLife * powerupBalance.orbit.boltLifeMultiplier * lifeScale
+    const color = evolved ? '#fff27a' : '#8fff7d'
+    for (let i = 0; i < profile.count; i += 1) {
+      if (this.bullets.length > MAX_BULLETS) this.bullets.shift()
+      const orb = this.optionOrbWorldPosition(i, profile.count, radius)
+      const lace = profile.count > 1 ? (i - (profile.count - 1) / 2) * 0.025 : 0
+      const a = this.player.aimAngle + lace
+      this.bullets.push({
+        x: orb.x + Math.cos(a) * 10,
+        y: orb.y + Math.sin(a) * 10,
+        vx: Math.cos(a) * boltSpeed + this.player.vx * 0.1,
+        vy: Math.sin(a) * boltSpeed + this.player.vy * 0.1,
+        life: boltLife,
+        damage: damage * profile.damageMultiplier,
+        radius: evolved ? 3.4 : 2.8,
+        color,
+        pierce: profile.pierce,
+        chain: this.evolved.has('chain') ? 1 : 0,
+        option: true
+      })
+    }
+  }
+
   private fire() {
     if (this.bullets.length > MAX_BULLETS) this.bullets.splice(0, this.bullets.length - MAX_BULLETS)
     const rapid = this.build.rapid
@@ -1948,12 +2001,15 @@ class VectorShooter {
       powerupBalance.weapon.spreadBase,
       powerupBalance.weapon.spreadMax
     )
+    const serial = this.fireSerial
     const railInterval = Math.max((solar ? powerupBalance.weapon.solarRailBaseInterval : powerupBalance.weapon.railBaseInterval) - this.build.rail, powerupBalance.weapon.railMinimumInterval)
     const needleInterval = Math.max((blackNeedle ? powerupBalance.weapon.blackNeedleBaseInterval : powerupBalance.weapon.needleBaseInterval) - this.build.rift, powerupBalance.weapon.needleMinimumInterval)
-    const rail = this.build.rail > 0 && this.fireSerial % railInterval === 0
-    const needle = this.build.rift > 0 && this.fireSerial % needleInterval === 0
-    const pulseColor = storm ? '#8fff7d' : choir ? '#f6fffe' : this.build.heat >= 3 ? '#ff9d5c' : this.build.pierce >= 3 ? '#70a8ff' : '#57fff3'
-    const volleys = choir ? 2 : 1
+    const rail = this.build.rail > 0 && serial % railInterval === 0
+    const needle = this.build.rift > 0 && serial % needleInterval === 0
+    const volleys = pulseVolleyCount({ rapidRank: rapid, fireSerial: serial, evolved: choir })
+    const cadenceDouble = volleys > 1 && !choir
+    const pulseColor = storm ? '#8fff7d' : choir ? '#f6fffe' : cadenceDouble ? '#d7fff7' : this.build.heat >= 3 ? '#ff9d5c' : this.build.pierce >= 3 ? '#70a8ff' : '#57fff3'
+    const lifeScale = spaceProjectileLifeScale(this.width, this.height, this.spaceScale())
     this.fireSerial += 1
     for (let v = 0; v < volleys; v += 1) {
       for (let i = 0; i < count; i += 1) {
@@ -1965,8 +2021,8 @@ class VectorShooter {
           vx: Math.cos(a) * speed + this.player.vx * 0.14,
           vy: Math.sin(a) * speed + this.player.vy * 0.14,
           life: rail
-            ? powerupBalance.weapon.railBaseLife + (solar ? powerupBalance.weapon.solarRailLifeBonus : 0)
-            : powerupBalance.weapon.pulseBaseLife + this.build.echo * powerupBalance.weapon.echoLifePerRank + (resonance ? powerupBalance.weapon.resonanceLifeBonus : 0),
+            ? (powerupBalance.weapon.railBaseLife + (solar ? powerupBalance.weapon.solarRailLifeBonus : 0)) * lifeScale
+            : (powerupBalance.weapon.pulseBaseLife + this.build.echo * powerupBalance.weapon.echoLifePerRank + (resonance ? powerupBalance.weapon.resonanceLifeBonus : 0)) * lifeScale,
           damage: rail
             ? damage * (solar ? powerupBalance.weapon.solarRailDamageMultiplier : powerupBalance.weapon.railDamageMultiplier)
             : damage * (shatter && i !== Math.floor(count / 2) ? powerupBalance.weapon.shatterSideRayDamageMultiplier : 1),
@@ -1987,7 +2043,7 @@ class VectorShooter {
         y: this.player.y + Math.sin(a) * 24,
         vx: Math.cos(a) * (speed * powerupBalance.weapon.needleSpeedMultiplier),
         vy: Math.sin(a) * (speed * powerupBalance.weapon.needleSpeedMultiplier),
-        life: powerupBalance.weapon.needleLife,
+        life: powerupBalance.weapon.needleLife * lifeScale,
         damage: damage * (blackNeedle ? powerupBalance.weapon.blackNeedleDamageMultiplier : powerupBalance.weapon.needleDamageMultiplier),
         radius: blackNeedle ? powerupBalance.weapon.blackNeedleRadius : powerupBalance.weapon.needleRadius,
         color: blackNeedle ? '#ffffff' : '#b990ff',
@@ -1996,6 +2052,7 @@ class VectorShooter {
         chain: storm ? powerupBalance.weapon.stormNeedleChainBonus : 0
       })
     }
+    this.fireOptionOrbs(serial, damage, speed, lifeScale)
     this.audio.fire(this.weaponSoundKind(rail, needle, count), this.stats.level + rapid)
   }
 
@@ -2212,6 +2269,31 @@ class VectorShooter {
           }
           this.burst(e.x, e.y, '#f46cff', 10, 150)
         }
+      } else if (e.kind === 'siphon') {
+        const d = Math.sqrt(dist2(e, this.player))
+        const sideSign = e.id % 2 === 0 ? 1 : -1
+        const side = { x: -toP.y * sideSign, y: toP.x * sideSign }
+        const rangePull = d > 720 ? 0.72 : d < 510 ? -1.05 : -0.08
+        const swirl = Math.sin(e.phase * 2.4) * e.speed * 0.52
+        e.vx += (toP.x * rangePull * e.speed + side.x * (e.speed * 0.95 + swirl)) * dt
+        e.vy += (toP.y * rangePull * e.speed + side.y * (e.speed * 0.95 + swirl)) * dt
+        if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) this.fireSiphonVortex(e, enemyBalance)
+      } else if (e.kind === 'dreadnought') {
+        const d = Math.sqrt(dist2(e, this.player))
+        const side = { x: -toP.y, y: toP.x }
+        const rangePull = d > 800 ? 0.75 : d < 620 ? -0.8 : -0.04
+        const broadsideDrift = Math.sin(e.phase * 1.1 + e.id) * e.speed * 0.38
+        e.vx += (toP.x * rangePull * e.speed + side.x * broadsideDrift) * dt
+        e.vy += (toP.y * rangePull * e.speed + side.y * broadsideDrift) * dt
+        if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) this.fireDreadnoughtBroadside(e, enemyBalance, toP)
+      } else if (e.kind === 'cathedral') {
+        const d = Math.sqrt(dist2(e, this.player))
+        const side = { x: -toP.y, y: toP.x }
+        const rangePull = d > 850 ? 0.58 : d < 650 ? -0.9 : -0.02
+        const orbit = Math.sin(e.phase * 0.9) * e.speed * 0.42
+        e.vx += (toP.x * rangePull * e.speed + side.x * orbit) * dt
+        e.vy += (toP.y * rangePull * e.speed + side.y * orbit) * dt
+        if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) this.fireCathedralLattice(e, enemyBalance, toP)
       } else if (e.kind === 'lancer') {
         const d = Math.sqrt(dist2(e, this.player))
         if (e.cd <= 0 && d < 520) {
@@ -2270,7 +2352,7 @@ class VectorShooter {
       if (dist2(e, this.player) < rr * rr) {
         if (this.tryDashRam(e)) continue
         this.damagePlayer(enemyBalance.contactDamage)
-        if (e.kind === 'brute' || e.kind === 'bulwark') {
+        if (e.kind === 'brute' || e.kind === 'bulwark' || isGiantEnemyKind(e.kind)) {
           e.vx -= toP.x * 260
           e.vy -= toP.y * 260
         } else if (e.kind !== 'warden') this.killEnemy(e, false)
@@ -2347,8 +2429,8 @@ class VectorShooter {
     if (speed < 85 || Math.random() > 0.42 * intensity) return
     const back = norm(-e.vx, -e.vy)
     const side = { x: -back.y, y: back.x }
-    const spread = e.kind === 'bulwark' ? 18 : e.kind === 'skimmer' ? 13 : 8
-    const life = e.kind === 'razor' ? 0.34 : 0.46
+    const spread = isGiantEnemyKind(e.kind) ? 24 : e.kind === 'bulwark' ? 18 : e.kind === 'skimmer' ? 13 : 8
+    const life = isGiantEnemyKind(e.kind) ? 0.62 : e.kind === 'razor' ? 0.34 : 0.46
     this.particles.push({
       x: e.x + back.x * e.radius * 0.75 + side.x * rand(-spread, spread),
       y: e.y + back.y * e.radius * 0.75 + side.y * rand(-spread, spread),
@@ -2357,23 +2439,129 @@ class VectorShooter {
       life,
       maxLife: life,
       color,
-      size: e.kind === 'bulwark' ? rand(3, 7) : rand(2, 5),
+      size: isGiantEnemyKind(e.kind) ? rand(4, 9) : e.kind === 'bulwark' ? rand(3, 7) : rand(2, 5),
       angle: Math.atan2(e.vy, e.vx),
       spin: rand(-2, 2),
-      sides: e.kind === 'bulwark' ? 4 : undefined,
-      length: e.kind === 'razor' ? rand(34, 68) : rand(20, 44),
+      sides: isGiantEnemyKind(e.kind) || e.kind === 'bulwark' ? 4 : undefined,
+      length: isGiantEnemyKind(e.kind) ? rand(44, 84) : e.kind === 'razor' ? rand(34, 68) : rand(20, 44),
       glow: this.allowGlow() ? 28 : 14
     })
   }
 
+  private fireSiphonVortex(e: Enemy, enemyBalance: ReturnType<typeof balancedSpaceEnemyDefinition>) {
+    e.cd = enemyAttackCooldown(enemyBalance, this.stats.time)
+    const speed = enemyBalance.projectileSpeed ?? 0
+    const damage = enemyBalance.projectileDamage ?? 0
+    for (let arm = 0; arm < 2; arm += 1) {
+      for (let k = 0; k < 7; k += 1) {
+        const a = e.phase * 2.4 + arm * Math.PI + k * 0.34
+        const laneSpeed = speed * (0.62 + k * 0.055)
+        this.bullets.push({
+          x: e.x + Math.cos(a) * e.radius * 0.92,
+          y: e.y + Math.sin(a) * e.radius * 0.92,
+          vx: Math.cos(a) * laneSpeed,
+          vy: Math.sin(a) * laneSpeed,
+          life: 2.15,
+          damage,
+          radius: 5,
+          color: k % 2 ? '#8fff7d' : '#57fff3',
+          pierce: 0,
+          hostile: true
+        })
+      }
+    }
+    this.burst(e.x, e.y, '#8fff7d', 14, 180)
+  }
+
+  private fireDreadnoughtBroadside(e: Enemy, enemyBalance: ReturnType<typeof balancedSpaceEnemyDefinition>, toP: Vec) {
+    e.cd = enemyBalance.attackCooldownSeconds ?? 0
+    const speed = enemyBalance.projectileSpeed ?? 0
+    const damage = enemyBalance.projectileDamage ?? 0
+    const baseAngle = Math.atan2(toP.y, toP.x)
+    for (let shot = -3; shot <= 3; shot += 1) {
+      const a = baseAngle + shot * 0.13
+      this.bullets.push({
+        x: e.x + Math.cos(a) * e.radius,
+        y: e.y + Math.sin(a) * e.radius,
+        vx: Math.cos(a) * speed * (1 - Math.abs(shot) * 0.035),
+        vy: Math.sin(a) * speed * (1 - Math.abs(shot) * 0.035),
+        life: 2.25,
+        damage,
+        radius: shot === 0 ? 7 : 5.2,
+        color: shot === 0 ? '#fff27a' : '#ff5d73',
+        pierce: 0,
+        hostile: true
+      })
+    }
+    for (const offset of [-0.62, 0.62]) {
+      const a = baseAngle + Math.PI + offset
+      this.bullets.push({
+        x: e.x + Math.cos(a) * e.radius * 0.75,
+        y: e.y + Math.sin(a) * e.radius * 0.75,
+        vx: Math.cos(a) * speed * 0.72,
+        vy: Math.sin(a) * speed * 0.72,
+        life: 2.7,
+        damage: damage * 0.75,
+        radius: 4.8,
+        color: '#b990ff',
+        pierce: 0,
+        hostile: true
+      })
+    }
+    this.camera.shake = Math.max(this.camera.shake, 5)
+    this.burst(e.x, e.y, '#ff5d73', 16, 210)
+  }
+
+  private fireCathedralLattice(e: Enemy, enemyBalance: ReturnType<typeof balancedSpaceEnemyDefinition>, toP: Vec) {
+    e.cd = enemyBalance.attackCooldownSeconds ?? 0
+    const speed = enemyBalance.projectileSpeed ?? 0
+    const damage = enemyBalance.projectileDamage ?? 0
+    for (let ring = 0; ring < 3; ring += 1) {
+      for (let k = 0; k < 6; k += 1) {
+        const a = e.phase * (ring % 2 ? -1.35 : 1.35) + (k / 6) * TAU + ring * 0.17
+        this.bullets.push({
+          x: e.x + Math.cos(a) * e.radius * (0.52 + ring * 0.18),
+          y: e.y + Math.sin(a) * e.radius * (0.52 + ring * 0.18),
+          vx: Math.cos(a) * speed * (0.58 + ring * 0.16),
+          vy: Math.sin(a) * speed * (0.58 + ring * 0.16),
+          life: 2.35,
+          damage: damage * (ring === 2 ? 1 : 0.72),
+          radius: ring === 2 ? 5.4 : 4.2,
+          color: ring === 1 ? '#b990ff' : '#d7fff7',
+          pierce: 0,
+          hostile: true
+        })
+      }
+    }
+    const aim = Math.atan2(toP.y, toP.x)
+    for (const offset of [-0.2, 0, 0.2]) {
+      const a = aim + offset
+      this.bullets.push({
+        x: e.x + Math.cos(a) * e.radius,
+        y: e.y + Math.sin(a) * e.radius,
+        vx: Math.cos(a) * speed * 1.05,
+        vy: Math.sin(a) * speed * 1.05,
+        life: 1.8,
+        damage: damage * 1.05,
+        radius: 4.8,
+        color: '#fff27a',
+        pierce: 0,
+        hostile: true
+      })
+    }
+    this.camera.shake = Math.max(this.camera.shake, 4)
+    this.burst(e.x, e.y, '#d7fff7', 18, 190)
+  }
+
   private updateOrbitals(dt: number) {
-    const count = this.build.orbit
-    if (count <= 0) return
-    const radius = powerupBalance.orbit.radiusBase + count * powerupBalance.orbit.radiusPerRank
     const gravity = this.evolved.has('orbit')
+    const profile = optionOrbProfile({ orbitRank: this.build.orbit, fireSerial: this.fireSerial, evolved: gravity })
+    const count = profile.count
+    if (count <= 0) return
+    const radius = powerupBalance.orbit.radiusBase + this.build.orbit * powerupBalance.orbit.radiusPerRank
     const damage = (
       powerupBalance.orbit.damageBase
-      + count * powerupBalance.orbit.damagePerRank
+      + this.build.orbit * powerupBalance.orbit.damagePerRank
       + this.limitBreaks.might * powerupBalance.orbit.limitMightDamagePerRank
     ) * (gravity ? powerupBalance.orbit.gravityDamageMultiplier : 1) * dt
     for (const e of this.enemies) {
@@ -2383,11 +2571,9 @@ class VectorShooter {
         e.vy += pull.y * powerupBalance.orbit.gravityPullForce * dt
       }
       for (let i = 0; i < count; i += 1) {
-        const a = this.stats.time * (2.4 + count * 0.18) + (i / count) * TAU
-        const x = this.player.x + Math.cos(a) * radius
-        const y = this.player.y + Math.sin(a) * radius
+        const orb = this.optionOrbWorldPosition(i, count, radius)
         const rr = e.radius + 12
-        if ((e.x - x) ** 2 + (e.y - y) ** 2 < rr * rr) this.damageEnemy(e, damage, '#8fff7d')
+        if ((e.x - orb.x) ** 2 + (e.y - orb.y) ** 2 < rr * rr) this.damageEnemy(e, damage, gravity ? '#fff27a' : '#8fff7d')
       }
     }
   }
@@ -2546,13 +2732,7 @@ class VectorShooter {
   }
 
   private pickEnemyKind(): EnemyKind {
-    const t = this.stats.time
-    const r = Math.random()
-    for (const kind of [...spaceEnemyKinds].reverse()) {
-      const enemy = spaceEnemyBalance[kind]
-      if (enemy.spawnRollCeiling > 0 && t > enemy.timeGateSeconds && r < enemy.spawnRollCeiling) return kind
-    }
-    return 'chaser'
+    return pickSpaceEnemyKind(this.stats.time)
   }
 
   private spawnEnemy(kind: EnemyKind) {
@@ -2609,7 +2789,7 @@ class VectorShooter {
 
   private killEnemy(e: Enemy, reward: boolean) {
     this.removeEnemy(e)
-    const big = e.kind === 'warden' || e.kind === 'brute' || e.kind === 'bulwark'
+    const big = e.kind === 'warden' || e.kind === 'brute' || e.kind === 'bulwark' || isGiantEnemyKind(e.kind)
     const highLoad = this.isHighLoad()
     if (big || !highLoad || this.collisionFxCooldown <= 0) {
       this.audio.boom(big ? 'heavy' : 'small')
@@ -2620,11 +2800,11 @@ class VectorShooter {
     if (reward) {
       this.stats.kills += 1
       this.stats.score += e.value
-      const xpCount = e.kind === 'warden' ? 9 : e.kind === 'bulwark' ? 5 : e.kind === 'brute' ? 3 : e.kind === 'razor' || e.kind === 'skimmer' || e.kind === 'shooter' || e.kind === 'lancer' ? 2 : 1
+      const xpCount = isGiantEnemyKind(e.kind) ? 11 : e.kind === 'warden' ? 9 : e.kind === 'bulwark' ? 5 : e.kind === 'brute' ? 3 : e.kind === 'razor' || e.kind === 'skimmer' || e.kind === 'shooter' || e.kind === 'lancer' ? 2 : 1
       const xpDrops = highLoad && e.kind !== 'warden' ? 1 : xpCount
-      const xpValue = e.kind === 'warden' ? 8 : e.kind === 'bulwark' ? 5 : e.kind === 'brute' ? 4 : highLoad ? 3 * xpCount : 3
+      const xpValue = isGiantEnemyKind(e.kind) ? 9 : e.kind === 'warden' ? 8 : e.kind === 'bulwark' ? 5 : e.kind === 'brute' ? 4 : highLoad ? 3 * xpCount : 3
       for (let i = 0; i < xpDrops; i += 1) this.drop('xp', e.x, e.y, xpValue)
-      if (e.kind === 'warden') this.drop('chest', e.x, e.y, 1)
+      if (e.kind === 'warden' || isGiantEnemyKind(e.kind)) this.drop('chest', e.x, e.y, 1)
       if (e.kind === 'splinter' && this.enemies.length < MAX_ENEMIES - 3 && Math.random() < 0.55) {
         for (let k = 0; k < 3; k += 1) {
           const child = this.spawnChild(e.x, e.y)
@@ -2765,6 +2945,29 @@ class VectorShooter {
   private bankUpgrade(message?: string) {
     this.pendingUpgrades += 1
     if (message) this.toast(message)
+    return true
+  }
+
+  private surfaceSignalCap(surface = this.surface) {
+    if (!surface) return workbenchBalance.surfaceSignalCapBase
+    const rewardBonus = surface.event === 'horde' || surface.event === 'jackpot'
+      ? workbenchBalance.surfaceSignalCapRewardEventBonus
+      : 0
+    return workbenchBalance.surfaceSignalCapBase + rewardBonus
+  }
+
+  private bankSurfaceUpgrade(message?: string) {
+    if (!this.surface) return this.bankUpgrade(message)
+    if (this.surface.bankedSignals >= this.surfaceSignalCap()) {
+      this.surface.overflowSignals += 1
+      this.resources.scrap += workbenchBalance.overflowSignalScrap
+      this.resources.crystal += workbenchBalance.overflowSignalCrystal
+      if (this.surface.overflowSignals === 1) this.toast('SIGNAL BUFFER FULL: EXTRA SIGNALS CONVERT TO CARGO')
+      return false
+    }
+    this.surface.pendingUpgrade = true
+    this.surface.bankedSignals += 1
+    return this.bankUpgrade(message)
   }
 
   private openLevelUp(title = 'SHIPBOARD WORKBENCH', copy = 'Spend one banked mutation signal before takeoff.', rare = false) {
@@ -2798,7 +3001,11 @@ class VectorShooter {
     }
     const relic = this.rollRelicChoice(rare)
     if (relic && choices.length < count) choices.push({ kind: 'relic', relic })
-    const available = workbenchRollableUpgrades(upgrades, this.build)
+    const discoverySuit = this.discoverySuitOffer
+      ? firstOpportunityUpgrade(upgrades, this.build, 'suitO2')
+      : null
+    if (discoverySuit && choices.length < count) choices.push({ kind: 'upgrade', upgrade: discoverySuit })
+    const available = workbenchRollableUpgrades(upgrades, this.build, this.workbenchExtraUnlockedIds())
       .filter((u) => !choices.some((choice) => choice.kind === 'upgrade' && choice.upgrade.id === u.id))
     while (choices.length < count && available.length) {
       const selected = this.weightedUpgrade(available, rare)
@@ -2864,6 +3071,7 @@ class VectorShooter {
     else if (choice.kind === 'evolution') this.applyEvolution(choice.evolution)
     else if (choice.kind === 'relic') this.acquireRelic(choice.relic, 'WORKBENCH RELIC INSTALLED')
     else this.applyLimitBreak(choice)
+    if (choice.kind === 'upgrade' && choice.upgrade.bucket === 'spacesuit') this.discoverySuitOffer = false
     this.pendingUpgrades = Math.max(0, this.pendingUpgrades - 1)
     if (this.pendingUpgrades > 0) {
       this.openLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
@@ -3029,9 +3237,9 @@ class VectorShooter {
       id: `planet:${planet.id}`,
       kind: 'planet',
       title: planet.name,
-      detail: planet.reward,
+      detail: `${planet.biome.label}. ${planet.reward}`,
       source: `${source} // ${planet.archetype.toUpperCase()}`,
-      color: planet.color,
+      color: planet.biome.baseColor,
       icon: hashString(planet.id, 19) % 16
     })
   }
@@ -3105,9 +3313,10 @@ class VectorShooter {
     const ship = { x: 780, y: 590 }
     const threatKeepouts = this.surfaceThreatKeepouts(pilot, ship)
     const first = !planet.visited
+    const openingLanding = this.visitedPlanets.size === 0 && this.stats.planets === 0
     const profile = planSurfaceEncounter({
       planetArchetype: planet.archetype,
-      firstRunLanding: this.visitedPlanets.size === 0 && this.stats.planets === 0,
+      firstRunLanding: openingLanding,
       firstVisitToPlanet: first,
       interest: this.surfaceInterest(),
       time: this.stats.time,
@@ -3122,6 +3331,7 @@ class VectorShooter {
       const kindRoll = Math.random()
       const kind: SurfaceResourceKind =
         i === 0 && first ? 'cache' :
+        openingLanding ? (kindRoll < 0.42 ? 'scrap' : kindRoll < 0.78 ? 'crystal' : 'repair') :
         event === 'horde' && i < 5 ? 'cache' :
         event === 'relic' && i < 3 ? 'cache' :
         event === 'jackpot' && kindRoll < 0.16 ? 'cache' :
@@ -3174,6 +3384,8 @@ class VectorShooter {
       loreSites,
       collected: 0,
       pendingUpgrade: false,
+      bankedSignals: 0,
+      overflowSignals: 0,
       bossCacheCount: profile.bossCacheCount,
       o2Returning: false,
       message: this.surfaceEventMessage(event, first, scenario)
@@ -3332,9 +3544,9 @@ class VectorShooter {
       event === 'relic' ? 0.46 :
       0.28
     if (forcedCount === undefined && Math.random() > chance + (quiet ? 0.18 : 0)) return []
-    const colors = ['#b990ff', '#fff27a', '#57fff3', '#8fff7d']
-    const names = ['THE GLASS HERBALIST', 'A STATIC PILGRIM', 'THE COIN KEEPER', 'THE STAR MAPMAKER', 'THE RELIC MONK']
-    const gifts: AlienGiftKind[] = ['herb', 'idol', 'map', 'coin']
+    const colors = ['#b990ff', '#fff27a', '#57fff3', '#8fff7d', '#70a8ff']
+    const names = ['THE GLASS HERBALIST', 'A STATIC PILGRIM', 'THE COIN KEEPER', 'THE STAR MAPMAKER', 'THE BEACON WIDOW']
+    const gifts: AlienGiftKind[] = ['herb', 'idol', 'coin', 'map', 'beacon']
     const row = hashString(planet.id, Math.floor(this.stats.time) + 17) % ALIEN_CATALOG_ROWS
     return [{
       x: rand(260, 1340),
@@ -3507,8 +3719,7 @@ class VectorShooter {
           this.stats.xp -= this.stats.nextXp
           this.stats.level += 1
           this.stats.nextXp = Math.floor(this.stats.nextXp * 1.18 + 11)
-          this.surface.pendingUpgrade = true
-          this.bankUpgrade()
+          this.bankSurfaceUpgrade()
         }
       } else if (resource.kind === 'scrap') {
         const gained = Math.ceil(resource.value * (1 + this.build.cargo * powerupBalance.upgradeApply.cargoResourceBonusPerRank))
@@ -3551,13 +3762,13 @@ class VectorShooter {
       this.acquireRelic(relic)
       this.surface.message = `${relic.name.toUpperCase()} RECOVERED. GET BACK TO THE SHIP.`
     } else {
-      this.surface.pendingUpgrade = true
-      this.bankUpgrade()
-      this.surface.message = 'MUTATION CACHE SECURED. GET BACK TO THE SHIP.'
+      const banked = this.bankSurfaceUpgrade()
+      this.surface.message = banked
+        ? 'MUTATION CACHE SECURED. GET BACK TO THE SHIP.'
+        : 'SIGNAL BUFFER FULL. CACHE CONVERTED TO CARGO.'
     }
     if (Math.random() < extraSignalChance) {
-      this.surface.pendingUpgrade = true
-      this.bankUpgrade('BONUS MUTATION SIGNAL FOUND IN CACHE')
+      this.bankSurfaceUpgrade('BONUS MUTATION SIGNAL FOUND IN CACHE')
     }
     const cacheMessage = this.surface.message
     const ambushChance = Math.max(
@@ -3674,9 +3885,7 @@ class VectorShooter {
     })
     let decodedSignal = false
     if (Math.random() < powerupBalance.upgradeApply.loreSignalBaseChance + this.build.survey * powerupBalance.upgradeApply.loreSignalSurveyChancePerRank) {
-      this.surface.pendingUpgrade = true
-      this.bankUpgrade('OLD SIGNAL DECODED: MUTATION SIGNAL BANKED')
-      decodedSignal = true
+      decodedSignal = this.bankSurfaceUpgrade('OLD SIGNAL DECODED: MUTATION SIGNAL BANKED')
     } else {
       this.toast(`${site.title} INSPECTED`)
     }
@@ -3747,7 +3956,8 @@ class VectorShooter {
       herb: 'It unfolds a luminous herb in both hands. The suit reads medicine, poison, and prayer in equal measure.',
       idol: 'It offers a tiny idol made of cooled lightning. The object is either a charm or a trap pretending to be polite.',
       map: 'It draws a living map in the dust. The route keeps changing when you blink.',
-      coin: 'It flips a black coin into the air and waits for your glove to open.'
+      coin: 'It flips a black coin into the air and waits for your glove to open.',
+      beacon: 'It holds up a cracked return beacon. The signal inside is alive, frightened, and already calling your ship.'
     }[alien.gift]
   }
 
@@ -3790,19 +4000,27 @@ class VectorShooter {
         this.acquireRelic(missingRelics[Math.floor(Math.random() * missingRelics.length)], 'ALIEN ARTEFACT CLAIMED')
         this.surface.message = 'THE IDOL OPENS INTO A RARE ARTEFACT.'
       } else {
-        this.bankUpgrade('ALIEN IDOL BANKED A MUTATION SIGNAL')
+        const banked = this.bankSurfaceUpgrade('ALIEN IDOL BANKED A MUTATION SIGNAL')
         this.resources.cores += 1
-        this.surface.message = 'THE IDOL HUMS IN TUNE WITH THE SHIP.'
+        this.surface.message = banked ? 'THE IDOL HUMS IN TUNE WITH THE SHIP.' : 'THE IDOL OVERLOADS THE BUFFER AND HARDENS INTO CARGO.'
       }
     } else if (alien.gift === 'map') {
       this.build.survey = clamp(this.build.survey + 1, 0, upgrades.find((u) => u.id === 'survey')?.max ?? 6)
       this.stats.score += 650
       this.surface.message = 'THE MAP BURNS A BETTER PLANET SENSE INTO YOUR HUD.'
-    } else {
+    } else if (alien.gift === 'coin') {
       this.resources.scrap += 180
       this.resources.cores += 1
       this.stats.score += 900
       this.surface.message = 'THE COIN LANDS EDGE-UP. IMPOSSIBLE. PROFITABLE.'
+    } else {
+      this.resources.crystal += 6
+      const banked = this.bankSurfaceUpgrade('BEACON WIDOW BANKED A MUTATION SIGNAL')
+      this.summonReturnBeaconAfterTakeoff = true
+      this.stats.score += 720
+      this.surface.message = banked
+        ? 'THE BEACON STARTS LISTENING FROM ORBIT. GET BACK TO THE SHIP.'
+        : 'THE BEACON WAKES ORBIT, BUT THE EXTRA SIGNAL BECOMES CARGO.'
     }
     this.audio.pickup('gift')
     this.burst(alien.x, alien.y, alien.color, 22, 220)
@@ -3833,10 +4051,27 @@ class VectorShooter {
     } else if (alien.gift === 'map') {
       this.resources.crystal = Math.max(0, this.resources.crystal - 8)
       this.surface.message = 'THE MAP IS A MOUTH. IT EATS YOUR CRYSTALS.'
-    } else {
+    } else if (alien.gift === 'coin') {
       this.resources.scrap = Math.max(0, this.resources.scrap - 120)
       this.damagePlayer(12)
       this.surface.message = 'THE COIN LANDS ON A SIDE YOU DO NOT HAVE.'
+    } else {
+      this.damagePlayer(10)
+      this.surface.pilot.oxygen = Math.max(6, this.surface.pilot.oxygen - 12)
+      for (let i = 0; i < 2; i += 1) {
+        this.surface.threats.push({
+          x: clamp(alien.x + rand(-190, 190), 60, this.surface.width - 60),
+          y: clamp(alien.y + rand(-190, 190), 60, this.surface.height - 60),
+          vx: 0,
+          vy: 0,
+          hp: 28 + this.stats.time * 0.12,
+          radius: 15,
+          phase: rand(0, TAU),
+          color: '#70a8ff',
+          hit: 0
+        })
+      }
+      this.surface.message = 'THE BEACON SCREAMS. SOMETHING ANSWERS FROM UNDER THE DUST.'
     }
     this.audio.boom('surface')
     this.burst(alien.x, alien.y, '#ff5d73', 24, 240)
@@ -3965,7 +4200,14 @@ class VectorShooter {
     this.orbitReturnPoint = null
     this.state = 'playing'
     this.showOnly(null)
-    this.toast(`${planetName}: SURFACE CACHE EXTRACTED`)
+    if (this.summonReturnBeaconAfterTakeoff && !this.returnBeacon) {
+      this.summonReturnBeaconAfterTakeoff = false
+      this.spawnReturnBeacon()
+      this.toast(`${planetName}: RETURN BEACON WOKEN`)
+    } else {
+      this.summonReturnBeaconAfterTakeoff = false
+      this.toast(`${planetName}: SURFACE CACHE EXTRACTED`)
+    }
     if (this.relics.has('deadSunCoin') && Math.random() < 0.75) {
       this.spawnEnemy('warden')
       this.toast('DEAD SUN HUNTER FOUND YOUR WAKE')
@@ -4148,15 +4390,16 @@ class VectorShooter {
   private renderSurface(ctx: CanvasRenderingContext2D) {
     if (!this.surface) return
     const s = this.surface
+    const biome = s.planet.biome
     ctx.save()
     const sky = ctx.createLinearGradient(0, 0, 0, this.height)
-    sky.addColorStop(0, '#010306')
-    sky.addColorStop(0.52, '#041015')
-    sky.addColorStop(1, '#050706')
+    sky.addColorStop(0, biome.skyTop)
+    sky.addColorStop(0.52, biome.skyMid)
+    sky.addColorStop(1, biome.skyBottom)
     ctx.fillStyle = sky
     ctx.fillRect(0, 0, this.width, this.height)
 
-    ctx.strokeStyle = 'rgba(87,255,243,0.08)'
+    ctx.strokeStyle = biome.gridColor
     ctx.lineWidth = 1
     const grid = 90
     for (let x = -s.camera.x % grid; x < this.width + grid; x += grid) {
@@ -4172,9 +4415,11 @@ class VectorShooter {
       ctx.stroke()
     }
 
+    this.renderSurfaceBiomeMotifs(ctx, s)
+
     const horizon = this.surfaceToScreen(s.width / 2, s.height + 520)
-    ctx.strokeStyle = s.planet.color
-    ctx.shadowColor = s.planet.color
+    ctx.strokeStyle = biome.horizonColor
+    ctx.shadowColor = biome.horizonColor
     ctx.shadowBlur = 20
     ctx.lineWidth = 3
     ctx.beginPath()
@@ -4199,6 +4444,177 @@ class VectorShooter {
     this.renderShockwaves(ctx)
     this.renderParticles(ctx)
     this.renderSurfaceHud(ctx, s)
+    ctx.restore()
+  }
+
+  private renderSurfaceBiomeMotifs(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
+    const biome = s.planet.biome
+    const seed = hashString(s.planet.id, 83)
+    const glow = this.allowGlow()
+    ctx.save()
+    ctx.globalCompositeOperation = glow ? 'screen' : 'source-over'
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    ctx.strokeStyle = biome.baseColor
+    ctx.fillStyle = biome.shadowColor
+    ctx.shadowColor = biome.accentColor
+    ctx.shadowBlur = glow ? 12 : 0
+
+    if (biome.surfaceMotif === 'canopy') {
+      ctx.globalAlpha = 0.24
+      for (let i = 0; i < 18; i += 1) {
+        const x = (seed + i * 211) % s.width
+        const y = 120 + ((seed >>> 3) + i * 157) % (s.height - 220)
+        const p = this.surfaceToScreen(x, y)
+        if (p.x < -90 || p.x > this.width + 90 || p.y < -90 || p.y > this.height + 90) continue
+        const height = 56 + (i % 5) * 12
+        ctx.strokeStyle = biome.shadowColor
+        ctx.lineWidth = 4
+        ctx.beginPath()
+        ctx.moveTo(p.x, p.y + height * 0.55)
+        ctx.lineTo(p.x + Math.sin(i) * 8, p.y - height * 0.45)
+        ctx.stroke()
+        ctx.strokeStyle = i % 2 ? biome.baseColor : biome.accentColor
+        ctx.lineWidth = 2
+        for (let j = 0; j < 3; j += 1) {
+          ctx.beginPath()
+          ctx.arc(p.x + (j - 1) * 18, p.y - height * 0.42 + j * 6, 22 + j * 4, Math.PI * 1.05, Math.PI * 1.95)
+          ctx.stroke()
+        }
+      }
+    } else if (biome.surfaceMotif === 'dunes') {
+      ctx.globalAlpha = 0.32
+      ctx.strokeStyle = biome.accentColor
+      ctx.lineWidth = 2
+      for (let i = 0; i < 9; i += 1) {
+        const y = 120 + i * 128 + (seed % 41)
+        const start = this.surfaceToScreen(0, y)
+        ctx.beginPath()
+        for (let x = 0; x <= s.width; x += 120) {
+          const p = this.surfaceToScreen(x, y + Math.sin((x + seed) * 0.01 + i) * 22)
+          if (x === 0) ctx.moveTo(p.x, p.y)
+          else ctx.lineTo(p.x, p.y)
+        }
+        if (start.y > -80 && start.y < this.height + 80) ctx.stroke()
+      }
+    } else if (biome.surfaceMotif === 'islands') {
+      ctx.globalAlpha = 0.26
+      for (let i = 0; i < 10; i += 1) {
+        const x = 120 + ((seed >>> 2) + i * 173) % (s.width - 240)
+        const y = 140 + ((seed >>> 5) + i * 131) % (s.height - 260)
+        const p = this.surfaceToScreen(x, y)
+        if (p.x < -100 || p.x > this.width + 100 || p.y < -100 || p.y > this.height + 100) continue
+        ctx.strokeStyle = i % 2 ? biome.accentColor : biome.baseColor
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.ellipse(p.x, p.y, 48 + (i % 3) * 14, 16 + (i % 2) * 8, i * 0.4, 0, TAU)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(p.x + 10, p.y - 8)
+        ctx.lineTo(p.x + 22, p.y - 44)
+        ctx.moveTo(p.x + 22, p.y - 44)
+        ctx.lineTo(p.x + 44, p.y - 34)
+        ctx.moveTo(p.x + 22, p.y - 44)
+        ctx.lineTo(p.x + 4, p.y - 32)
+        ctx.stroke()
+      }
+    } else if (biome.surfaceMotif === 'ice') {
+      ctx.globalAlpha = 0.28
+      ctx.strokeStyle = biome.baseColor
+      ctx.lineWidth = 2
+      for (let i = 0; i < 12; i += 1) {
+        const x = 80 + ((seed >>> 1) + i * 137) % (s.width - 160)
+        const y = 100 + ((seed >>> 4) + i * 197) % (s.height - 200)
+        const p = this.surfaceToScreen(x, y)
+        if (p.x < -80 || p.x > this.width + 80 || p.y < -80 || p.y > this.height + 80) continue
+        ctx.beginPath()
+        ctx.moveTo(p.x - 36, p.y - 18)
+        ctx.lineTo(p.x - 8, p.y + 6)
+        ctx.lineTo(p.x + 16, p.y - 28)
+        ctx.lineTo(p.x + 42, p.y + 20)
+        ctx.stroke()
+      }
+    } else if (biome.surfaceMotif === 'lava') {
+      ctx.globalAlpha = 0.34
+      ctx.strokeStyle = biome.accentColor
+      ctx.lineWidth = 3
+      for (let i = 0; i < 11; i += 1) {
+        const x = 80 + ((seed >>> 2) + i * 149) % (s.width - 160)
+        const y = 100 + ((seed >>> 6) + i * 163) % (s.height - 200)
+        const p = this.surfaceToScreen(x, y)
+        if (p.x < -100 || p.x > this.width + 100 || p.y < -100 || p.y > this.height + 100) continue
+        ctx.beginPath()
+        ctx.moveTo(p.x - 42, p.y - 22)
+        ctx.lineTo(p.x - 12, p.y - 4)
+        ctx.lineTo(p.x + 4, p.y + 26)
+        ctx.lineTo(p.x + 40, p.y + 38)
+        ctx.stroke()
+        ctx.globalAlpha = 0.16
+        ctx.fillStyle = biome.accentColor
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, 22 + (i % 4) * 5, 0, TAU)
+        ctx.fill()
+        ctx.globalAlpha = 0.34
+      }
+    } else if (biome.surfaceMotif === 'reef') {
+      ctx.globalAlpha = 0.26
+      ctx.strokeStyle = biome.accentColor
+      ctx.lineWidth = 2
+      for (let i = 0; i < 16; i += 1) {
+        const x = 90 + ((seed >>> 2) + i * 97) % (s.width - 180)
+        const y = 160 + ((seed >>> 5) + i * 151) % (s.height - 280)
+        const p = this.surfaceToScreen(x, y)
+        if (p.x < -80 || p.x > this.width + 80 || p.y < -80 || p.y > this.height + 80) continue
+        ctx.beginPath()
+        ctx.moveTo(p.x, p.y + 26)
+        ctx.quadraticCurveTo(p.x - 16, p.y - 4, p.x + Math.sin(i) * 20, p.y - 34)
+        ctx.moveTo(p.x, p.y + 8)
+        ctx.lineTo(p.x + 20, p.y - 10)
+        ctx.moveTo(p.x - 4, p.y - 4)
+        ctx.lineTo(p.x - 22, p.y - 20)
+        ctx.stroke()
+      }
+    } else if (biome.surfaceMotif === 'crystals') {
+      ctx.globalAlpha = 0.3
+      for (let i = 0; i < 14; i += 1) {
+        const x = 100 + ((seed >>> 3) + i * 127) % (s.width - 200)
+        const y = 120 + ((seed >>> 6) + i * 181) % (s.height - 240)
+        const p = this.surfaceToScreen(x, y)
+        if (p.x < -80 || p.x > this.width + 80 || p.y < -80 || p.y > this.height + 80) continue
+        ctx.strokeStyle = i % 2 ? biome.baseColor : biome.accentColor
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(p.x, p.y - 46)
+        ctx.lineTo(p.x + 18, p.y + 18)
+        ctx.lineTo(p.x, p.y + 34)
+        ctx.lineTo(p.x - 18, p.y + 18)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(p.x, p.y - 46)
+        ctx.lineTo(p.x, p.y + 34)
+        ctx.stroke()
+      }
+    } else {
+      ctx.globalAlpha = 0.24
+      ctx.strokeStyle = biome.baseColor
+      ctx.lineWidth = 2
+      for (let i = 0; i < 12; i += 1) {
+        const x = 110 + ((seed >>> 2) + i * 167) % (s.width - 220)
+        const y = 120 + ((seed >>> 5) + i * 139) % (s.height - 240)
+        const p = this.surfaceToScreen(x, y)
+        if (p.x < -90 || p.x > this.width + 90 || p.y < -90 || p.y > this.height + 90) continue
+        const h = 42 + (i % 4) * 14
+        ctx.beginPath()
+        ctx.moveTo(p.x - 24, p.y + h)
+        ctx.lineTo(p.x - 24, p.y - h)
+        ctx.lineTo(p.x + 24, p.y - h)
+        ctx.lineTo(p.x + 24, p.y + h)
+        ctx.moveTo(p.x - 36, p.y + h)
+        ctx.lineTo(p.x + 36, p.y + h)
+        ctx.stroke()
+      }
+    }
     ctx.restore()
   }
 
@@ -4620,10 +5036,17 @@ class VectorShooter {
     ctx.font = this.width < 560 ? '12px Courier New' : '14px Courier New'
     ctx.textAlign = 'center'
     const message = nearLore ? `PRESS E / Y TO INSPECT: ${nearLore.title}` : nearAlien ? `PRESS E / Y TO SPEAK: ${nearAlien.name}` : nearShip ? 'PRESS E / Y TO BOARD SHIP' : s.message
-    ctx.fillText(`${s.planet.name} // ${this.surfaceScenarioLabel(s.scenario)} // ${this.surfaceEventLabel(s.event)} // ${s.collected}/${s.resources.length} SIGNALS`, this.width / 2, 86, this.width - 16)
+    if (this.width < 560) {
+      ctx.font = '11px Courier New'
+      ctx.fillText(`${s.planet.name} // ${this.surfaceScenarioLabel(s.scenario)}`, this.width / 2, 78, this.width - 24)
+      ctx.fillText(`${this.surfaceEventLabel(s.event)} // ${s.collected}/${s.resources.length} SIGNALS`, this.width / 2, 94, this.width - 24)
+    } else {
+      ctx.fillText(`${s.planet.name} // ${this.surfaceScenarioLabel(s.scenario)} // ${this.surfaceEventLabel(s.event)} // ${s.collected}/${s.resources.length} SIGNALS`, this.width / 2, 86, this.width - 16)
+    }
     const actionInset = this.width < 560 ? 132 : 0
     const messageX = actionInset ? (this.width - actionInset) / 2 : this.width / 2
-    ctx.fillText(message, messageX, this.height - 42, this.width - actionInset - 18)
+    ctx.font = this.width < 560 ? '11px Courier New' : '14px Courier New'
+    ctx.fillText(message, messageX, this.width < 560 ? this.height - 72 : this.height - 42, this.width - actionInset - 18)
     ctx.restore()
   }
 
@@ -4944,20 +5367,77 @@ class VectorShooter {
       const s = this.worldToScreen(p.x, p.y)
       const radius = p.radius * scale
       if (s.x < -260 || s.x > this.width + 260 || s.y < -260 || s.y > this.height + 260) continue
+      const biome = p.biome
       ctx.save()
-      ctx.strokeStyle = p.color
-      ctx.shadowColor = p.color
-      ctx.shadowBlur = 18
+      ctx.strokeStyle = biome.baseColor
+      ctx.fillStyle = biome.shadowColor
+      ctx.shadowColor = biome.baseColor
+      ctx.shadowBlur = this.allowGlow() ? 18 : 6
       ctx.lineWidth = 2
       ctx.beginPath()
       ctx.arc(s.x, s.y, radius, 0, TAU)
+      ctx.fill()
       ctx.stroke()
       ctx.shadowBlur = 0
-      ctx.globalAlpha = 0.38
+      ctx.save()
+      ctx.beginPath()
+      ctx.arc(s.x, s.y, radius * 0.98, 0, TAU)
+      ctx.clip()
+      ctx.globalAlpha = 0.62
+      ctx.strokeStyle = biome.accentColor
+      ctx.lineWidth = Math.max(1.2, 2 * scale)
+      if (biome.surfaceMotif === 'canopy') {
+        for (let i = -2; i < 4; i += 1) {
+          ctx.beginPath()
+          ctx.arc(s.x - radius * 0.28 + i * radius * 0.2, s.y - radius * 0.12 + Math.sin(i) * radius * 0.1, radius * 0.34, Math.PI * 0.98, Math.PI * 1.95)
+          ctx.stroke()
+        }
+      } else if (biome.surfaceMotif === 'dunes' || biome.surfaceMotif === 'islands') {
+        for (let i = -2; i <= 2; i += 1) {
+          ctx.beginPath()
+          ctx.ellipse(s.x, s.y + i * radius * 0.22, radius * 1.05, radius * 0.18, Math.sin(i + p.x) * 0.18, 0, TAU)
+          ctx.stroke()
+        }
+      } else if (biome.surfaceMotif === 'lava') {
+        for (let i = 0; i < 5; i += 1) {
+          const a = (i / 5) * TAU + (p.x % 17) * 0.03
+          ctx.beginPath()
+          ctx.moveTo(s.x + Math.cos(a) * radius * 0.18, s.y + Math.sin(a) * radius * 0.18)
+          ctx.lineTo(s.x + Math.cos(a + 0.38) * radius * 0.92, s.y + Math.sin(a + 0.38) * radius * 0.92)
+          ctx.stroke()
+        }
+      } else if (biome.surfaceMotif === 'ice' || biome.surfaceMotif === 'crystals') {
+        for (let i = 0; i < 6; i += 1) {
+          const x = s.x - radius * 0.7 + i * radius * 0.28
+          ctx.beginPath()
+          ctx.moveTo(x, s.y + radius * 0.62)
+          ctx.lineTo(x + radius * 0.18, s.y - radius * 0.48)
+          ctx.lineTo(x + radius * 0.36, s.y + radius * 0.5)
+          ctx.stroke()
+        }
+      } else if (biome.surfaceMotif === 'reef') {
+        for (let i = 0; i < 5; i += 1) {
+          ctx.beginPath()
+          ctx.arc(s.x + Math.cos(i) * radius * 0.36, s.y + Math.sin(i * 1.7) * radius * 0.32, radius * (0.16 + i * 0.025), 0, TAU)
+          ctx.stroke()
+        }
+      } else {
+        for (let i = 0; i < 4; i += 1) {
+          const x = s.x - radius * 0.48 + i * radius * 0.32
+          ctx.strokeRect(x, s.y - radius * 0.48, radius * 0.14, radius * 0.96)
+        }
+      }
+      ctx.restore()
+      ctx.strokeStyle = p.color
+      ctx.shadowColor = p.color
+      ctx.shadowBlur = this.allowGlow() ? 14 : 4
+      ctx.globalAlpha = 0.42
       ctx.beginPath()
       ctx.ellipse(s.x, s.y, radius * 1.75, radius * 0.38, Math.sin(this.stats.time * 0.3) * 0.35, 0, TAU)
       ctx.stroke()
       ctx.globalAlpha = 1
+      ctx.strokeStyle = biome.baseColor
+      ctx.shadowColor = biome.baseColor
       for (let i = 0; i < 4; i += 1) {
         ctx.beginPath()
         ctx.arc(s.x, s.y, radius * (0.35 + i * 0.15), 0, TAU * (0.56 + Math.sin(this.stats.time + i) * 0.08))
@@ -4967,6 +5447,9 @@ class VectorShooter {
       ctx.font = '12px Courier New'
       ctx.textAlign = 'center'
       ctx.fillText(p.name, s.x, s.y + radius + 24 * scale)
+      ctx.fillStyle = biome.accentColor
+      ctx.font = '10px Courier New'
+      ctx.fillText(biome.label.toUpperCase(), s.x, s.y + radius + 38 * scale)
       ctx.restore()
     }
   }
@@ -5191,9 +5674,10 @@ class VectorShooter {
     const scale = this.spaceScale()
     const a = this.player.angle
     const engineGlow = this.build.engine + this.build.heat + this.limitBreaks.speed * 0.2
-    const weaponGlow = this.build.rapid + this.build.split + this.build.rail + this.build.rift
+    const weaponGlow = this.build.rapid + this.build.split + this.build.rail + this.build.rift + this.build.orbit
     const hullGlow = this.build.repair + this.limitBreaks.hull
     const navGlow = this.build.nav
+    const signature = starterSignatureFlags(this.build)
     const travelSpeed = len(this.player.vx, this.player.vy)
     const speedCap = this.player.speed
       + this.build.engine * powerupBalance.ship.maxSpeedPerEngineRank
@@ -5242,7 +5726,7 @@ class VectorShooter {
     ctx.lineTo(-15, 13)
     ctx.closePath()
     ctx.stroke()
-    if (this.build.split > 0 || this.build.rail > 0) {
+    if (signature.prismFins || signature.eliteLance) {
       ctx.strokeStyle = this.build.rail > 0 ? '#fff27a' : '#70a8ff'
       ctx.beginPath()
       ctx.moveTo(2, -12)
@@ -5250,6 +5734,31 @@ class VectorShooter {
       ctx.moveTo(2, 12)
       ctx.lineTo(16 + Math.min(10, this.build.rail * 2), 20 + Math.min(8, this.build.split))
       ctx.stroke()
+    }
+    if (signature.pulseWake) {
+      ctx.strokeStyle = signature.heatBloom ? '#ff9d5c' : '#57fff3'
+      ctx.globalAlpha = 0.48
+      ctx.beginPath()
+      ctx.arc(16, 0, 9 + Math.sin(this.stats.time * 12) * 2, -0.9, 0.9)
+      ctx.moveTo(6, -7)
+      ctx.lineTo(22, -3)
+      ctx.moveTo(6, 7)
+      ctx.lineTo(22, 3)
+      ctx.stroke()
+      ctx.globalAlpha = 1
+    }
+    if (signature.engineChevrons) {
+      ctx.strokeStyle = '#70a8ff'
+      ctx.globalAlpha = 0.42
+      ctx.beginPath()
+      for (let i = 0; i < 2; i += 1) {
+        const x = -21 - i * 7
+        ctx.moveTo(x, -10)
+        ctx.lineTo(x - 6, 0)
+        ctx.lineTo(x, 10)
+      }
+      ctx.stroke()
+      ctx.globalAlpha = 1
     }
     if (hullGlow > 0) {
       ctx.strokeStyle = '#8fff7d'
@@ -5293,6 +5802,28 @@ class VectorShooter {
       ctx.beginPath()
       ctx.arc(p.x, p.y, (this.player.radius + 10) * scale, 0, TAU)
       ctx.stroke()
+      if (signature.shieldHalo) {
+        ctx.strokeStyle = 'rgba(143,255,125,0.42)'
+        ctx.setLineDash([5 * scale, 6 * scale])
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, (this.player.radius + 18 + this.build.shield * 2) * scale, 0, TAU)
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
+      ctx.restore()
+    }
+
+    if (signature.salvageField) {
+      ctx.save()
+      ctx.strokeStyle = 'rgba(255,242,122,0.24)'
+      ctx.shadowColor = '#fff27a'
+      ctx.shadowBlur = this.allowGlow() ? 10 : 0
+      ctx.lineWidth = 1
+      ctx.setLineDash([4 * scale, 10 * scale])
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, (this.player.radius + 34 + this.build.magnet * 4 + Math.sin(this.stats.time * 4) * 2) * scale, 0, TAU)
+      ctx.stroke()
+      ctx.setLineDash([])
       ctx.restore()
     }
 
@@ -5312,14 +5843,15 @@ class VectorShooter {
       return
     }
     const scale = this.spaceScale()
+    const signature = starterSignatureFlags(this.build)
     for (const b of this.bullets) {
       const p = this.worldToScreen(b.x, b.y)
       if (p.x < -80 || p.x > this.width + 80 || p.y < -80 || p.y > this.height + 80) continue
       ctx.save()
       ctx.strokeStyle = b.color
       ctx.shadowColor = b.color
-      ctx.shadowBlur = this.allowGlow() ? (b.rail ? 18 : 10) : 0
-      ctx.lineWidth = b.rail ? 3 : 2
+      ctx.shadowBlur = this.allowGlow() ? (b.rail ? 18 : b.option ? 16 : 10) : 0
+      ctx.lineWidth = b.rail ? 3 : b.option ? 2.4 : 2
       ctx.beginPath()
       if (b.mine) {
         const radius = b.radius * scale
@@ -5328,6 +5860,32 @@ class VectorShooter {
         ctx.lineTo(p.x + radius, p.y)
       } else {
         const tail = norm(b.vx, b.vy)
+        if (signature.pulseWake && !b.hostile) {
+          ctx.globalAlpha = b.rail ? 0.35 : 0.28
+          ctx.beginPath()
+          ctx.arc(p.x - tail.x * 5 * scale, p.y - tail.y * 5 * scale, (b.radius + 5) * scale, 0, TAU)
+          ctx.stroke()
+          ctx.globalAlpha = 1
+          ctx.beginPath()
+        }
+        if (signature.prismFins && !b.rail && !b.hostile) {
+          const side = { x: -tail.y, y: tail.x }
+          ctx.globalAlpha = 0.44
+          ctx.moveTo(p.x - tail.x * 8 * scale + side.x * 5 * scale, p.y - tail.y * 8 * scale + side.y * 5 * scale)
+          ctx.lineTo(p.x + tail.x * 3 * scale, p.y + tail.y * 3 * scale)
+          ctx.moveTo(p.x - tail.x * 8 * scale - side.x * 5 * scale, p.y - tail.y * 8 * scale - side.y * 5 * scale)
+          ctx.lineTo(p.x + tail.x * 3 * scale, p.y + tail.y * 3 * scale)
+          ctx.globalAlpha = 1
+        }
+        if (b.option && !b.hostile) {
+          ctx.globalAlpha = 0.62
+          ctx.arc(p.x - tail.x * 3 * scale, p.y - tail.y * 3 * scale, (b.radius + 3.5) * scale, 0, TAU)
+          ctx.moveTo(p.x - tail.x * 8 * scale - tail.y * 4 * scale, p.y - tail.y * 8 * scale + tail.x * 4 * scale)
+          ctx.lineTo(p.x + tail.x * 4 * scale, p.y + tail.y * 4 * scale)
+          ctx.moveTo(p.x - tail.x * 8 * scale + tail.y * 4 * scale, p.y - tail.y * 8 * scale - tail.x * 4 * scale)
+          ctx.lineTo(p.x + tail.x * 4 * scale, p.y + tail.y * 4 * scale)
+          ctx.globalAlpha = 1
+        }
         ctx.moveTo(p.x - tail.x * (b.rail ? 26 : 12) * scale, p.y - tail.y * (b.rail ? 26 : 12) * scale)
         ctx.lineTo(p.x + tail.x * (b.rail ? 16 : 7) * scale, p.y + tail.y * (b.rail ? 16 : 7) * scale)
       }
@@ -5376,6 +5934,7 @@ class VectorShooter {
     const highLoad = this.isHighLoad()
     if (highLoad) {
       this.renderHordeEnemies(ctx)
+      this.renderPrioritySpriteEnemies(ctx)
       return
     }
     for (const e of this.enemies) {
@@ -5471,15 +6030,23 @@ class VectorShooter {
     }
     const row = spaceEnemyDefinitions[e.kind].spriteRow ?? 0
     const sw = sheet.naturalWidth / 4
-    const sh = sheet.naturalHeight / 3
+    const sh = sheet.naturalHeight / spriteEnemyKinds.length
     const frame = Math.floor((e.phase * 8 + e.id) % 4)
     const speed = Math.hypot(e.vx, e.vy)
-    const angle = e.kind === 'bulwark'
+    const bossLike = e.kind === 'bulwark' || isGiantEnemyKind(e.kind)
+    const angle = bossLike
       ? e.phase * 0.45
       : speed > 8
         ? Math.atan2(e.vy, e.vx)
         : Math.atan2(this.player.y - e.y, this.player.x - e.x)
-    const spriteScale = (e.kind === 'bulwark' ? 4.55 : e.kind === 'skimmer' ? 5.35 : 5.85) * this.spaceScale()
+    const spriteScale = (
+      e.kind === 'cathedral' ? 3.95 :
+      e.kind === 'dreadnought' ? 4.18 :
+      e.kind === 'bulwark' ? 4.55 :
+      e.kind === 'skimmer' ? 5.35 :
+      e.kind === 'siphon' ? 5.25 :
+      5.85
+    ) * this.spaceScale()
     const dw = e.radius * spriteScale
     const dh = e.radius * spriteScale
 
@@ -5487,7 +6054,7 @@ class VectorShooter {
     ctx.translate(p.x, p.y)
     ctx.rotate(angle)
     ctx.shadowColor = e.color
-    ctx.shadowBlur = this.allowGlow() ? (e.kind === 'bulwark' ? 18 : 14) : 0
+    ctx.shadowBlur = this.allowGlow() ? (bossLike ? 20 : 14) : 0
     ctx.globalAlpha = e.flash > 0 ? 0.92 : 1
     ctx.drawImage(sheet, frame * sw, row * sh, sw, sh, -dw / 2, -dh / 2, dw, dh)
     if (e.flash > 0) {
@@ -5501,6 +6068,16 @@ class VectorShooter {
     ctx.restore()
   }
 
+  private renderPrioritySpriteEnemies(ctx: CanvasRenderingContext2D) {
+    for (const e of this.enemies) {
+      if (!isSpriteEnemyKind(e.kind)) continue
+      const p = this.worldToScreen(e.x, e.y)
+      const margin = isGiantEnemyKind(e.kind) ? 220 : 120
+      if (p.x < -margin || p.x > this.width + margin || p.y < -margin || p.y > this.height + margin) continue
+      this.renderSpaceSpriteEnemy(ctx, e, p)
+    }
+  }
+
   private renderHordeEnemies(ctx: CanvasRenderingContext2D) {
     ctx.save()
     ctx.shadowBlur = 0
@@ -5512,15 +6089,19 @@ class VectorShooter {
     this.strokeEnemyBatch(ctx, 'shooter', '#ff61d8')
     this.strokeEnemyBatch(ctx, 'razor', '#57fff3')
     this.strokeEnemyBatch(ctx, 'skimmer', '#ffe66d')
+    this.strokeEnemyBatch(ctx, 'siphon', '#8fff7d')
     ctx.lineWidth = 2.4
     this.strokeEnemyBatch(ctx, 'brute', '#ff9d5c')
     this.strokeEnemyBatch(ctx, 'bulwark', '#f46cff')
+    this.strokeEnemyBatch(ctx, 'dreadnought', '#ff5d73')
+    this.strokeEnemyBatch(ctx, 'cathedral', '#d7fff7')
     this.strokeEnemyBatch(ctx, 'warden', '#b990ff')
     ctx.lineWidth = 1.8
     ctx.strokeStyle = '#ffffff'
     ctx.beginPath()
     for (const e of this.enemies) {
       if (e.flash <= 0) continue
+      if (isSpriteEnemyKind(e.kind)) continue
       const { x, y } = this.worldToScreen(e.x, e.y)
       if (x < -95 || x > this.width + 95 || y < -95 || y > this.height + 95) continue
       this.addEnemyGlyph(ctx, e, x, y)
@@ -5534,6 +6115,7 @@ class VectorShooter {
     ctx.beginPath()
     for (const e of this.enemies) {
       if (e.kind !== kind || e.flash > 0) continue
+      if (isSpriteEnemyKind(e.kind)) continue
       const { x, y } = this.worldToScreen(e.x, e.y)
       if (x < -95 || x > this.width + 95 || y < -95 || y > this.height + 95) continue
       this.addEnemyGlyph(ctx, e, x, y)
@@ -5606,6 +6188,37 @@ class VectorShooter {
       ctx.lineTo(x + r * 0.62, y)
       ctx.lineTo(x, y + r * 0.78)
       ctx.lineTo(x - r * 0.62, y)
+      ctx.closePath()
+    } else if (e.kind === 'siphon') {
+      ctx.moveTo(x + r * 1.08, y)
+      ctx.arc(x, y, r * 1.08, 0, TAU)
+      ctx.moveTo(x + r * 0.62, y)
+      ctx.arc(x, y, r * 0.62, 0, Math.PI * 1.55)
+      ctx.moveTo(x - r * 0.15, y - r * 0.78)
+      ctx.lineTo(x + r * 0.72, y)
+      ctx.lineTo(x - r * 0.15, y + r * 0.78)
+    } else if (e.kind === 'dreadnought') {
+      ctx.moveTo(x + r * 1.28, y)
+      ctx.lineTo(x + r * 0.42, y + r * 0.82)
+      ctx.lineTo(x - r * 0.95, y + r * 0.62)
+      ctx.lineTo(x - r * 1.32, y)
+      ctx.lineTo(x - r * 0.95, y - r * 0.62)
+      ctx.lineTo(x + r * 0.42, y - r * 0.82)
+      ctx.closePath()
+      ctx.moveTo(x - r * 0.42, y)
+      ctx.arc(x - r * 0.42, y, r * 0.34, 0, TAU)
+    } else if (e.kind === 'cathedral') {
+      ctx.moveTo(x, y - r * 1.22)
+      ctx.lineTo(x + r * 0.86, y - r * 0.34)
+      ctx.lineTo(x + r * 0.62, y + r * 0.92)
+      ctx.lineTo(x, y + r * 1.22)
+      ctx.lineTo(x - r * 0.62, y + r * 0.92)
+      ctx.lineTo(x - r * 0.86, y - r * 0.34)
+      ctx.closePath()
+      ctx.moveTo(x, y - r * 0.68)
+      ctx.lineTo(x + r * 0.42, y)
+      ctx.lineTo(x, y + r * 0.68)
+      ctx.lineTo(x - r * 0.42, y)
       ctx.closePath()
     } else if (e.kind === 'warden') {
       ctx.moveTo(x + r, y)
@@ -5864,28 +6477,49 @@ class VectorShooter {
   }
 
   private renderOrbitals(ctx: CanvasRenderingContext2D) {
-    const count = this.build.orbit
+    const evolved = this.evolved.has('orbit')
+    const profile = optionOrbProfile({ orbitRank: this.build.orbit, fireSerial: this.fireSerial, evolved })
+    const count = profile.count
     if (count <= 0) return
     const center = this.worldToScreen(this.player.x, this.player.y)
     const scale = this.spaceScale()
-    const radius = (66 + count * 8) * scale
+    const worldRadius = powerupBalance.orbit.radiusBase + this.build.orbit * powerupBalance.orbit.radiusPerRank
+    const radius = worldRadius * scale
     const glow = this.allowGlow()
+    const color = evolved ? '#fff27a' : '#8fff7d'
     ctx.save()
     ctx.globalCompositeOperation = glow ? 'lighter' : 'source-over'
-    ctx.strokeStyle = '#8fff7d'
-    ctx.shadowColor = '#8fff7d'
+    ctx.strokeStyle = color
+    ctx.shadowColor = color
     ctx.shadowBlur = glow ? 28 : this.isHighLoad() ? 0 : 14
+    ctx.globalAlpha = this.isHighLoad() ? 0.18 : 0.26
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.arc(center.x, center.y, radius, 0, TAU)
+    ctx.stroke()
+    ctx.globalAlpha = 1
     for (let i = 0; i < count; i += 1) {
-      const a = this.stats.time * (2.4 + count * 0.18) + (i / count) * TAU
+      const a = this.optionOrbAngle(i, count)
       const x = center.x + Math.cos(a) * radius
       const y = center.y + Math.sin(a) * radius
+      const orbRadius = (evolved ? 7.2 : 6.2) * scale
+      const coreRadius = (evolved ? 2.8 : 2.2) * scale
+      const side = { x: -Math.sin(a), y: Math.cos(a) }
       ctx.beginPath()
-      ctx.moveTo(x - Math.cos(a) * 12 * scale, y - Math.sin(a) * 12 * scale)
-      ctx.lineTo(x + Math.cos(a) * 12 * scale, y + Math.sin(a) * 12 * scale)
+      ctx.arc(center.x, center.y, radius, a - 0.52, a - 0.12)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(x, y, orbRadius, 0, TAU)
+      ctx.moveTo(x - side.x * orbRadius * 1.45, y - side.y * orbRadius * 1.45)
+      ctx.lineTo(x + side.x * orbRadius * 1.45, y + side.y * orbRadius * 1.45)
+      ctx.moveTo(x + Math.cos(a) * coreRadius, y + Math.sin(a) * coreRadius)
+      ctx.arc(x, y, coreRadius, 0, TAU)
       ctx.stroke()
       if (glow) {
         ctx.globalAlpha = 0.28
-        ctx.lineWidth = 5
+        ctx.lineWidth = 6
+        ctx.beginPath()
+        ctx.arc(x, y, orbRadius * 1.18, 0, TAU)
         ctx.stroke()
         ctx.globalAlpha = 1
         ctx.lineWidth = 1
@@ -5901,11 +6535,17 @@ class VectorShooter {
     const s = this.worldToScreen(planet.x, planet.y - planet.radius - 42)
     ctx.save()
     ctx.fillStyle = '#fff27a'
-    ctx.font = '13px Courier New'
+    ctx.font = this.width < 560 ? '11px Courier New' : '13px Courier New'
     ctx.textAlign = 'center'
     ctx.shadowColor = '#fff27a'
     ctx.shadowBlur = 12
-    ctx.fillText(`PRESS E / Y TO LAND: ${planet.name}`, s.x, s.y)
+    const x = clamp(s.x, this.width < 560 ? 86 : 18, this.width - (this.width < 560 ? 86 : 18))
+    if (this.width < 560) {
+      ctx.fillText('PRESS E / Y TO LAND', x, s.y - 7, this.width - 24)
+      ctx.fillText(planet.name, x, s.y + 8, this.width - 24)
+    } else {
+      ctx.fillText(`PRESS E / Y TO LAND: ${planet.name}`, x, s.y, this.width - 24)
+    }
     ctx.restore()
   }
 
@@ -6185,6 +6825,10 @@ class VectorShooter {
     return relicLine
   }
 
+  private workbenchExtraUnlockedIds(): UpgradeId[] {
+    return this.discoverySuitOffer ? ['suitO2'] : []
+  }
+
   private workbenchSectionLabel(label: string) {
     const el = document.createElement('div')
     el.className = 'workbench-section-label'
@@ -6219,7 +6863,7 @@ class VectorShooter {
     return this.upgradeLevelDetail(upgrade, upgrade.max)
   }
 
-  private renderWorkbenchContextChip(upgrade: Upgrade, status: 'MAXED' | 'LOCKED', detail: string, extraClass = '') {
+  private renderWorkbenchContextChip(upgrade: Upgrade, status: 'MAXED' | 'LOCKED' | 'STANDBY', detail: string, extraClass = '') {
     const level = this.build[upgrade.id]
     const chip = document.createElement('div')
     chip.className = `manifest-chip ${level > 0 ? 'owned' : 'locked'} ${status === 'MAXED' ? 'maxed' : ''} ${extraClass} ${upgrade.bucket}`
@@ -6239,26 +6883,38 @@ class VectorShooter {
     wrap.className = 'build-manifest workbench'
     const title = document.createElement('div')
     title.className = 'manifest-title'
-    title.innerHTML = '<b>SHIP WORKBENCH</b><span>installable offers first // maxed and locked systems below</span>'
-    const offerGrid = document.createElement('div')
-    offerGrid.className = 'manifest-grid workbench-offers'
-    for (const choice of this.upgradeChoices) offerGrid.append(this.renderWorkbenchChoiceChip(choice))
-    wrap.append(title, this.renderManifestSummary(), this.workbenchSectionLabel('AVAILABLE SIGNALS'), offerGrid)
-
-    const maxed = upgrades.filter((upgrade) => this.build[upgrade.id] >= upgrade.max)
-    if (maxed.length) {
-      const maxedGrid = document.createElement('div')
-      maxedGrid.className = 'manifest-grid workbench-maxed'
-      for (const upgrade of maxed) maxedGrid.append(this.renderWorkbenchContextChip(upgrade, 'MAXED', this.maxedUnlockText(upgrade)))
-      wrap.append(this.workbenchSectionLabel('MAXED SYSTEMS'), maxedGrid)
+    title.innerHTML = '<b>SHIP WORKBENCH</b><span>fixed system order // bright rows are installable</span>'
+    const offeredUpgradeChoices = new Map<UpgradeId, WorkbenchChoice>()
+    const specialChoices: WorkbenchChoice[] = []
+    for (const choice of this.upgradeChoices) {
+      if (choice.kind === 'upgrade') offeredUpgradeChoices.set(choice.upgrade.id, choice)
+      else specialChoices.push(choice)
     }
 
-    const locked = workbenchLockedUpgrades(upgrades, this.build)
-    if (locked.length) {
-      const lockedGrid = document.createElement('div')
-      lockedGrid.className = 'manifest-grid workbench-locked'
-      for (const entry of locked) lockedGrid.append(this.renderWorkbenchContextChip(entry.upgrade, 'LOCKED', entry.requirement, 'future'))
-      wrap.append(this.workbenchSectionLabel('LOCKED SYSTEMS'), lockedGrid)
+    const systemGrid = document.createElement('div')
+    systemGrid.className = 'manifest-grid workbench-offers workbench-systems'
+    const rows = workbenchUpgradeRows(upgrades, this.build, Array.from(offeredUpgradeChoices.keys()), this.workbenchExtraUnlockedIds())
+    for (const row of rows) {
+      const offered = offeredUpgradeChoices.get(row.upgrade.id)
+      if (offered) {
+        systemGrid.append(this.renderWorkbenchChoiceChip(offered))
+      } else if (row.status === 'maxed') {
+        systemGrid.append(this.renderWorkbenchContextChip(row.upgrade, 'MAXED', this.maxedUnlockText(row.upgrade)))
+      } else if (row.status === 'locked') {
+        systemGrid.append(this.renderWorkbenchContextChip(row.upgrade, 'LOCKED', row.requirement ?? 'Future workbench unlock', 'future'))
+      } else {
+        const next = Math.min(this.build[row.upgrade.id] + 1, row.upgrade.max)
+        systemGrid.append(this.renderWorkbenchContextChip(row.upgrade, 'STANDBY', `NEXT: ${this.upgradeLevelDetail(row.upgrade, next)}`, 'standby'))
+      }
+    }
+
+    wrap.append(title, this.renderManifestSummary(), this.workbenchSectionLabel('SYSTEM BAY'), systemGrid)
+
+    if (specialChoices.length) {
+      const specialGrid = document.createElement('div')
+      specialGrid.className = 'manifest-grid workbench-special-offers'
+      for (const choice of specialChoices) specialGrid.append(this.renderWorkbenchChoiceChip(choice))
+      wrap.append(this.workbenchSectionLabel('RARE AND LIMIT SIGNALS'), specialGrid)
     }
 
     wrap.append(this.renderManifestRelicLine())
@@ -6592,6 +7248,7 @@ class VectorShooter {
       return
     }
     this.artifacts.set(record.id, { ...canonicalRecord, count: 1 })
+    if (['alien', 'cache', 'lore', 'relic'].includes(canonicalRecord.kind)) this.discoverySuitOffer = true
   }
 
   private recordEnemyDiscovery(id: string, title: string, detail: string, source: string, color: string) {
@@ -6670,12 +7327,12 @@ class VectorShooter {
     const scanner = this.mothership.departments.scanner
     const risk = this.planetRiskLabel(p)
     copy.textContent = p.visited
-      ? 'The dock remembers you. It offers a small repair and a moment of quiet.'
+      ? `${p.biome.label}. The dock remembers you. It offers a small repair and a moment of quiet.`
       : scanner >= 3
-        ? `${p.reward} Risk: ${risk}.`
+        ? `${p.biome.label}. ${p.reward} Risk: ${risk}.`
         : scanner >= 1
-          ? `${p.archetype.toUpperCase()} SIGNAL // ${p.reward}`
-          : p.reward
+          ? `${p.biome.label.toUpperCase()} // ${p.archetype.toUpperCase()} SIGNAL // ${p.reward}`
+          : `${p.biome.label}. ${p.reward}`
     const row = document.createElement('div')
     row.className = 'button-row'
     const land = document.createElement('button')
@@ -6735,13 +7392,21 @@ class VectorShooter {
     this.state = 'mothership'
     this.ui.title.innerHTML = ''
     this.ui.title.className = 'screen mothership-screen'
+    const archiveRecordCount = Object.keys(this.mothership.archive.records).length
+    const firstCommand = !this.debrief
+      && archiveRecordCount === 0
+      && this.mothership.resources.scrap === 0
+      && this.mothership.resources.crystal === 0
+      && this.mothership.resources.cores === 0
     const shell = document.createElement('div')
-    shell.className = 'mothership-command'
+    shell.className = `mothership-command ${firstCommand ? 'first-command' : ''}`
     const header = document.createElement('header')
     header.className = 'mothership-command-top'
     const intro = document.createElement('div')
     intro.className = 'mothership-command-title'
-    intro.innerHTML = '<span>COMMAND DECK</span><h1>MOTHERSHIP</h1><p>Scout systems docked. Spend recovered cargo, review the ship, then launch the next expedition.</p>'
+    intro.innerHTML = firstCommand
+      ? '<span>COMMAND DECK</span><h1>MOTHERSHIP</h1><p>First scout is hot. Find a signal world, crack one cache, and bring something impossible home.</p>'
+      : '<span>COMMAND DECK</span><h1>MOTHERSHIP</h1><p>Scout systems docked. Spend recovered cargo, review the ship, then launch the next expedition.</p>'
     if (this.debrief) {
       const lastRun = document.createElement('p')
       lastRun.className = 'mothership-last-report'
@@ -6766,7 +7431,7 @@ class VectorShooter {
     status.append(
       this.mothershipMeter('Hull Integrity', `${Math.ceil(Math.max(0, this.player.hull))}/${this.player.maxHull}`, hullPct, 'health'),
       this.mothershipMeter('Mutation XP', `LV ${this.stats.level} // ${Math.floor(this.stats.xp)}/${this.stats.nextXp}`, xpPct, 'xp'),
-      this.mothershipMeter('Archive Signal', `${Object.keys(this.mothership.archive.records).length} records`, clamp(Object.keys(this.mothership.archive.records).length / 18, 0, 1), 'archive')
+      this.mothershipMeter('Archive Signal', `${archiveRecordCount} records`, clamp(archiveRecordCount / 18, 0, 1), 'archive')
     )
     const shipBay = document.createElement('div')
     shipBay.className = 'mothership-ship-bay'
@@ -6779,10 +7444,14 @@ class VectorShooter {
     launch.textContent = 'Launch Expedition'
     launch.addEventListener('click', () => this.start())
     shipBay.append(ship, launch, status)
-    const consolePanel = this.renderMothershipConsoleStack()
     const launchStack = document.createElement('div')
     launchStack.className = 'mothership-launch-stack'
-    launchStack.append(shipBay, consolePanel)
+    launchStack.append(shipBay)
+    if (firstCommand) {
+      launchStack.append(this.renderFirstMothershipBriefing())
+    } else {
+      launchStack.append(this.renderMothershipConsoleStack())
+    }
     flight.append(launchStack)
 
     const systemsHeader = document.createElement('div')
@@ -6798,7 +7467,8 @@ class VectorShooter {
       this.departmentStation('signalCore'),
       this.departmentStation('hangarCrew')
     )
-    shell.append(header, flight, systemsHeader, grid)
+    shell.append(header, flight)
+    if (!firstCommand) shell.append(systemsHeader, grid)
     this.ui.title.append(shell)
     this.showOnly('title')
     if (options.scrollTop !== undefined) {
@@ -6818,6 +7488,17 @@ class VectorShooter {
       <i><em style="width:${clamp(pct, 0, 1) * 100}%"></em></i>
     `
     return meter
+  }
+
+  private renderFirstMothershipBriefing() {
+    const briefing = document.createElement('section')
+    briefing.className = 'mothership-first-briefing'
+    briefing.innerHTML = `
+      <div><b>First Directive</b><span>Land on a bright planet signal.</span></div>
+      <div><b>Surface Order</b><span>Collect cache signals before O2 collapses.</span></div>
+      <div><b>Return Prize</b><span>Bring back records to wake the ship systems.</span></div>
+    `
+    return briefing
   }
 
   private renderMothershipConsoleStack() {
@@ -7204,6 +7885,8 @@ class VectorShooter {
     this.pendingUpgrades = 0
     this.workbenchInstalling = false
     this.takeoffAfterWorkbench = false
+    this.discoverySuitOffer = false
+    this.summonReturnBeaconAfterTakeoff = false
     this.workbenchRerolls = this.mothership.departments.workbench >= 1 ? 1 : 0
     const hangarCrew = this.mothership.departments.hangarCrew
     this.resources = {

@@ -5,11 +5,17 @@ import {
   enemyAttackCooldown,
   GAME_BALANCE_MODE,
   gameBalanceProfiles,
+  pickSpaceEnemyKind,
   spaceEnemyBalance,
   spaceEnemyKinds,
   spaceSpawnBalance,
   surfaceThreatBalance
 } from '../src/game-balance'
+
+const sequenceRandom = (values: number[]) => {
+  let index = 0
+  return () => values[index++] ?? 0.99
+}
 
 test('active balance mode is explicit and currently easy for testing', () => {
   expect(GAME_BALANCE_MODE).toBe('testEasy')
@@ -55,4 +61,12 @@ test('spawn and surface balance values are named and profile-scaled', () => {
   expect(spaceSpawnBalance.quietField.targetNearbyBase).toBeGreaterThan(0)
   expect(surfaceThreatBalance.generic.baseHp).toBeGreaterThan(0)
   expect(surfaceThreatBalance.boss.contactDamage).toBeGreaterThan(surfaceThreatBalance.generic.contactDamage)
+})
+
+test('enemy picker can preview upcoming regular enemies before their normal gate', () => {
+  expect(pickSpaceEnemyKind(40, sequenceRandom([0.01, 0]))).toBe('lancer')
+})
+
+test('enemy picker keeps boss-class enemies behind their normal gate', () => {
+  expect(pickSpaceEnemyKind(300, sequenceRandom([0.01, 0]))).toBe('bulwark')
 })

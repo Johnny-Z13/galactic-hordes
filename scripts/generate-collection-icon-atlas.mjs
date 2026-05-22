@@ -3,7 +3,7 @@ import { writeFileSync } from 'node:fs'
 
 const cell = 96
 const columns = 8
-const rows = 6
+const rows = 7
 const width = cell * columns
 const height = cell * rows
 const pixels = new Uint8ClampedArray(width * height * 4)
@@ -177,6 +177,20 @@ const drawSpaceEnemy = (index, kind, color) => {
   } else if (kind === 'skimmer') {
     poly([[cx + 28, cy - 14], [cx - 5, cy - 31], [cx - 34, cy - 9], [cx - 22, cy + 19], [cx + 22, cy + 18]], c, 1.8)
     arc(cx - 2, cy + 5, 24, 0.15, Math.PI - 0.22, accent, 1)
+  } else if (kind === 'siphon') {
+    arc(cx, cy, 28, -0.4, TAU - 0.8, c, 1.7)
+    poly([[cx + 27, cy], [cx + 5, cy - 15], [cx - 26, cy], [cx + 5, cy + 15]], c, 1.4)
+    line(cx - 12, cy, cx - 37, cy - 24, accent, 1)
+    line(cx - 12, cy, cx - 37, cy + 24, accent, 1)
+  } else if (kind === 'dreadnought') {
+    poly([[cx + 37, cy], [cx + 14, cy - 24], [cx - 30, cy - 30], [cx - 39, cy], [cx - 30, cy + 30], [cx + 14, cy + 24]], c, 2.2)
+    poly([[cx + 24, cy - 10], [cx + 45, cy - 5], [cx + 45, cy + 5], [cx + 24, cy + 10]], accent, 1.2)
+    line(cx - 31, cy - 20, cx - 45, cy - 35, c, 1.1)
+    line(cx - 31, cy + 20, cx - 45, cy + 35, c, 1.1)
+  } else if (kind === 'cathedral') {
+    poly([[cx, cy - 40], [cx + 25, cy - 13], [cx + 17, cy + 28], [cx, cy + 40], [cx - 17, cy + 28], [cx - 25, cy - 13]], c, 1.9)
+    arc(cx, cy, 34, 0, TAU, c, 1.2)
+    poly([[cx, cy - 23], [cx + 14, cy], [cx, cy + 23], [cx - 14, cy]], accent, 1)
   } else {
     for (let i = 0; i < 12; i += 1) {
       const a = (i / 12) * TAU
@@ -347,24 +361,27 @@ const spaceEnemies = [
   ['warden', '#b990ff'],
   ['razor', '#57fff3'],
   ['skimmer', '#ffe66d'],
-  ['bulwark', '#f46cff']
+  ['bulwark', '#f46cff'],
+  ['siphon', '#8fff7d'],
+  ['dreadnought', '#ff5d73'],
+  ['cathedral', '#d7fff7']
 ]
 spaceEnemies.forEach(([kind, color], offset) => drawSpaceEnemy(8 + offset, kind, color))
 
 const surfaceColors = ['#fff27a', '#ff5d73', '#ff61d8', '#ff5d73', '#57fff3', '#57fff3', '#fff27a', '#8fff7d', '#ff61d8', '#d7fff7']
-surfaceColors.forEach((color, offset) => drawSurfaceEnemy(18 + offset, color, offset))
+surfaceColors.forEach((color, offset) => drawSurfaceEnemy(21 + offset, color, offset))
 
 const alienColors = ['#b990ff', '#fff27a', '#57fff3', '#8fff7d', '#b990ff']
-alienColors.forEach((color, offset) => drawAlien(28 + offset, color, offset))
+alienColors.forEach((color, offset) => drawAlien(31 + offset, color, offset))
 
 const loreColors = ['#d7fff7', '#70a8ff', '#fff27a', '#70a8ff', '#d7fff7']
-loreColors.forEach((color, offset) => drawLore(33 + offset, color, offset))
+loreColors.forEach((color, offset) => drawLore(36 + offset, color, offset))
 
 const planetColors = ['#57fff3', '#ff5d73', '#8fff7d', '#fff27a', '#b990ff', '#70a8ff', '#ff61d8']
-planetColors.forEach((color, offset) => drawPlanet(38 + offset, color, offset))
+planetColors.forEach((color, offset) => drawPlanet(41 + offset, color, offset))
 
-drawCache(45, '#fff27a', 0)
-drawCache(46, '#70a8ff', 1)
+drawCache(48, '#fff27a', 0)
+drawCache(49, '#70a8ff', 1)
 
 const crcTable = new Uint32Array(256)
 for (let n = 0; n < 256; n += 1) {

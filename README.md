@@ -122,6 +122,9 @@ Active balance mode: `testEasy` (Testing Easy).
 | razor | 92 | 335 | 17 | 205s | 0.18 |
 | skimmer | 126 | 176 | 13 | 165s | 0.29 |
 | bulwark | 270 | 86 | 22 | 270s | 0.07 |
+| siphon | 540 | 94 | 25 | 330s | 0.055 |
+| dreadnought | 760 | 70 | 30 | 420s | 0.038 |
+| cathedral | 980 | 56 | 34 | 560s | 0.024 |
 
 ### Power-Up Balance Snapshot
 

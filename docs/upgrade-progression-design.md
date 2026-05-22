@@ -26,11 +26,15 @@ The workbench should feel like choosing a build direction, not buying tiny line 
 ## Workbench Rules
 
 - Owned upgrades are more likely to appear, so builds cohere over a run.
+- Starter systems reveal nearby branches at meaningful rank thresholds, so the first session discovers new toys before a parent is fully maxed.
 - Maxed upgrades stop appearing as installable offers, but remain visible below current offers as completed systems.
 - Locked future systems appear below maxed systems with unlock hints.
 - Rare runs can offer relics directly, but planets are the main source of relics.
+- The first cache, relic, alien, or lore discovery can force an early Exo-Lung offer, bringing the spacesuit branch into view for planet-focused players.
 - Available evolutions get priority as golden choices.
 - Limit Break appears only when the normal pool is exhausted or nearly exhausted.
+- A single surface trip can bank only a small handful of mutation signals; overflow discoveries convert into cargo so a second planet cannot create a 15-install workbench queue.
+- The workbench renders systems in fixed catalog order. Current offers light up in place instead of reshuffling the menu after every install.
 
 ## Weapons
 
@@ -45,6 +49,18 @@ The workbench should feel like choosing a build direction, not buying tiny line 
 | Mine Wake | 5 | 55 | dash mines, damage, extra mine, duration, evolution-ready | Forbidden Map | Comet Net: dash mines form larger constellations |
 | Static Arc | 5 | 50 | chain hop, arc damage, chain hop, chain hop, evolution-ready | Saint Capacitor | Storm Liturgy: stronger chain lightning |
 | Rift Needle | 5 | 45 | periodic needle, damage, faster cadence, pierce, evolution-ready | Mirror Seed | Black Needle: elite-killing heavy shots |
+
+## Early Screen Signatures
+
+Starter branches should become visible before they are maxed, so the player can read build identity from the live screen:
+
+- Pulse Cannon rank 2 adds pulse wake rings to shots; rank 5 makes every fifth shot double-pulse.
+- Choir Cannon upgrades that cadence into a three-note volley.
+- Prism Barrel rank 1 adds visible ray fins to the ship and projectiles.
+- Drift Engine rank 2 adds navigation chevrons and stronger exhaust language.
+- Signal Magnet rank 1 adds a salvage-field ring around the ship.
+- Halo Battery rank 1 adds a second shield halo around the hull.
+- Projectile lifetime scales with visible space width, so desktop and landscape players can use the wider field while portrait mobile keeps compact readable combat.
 
 ## Ship Systems
 
@@ -61,6 +77,29 @@ The workbench should feel like choosing a build direction, not buying tiny line 
 | Cargo Spine | 4 | 66 | Economy: more scrap, crystals, cores, and cache score |
 | Heat Sink | 4 | 62 | Control: cooldown support for fast-fire builds |
 | Phase Rudder | 4 | 58 | Control: dash invulnerability and reduced collision damage |
+
+## Workbench Discovery Gates
+
+The first five rollable systems remain Pulse Cannon, Drift Engine, Signal Magnet, Halo Battery, and Prism Barrel. Their early ranks now reveal side branches before the system is maxed:
+
+| Requirement | Newly Visible Systems |
+|---|---|
+| Pulse Cannon rank 3 | Static Arc |
+| Pulse Cannon rank 5 | Heat Sink |
+| Max Pulse Cannon | Rail Lattice |
+| Prism Barrel rank 3 | Ghost Rounds |
+| Max Prism Barrel | Echo Chamber |
+| Drift Engine rank 3 | Nav Ghost |
+| Drift Engine rank 5 | Phase Rudder |
+| Halo Battery rank 3 | Hull Stitcher |
+| Max Halo Battery | Salvage Hunger |
+| Signal Magnet rank 4 | Luck Coil |
+| Signal Magnet rank 5 | Cargo Spine |
+| Luck Coil rank 4 | Survey Array |
+| Survey Array rank 2 | Exo-Lung, Skinweave Suit, Field Blaster |
+| Static Arc rank 3 | Ion Moons |
+| Phase Rudder rank 2 or Cargo Spine rank 2 | Mine Wake |
+| Max Rail Lattice or Echo Chamber | Rift Needle |
 
 ## Nav Ghost Progression
 

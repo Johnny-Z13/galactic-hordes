@@ -245,6 +245,25 @@ const extractionMultiplier = (outcome: RunOutcomeKind, skippedBeacons: number, s
   return outcome === 'deepExtraction' ? 1.05 + skipBonus + signalBonus : 1 + signalBonus
 }
 
+export const archiveMilestoneRewards = (previousRecords: number, nextRecords: number, archiveTier: number): ResourceBundle => {
+  if (archiveTier < 3) return emptyResources()
+  const reward = emptyResources()
+  const milestones: Array<{ records: number; reward: ResourceBundle }> = [
+    { records: 3, reward: { scrap: 150, crystal: 24, cores: 1 } },
+    { records: 8, reward: { scrap: 260, crystal: 44, cores: 1 } },
+    { records: 16, reward: { scrap: 420, crystal: 72, cores: 2 } },
+    { records: 28, reward: { scrap: 640, crystal: 110, cores: 3 } }
+  ]
+  for (const milestone of milestones) {
+    if (previousRecords < milestone.records && nextRecords >= milestone.records) {
+      reward.scrap += milestone.reward.scrap
+      reward.crystal += milestone.reward.crystal
+      reward.cores += milestone.reward.cores
+    }
+  }
+  return reward
+}
+
 export const applyRunRecovery = (state: MothershipState, input: RunRecoveryInput): MothershipState => {
   const multiplier = extractionMultiplier(input.outcome, input.skippedBeacons, state.departments.signalCore)
   const recovered = normalizeResources({
@@ -252,7 +271,9 @@ export const applyRunRecovery = (state: MothershipState, input: RunRecoveryInput
     crystal: input.resources.crystal * multiplier,
     cores: input.outcome === 'destroyed' ? Math.floor(input.resources.cores * multiplier) : input.resources.cores
   })
+  const previousArchiveCount = Object.keys(state.archive.records).length
   const archiveRecords = mergeArchiveRecords(state.archive.records, input.archiveRecords)
+  const milestoneReward = archiveMilestoneRewards(previousArchiveCount, Object.keys(archiveRecords).length, state.departments.archive)
   const relicBlueprints = { ...state.archive.relicBlueprints }
   if (state.departments.archive >= 2) {
     for (const record of Object.values(input.archiveRecords)) {
@@ -263,9 +284,9 @@ export const applyRunRecovery = (state: MothershipState, input: RunRecoveryInput
   return {
     ...state,
     resources: {
-      scrap: state.resources.scrap + recovered.scrap,
-      crystal: state.resources.crystal + recovered.crystal,
-      cores: state.resources.cores + recovered.cores
+      scrap: state.resources.scrap + recovered.scrap + milestoneReward.scrap,
+      crystal: state.resources.crystal + recovered.crystal + milestoneReward.crystal,
+      cores: state.resources.cores + recovered.cores + milestoneReward.cores
     },
     archive: {
       records: archiveRecords,

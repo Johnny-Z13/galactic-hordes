@@ -8,7 +8,7 @@ test('adds a denser planet field only before the first successful planet loop', 
   expect(useOnboardingPlanetField(0, 0, 0)).toBe(true)
   expect(useOnboardingPlanetField(0, 0, 1)).toBe(false)
   expect(useOnboardingPlanetField(1, 0, 0)).toBe(false)
-  expect(ONBOARDING_PLANET_COUNT).toBeGreaterThanOrEqual(5)
+  expect(ONBOARDING_PLANET_COUNT).toBe(3)
 })
 
 test('places at least one onboarding planet close enough to read as landable immediately', () => {

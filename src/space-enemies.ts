@@ -15,7 +15,8 @@ export interface Point {
   y: number
 }
 
-export const spriteEnemyKinds = ['razor', 'skimmer', 'bulwark'] as const
+export const spriteEnemyKinds = ['razor', 'skimmer', 'bulwark', 'siphon', 'dreadnought', 'cathedral'] as const
+export const spaceBossEnemyKinds = ['siphon', 'dreadnought', 'cathedral'] as const
 
 export const spaceEnemyDefinitions = spaceEnemyBalance
 
@@ -24,6 +25,9 @@ export const isSpriteEnemyKind = (kind: SpaceEnemyKind): kind is (typeof spriteE
 }
 
 export const isForwardAmbushEnemy = (kind: SpaceEnemyKind) => spaceEnemyDefinitions[kind].forwardAmbush
+export const isGiantEnemyKind = (kind: SpaceEnemyKind): kind is (typeof spaceBossEnemyKinds)[number] => {
+  return spaceBossEnemyKinds.includes(kind as (typeof spaceBossEnemyKinds)[number])
+}
 
 export const spaceEnemySpawnPoint = (
   kind: SpaceEnemyKind,

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { planSurfaceEncounter, rollPlanetArchetype } from '../src/surface-encounters'
 
-test('curates the first planet landing as friendly generous and inspectable', () => {
+test('curates the first planet landing as friendly focused and inspectable', () => {
   const profile = planSurfaceEncounter({
     planetArchetype: 'cache',
     firstRunLanding: true,
@@ -13,11 +13,12 @@ test('curates the first planet landing as friendly generous and inspectable', ()
 
   expect(profile.event).toBe('relic')
   expect(profile.scenario).toBe('friendly')
-  expect(profile.resourceCount).toBeGreaterThanOrEqual(24)
+  expect(profile.resourceCount).toBeGreaterThanOrEqual(9)
+  expect(profile.resourceCount).toBeLessThanOrEqual(12)
   expect(profile.threatCount).toBeGreaterThanOrEqual(2)
   expect(profile.threatCount).toBeLessThanOrEqual(3)
   expect(profile.alienCount).toBe(1)
-  expect(profile.loreSiteCount).toBeGreaterThanOrEqual(3)
+  expect(profile.loreSiteCount).toBe(1)
 })
 
 test('keeps horde planets procedural and unavailable as the opening planet type', () => {

@@ -3,7 +3,7 @@ import { writeFileSync } from 'node:fs'
 
 const cell = 192
 const columns = 4
-const rows = 3
+const rows = 6
 const width = cell * columns
 const height = cell * rows
 const pixels = new Uint8ClampedArray(width * height * 4)
@@ -140,10 +140,90 @@ const drawBulwark = (row, col) => {
   dot(cx, cy, 4, rgba('#ffffff'), 0.95)
 }
 
+const drawSiphon = (row, col) => {
+  const green = rgba('#8fff7d')
+  const cyan = rgba('#57fff3')
+  const blue = rgba('#70a8ff')
+  const violet = rgba('#b990ff')
+  const white = rgba('#f6fffe')
+  const pulse = Math.sin(col * 1.6) * 7
+  const [cx, cy] = local(row, col, 96, 96)
+  for (let i = 0; i < 5; i += 1) {
+    const a = -1.25 + i * 0.62 + pulse * 0.012
+    line(cx - 24, cy, cx - 78 + Math.cos(a) * 26, cy + Math.sin(a) * 62, i % 2 ? blue : violet, 1.15)
+    line(cx - 42, cy + Math.sin(a) * 10, cx - 92 + Math.cos(a) * 18, cy + Math.sin(a) * 45, green, 0.85)
+  }
+  arc(cx, cy, 55 + pulse * 0.4, -0.62, Math.PI * 2 - 0.9, green, 1.7)
+  arc(cx + 3, cy, 40 - pulse * 0.25, 0.15, Math.PI * 2 + 0.8, cyan, 1.35)
+  arc(cx + 5, cy, 24 + pulse * 0.2, -1.4, Math.PI * 1.7, blue, 1)
+  poly([[cx + 70, cy], [cx + 32, cy - 30], [cx - 12, cy - 24], [cx - 48, cy - 9], [cx - 62, cy], [cx - 48, cy + 9], [cx - 12, cy + 24], [cx + 32, cy + 30]], green, 1.55)
+  poly([[cx + 54, cy - 18], [cx + 86 + pulse, cy - 36], [cx + 68, cy - 2]], cyan, 1.05)
+  poly([[cx + 54, cy + 18], [cx + 86 + pulse, cy + 36], [cx + 68, cy + 2]], cyan, 1.05)
+  line(cx - 58, cy - 18, cx + 46, cy + 20, violet, 0.9)
+  line(cx - 58, cy + 18, cx + 46, cy - 20, violet, 0.9)
+  dot(cx + 2, cy, 18, green, 0.58)
+  dot(cx + 9, cy, 9, cyan, 0.76)
+  dot(cx + 15, cy, 4, white, 0.95)
+}
+
+const drawDreadnought = (row, col) => {
+  const red = rgba('#ff5d73')
+  const orange = rgba('#ff9d5c')
+  const yellow = rgba('#fff27a')
+  const violet = rgba('#b990ff')
+  const cyan = rgba('#57fff3')
+  const recoil = Math.sin(col * 1.35) * 6
+  const [cx, cy] = local(row, col, 96, 96)
+  poly([[cx + 76, cy], [cx + 42, cy - 35], [cx - 28, cy - 58], [cx - 73, cy - 36], [cx - 84, cy], [cx - 73, cy + 36], [cx - 28, cy + 58], [cx + 42, cy + 35]], red, 2.1)
+  poly([[cx + 47, cy - 17], [cx + 91 + recoil, cy - 10], [cx + 92 + recoil, cy + 10], [cx + 47, cy + 17]], orange, 1.75)
+  poly([[cx + 13, cy - 44], [cx + 43, cy - 70], [cx + 26, cy - 26]], red, 1.25)
+  poly([[cx + 13, cy + 44], [cx + 43, cy + 70], [cx + 26, cy + 26]], red, 1.25)
+  for (let i = 0; i < 4; i += 1) {
+    const y = cy - 35 + i * 23
+    line(cx - 52, y, cx + 30, y * 0.12 + cy * 0.88, i % 2 ? yellow : orange, 0.95)
+  }
+  line(cx - 66, cy - 34, cx - 101, cy - 61 - recoil, violet, 1.35)
+  line(cx - 66, cy + 34, cx - 101, cy + 61 + recoil, violet, 1.35)
+  line(cx - 83, cy, cx - 116, cy, red, 1.6)
+  arc(cx - 17, cy, 54, 0.14, Math.PI * 2 - 0.14, red, 1.3)
+  arc(cx + 11, cy, 36, -1.72, 1.72, yellow, 1.25)
+  arc(cx - 22, cy, 22, 0.4, Math.PI * 2 + 0.4, cyan, 0.85)
+  dot(cx + 51, cy, 10 + col % 2, yellow, 0.9)
+  dot(cx - 14, cy, 7, orange, 0.85)
+}
+
+const drawCathedral = (row, col) => {
+  const white = rgba('#d7fff7')
+  const cyan = rgba('#57fff3')
+  const violet = rgba('#b990ff')
+  const yellow = rgba('#fff27a')
+  const phase = col * 0.55
+  const [cx, cy] = local(row, col, 96, 96)
+  for (let i = 0; i < 12; i += 1) {
+    const a = phase + (i / 12) * Math.PI * 2
+    line(cx + Math.cos(a) * 28, cy + Math.sin(a) * 28, cx + Math.cos(a) * (i % 3 ? 72 : 84), cy + Math.sin(a) * (i % 3 ? 72 : 84), i % 2 ? white : cyan, i % 2 ? 0.95 : 1.25)
+  }
+  poly([[cx, cy - 84], [cx + 42, cy - 38], [cx + 35, cy + 45], [cx, cy + 82], [cx - 35, cy + 45], [cx - 42, cy - 38]], white, 1.9)
+  poly([[cx, cy - 55], [cx + 28, cy], [cx, cy + 55], [cx - 28, cy]], cyan, 1.35)
+  poly([[cx - 47, cy - 26], [cx - 71, cy - 55], [cx - 55, cy + 8]], violet, 1.05)
+  poly([[cx + 47, cy - 26], [cx + 71, cy - 55], [cx + 55, cy + 8]], violet, 1.05)
+  arc(cx, cy, 68, phase, Math.PI * 2 + phase, violet, 1.25)
+  arc(cx, cy, 44, -phase * 1.2, Math.PI * 2 - phase * 1.2, cyan, 1)
+  arc(cx, cy, 25, -phase, Math.PI * 2 - phase, yellow, 1.15)
+  line(cx - 66, cy - 15, cx + 66, cy + 15, violet, 1)
+  line(cx - 66, cy + 15, cx + 66, cy - 15, violet, 1)
+  line(cx, cy - 78, cx, cy + 78, white, 0.95)
+  dot(cx, cy, 14 + (col % 2) * 2, white, 0.65)
+  dot(cx, cy, 5, yellow, 0.95)
+}
+
 for (let col = 0; col < columns; col += 1) {
   drawRazor(0, col)
   drawSkimmer(1, col)
   drawBulwark(2, col)
+  drawSiphon(3, col)
+  drawDreadnought(4, col)
+  drawCathedral(5, col)
 }
 
 const crcTable = new Uint32Array(256)

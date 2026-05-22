@@ -302,6 +302,10 @@ canvas {
   scrollbar-color: rgba(87, 255, 243, 0.58) rgba(87, 255, 243, 0.08);
 }
 
+.mothership-command.first-command {
+  max-width: 980px;
+}
+
 .mothership-command-top {
   display: flex;
   justify-content: space-between;
@@ -392,6 +396,43 @@ canvas {
   display: grid;
   gap: 12px;
   align-content: start;
+}
+
+.mothership-first-briefing {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  border: 1px solid rgba(87, 255, 243, 0.28);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 242, 122, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(6, 17, 25, 0.86), rgba(2, 7, 12, 0.8));
+  padding: 10px;
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+}
+
+.mothership-first-briefing div {
+  min-width: 0;
+  min-height: 84px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  border: 1px solid rgba(87, 255, 243, 0.18);
+  border-radius: 6px;
+  background: rgba(2, 10, 16, 0.72);
+  padding: 10px;
+}
+
+.mothership-first-briefing b {
+  color: var(--cyan);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.mothership-first-briefing span {
+  color: rgba(215, 255, 247, 0.76);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .mothership-console-stack,
@@ -1659,6 +1700,12 @@ button.manifest-chip:disabled {
   background: rgba(215, 255, 247, 0.025);
 }
 
+.manifest-chip.standby {
+  border-color: rgba(87, 255, 243, 0.26);
+  color: rgba(215, 255, 247, 0.62);
+  background: rgba(87, 255, 243, 0.045);
+}
+
 .manifest-relics {
   margin-top: 8px;
   min-height: 24px;
@@ -2285,9 +2332,10 @@ button.manifest-chip:disabled {
   }
 
   .workbench-panel {
-    height: auto;
-    max-height: none;
-    overflow: visible;
+    height: min(820px, calc(100svh - 28px));
+    max-height: calc(100svh - 28px);
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .choice-grid.workbench-list .choice {
@@ -2457,14 +2505,29 @@ button.manifest-chip:disabled {
   .mothership-command-top {
     flex-direction: column;
     padding: 12px;
+    gap: 10px;
   }
 
   .mothership-command-title h1 {
-    font-size: clamp(34px, 13vw, 52px);
+    font-size: clamp(32px, 12vw, 48px);
+  }
+
+  .mothership-command-title p,
+  .mothership-last-report {
+    font-size: 12px;
   }
 
   .mothership-resources {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     justify-content: flex-start;
+    gap: 6px;
+  }
+
+  .mothership-resources span {
+    min-width: 0;
+    padding: 6px 5px;
   }
 
   .mothership-flight {
@@ -2478,6 +2541,29 @@ button.manifest-chip:disabled {
     overflow: visible;
   }
 
+  .mothership-first-briefing {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .mothership-first-briefing div {
+    min-height: 62px;
+    padding: 9px 10px;
+  }
+
+  .mothership-console-tabs {
+    gap: 5px;
+  }
+
+  .mothership-console-tab {
+    min-height: 46px;
+    padding: 7px 6px;
+  }
+
+  .mothership-console-tab span {
+    font-size: 10px;
+  }
+
   .mothership-console-section .build-manifest,
   .mothership-console-section .artifact-collection {
     margin: 0 10px 10px 14px;
@@ -2485,12 +2571,32 @@ button.manifest-chip:disabled {
   }
 
   .mothership-ship-bay {
-    min-height: 340px;
+    min-height: min(340px, 48svh);
+    gap: 8px;
   }
 
   .mothership-ship-art {
-    width: min(96%, 390px);
-    max-height: 245px;
+    width: min(92%, 330px);
+    max-height: min(220px, 28svh);
+  }
+
+  .mothership-launch {
+    width: min(300px, calc(100% - 24px));
+    min-height: 54px;
+  }
+
+  .mothership-launch-meters {
+    width: calc(100% - 24px);
+    gap: 7px;
+    padding: 10px;
+  }
+
+  .mothership-meter {
+    gap: 5px;
+  }
+
+  .mothership-meter i {
+    height: 7px;
   }
 
   .mothership-section-title {

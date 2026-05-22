@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import {
   applyRunRecovery,
+  archiveMilestoneRewards,
   defaultMothershipState,
   isMothershipDepartmentUnlocked,
   mergeArchiveRecords,
@@ -132,6 +133,32 @@ test('archive merge increments repeated discoveries without losing detail', () =
 
   expect(merged['cache:a'].count).toBe(2)
   expect(merged['lore:b'].count).toBe(1)
+})
+
+test('archive milestone rewards are granted once when discovery counts cross thresholds', () => {
+  const state = defaultMothershipState()
+  state.departments.archive = 3
+  state.archive.records = {
+    'enemy:a': { id: 'enemy:a', kind: 'enemy', title: 'A' },
+    'cache:b': { id: 'cache:b', kind: 'cache', title: 'B' }
+  }
+
+  const next = applyRunRecovery(state, {
+    outcome: 'cleanExtraction',
+    resources: { scrap: 0, crystal: 0, cores: 0 },
+    archiveRecords: {
+      'planet:c': { id: 'planet:c', kind: 'planet', title: 'C' },
+      'lore:d': { id: 'lore:d', kind: 'lore', title: 'D' },
+      'alien:e': { id: 'alien:e', kind: 'alien', title: 'E' },
+      'relic:f': { id: 'relic:f', kind: 'relic', title: 'F' },
+      'enemy:g': { id: 'enemy:g', kind: 'enemy', title: 'G' },
+      'cache:h': { id: 'cache:h', kind: 'cache', title: 'H' }
+    },
+    skippedBeacons: 0
+  })
+
+  expect(archiveMilestoneRewards(2, 8, 3)).toEqual({ scrap: 410, crystal: 68, cores: 2 })
+  expect(next.resources).toEqual({ scrap: 410, crystal: 68, cores: 2 })
 })
 
 test('department purchases spend resources and increase one tier', () => {

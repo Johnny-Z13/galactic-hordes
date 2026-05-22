@@ -13,7 +13,7 @@ export interface CollectionCatalogEntry {
 }
 
 export const collectionIconAtlasColumns = 8
-export const collectionIconAtlasRows = 6
+export const collectionIconAtlasRows = 7
 
 const titleCase = (value: string) => value.replace(/([A-Z])/g, ' $1').replace(/^./, (ch) => ch.toUpperCase())
 
@@ -40,12 +40,13 @@ const spaceEnemyEntries: CollectionCatalogEntry[] = spaceEnemyKinds.map((kind, i
   }
 })
 
+const surfaceEnemyIconStart = relicEntries.length + spaceEnemyEntries.length
 const surfaceEnemyEntries: CollectionCatalogEntry[] = [
-  { id: 'enemy:surface:standard', kind: 'enemy', title: 'Surface Crawler', detail: 'Common hostile biosignal found near surface caches.', source: 'Planet surface telemetry', color: '#fff27a', icon: 18 },
-  { id: 'enemy:surface:swarm', kind: 'enemy', title: 'Swarm Skitterer', detail: 'Fast surface lifeform found on bad planets and swarm events.', source: 'Planet surface telemetry', color: '#ff5d73', icon: 19 },
-  { id: 'enemy:surface:horde', kind: 'enemy', title: 'Horde Larva', detail: 'Small hostile from horde vault planets.', source: 'Planet surface telemetry', color: '#ff61d8', icon: 20 },
-  { id: 'enemy:surface:null-cathedral', kind: 'enemy', title: 'Cathedral Sentinel', detail: 'Special surface guardian tied to NULL CATHEDRAL.', source: 'Planet surface telemetry', color: '#ff5d73', icon: 21 },
-  { id: 'enemy:surface:oracle', kind: 'enemy', title: 'Glass Mite Oracle', detail: 'A rare crystalline oracle form from strange worlds.', source: 'Planet surface telemetry', color: '#57fff3', icon: 22 },
+  { id: 'enemy:surface:standard', kind: 'enemy', title: 'Surface Crawler', detail: 'Common hostile biosignal found near surface caches.', source: 'Planet surface telemetry', color: '#fff27a', icon: surfaceEnemyIconStart },
+  { id: 'enemy:surface:swarm', kind: 'enemy', title: 'Swarm Skitterer', detail: 'Fast surface lifeform found on bad planets and swarm events.', source: 'Planet surface telemetry', color: '#ff5d73', icon: surfaceEnemyIconStart + 1 },
+  { id: 'enemy:surface:horde', kind: 'enemy', title: 'Horde Larva', detail: 'Small hostile from horde vault planets.', source: 'Planet surface telemetry', color: '#ff61d8', icon: surfaceEnemyIconStart + 2 },
+  { id: 'enemy:surface:null-cathedral', kind: 'enemy', title: 'Cathedral Sentinel', detail: 'Special surface guardian tied to NULL CATHEDRAL.', source: 'Planet surface telemetry', color: '#ff5d73', icon: surfaceEnemyIconStart + 3 },
+  { id: 'enemy:surface:oracle', kind: 'enemy', title: 'Glass Mite Oracle', detail: 'A rare crystalline oracle form from strange worlds.', source: 'Planet surface telemetry', color: '#57fff3', icon: surfaceEnemyIconStart + 4 },
   ...Array.from({ length: 5 }, (_, index) => ({
     id: `enemy:surface:boss:${index}`,
     kind: 'enemy' as const,
@@ -53,39 +54,43 @@ const surfaceEnemyEntries: CollectionCatalogEntry[] = [
     detail: 'Large generated creature guarding richer surface cache rewards.',
     source: 'Boss catalog telemetry',
     color: ['#57fff3', '#fff27a', '#8fff7d', '#ff61d8', '#d7fff7'][index],
-    icon: 23 + index
+    icon: surfaceEnemyIconStart + 5 + index
   }))
 ]
 
+const alienIconStart = surfaceEnemyIconStart + surfaceEnemyEntries.length
 const alienEntries: CollectionCatalogEntry[] = [
-  { id: 'alien:the-glass-herbalist', kind: 'alien', title: 'The Glass Herbalist', detail: 'A quiet contact offering strange medicinal gifts.', source: 'Alien contact log', color: '#b990ff', icon: 28 },
-  { id: 'alien:a-static-pilgrim', kind: 'alien', title: 'A Static Pilgrim', detail: 'A devotional signal wrapped around a bargaining lifeform.', source: 'Alien contact log', color: '#fff27a', icon: 29 },
-  { id: 'alien:the-coin-keeper', kind: 'alien', title: 'The Coin Keeper', detail: 'An alien trader that weighs resources against risk.', source: 'Alien contact log', color: '#57fff3', icon: 30 },
-  { id: 'alien:the-star-mapmaker', kind: 'alien', title: 'The Star Mapmaker', detail: 'A contact with impossible maps and dangerous routes.', source: 'Alien contact log', color: '#8fff7d', icon: 31 },
-  { id: 'alien:the-relic-monk', kind: 'alien', title: 'The Relic Monk', detail: 'A silent keeper of artefacts and unstable bargains.', source: 'Alien contact log', color: '#b990ff', icon: 32 }
+  { id: 'alien:the-glass-herbalist', kind: 'alien', title: 'The Glass Herbalist', detail: 'A quiet contact offering strange medicinal gifts.', source: 'Alien contact log', color: '#b990ff', icon: alienIconStart },
+  { id: 'alien:a-static-pilgrim', kind: 'alien', title: 'A Static Pilgrim', detail: 'A devotional signal wrapped around a bargaining lifeform.', source: 'Alien contact log', color: '#fff27a', icon: alienIconStart + 1 },
+  { id: 'alien:the-coin-keeper', kind: 'alien', title: 'The Coin Keeper', detail: 'An alien trader that weighs resources against risk.', source: 'Alien contact log', color: '#57fff3', icon: alienIconStart + 2 },
+  { id: 'alien:the-star-mapmaker', kind: 'alien', title: 'The Star Mapmaker', detail: 'A contact with impossible maps and dangerous routes.', source: 'Alien contact log', color: '#8fff7d', icon: alienIconStart + 3 },
+  { id: 'alien:the-beacon-widow', kind: 'alien', title: 'The Beacon Widow', detail: 'A contact carrying a living recall signal that can wake an early extraction route.', source: 'Alien contact log', color: '#70a8ff', icon: alienIconStart + 4 }
 ]
 
+const loreIconStart = alienIconStart + alienEntries.length
 const loreEntries: CollectionCatalogEntry[] = [
-  { id: 'lore:fossils', kind: 'lore', title: 'Fossil Field', detail: 'Old bones and pressure marks from extinct surface life.', source: 'Lore signal', color: '#d7fff7', icon: 33 },
-  { id: 'lore:pyramid', kind: 'lore', title: 'Buried Pyramid', detail: 'A geometric ruin broadcasting from under the dust.', source: 'Lore signal', color: '#70a8ff', icon: 34 },
-  { id: 'lore:grave', kind: 'lore', title: 'Signal Grave', detail: 'A memorial trace from a failed expedition.', source: 'Lore signal', color: '#fff27a', icon: 35 },
-  { id: 'lore:machine', kind: 'lore', title: 'Buried Machine', detail: 'An ancient mechanism still thinking under the planet crust.', source: 'Lore signal', color: '#70a8ff', icon: 36 },
-  { id: 'lore:choir', kind: 'lore', title: 'Choir Remnant', detail: 'A harmonic ruin that remembers the first galactic songs.', source: 'Lore signal', color: '#d7fff7', icon: 37 }
+  { id: 'lore:fossils', kind: 'lore', title: 'Fossil Field', detail: 'Old bones and pressure marks from extinct surface life.', source: 'Lore signal', color: '#d7fff7', icon: loreIconStart },
+  { id: 'lore:pyramid', kind: 'lore', title: 'Buried Pyramid', detail: 'A geometric ruin broadcasting from under the dust.', source: 'Lore signal', color: '#70a8ff', icon: loreIconStart + 1 },
+  { id: 'lore:grave', kind: 'lore', title: 'Signal Grave', detail: 'A memorial trace from a failed expedition.', source: 'Lore signal', color: '#fff27a', icon: loreIconStart + 2 },
+  { id: 'lore:machine', kind: 'lore', title: 'Buried Machine', detail: 'An ancient mechanism still thinking under the planet crust.', source: 'Lore signal', color: '#70a8ff', icon: loreIconStart + 3 },
+  { id: 'lore:choir', kind: 'lore', title: 'Choir Remnant', detail: 'A harmonic ruin that remembers the first galactic songs.', source: 'Lore signal', color: '#d7fff7', icon: loreIconStart + 4 }
 ]
 
+const planetIconStart = loreIconStart + loreEntries.length
 const planetEntries: CollectionCatalogEntry[] = [
-  { id: 'planet:cache', kind: 'planet', title: 'Cache World', detail: 'Planet archetype with richer salvage and jackpot odds.', source: 'Planet survey', color: '#57fff3', icon: 38 },
-  { id: 'planet:hostile', kind: 'planet', title: 'Hostile World', detail: 'Planet archetype with heavier surface fights.', source: 'Planet survey', color: '#ff5d73', icon: 39 },
-  { id: 'planet:repair', kind: 'planet', title: 'Repair Dock', detail: 'Planet archetype with safer docking and hull recovery.', source: 'Planet survey', color: '#8fff7d', icon: 40 },
-  { id: 'planet:relic', kind: 'planet', title: 'Relic World', detail: 'Planet archetype with stronger rare-object odds.', source: 'Planet survey', color: '#fff27a', icon: 41 },
-  { id: 'planet:strange', kind: 'planet', title: 'Strange World', detail: 'Planet archetype with volatile mixed rewards and ambushes.', source: 'Planet survey', color: '#b990ff', icon: 42 },
-  { id: 'planet:lore', kind: 'planet', title: 'Lore World', detail: 'Quiet ruin planet with inspectable old signals.', source: 'Planet survey', color: '#70a8ff', icon: 43 },
-  { id: 'planet:horde', kind: 'planet', title: 'Horde Vault', detail: 'Dangerous treasure world guarded by a large enemy crowd.', source: 'Planet survey', color: '#ff61d8', icon: 44 }
+  { id: 'planet:cache', kind: 'planet', title: 'Cache World', detail: 'Planet archetype with richer salvage and jackpot odds.', source: 'Planet survey', color: '#57fff3', icon: planetIconStart },
+  { id: 'planet:hostile', kind: 'planet', title: 'Hostile World', detail: 'Planet archetype with heavier surface fights.', source: 'Planet survey', color: '#ff5d73', icon: planetIconStart + 1 },
+  { id: 'planet:repair', kind: 'planet', title: 'Repair Dock', detail: 'Planet archetype with safer docking and hull recovery.', source: 'Planet survey', color: '#8fff7d', icon: planetIconStart + 2 },
+  { id: 'planet:relic', kind: 'planet', title: 'Relic World', detail: 'Planet archetype with stronger rare-object odds.', source: 'Planet survey', color: '#fff27a', icon: planetIconStart + 3 },
+  { id: 'planet:strange', kind: 'planet', title: 'Strange World', detail: 'Planet archetype with volatile mixed rewards and ambushes.', source: 'Planet survey', color: '#b990ff', icon: planetIconStart + 4 },
+  { id: 'planet:lore', kind: 'planet', title: 'Lore World', detail: 'Quiet ruin planet with inspectable old signals.', source: 'Planet survey', color: '#70a8ff', icon: planetIconStart + 5 },
+  { id: 'planet:horde', kind: 'planet', title: 'Horde Vault', detail: 'Dangerous treasure world guarded by a large enemy crowd.', source: 'Planet survey', color: '#ff61d8', icon: planetIconStart + 6 }
 ]
 
+const cacheIconStart = planetIconStart + planetEntries.length
 const cacheEntries: CollectionCatalogEntry[] = [
-  { id: 'cache:surface', kind: 'cache', title: 'Surface Cache', detail: 'A cracked open planet cache containing resources, signals, or relics.', source: 'Cache telemetry', color: '#fff27a', icon: 45 },
-  { id: 'cache:treasure-core', kind: 'cache', title: 'Treasure Core', detail: 'A space broadcast cache carrying concentrated rewards.', source: 'Cache telemetry', color: '#70a8ff', icon: 46 }
+  { id: 'cache:surface', kind: 'cache', title: 'Surface Cache', detail: 'A cracked open planet cache containing resources, signals, or relics.', source: 'Cache telemetry', color: '#fff27a', icon: cacheIconStart },
+  { id: 'cache:treasure-core', kind: 'cache', title: 'Treasure Core', detail: 'A space broadcast cache carrying concentrated rewards.', source: 'Cache telemetry', color: '#70a8ff', icon: cacheIconStart + 1 }
 ]
 
 export const collectionCatalog: CollectionCatalogEntry[] = [

@@ -42,11 +42,11 @@ export const planSurfaceEncounter = (input: PlanSurfaceEncounterInput): SurfaceE
     return {
       event: 'relic',
       scenario: 'friendly',
-      resourceCount: 24 + Math.floor(input.random() * 7),
+      resourceCount: 9 + Math.floor(input.random() * 4),
       threatCount: 2 + Math.floor(input.random() * 2),
       bossCount: 0,
       alienCount: 1,
-      loreSiteCount: 3,
+      loreSiteCount: 1,
       bossCacheCount: 0
     }
   }

@@ -6,6 +6,11 @@ export function spaceViewportScale(width: number, height: number) {
   return 1
 }
 
+export function spaceProjectileLifeScale(width: number, height: number, scale = spaceViewportScale(width, height)) {
+  const visibleWorldWidth = width / scale
+  return Math.min(2, Math.max(1, visibleWorldWidth / 640))
+}
+
 export function cameraTargetFor(center: Vec, width: number, height: number, scale: number): Vec {
   return {
     x: center.x - width / (2 * scale),

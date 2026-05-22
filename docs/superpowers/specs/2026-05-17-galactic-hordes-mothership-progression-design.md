@@ -55,6 +55,12 @@ XP and mutation signals are current-run resources.
 
 The job of XP is to make the current expedition escalate.
 
+### First-Session Discovery Cadence
+
+The opening expedition should show breadth without dumping the whole toybox at once. The first landing is a focused friendly relic site with a smaller cache field, one alien contact, one lore signal, and light threat pressure. That planet still teaches the full loop, but it should not shower enough resources to flatten the next few decisions.
+
+The workbench should reveal new possibilities within the first few installs. Starter systems unlock nearby branches at rank thresholds instead of only at max rank, while maxing a system still exposes deeper tools and evolution routes. Planet discoveries can also surface an early Exo-Lung spacesuit offer, making the surface game feel connected to buildcraft immediately.
+
 ### Persistent Economy
 
 The first persistent currency set should reuse the existing resources:
@@ -93,6 +99,8 @@ These should persist between runs:
 - Story and Signal Core progress.
 
 Permanent progression should make future runs wider, clearer, and more controllable. It should not simply erase the danger of the run.
+
+Archive Lab tier 3 turns collection growth into milestone resource rewards when the permanent archive crosses discovery thresholds. This gives collection completion a light Vampire Survivors-style meta reward without requiring every entry to become a direct stat upgrade.
 
 ## Planets
 

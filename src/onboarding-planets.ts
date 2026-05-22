@@ -1,4 +1,4 @@
-export const ONBOARDING_PLANET_COUNT = 5
+export const ONBOARDING_PLANET_COUNT = 3
 export const ONBOARDING_PLANET_MIN_CENTER_DISTANCE = 650
 
 export const useOnboardingPlanetField = (chunkX: number, chunkY: number, visitedPlanets: number) => (

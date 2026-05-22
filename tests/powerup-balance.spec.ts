@@ -35,6 +35,9 @@ test('workbench roll tuning is configurable', () => {
   expect(workbenchBalance.baseChoiceCount).toBe(5)
   expect(workbenchBalance.ownedBiasBase).toBeGreaterThan(1)
   expect(workbenchBalance.relicChanceRare).toBeGreaterThan(workbenchBalance.relicChanceBase)
+  expect(workbenchBalance.surfaceSignalCapBase).toBe(3)
+  expect(workbenchBalance.surfaceSignalCapRewardEventBonus).toBe(1)
+  expect(workbenchBalance.overflowSignalScrap).toBeGreaterThan(0)
 })
 
 test('signal magnet upgrade copy matches range tuning', () => {
@@ -46,12 +49,23 @@ test('signal magnet upgrade copy matches range tuning', () => {
   expect(magnet?.levels.some((level) => level.includes('pickup speed'))).toBe(false)
 })
 
+test('option orb workbench path is framed as a visible weapon grade branch', () => {
+  const orbit = upgrades.find((upgrade) => upgrade.id === 'orbit')
+
+  expect(orbit?.name).toBe('Option Orbs')
+  expect(orbit?.category).toBe('weapon')
+  expect(orbit?.levels).toHaveLength(orbit?.max)
+  expect(orbit?.levels).toEqual(expect.arrayContaining(['+1 option orb', 'Second option orb online', 'Third option orb online']))
+  expect(powerupBalance.orbit.maxOptionOrbs).toBe(3)
+  expect(powerupBalance.orbit.firstRankFireEvery).toBe(2)
+})
+
 test('workbench upgrade cards distinguish next rank from current manifest rank', () => {
   const main = mainSource()
 
   expect(main).toContain('INSTALL RANK ${level}/${choice.upgrade.max}')
   expect(main).toContain('upgradeLevelDetail(upgrade, level)')
-  expect(main).toContain('workbenchRollableUpgrades(upgrades, this.build)')
+  expect(main).toContain('workbenchRollableUpgrades(upgrades, this.build, this.workbenchExtraUnlockedIds())')
   expect(main).toContain('const count = workbenchBalance.baseChoiceCount')
   expect(main).not.toContain('fourthChoiceChance')
 })
