@@ -1414,11 +1414,13 @@ class VectorShooter {
       this.player.invuln = this.dashInvulnerability()
       this.camera.shake = Math.max(this.camera.shake, 8)
       this.burst(this.player.x, this.player.y, '#70a8ff', 14 + this.build.phase * 3, 180 + this.build.phase * 24)
+      this.emitDashWake(d, 1.35)
       this.deployMineWake(d)
     }
     if (this.player.dashTime > 0) {
       this.player.vx = this.player.dashX * this.player.dashSpeed
       this.player.vy = this.player.dashY * this.player.dashSpeed
+      this.emitDashWake({ x: this.player.dashX, y: this.player.dashY }, 0.42)
     }
     const damping = this.player.dashTime > 0 ? 0.34 : 0.06
     this.player.vx *= Math.pow(damping, dt)
@@ -1917,6 +1919,55 @@ class VectorShooter {
         color: evolved ? '#fff27a' : '#70a8ff',
         pierce: evolved ? powerupBalance.mineWake.evolvedPierce : powerupBalance.mineWake.pierce,
         mine: true
+      })
+    }
+  }
+
+  private emitDashWake(direction: Vec, intensity = 1) {
+    if (this.isHighLoad() && intensity < 1) return
+    if (intensity < 1 && Math.random() > intensity) return
+
+    const engine = this.build.engine
+    const phase = this.build.phase
+    const color = phase >= 2 ? '#b990ff' : engine >= 4 ? '#fff27a' : '#70a8ff'
+    const accent = phase > 0 ? '#d7fff7' : '#57fff3'
+    const side = { x: -direction.y, y: direction.x }
+    const count = Math.max(2, Math.floor((3 + engine + phase * 1.4) * intensity))
+    const backDistance = 20 + engine * 4
+
+    if (intensity >= 1 && this.shockwaves.length < MAX_SHOCKWAVES) {
+      this.shockwaves.push({
+        x: this.player.x - direction.x * 12,
+        y: this.player.y - direction.y * 12,
+        radius: 12 + engine * 3 + phase * 4,
+        speed: 360 + engine * 34 + phase * 28,
+        life: 0.32 + engine * 0.025,
+        maxLife: 0.32 + engine * 0.025,
+        color,
+        jag: rand(0, TAU)
+      })
+    }
+
+    for (let i = 0; i < count; i += 1) {
+      if (this.particles.length >= MAX_PARTICLES) this.particles.shift()
+      const lane = (i - (count - 1) / 2) * (4 + engine * 0.7)
+      const jitter = rand(-7, 7)
+      const speed = rand(90 + engine * 10, 210 + engine * 28 + phase * 18)
+      const life = rand(0.22, 0.46 + engine * 0.035)
+      this.particles.push({
+        x: this.player.x - direction.x * (backDistance + rand(0, 22)) + side.x * (lane + jitter),
+        y: this.player.y - direction.y * (backDistance + rand(0, 22)) + side.y * (lane + jitter),
+        vx: -direction.x * speed + side.x * rand(-36, 36),
+        vy: -direction.y * speed + side.y * rand(-36, 36),
+        life,
+        maxLife: life,
+        color: i % 3 === 0 ? accent : color,
+        size: rand(2.4, 5.6 + engine * 0.45),
+        angle: Math.atan2(direction.y, direction.x),
+        spin: rand(-4, 4),
+        sides: phase >= 2 && i % 4 === 0 ? 4 : undefined,
+        length: rand(28 + engine * 7, 58 + engine * 14 + phase * 8),
+        glow: this.allowGlow() ? 32 : 16
       })
     }
   }
@@ -5679,6 +5730,7 @@ class VectorShooter {
     const navGlow = this.build.nav
     const signature = starterSignatureFlags(this.build)
     const travelSpeed = len(this.player.vx, this.player.vy)
+    const dashActive = this.player.dashTime > 0
     const speedCap = this.player.speed
       + this.build.engine * powerupBalance.ship.maxSpeedPerEngineRank
       + this.build.nav * powerupBalance.ship.maxSpeedPerNavRank
@@ -5689,6 +5741,28 @@ class VectorShooter {
     ctx.translate(p.x, p.y)
     ctx.rotate(a)
     ctx.scale(scale, scale)
+    if (dashActive) {
+      const dashColor = this.build.phase >= 2 ? '#b990ff' : this.build.engine >= 4 ? '#fff27a' : '#70a8ff'
+      ctx.save()
+      ctx.globalCompositeOperation = this.allowGlow() ? 'lighter' : 'source-over'
+      ctx.strokeStyle = dashColor
+      ctx.shadowColor = dashColor
+      ctx.shadowBlur = this.graphicsMode === 'LOW' ? 0 : 24 + this.build.engine * 2
+      ctx.lineWidth = 2.4 + Math.min(2.2, this.build.engine * 0.28)
+      ctx.globalAlpha = dashActive ? 0.7 : 0.32
+      ctx.beginPath()
+      ctx.moveTo(-16, -13)
+      ctx.lineTo(-58 - this.build.engine * 7, -28 - this.build.phase * 4)
+      ctx.lineTo(-38 - this.build.engine * 5, 0)
+      ctx.lineTo(-58 - this.build.engine * 7, 28 + this.build.phase * 4)
+      ctx.lineTo(-16, 13)
+      ctx.stroke()
+      ctx.globalAlpha = 0.35
+      ctx.beginPath()
+      ctx.arc(0, 0, 30 + this.build.engine * 3 + Math.sin(this.stats.time * 24) * 3, -0.85, 0.85)
+      ctx.stroke()
+      ctx.restore()
+    }
     if (travelSpeed > 22) {
       ctx.save()
       ctx.globalCompositeOperation = this.allowGlow() ? 'lighter' : 'source-over'
@@ -5717,7 +5791,7 @@ class VectorShooter {
     }
     ctx.strokeStyle = this.player.invuln > 0 ? '#fff27a' : hullColor
     ctx.shadowColor = hullColor
-    ctx.shadowBlur = 14 + Math.min(8, weaponGlow)
+    ctx.shadowBlur = dashActive ? 24 + Math.min(12, engineGlow * 1.4) : 14 + Math.min(8, weaponGlow)
     ctx.lineWidth = 2
     ctx.beginPath()
     ctx.moveTo(24, 0)
@@ -5783,7 +5857,7 @@ class VectorShooter {
     ctx.moveTo(-16, -8)
     ctx.strokeStyle = exhaustColor
     ctx.shadowColor = exhaustColor
-    ctx.lineTo(-28 - Math.random() * (8 + engineGlow * 2), 0)
+    ctx.lineTo(-28 - Math.random() * (8 + engineGlow * 2 + (dashActive ? 22 + this.build.engine * 4 : 0)), 0)
     ctx.lineTo(-16, 8)
     ctx.stroke()
     if (this.build.phase > 0) {
