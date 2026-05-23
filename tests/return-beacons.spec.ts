@@ -1,7 +1,17 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { beaconExtractionBonus, beaconSpawnDistance, nextBeaconWindow, returnBeaconAutopilotVector, returnBeaconEligible } from '../src/return-beacons'
+import {
+  BEACON_HOLD_SECONDS,
+  RETURN_BEACON_ASSIST_SECONDS,
+  RETURN_BEACON_REMINDER_SECONDS,
+  RETURN_BEACON_SKIP_DISTANCE,
+  beaconExtractionBonus,
+  beaconSpawnDistance,
+  nextBeaconWindow,
+  returnBeaconAutopilotVector,
+  returnBeaconEligible
+} from '../src/return-beacons'
 
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
 
@@ -33,6 +43,13 @@ test('schedules the next beacon three and a half minutes later', () => {
   expect(nextBeaconWindow(320)).toBe(530)
 })
 
+test('station docking prompts are tuned to be hard to miss', () => {
+  expect(BEACON_HOLD_SECONDS).toBeLessThan(3)
+  expect(RETURN_BEACON_REMINDER_SECONDS).toBeLessThan(RETURN_BEACON_ASSIST_SECONDS)
+  expect(RETURN_BEACON_ASSIST_SECONDS).toBeLessThan(24)
+  expect(RETURN_BEACON_SKIP_DISTANCE).toBeGreaterThan(3000)
+})
+
 test('spawns the first beacon close enough to read as an offer', () => {
   expect(beaconSpawnDistance(0)).toBe(640)
   expect(beaconSpawnDistance(3)).toBe(910)
@@ -45,6 +62,8 @@ test('route station is reinforced by HUD distance reminder and docking assist', 
   expect(main).toContain('SPACE STATION WAITING - TAP DOCK TO LOCK')
   expect(main).toContain('DOCKING COURSE SET - NUDGE AWAY TO SKIP')
   expect(main).toContain('STATION ${Math.floor(Math.sqrt(dist2(this.returnBeacon, this.player)))}')
+  expect(main).toContain('RETURN_BEACON_ASSIST_SECONDS')
+  expect(main).toContain('RETURN_BEACON_SKIP_DISTANCE')
 })
 
 test('route station renders as a large octagonal docking structure', () => {

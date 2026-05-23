@@ -105,6 +105,9 @@ import {
 } from './mothership-progression'
 import {
   BEACON_HOLD_SECONDS,
+  RETURN_BEACON_ASSIST_SECONDS,
+  RETURN_BEACON_REMINDER_SECONDS,
+  RETURN_BEACON_SKIP_DISTANCE,
   beaconSpawnDistance,
   nextBeaconWindow,
   returnBeaconAutopilotVector,
@@ -1649,12 +1652,12 @@ class VectorShooter {
     this.returnBeacon.phase += dt
     this.returnBeacon.age += dt
     const distance = Math.sqrt(dist2(this.returnBeacon, this.player))
-    if (this.returnBeacon.age > 22 && !this.returnBeacon.reminded) {
+    if (this.returnBeacon.age > RETURN_BEACON_REMINDER_SECONDS && !this.returnBeacon.reminded) {
       this.returnBeacon.reminded = true
       this.toast('SPACE STATION WAITING - TAP DOCK TO LOCK')
       this.audio.pickup('nav')
     }
-    if (this.returnBeacon.age > 48 && !this.returnBeacon.assistTriggered && !this.autoNavTargetBeacon) {
+    if (this.returnBeacon.age > RETURN_BEACON_ASSIST_SECONDS && !this.returnBeacon.assistTriggered && !this.autoNavTargetBeacon) {
       this.returnBeacon.assistTriggered = true
       this.autoNavTargetPlanetId = null
       this.autoNavTargetBeacon = true
@@ -1663,7 +1666,7 @@ class VectorShooter {
       this.toast('DOCKING COURSE SET - NUDGE AWAY TO SKIP')
       this.audio.pickup('nav')
     }
-    if (distance > 2400) {
+    if (distance > RETURN_BEACON_SKIP_DISTANCE) {
       this.skipReturnBeacon()
       return
     }
@@ -6927,18 +6930,21 @@ class VectorShooter {
       const nearShip = Boolean(this.surface && Math.sqrt(dist2(this.surface.pilot, this.surface.ship)) < 64)
       const action = touchActionLabel({ state: 'surface', nearLore: Boolean(lore), nearAlien: Boolean(alien), nearShip })
       this.ui.touchAction.classList.toggle('hidden', !action)
+      this.ui.touchAction.classList.remove('urgent')
       this.ui.touchAction.textContent = action ?? ''
       this.ui.touchDash.classList.add('hidden')
       return
     }
     const planet = this.planets.find((p) => Math.sqrt(dist2(p, this.player)) < p.radius + 86)
+    const stationAvailable = Boolean(this.returnBeacon)
     const action = touchActionLabel({
       state: 'playing',
       planetNearby: Boolean(planet),
-      returnBeaconAvailable: Boolean(this.returnBeacon && !this.autoNavTargetBeacon),
-      canPlanetLock: Boolean(!this.autoNavTargetPlanetId && !this.returnBeacon && this.build.nav >= 3 && this.planets.length)
+      returnBeaconAvailable: stationAvailable,
+      canPlanetLock: Boolean(!this.autoNavTargetPlanetId && !stationAvailable && this.build.nav >= 3 && this.planets.length)
     })
     this.ui.touchAction.classList.toggle('hidden', !action)
+    this.ui.touchAction.classList.toggle('urgent', stationAvailable)
     this.ui.touchAction.textContent = action ?? ''
     this.ui.touchDash.classList.remove('hidden')
     this.ui.touchDash.textContent = 'DASH'

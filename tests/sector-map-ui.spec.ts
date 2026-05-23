@@ -60,3 +60,14 @@ test('first sector node has shorter station timing to introduce the route loop',
   expect(main).toContain('runBalance.timers.introSectorBeaconSeconds')
   expect(main).toContain('return this.stats.time >= this.nextReturnBeaconAt')
 })
+
+test('dock action stays visible and pulses while a station is available', () => {
+  const main = mainSource()
+  const css = readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8')
+
+  expect(main).toContain('const stationAvailable = Boolean(this.returnBeacon)')
+  expect(main).toContain('returnBeaconAvailable: stationAvailable')
+  expect(main).toContain("this.ui.touchAction.classList.toggle('urgent', stationAvailable)")
+  expect(css).toContain('.touch-button.urgent')
+  expect(css).toContain('@keyframes dock-action-pulse')
+})

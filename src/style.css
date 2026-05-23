@@ -1276,10 +1276,27 @@ canvas {
   display: none;
 }
 
+.touch-button.urgent {
+  animation: dock-action-pulse 0.82s ease-in-out infinite;
+  background: rgba(67, 50, 2, 0.78);
+  box-shadow: inset 0 0 28px rgba(255, 242, 122, 0.18), 0 0 34px rgba(255, 242, 122, 0.46);
+}
+
 .touch-button.dash {
   border-color: rgba(87, 255, 243, 0.66);
   background: rgba(2, 12, 16, 0.58);
   box-shadow: inset 0 0 22px rgba(87, 255, 243, 0.08), 0 0 22px rgba(87, 255, 243, 0.12);
+}
+
+@keyframes dock-action-pulse {
+  0%, 100% {
+    transform: scale(1);
+    border-color: rgba(255, 242, 122, 0.72);
+  }
+  50% {
+    transform: scale(1.08);
+    border-color: rgba(255, 255, 255, 0.95);
+  }
 }
 
 .screen {

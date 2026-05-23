@@ -15,7 +15,10 @@ export interface ReturnBeaconAutopilotInput {
 
 export const FIRST_BEACON_TIME = 240
 export const BEACON_INTERVAL = 210
-export const BEACON_HOLD_SECONDS = 3.2
+export const BEACON_HOLD_SECONDS = 2.4
+export const RETURN_BEACON_REMINDER_SECONDS = 10
+export const RETURN_BEACON_ASSIST_SECONDS = 18
+export const RETURN_BEACON_SKIP_DISTANCE = 3200
 
 export const returnBeaconEligible = (input: ReturnBeaconEligibilityInput) => {
   if (input.activeBeacon) return false
