@@ -69,6 +69,7 @@ ${enemyRows}
 | Starting XP threshold | ${scopedRunValue('xp', 'startingNext')} |
 | XP growth multiplier | ${scopedRunValue('xp', 'growthMultiplier')} |
 | Chest respawn minimum | ${scopedRunValue('spaceChest', 'respawnMinSeconds')}s |
+| Intro node station timing | ${scopedRunValue('timers', 'introSectorBeaconSeconds')}s |
 | Station repair hull | ${scopedRunValue('station', 'repairHull')} |
 | Surface world | ${surfaceValue('width')} x ${surfaceValue('height')} |
 | Surface cache safe distance | ${scopedSurfaceValue('resource', 'cacheSafeDistance')} |

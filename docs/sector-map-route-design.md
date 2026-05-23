@@ -35,6 +35,7 @@ Nodes are generated from a small catalog of route identities. Templates keep pro
 Generation uses fixed structural beats plus weighted variety:
 
 - Column 1 always offers at least one safe drift and one planet cluster.
+- The first launched route node has a shorter station timing so the player sees the map loop quickly.
 - Stations are fixed service anchors before mid and late pressure.
 - Late boss gates are fixed route checks.
 - Other slots are weighted by column depth, with duplicate templates in the same column discouraged.
@@ -93,6 +94,8 @@ The map must stay portrait-mobile friendly:
 - Node choice cards must show wave and hazard readouts before launch.
 
 The player should understand the risk profile before committing. Hidden modifiers are allowed only if the visible readout gives the right expectation.
+
+The map also carries a compact route debug readout for balancing. Each generated node row shows template, depth, pace, planet range, hazards, pressure, reward, and wave timing so fixed seeds can be inspected without playing the full run.
 
 ## Design Guardrails
 

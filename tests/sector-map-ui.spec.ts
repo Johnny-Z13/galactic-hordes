@@ -19,6 +19,10 @@ test('sector map choices expose wave and hazard readouts before launch', () => {
 
   expect(main).toContain('choice.config.readout')
   expect(main).toContain('private sectorNodeConfigSummary(')
+  expect(main).toContain('private sectorMapDebugReadout(')
+  expect(main).toContain('ROUTE DEBUG')
+  expect(main).toContain('node.config.templateId')
+  expect(main).toContain('profile.rewardMultiplier')
   expect(main).toContain('PLANETS ${this.sectorPlanetLabel')
   expect(main).toContain('WAVES ${node.config.waves.length} ${this.sectorWaveLabel(node.config.waveOrder)}')
   expect(main).toContain('HAZARDS ${this.sectorHazardsLabel(node.config.hazards)}')
@@ -47,4 +51,12 @@ test('sector stations offer run services but not permanent meta upgrades', () =>
   expect(main).toContain('private applySectorStationServices(')
   expect(main).toContain('Station services are run-only')
   expect(stationMethod).not.toContain('purchaseMothershipTier')
+})
+
+test('first sector node has shorter station timing to introduce the route loop', () => {
+  const main = mainSource()
+
+  expect(main).toContain('private isIntroSectorNode(')
+  expect(main).toContain('runBalance.timers.introSectorBeaconSeconds')
+  expect(main).toContain('return this.stats.time >= this.nextReturnBeaconAt')
 })

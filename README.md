@@ -110,6 +110,8 @@ Each template produces an explicit config:
 
 Those configs feed runtime behavior: enemy recipe bias, planet archetype bias, spawn pressure, reward pressure, boss requirements, space encounter bias, and encounter cadence. Route depth scales pressure and reward so late hunter lanes, asteroid belts, and anomalies become sharper without losing their identity. A safe drift should feel meaningfully different from a planet cluster, and both should feel different from an intense asteroid ambush route.
 
+The first post-mothership node has a shorter station window so new runs demonstrate the sector-map loop quickly: launch, survive a compact node, dock, and choose the next route. The sector map also includes a compact route debug readout showing template, depth, planets, hazards, pressure, rewards, and wave timing for generated nodes.
+
 See [docs/sector-map-route-design.md](docs/sector-map-route-design.md) for the route-layer design.
 
 ## Balance Calibration
@@ -173,6 +175,7 @@ Active balance mode: `testEasy` (Testing Easy).
 | Starting XP threshold | 24 |
 | XP growth multiplier | 1.18 |
 | Chest respawn minimum | 38s |
+| Intro node station timing | 75s |
 | Station repair hull | 42 |
 | Surface world | 1600 x 1180 |
 | Surface cache safe distance | 240 |

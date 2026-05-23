@@ -1642,12 +1642,7 @@ class VectorShooter {
 
   private updateReturnBeacon(dt: number) {
     if (this.state !== 'playing') return
-    if (!this.returnBeacon && returnBeaconEligible({
-      time: this.stats.time,
-      planetsVisited: this.stats.planets,
-      activeBeacon: false,
-      nextBeaconAt: this.nextReturnBeaconAt
-    })) {
+    if (!this.returnBeacon && this.returnBeaconReady()) {
       this.spawnReturnBeacon()
     }
     if (!this.returnBeacon) return
@@ -1698,6 +1693,21 @@ class VectorShooter {
     }
     this.toast('SPACE STATION AVAILABLE - TAP DOCK TO LOCK')
     this.audio.pickup('nav')
+  }
+
+  private returnBeaconReady() {
+    const node = currentSectorNode(this.sectorMap)
+    if (this.isIntroSectorNode(node)) return this.stats.time >= this.nextReturnBeaconAt
+    return returnBeaconEligible({
+      time: this.stats.time,
+      planetsVisited: this.stats.planets,
+      activeBeacon: false,
+      nextBeaconAt: this.nextReturnBeaconAt
+    })
+  }
+
+  private isIntroSectorNode(node: SectorNode) {
+    return node.column === 1
   }
 
   private skipReturnBeacon() {
@@ -8194,6 +8204,7 @@ class VectorShooter {
       empty.textContent = 'No forward route is open yet.'
       list.append(empty)
     }
+    list.append(this.sectorMapDebugReadout())
     details.append(heading, list)
     body.append(graph, details)
     panel.append(top, body)
@@ -8234,6 +8245,29 @@ class VectorShooter {
       `HAZARDS ${this.sectorHazardsLabel(node.config.hazards)}`,
       `PRESSURE x${profile.spawnMultiplier.toFixed(2)}`
     ].join(' / ')
+  }
+
+  private sectorMapDebugReadout() {
+    const wrap = document.createElement('div')
+    wrap.className = 'sector-debug-readout'
+    const rows = this.sectorMap.nodes
+      .filter((node) => node.kind !== 'mothership')
+      .sort((a, b) => a.column - b.column || a.row - b.row)
+      .map((node) => {
+        const profile = sectorNodeRunProfile(node)
+        const waveSummary = node.config.waves.map((wave) => `${wave.atSeconds}s:${wave.label}`).join(', ')
+        return `
+          <div class="sector-debug-row ${this.escape(node.kind)}">
+            <b>${this.escape(node.label)}</b>
+            <span>${this.escape(node.config.templateId)} / d${node.config.depth.toFixed(2)} / ${this.escape(node.config.pace)}</span>
+            <span>PLANETS ${this.sectorPlanetLabel(node.config.planets.countMin, node.config.planets.countMax)} / ${this.escape(node.config.planets.density)} / ${this.escape(this.sectorHazardsLabel(node.config.hazards))}</span>
+            <span>PRESSURE x${profile.spawnMultiplier.toFixed(2)} / REWARD x${profile.rewardMultiplier.toFixed(2)} / WAVES ${this.escape(waveSummary)}</span>
+          </div>
+        `
+      })
+      .join('')
+    wrap.innerHTML = `<span>ROUTE DEBUG</span>${rows}`
+    return wrap
   }
 
   private sectorPlanetLabel(min: number, max: number) {
@@ -8322,7 +8356,9 @@ class VectorShooter {
     this.spawnTimer = node.kind === 'final' ? runBalance.timers.finalSectorSpawnSeconds : runBalance.timers.sectorSpawnSeconds
     this.bossTimer = this.sectorNodeProfile.bossRequired ? runBalance.timers.requiredBossSeconds : runBalance.timers.sectorBossSeconds
     this.chestTimer = node.kind === 'planet' ? runBalance.timers.planetNodeChestSeconds : runBalance.timers.startingChestSeconds
-    this.nextReturnBeaconAt = nextBeaconWindow(Math.max(0, this.stats.time - 14))
+    this.nextReturnBeaconAt = this.isIntroSectorNode(node)
+      ? this.stats.time + runBalance.timers.introSectorBeaconSeconds
+      : nextBeaconWindow(Math.max(0, this.stats.time - 14))
     this.nextSpaceEncounterAt = this.nextSectorSpaceEncounterTime(this.stats.time)
     const target = cameraTargetFor(this.player, this.width, this.height, this.spaceScale())
     this.camera.x = target.x
