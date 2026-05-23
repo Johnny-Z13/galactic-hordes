@@ -1597,7 +1597,7 @@ class VectorShooter {
     const distance = Math.sqrt(dist2(this.returnBeacon, this.player))
     if (this.returnBeacon.age > 22 && !this.returnBeacon.reminded) {
       this.returnBeacon.reminded = true
-      this.toast('RETURN BEACON WAITING - TAP BEACON TO LOCK')
+      this.toast('SPACE STATION WAITING - TAP DOCK TO LOCK')
       this.audio.pickup('nav')
     }
     if (this.returnBeacon.age > 48 && !this.returnBeacon.assistTriggered && !this.autoNavTargetBeacon) {
@@ -1606,7 +1606,7 @@ class VectorShooter {
       this.autoNavTargetBeacon = true
       this.autoNavActive = true
       this.autoNavHeading = Math.atan2(this.returnBeacon.y - this.player.y, this.returnBeacon.x - this.player.x)
-      this.toast('RECALL ROUTE SET - NUDGE AWAY TO SKIP')
+      this.toast('DOCKING COURSE SET - NUDGE AWAY TO SKIP')
       this.audio.pickup('nav')
     }
     if (distance > 2400) {
@@ -1630,14 +1630,14 @@ class VectorShooter {
     this.returnBeacon = {
       x: this.player.x + Math.cos(angle) * distance,
       y: this.player.y + Math.sin(angle) * distance,
-      radius: 96,
+      radius: 132,
       hold: 0,
       phase: 0,
       age: 0,
       reminded: false,
       assistTriggered: false
     }
-    this.toast('RETURN BEACON AVAILABLE - TAP BEACON TO LOCK')
+    this.toast('SPACE STATION AVAILABLE - TAP DOCK TO LOCK')
     this.audio.pickup('nav')
   }
 
@@ -1647,7 +1647,7 @@ class VectorShooter {
     this.autoNavTargetBeacon = false
     this.skippedReturnBeacons += 1
     this.nextReturnBeaconAt = nextBeaconWindow(this.stats.time)
-    this.toast('RETURN BEACON SKIPPED. DEEP EXTRACTION BONUS RISING.')
+    this.toast('SPACE STATION SKIPPED. DEEP ROUTE BONUS RISING.')
   }
 
   private lockReturnBeacon() {
@@ -1656,7 +1656,7 @@ class VectorShooter {
     this.autoNavTargetBeacon = true
     this.autoNavActive = true
     this.autoNavHeading = Math.atan2(this.returnBeacon.y - this.player.y, this.returnBeacon.x - this.player.x)
-    this.toast('RETURN BEACON LOCKED')
+    this.toast('DOCKING COURSE LOCKED')
     this.audio.pickup('nav')
     return true
   }
@@ -3365,7 +3365,7 @@ class VectorShooter {
           return
         }
       }
-      this.toast('NO LANDING BEACON IN RANGE')
+      this.toast('NO LANDING SIGNAL IN RANGE')
       return
     }
     this.startLanding(planet)
@@ -3650,7 +3650,7 @@ class VectorShooter {
       0.28
     if (forcedCount === undefined && Math.random() > chance + (quiet ? 0.18 : 0)) return []
     const colors = ['#b990ff', '#fff27a', '#57fff3', '#8fff7d', '#70a8ff']
-    const names = ['THE GLASS HERBALIST', 'A STATIC PILGRIM', 'THE COIN KEEPER', 'THE STAR MAPMAKER', 'THE BEACON WIDOW']
+    const names = ['THE GLASS HERBALIST', 'A STATIC PILGRIM', 'THE COIN KEEPER', 'THE STAR MAPMAKER', 'THE STATION WIDOW']
     const gifts: AlienGiftKind[] = ['herb', 'idol', 'coin', 'map', 'beacon']
     const row = hashString(planet.id, Math.floor(this.stats.time) + 17) % ALIEN_CATALOG_ROWS
     return [{
@@ -4062,7 +4062,7 @@ class VectorShooter {
       idol: 'It offers a tiny idol made of cooled lightning. The object is either a charm or a trap pretending to be polite.',
       map: 'It draws a living map in the dust. The route keeps changing when you blink.',
       coin: 'It flips a black coin into the air and waits for your glove to open.',
-      beacon: 'It holds up a cracked return beacon. The signal inside is alive, frightened, and already calling your ship.'
+      beacon: 'It holds up a cracked docking charter. The station signature inside is alive, frightened, and already calling your ship.'
     }[alien.gift]
   }
 
@@ -4120,12 +4120,12 @@ class VectorShooter {
       this.surface.message = 'THE COIN LANDS EDGE-UP. IMPOSSIBLE. PROFITABLE.'
     } else {
       this.resources.crystal += 6
-      const banked = this.bankSurfaceUpgrade('BEACON WIDOW BANKED A MUTATION SIGNAL')
+      const banked = this.bankSurfaceUpgrade('STATION WIDOW BANKED A MUTATION SIGNAL')
       this.summonReturnBeaconAfterTakeoff = true
       this.stats.score += 720
       this.surface.message = banked
-        ? 'THE BEACON STARTS LISTENING FROM ORBIT. GET BACK TO THE SHIP.'
-        : 'THE BEACON WAKES ORBIT, BUT THE EXTRA SIGNAL BECOMES CARGO.'
+        ? 'THE STATION STARTS LISTENING FROM ORBIT. GET BACK TO THE SHIP.'
+        : 'THE STATION WAKES ORBIT, BUT THE EXTRA SIGNAL BECOMES CARGO.'
     }
     this.audio.pickup('gift')
     this.burst(alien.x, alien.y, alien.color, 22, 220)
@@ -4176,7 +4176,7 @@ class VectorShooter {
           hit: 0
         })
       }
-      this.surface.message = 'THE BEACON SCREAMS. SOMETHING ANSWERS FROM UNDER THE DUST.'
+      this.surface.message = 'THE DOCKING CHARTER SCREAMS. SOMETHING ANSWERS FROM UNDER THE DUST.'
     }
     this.audio.boom('surface')
     this.burst(alien.x, alien.y, '#ff5d73', 24, 240)
@@ -4308,7 +4308,7 @@ class VectorShooter {
     if (this.summonReturnBeaconAfterTakeoff && !this.returnBeacon) {
       this.summonReturnBeaconAfterTakeoff = false
       this.spawnReturnBeacon()
-      this.toast(`${planetName}: RETURN BEACON WOKEN`)
+      this.toast(`${planetName}: SPACE STATION WOKEN`)
     } else {
       this.summonReturnBeaconAfterTakeoff = false
       this.toast(`${planetName}: SURFACE CACHE EXTRACTED`)
@@ -5705,29 +5705,61 @@ class VectorShooter {
       ctx.textAlign = edge.x > this.width - 120 ? 'right' : edge.x < 120 ? 'left' : 'center'
       const labelX = clamp(edge.x, 64, this.width - 64)
       const labelY = clamp(edge.y - 20, topMargin, this.height - 52)
-      ctx.fillText(`BEACON ${distance}`, labelX, labelY)
+      ctx.fillText(`STATION ${distance}`, labelX, labelY)
       ctx.restore()
       return
     }
     const pulse = Math.sin(this.returnBeacon.phase * 4) * 0.5 + 0.5
     const radius = this.returnBeacon.radius * this.spaceScale()
+    const stationRadius = radius * 0.72
+    const dockRadius = radius * 0.34
     ctx.save()
+    ctx.translate(p.x, p.y)
     ctx.strokeStyle = '#fff27a'
+    ctx.fillStyle = 'rgba(87,255,243,0.12)'
     ctx.shadowColor = '#fff27a'
     ctx.shadowBlur = this.allowGlow() ? 24 : 8
     ctx.lineWidth = 2 + pulse
     ctx.beginPath()
-    ctx.arc(p.x, p.y, radius, 0, TAU)
+    for (let i = 0; i < 8; i += 1) {
+      const a = -Math.PI / 8 + (i / 8) * TAU
+      if (i === 0) ctx.moveTo(Math.cos(a) * stationRadius, Math.sin(a) * stationRadius)
+      else ctx.lineTo(Math.cos(a) * stationRadius, Math.sin(a) * stationRadius)
+    }
+    ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
+    ctx.strokeStyle = '#57fff3'
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    for (let i = 0; i < 6; i += 1) {
+      const a = Math.PI / 6 + (i / 6) * TAU
+      if (i === 0) ctx.moveTo(Math.cos(a) * dockRadius, Math.sin(a) * dockRadius)
+      else ctx.lineTo(Math.cos(a) * dockRadius, Math.sin(a) * dockRadius)
+    }
+    ctx.closePath()
+    ctx.stroke()
+    ctx.strokeStyle = '#fff27a'
+    ctx.beginPath()
+    ctx.moveTo(-stationRadius * 1.12, 0)
+    ctx.lineTo(-dockRadius, 0)
+    ctx.moveTo(dockRadius, 0)
+    ctx.lineTo(stationRadius * 1.12, 0)
+    ctx.moveTo(0, -stationRadius * 1.12)
+    ctx.lineTo(0, -dockRadius)
+    ctx.moveTo(0, dockRadius)
+    ctx.lineTo(0, stationRadius * 1.12)
     ctx.stroke()
     ctx.strokeStyle = '#57fff3'
     ctx.beginPath()
-    ctx.arc(p.x, p.y, radius * clamp(this.returnBeacon.hold / BEACON_HOLD_SECONDS, 0, 1), 0, TAU)
+    ctx.arc(0, 0, radius * clamp(this.returnBeacon.hold / BEACON_HOLD_SECONDS, 0, 1), 0, TAU)
     ctx.stroke()
     ctx.shadowBlur = 0
     ctx.fillStyle = '#fff27a'
     ctx.font = '12px Courier New'
     ctx.textAlign = 'center'
-    ctx.fillText(`RETURN BEACON ${distance}`, p.x, p.y - radius - 12)
+    ctx.fillText(`STATION ${distance}`, 0, -radius - 16)
+    ctx.fillText('DOCKING', 0, radius + 24)
     ctx.restore()
   }
 
@@ -6724,7 +6756,7 @@ class VectorShooter {
     this.ui.wave.textContent = this.stats.kills.toString()
     this.ui.high.textContent = Math.max(this.stats.highScore, this.stats.score).toString()
     const beaconText = this.returnBeacon
-      ? ` // RETURN BEACON ${Math.floor(Math.sqrt(dist2(this.returnBeacon, this.player)))}`
+      ? ` // STATION ${Math.floor(Math.sqrt(dist2(this.returnBeacon, this.player)))}`
       : ''
     this.ui.resources.textContent = `Scrap ${this.resources.scrap}  Crystals ${this.resources.crystal}  Cores ${this.resources.cores}${beaconText}`
     if (this.state === 'surface' && this.surface) {
@@ -7822,7 +7854,7 @@ class VectorShooter {
       title: outcome === 'destroyed' ? 'BLACK BOX RECOVERED' : outcome === 'deepExtraction' ? 'DEEP EXPEDITION EXTRACTED' : 'EXPEDITION EXTRACTED',
       copy: outcome === 'destroyed'
         ? 'The scout ship was lost. The mothership recovered partial cargo and all transmitted discoveries.'
-        : 'The scout ship returned through a beacon. Cargo, signals, and discoveries were processed cleanly.',
+        : 'The scout ship docked at a route station. Cargo, signals, and discoveries were processed cleanly.',
       resources: {
         earned: { ...this.resources },
         recovered
@@ -7879,7 +7911,7 @@ class VectorShooter {
       : 'No new archive records.'
     const bonus = document.createElement('p')
     bonus.className = 'copy small'
-    bonus.textContent = this.debrief.skippedBeacons > 0 ? `Deep extraction bonus from ${this.debrief.skippedBeacons} skipped beacon${this.debrief.skippedBeacons === 1 ? '' : 's'}.` : ''
+    bonus.textContent = this.debrief.skippedBeacons > 0 ? `Deep route bonus from ${this.debrief.skippedBeacons} skipped station${this.debrief.skippedBeacons === 1 ? '' : 's'}.` : ''
     const input = document.createElement('input')
     input.className = 'name-entry'
     input.maxLength = 12
@@ -8114,7 +8146,7 @@ class VectorShooter {
     this.prepareSectorNode(selected)
     this.state = 'playing'
     this.showOnly(null)
-    this.toast(`${selected.label}: ${selected.kind === 'final' ? 'SURVIVE THE LAST STAND' : 'BEACON CLEARS THIS ROUTE'}`)
+    this.toast(`${selected.label}: ${selected.kind === 'final' ? 'SURVIVE THE LAST STAND' : 'DOCK AT STATION TO CLEAR ROUTE'}`)
   }
 
   private applySectorStationServices(node: SectorNode) {
@@ -8186,7 +8218,12 @@ class VectorShooter {
     this.returnBeacon = null
     this.autoNavTargetBeacon = false
     this.autoNavActive = false
-    this.showSectorMap(`${node.label} cleared. Pick the next route through the sector.`)
+    if (this.pendingUpgrades > 0) {
+      this.returnToSectorMapAfterWorkbench = true
+      this.openLevelUp('ORBITAL STATION WORKBENCH', `${node.label}: Docking complete. Spend ${this.pendingUpgrades} banked mutation signal${this.pendingUpgrades === 1 ? '' : 's'}, then choose the next route through the sector.`, true)
+      return
+    }
+    this.showSectorMap(`${node.label}: Docking complete. Choose the next route through the sector.`)
   }
 
   private start() {

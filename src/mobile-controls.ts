@@ -41,7 +41,7 @@ export const touchActionLabel = (input: TouchActionInput) => {
     return null
   }
   if (input.planetNearby) return 'LAND'
-  if (input.returnBeaconAvailable) return 'BEACON'
+  if (input.returnBeaconAvailable) return 'DOCK'
   if (input.canPlanetLock) return 'LOCK'
   return null
 }

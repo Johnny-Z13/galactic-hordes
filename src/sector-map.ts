@@ -147,7 +147,7 @@ const configFor = (kind: SectorNodeKind, random: () => number): SectorNodeConfig
     pace: random() < 0.45 ? 'standard' : 'intense',
     waveOrder: random() < 0.5 ? 'swarm' : 'ambush',
     hazards: random() < 0.55 ? ['hunterWing'] : ['asteroids'],
-    objective: 'Clear hostile space and reach the return beacon.',
+    objective: 'Clear hostile space and dock at the route station.',
     readout: 'Hostile route. Enemy-forward combat node.'
   }
 }

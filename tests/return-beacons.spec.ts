@@ -38,13 +38,22 @@ test('spawns the first beacon close enough to read as an offer', () => {
   expect(beaconSpawnDistance(3)).toBe(910)
 })
 
-test('return beacon is reinforced by HUD distance reminder and recall assist', () => {
+test('route station is reinforced by HUD distance reminder and docking assist', () => {
   const main = source()
 
-  expect(main).toContain('RETURN BEACON AVAILABLE - TAP BEACON TO LOCK')
-  expect(main).toContain('RETURN BEACON WAITING - TAP BEACON TO LOCK')
-  expect(main).toContain('RECALL ROUTE SET - NUDGE AWAY TO SKIP')
-  expect(main).toContain('RETURN BEACON ${Math.floor(Math.sqrt(dist2(this.returnBeacon, this.player)))}')
+  expect(main).toContain('SPACE STATION AVAILABLE - TAP DOCK TO LOCK')
+  expect(main).toContain('SPACE STATION WAITING - TAP DOCK TO LOCK')
+  expect(main).toContain('DOCKING COURSE SET - NUDGE AWAY TO SKIP')
+  expect(main).toContain('STATION ${Math.floor(Math.sqrt(dist2(this.returnBeacon, this.player)))}')
+})
+
+test('route station renders as a large octagonal docking structure', () => {
+  const main = source()
+  const renderStation = main.slice(main.indexOf('private renderReturnBeacon'), main.indexOf('private renderAutopilot'))
+
+  expect(renderStation).toContain('for (let i = 0; i < 8; i += 1)')
+  expect(renderStation).toContain('ctx.lineTo(Math.cos(a) * stationRadius')
+  expect(renderStation).toContain('DOCKING')
 })
 
 test('beacon autopilot brakes inside the extraction ring instead of flying through', () => {

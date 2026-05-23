@@ -22,7 +22,7 @@ Galactic Hordes is a mobile-first portrait survival shooter: Vampire Survivors p
 - A generated 8-frame surface spaceman sprite replaces the original stick pilot.
 - Mothership command hub wraps launch, a real discoverable collection catalogue with unique in-game-style icons, category filters, archive data, and department upgrades.
 - Space station nodes provide run-only repairs, workbench service, and trade without granting permanent mothership upgrades.
-- Return beacons appear after a planet and about four minutes, then escalate from visible exit offer to soft recall route.
+- Large octagonal route stations appear after a planet and about four minutes, then escalate from visible docking offer to soft autopilot route.
 - Destroyed runs recover black-box archive data and partial resources.
 - High scores with editable pilot names.
 - LOW/MED/GLOW graphics modes for phones, low-GPU Macs, and high-end PCs.
@@ -35,7 +35,7 @@ The default experience is designed for an iPhone-style portrait screen.
 - Release to keep travelling on the last heading.
 - The ship auto-fires at nearby enemies.
 - Tap `LAND` near a planet.
-- Tap `BEACON` when a return beacon is available to auto-travel toward extraction.
+- Tap `DOCK` when a route station is available to auto-travel toward docking.
 - On a planet, tap `BOARD` near the ship to leave.
 - Tap `DASH` in space.
 - On planet surfaces, the pilot auto-shoots when threats are nearby.
@@ -92,7 +92,7 @@ See [docs/upgrade-progression-design.md](docs/upgrade-progression-design.md) for
 
 ## Sector Map Runs
 
-Expeditions now run through a portrait-friendly sector map. The mothership is the start node; each cleared combat node returns to the map through a return beacon; the final node is the run win condition. If the scout dies, route progress is lost, but permanent mothership upgrades and archive progression remain.
+Expeditions now run through a portrait-friendly sector map. The mothership is the start node; each cleared combat node returns to the map by docking at a large route station; the final node is the run win condition. If the scout dies, route progress is lost, but permanent mothership upgrades and archive progression remain.
 
 Nodes carry explicit configs so the map constructs the run rather than only decorating it:
 

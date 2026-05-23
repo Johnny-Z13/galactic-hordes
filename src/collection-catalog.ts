@@ -64,7 +64,7 @@ const alienEntries: CollectionCatalogEntry[] = [
   { id: 'alien:a-static-pilgrim', kind: 'alien', title: 'A Static Pilgrim', detail: 'A devotional signal wrapped around a bargaining lifeform.', source: 'Alien contact log', color: '#fff27a', icon: alienIconStart + 1 },
   { id: 'alien:the-coin-keeper', kind: 'alien', title: 'The Coin Keeper', detail: 'An alien trader that weighs resources against risk.', source: 'Alien contact log', color: '#57fff3', icon: alienIconStart + 2 },
   { id: 'alien:the-star-mapmaker', kind: 'alien', title: 'The Star Mapmaker', detail: 'A contact with impossible maps and dangerous routes.', source: 'Alien contact log', color: '#8fff7d', icon: alienIconStart + 3 },
-  { id: 'alien:the-beacon-widow', kind: 'alien', title: 'The Beacon Widow', detail: 'A contact carrying a living recall signal that can wake an early extraction route.', source: 'Alien contact log', color: '#70a8ff', icon: alienIconStart + 4 }
+  { id: 'alien:the-beacon-widow', kind: 'alien', title: 'The Station Widow', detail: 'A contact carrying a living docking signal that can wake an early route station.', source: 'Alien contact log', color: '#70a8ff', icon: alienIconStart + 4 }
 ]
 
 const loreIconStart = alienIconStart + alienEntries.length

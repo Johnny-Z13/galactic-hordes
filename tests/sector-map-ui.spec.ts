@@ -25,12 +25,14 @@ test('sector map choices expose wave and hazard readouts before launch', () => {
   expect(main).toContain('private nextSectorSpaceEncounterTime(')
 })
 
-test('return beacon advances the sector map instead of always ending the run', () => {
+test('station docking advances the sector map instead of always ending the run', () => {
   const main = mainSource()
 
   expect(main).toContain('this.completeSectorNodeViaBeacon()')
   expect(main).toContain("node.kind === 'final'")
   expect(main).toContain("this.finishRun('cleanExtraction')")
+  expect(main).toContain('ORBITAL STATION WORKBENCH')
+  expect(main).toContain('Docking complete. Choose the next route through the sector.')
 })
 
 test('sector stations offer run services but not permanent meta upgrades', () => {

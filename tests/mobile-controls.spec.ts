@@ -32,7 +32,7 @@ test('dash prefers current movement when already moving', () => {
 test('touch action hides unless there is a contextual action', () => {
   expect(touchActionLabel({ state: 'playing' })).toBeNull()
   expect(touchActionLabel({ state: 'playing', planetNearby: true })).toBe('LAND')
-  expect(touchActionLabel({ state: 'playing', returnBeaconAvailable: true })).toBe('BEACON')
+  expect(touchActionLabel({ state: 'playing', returnBeaconAvailable: true })).toBe('DOCK')
   expect(touchActionLabel({ state: 'playing', canPlanetLock: true })).toBe('LOCK')
   expect(touchActionLabel({ state: 'surface' })).toBeNull()
   expect(touchActionLabel({ state: 'surface', nearShip: true })).toBe('BOARD')

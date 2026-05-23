@@ -79,10 +79,10 @@ export const mothershipDepartments: Record<MothershipDepartmentId, DepartmentDef
   scanner: {
     id: 'scanner',
     name: 'Scanner Array',
-    description: 'Planet, beacon, risk, and relic signal intelligence.',
+    description: 'Planet, station, risk, and relic signal intelligence.',
     tiers: [
       { name: 'Planet Signatures', description: 'Reveal planet archetype labels before landing.', cost: { scrap: 120, crystal: 0, cores: 0 } },
-      { name: 'Beacon Sweep', description: 'Show return beacon direction and distance once eligible.', cost: { scrap: 220, crystal: 18, cores: 0 } },
+      { name: 'Station Sweep', description: 'Show route station direction and distance once eligible.', cost: { scrap: 220, crystal: 18, cores: 0 } },
       { name: 'Risk Reading', description: 'Show simple planet risk hints.', cost: { scrap: 360, crystal: 44, cores: 1 } },
       { name: 'Relic Trace', description: 'Mark planets with stronger relic or cache signal odds.', cost: { scrap: 520, crystal: 80, cores: 2 } }
     ]
@@ -124,11 +124,11 @@ export const mothershipDepartments: Record<MothershipDepartmentId, DepartmentDef
   signalCore: {
     id: 'signalCore',
     name: 'Signal Core',
-    description: 'Deep signal decoding, stronger extraction telemetry, and beacon analysis.',
+    description: 'Deep signal decoding, stronger extraction telemetry, and station analysis.',
     unlock: { department: 'scanner', tier: 4 },
     tiers: [
       { name: 'Signal Triage', description: 'Recover a little more cargo from every completed extraction.', cost: { scrap: 720, crystal: 112, cores: 2 } },
-      { name: 'Beacon Memory', description: 'Improve deep extraction processing after skipped beacons.', cost: { scrap: 940, crystal: 152, cores: 3 } },
+      { name: 'Station Memory', description: 'Improve deep route processing after skipped stations.', cost: { scrap: 940, crystal: 152, cores: 3 } },
       { name: 'Black Box Decode', description: 'Improve destroyed-run cargo reconstruction.', cost: { scrap: 1220, crystal: 198, cores: 4 } },
       { name: 'Core Harmonics', description: 'Maximize persistent extraction signal processing.', cost: { scrap: 1560, crystal: 260, cores: 5 } }
     ]

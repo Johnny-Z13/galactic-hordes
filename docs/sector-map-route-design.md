@@ -12,7 +12,7 @@ This is the FTL-inspired layer for Galactic Hordes. The map is not only a level 
 
 - A run starts at the mothership node.
 - The player picks one connected forward node at a time.
-- Clearing a combat node through its return beacon marks that node complete and returns to the sector map.
+- Clearing a combat node by docking at its route station marks that node complete and returns to the sector map.
 - Space stations are safe run-only stops for repair, trade, route scan flavor, and workbench service.
 - Death wipes sector route progress.
 - Permanent mothership meta upgrades survive death and remain managed from the mothership/game-over loop.
