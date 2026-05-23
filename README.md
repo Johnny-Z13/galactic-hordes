@@ -11,6 +11,7 @@ Galactic Hordes is a mobile-first portrait survival shooter: Vampire Survivors p
 - Auto-targeting ship fire with keyboard, touch, mouse, and gamepad support.
 - Planet landing transitions into on-foot surface salvage.
 - Endless procedural space sectors with deterministic planets and starfields.
+- FTL-style run sector map: choose connected nodes with visible pace, wave, hazard, station, and final-boss readouts.
 - Workbench upgrades happen when returning to the ship through a single manifest surface that shows the current build and highlights installable systems.
 - Weighted upgrade choices inspired by Vampire Survivors.
 - Planet relics, weapon evolutions, limit breaks, treasure cores, and mystery cache ambushes.
@@ -20,6 +21,7 @@ Galactic Hordes is a mobile-first portrait survival shooter: Vampire Survivors p
 - Quiet planet encounters with one-time alien bargains and rare artefact rolls.
 - A generated 8-frame surface spaceman sprite replaces the original stick pilot.
 - Mothership command hub wraps launch, a real discoverable collection catalogue with unique in-game-style icons, category filters, archive data, and department upgrades.
+- Space station nodes provide run-only repairs, workbench service, and trade without granting permanent mothership upgrades.
 - Return beacons appear after a planet and about four minutes, then escalate from visible exit offer to soft recall route.
 - Destroyed runs recover black-box archive data and partial resources.
 - High scores with editable pilot names.
@@ -87,6 +89,21 @@ Upgrades are grouped into bigger build buckets:
 - `CONTROL`: dash traps, heat tempo, phase safety, and escape tools.
 
 See [docs/upgrade-progression-design.md](docs/upgrade-progression-design.md) for the full progression design.
+
+## Sector Map Runs
+
+Expeditions now run through a portrait-friendly sector map. The mothership is the start node; each cleared combat node returns to the map through a return beacon; the final node is the run win condition. If the scout dies, route progress is lost, but permanent mothership upgrades and archive progression remain.
+
+Nodes carry explicit configs so the map constructs the run rather than only decorating it:
+
+- `pace`: safe, mild, standard, intense, or boss.
+- `waveOrder`: scouts, swarm, ambush, bulwark, or cathedral.
+- `hazards`: clear space, asteroid fronts, hunter wings, derelict caches, or nebula volatility.
+- `objective` and `readout`: short text that tells the player why the node matters before launch.
+
+Those configs feed runtime behavior: enemy recipe bias, planet archetype bias, spawn pressure, reward pressure, boss requirements, space encounter bias, and encounter cadence. A mild station route should feel meaningfully different from an intense asteroid ambush route.
+
+See [docs/sector-map-route-design.md](docs/sector-map-route-design.md) for the route-layer design.
 
 ## Balance Calibration
 

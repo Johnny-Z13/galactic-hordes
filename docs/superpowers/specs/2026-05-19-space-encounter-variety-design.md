@@ -18,6 +18,7 @@ This pass adds a lightweight encounter director that periodically injects one of
 - Events must be intermittent. Normal combat should still breathe between surprises.
 - Events should use existing enemy, pickup, particle, and archive systems where practical.
 - The player should be able to learn causes over time. Nearby planet archetype, elapsed run time, and planets visited influence the event pool.
+- The sector map can bias the event pool. A node with `asteroids` should produce more Meteor Front pressure; a node with `hunterWing` should produce more formation ambushes; station and mild routes should leave more breathing room.
 - The first implementation should avoid large architecture changes and avoid new dependencies.
 
 ## Architecture
@@ -29,6 +30,7 @@ This pass adds a lightweight encounter director that periodically injects one of
 ## Implementation Notes
 
 - The director is a pure helper; `VectorShooter` stores the next-event time and active meteor/derelict objects.
+- Sector node profiles pass encounter bias and cadence multipliers into the director, so map choices change open-space texture without hard-coding route logic into the encounter module.
 - Meteor asteroids use world-space circles with velocity and lifetime. They collide with the player and enemies.
 - Hunter Wing spawns existing `razor`, `skimmer`, and `lancer` enemies in formation using existing enemy behaviors.
 - Derelict Cache uses a persistent `chest` pickup plus a rendered derelict marker and guardian enemies.

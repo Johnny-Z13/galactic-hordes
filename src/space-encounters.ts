@@ -15,6 +15,7 @@ interface EncounterContext {
   time: number
   planetsVisited: number
   nearbyPlanetArchetype?: EncounterPlanetArchetype
+  encounterBias?: Partial<Record<SpaceEncounterKind, number>>
 }
 
 export interface EncounterWeights {
@@ -66,6 +67,12 @@ export const spaceEncounterWeights = (context: EncounterContext): EncounterWeigh
   if (context.nearbyPlanetArchetype === 'hostile' || context.nearbyPlanetArchetype === 'horde') weights.hunterWing += 2.1
   if (context.nearbyPlanetArchetype === 'cache' || context.nearbyPlanetArchetype === 'repair') weights.derelictCache += 2.2
   if (context.nearbyPlanetArchetype === 'strange' || context.nearbyPlanetArchetype === 'relic' || context.nearbyPlanetArchetype === 'lore') weights.meteorFront += 1.85
+
+  if (context.encounterBias) {
+    for (const kind of Object.keys(context.encounterBias) as SpaceEncounterKind[]) {
+      weights[kind] *= context.encounterBias[kind] ?? 1
+    }
+  }
 
   return weights
 }

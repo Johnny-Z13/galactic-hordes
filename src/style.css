@@ -291,6 +291,249 @@ canvas {
   background-size: 22px 22px, 22px 22px, auto, auto, auto, auto;
 }
 
+.screen.sector-map-screen {
+  place-items: stretch;
+  padding: 0;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(87, 255, 243, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(87, 255, 243, 0.045) 1px, transparent 1px),
+    radial-gradient(circle at 18% 32%, rgba(143, 255, 125, 0.08), transparent 28%),
+    radial-gradient(circle at 78% 34%, rgba(255, 93, 115, 0.09), transparent 30%),
+    #010408;
+  background-size: 22px 22px, 22px 22px, auto, auto, auto;
+}
+
+.sector-map-panel {
+  width: min(1220px, 100%);
+  height: 100svh;
+  margin: 0 auto;
+  padding: max(14px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  overflow: hidden;
+}
+
+.sector-map-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 12px;
+  border: 1px solid rgba(87, 255, 243, 0.25);
+  border-top-color: rgba(215, 255, 247, 0.5);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(5, 18, 25, 0.9), rgba(1, 6, 10, 0.8));
+  padding: 14px;
+}
+
+.sector-map-title {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sector-map-title span,
+.sector-map-current span {
+  color: rgba(255, 242, 122, 0.84);
+  font-size: 11px;
+}
+
+.sector-map-title h1,
+.sector-map-current h2 {
+  margin: 0;
+  color: #f6fffe;
+  line-height: 1;
+}
+
+.sector-map-title h1 {
+  font-size: clamp(34px, 5vw, 58px);
+}
+
+.sector-map-title p,
+.sector-map-current p,
+.sector-choice small {
+  margin: 0;
+  color: rgba(215, 255, 247, 0.74);
+  line-height: 1.35;
+}
+
+.sector-map-status {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(96px, 1fr));
+  gap: 8px;
+  align-content: stretch;
+}
+
+.sector-map-status span {
+  display: grid;
+  align-content: center;
+  min-height: 54px;
+  border: 1px solid rgba(87, 255, 243, 0.24);
+  border-radius: 7px;
+  background: rgba(2, 12, 16, 0.64);
+  padding: 8px 10px;
+  color: rgba(215, 255, 247, 0.68);
+  font-size: 10px;
+}
+
+.sector-map-status b {
+  color: var(--cyan);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.sector-map-body {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(310px, 0.34fr);
+  gap: 12px;
+}
+
+.sector-map-graph,
+.sector-map-details {
+  min-height: 0;
+  border: 1px solid rgba(87, 255, 243, 0.22);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(4, 12, 16, 0.76), rgba(0, 0, 0, 0.66));
+  box-shadow: inset 0 0 34px rgba(87, 255, 243, 0.06);
+}
+
+.sector-map-graph {
+  position: relative;
+  overflow: hidden;
+}
+
+.sector-map-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.sector-map-lines line {
+  stroke: rgba(215, 255, 247, 0.28);
+  stroke-width: 0.6;
+}
+
+.sector-map-lines line.available {
+  stroke: rgba(255, 242, 122, 0.72);
+  stroke-width: 0.9;
+}
+
+.sector-map-lines line.completed {
+  stroke: rgba(143, 255, 125, 0.7);
+}
+
+.sector-node {
+  position: absolute;
+  width: clamp(34px, 4.6vw, 54px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(215, 255, 247, 0.45);
+  border-radius: 50%;
+  background: rgba(5, 13, 18, 0.95);
+  color: rgba(215, 255, 247, 0.82);
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 0 18px rgba(87, 255, 243, 0.08);
+}
+
+.sector-node.hostile {
+  border-color: rgba(255, 93, 115, 0.78);
+}
+
+.sector-node.planet {
+  border-color: rgba(87, 255, 243, 0.78);
+}
+
+.sector-node.station {
+  border-color: rgba(143, 255, 125, 0.86);
+}
+
+.sector-node.anomaly {
+  border-color: rgba(185, 144, 255, 0.84);
+}
+
+.sector-node.boss,
+.sector-node.final {
+  border-color: rgba(255, 242, 122, 0.9);
+}
+
+.sector-node.available {
+  color: #01080a;
+  background: var(--yellow);
+  box-shadow: 0 0 24px rgba(255, 242, 122, 0.34);
+}
+
+.sector-node.current {
+  outline: 3px solid rgba(87, 255, 243, 0.32);
+}
+
+.sector-node.completed {
+  background: rgba(143, 255, 125, 0.22);
+  color: #dfffe0;
+}
+
+.sector-node.locked {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.sector-map-details {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 14px;
+  overflow: hidden;
+}
+
+.sector-map-current {
+  display: grid;
+  gap: 6px;
+  border-bottom: 1px solid rgba(87, 255, 243, 0.14);
+  padding-bottom: 12px;
+}
+
+.sector-choice-list {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  scrollbar-color: rgba(87, 255, 243, 0.58) rgba(87, 255, 243, 0.08);
+}
+
+.sector-choice {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-height: 100px;
+  text-align: left;
+  border: 1px solid rgba(87, 255, 243, 0.26);
+  border-radius: 8px;
+  background: rgba(2, 12, 16, 0.78);
+  color: #d7fff7;
+  padding: 11px 12px;
+  cursor: pointer;
+}
+
+.sector-choice span,
+.sector-choice i {
+  color: rgba(255, 242, 122, 0.78);
+  font-size: 10px;
+  font-style: normal;
+}
+
+.sector-choice b {
+  color: #f6fffe;
+}
+
+.sector-choice.station {
+  border-color: rgba(143, 255, 125, 0.48);
+}
+
 .mothership-command {
   width: 100%;
   max-width: 1180px;
@@ -2201,6 +2444,57 @@ button.manifest-chip:disabled {
 @media (max-width: 760px) {
   .screen {
     padding: 10px;
+  }
+
+  .sector-map-screen {
+    overflow-y: auto;
+  }
+
+  .sector-map-panel {
+    height: auto;
+    min-height: 100svh;
+    padding: max(10px, env(safe-area-inset-top)) 10px max(14px, env(safe-area-inset-bottom));
+    overflow: visible;
+  }
+
+  .sector-map-top {
+    flex-direction: column;
+    padding: 12px;
+  }
+
+  .sector-map-status {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sector-map-status span {
+    min-height: 46px;
+    padding: 7px 6px;
+  }
+
+  .sector-map-status b {
+    font-size: 17px;
+  }
+
+  .sector-map-body {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .sector-map-graph {
+    min-height: 360px;
+  }
+
+  .sector-map-details {
+    min-height: 320px;
+    overflow: visible;
+  }
+
+  .sector-choice-list {
+    overflow: visible;
+  }
+
+  .sector-choice {
+    min-height: 92px;
   }
 
   .topbar {

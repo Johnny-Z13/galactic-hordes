@@ -45,6 +45,19 @@ import {
   type UpgradeCategory,
   type UpgradeId
 } from './powerup-balance'
+import {
+  availableSectorChoices,
+  completeSectorNode,
+  createSectorMap,
+  currentSectorNode,
+  sectorNodeRunProfile,
+  selectSectorNode,
+  type SectorHazardTag,
+  type SectorMap,
+  type SectorNode,
+  type SectorNodeRunProfile,
+  type SectorWaveOrder
+} from './sector-map'
 import { pressurePackSize, shouldRecycleEnemy } from './spawn-pressure'
 import {
   cameraTargetFor,
@@ -95,7 +108,7 @@ import {
 } from './workbench-rolls'
 import { optionOrbProfile, pulseVolleyCount, starterSignatureFlags } from './weapon-signatures'
 
-type GameState = 'title' | 'mothership' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
+type GameState = 'title' | 'mothership' | 'sectorMap' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
 type EnemyKind = SpaceEnemyKind
 type SurfaceResourceKind = 'crystal' | 'scrap' | 'repair' | 'cache'
@@ -796,11 +809,14 @@ class VectorShooter {
   private upgradeChoices: WorkbenchChoice[] = []
   private workbenchInstalling = false
   private workbenchRerolls = 0
+  private returnToSectorMapAfterWorkbench = false
   private discoverySuitOffer = false
   private summonReturnBeaconAfterTakeoff = false
   private mothershipConsoleView: MothershipConsoleView = 'workbench'
   private mothershipCollectionFilter: MothershipCollectionFilter = 'all'
   private selectedCollectionId: string | null = null
+  private sectorMap: SectorMap = createSectorMap()
+  private sectorNodeProfile: SectorNodeRunProfile = sectorNodeRunProfile(currentSectorNode(this.sectorMap))
   private planetChoice: Planet | null = null
   private alienChoice: SurfaceAlien | null = null
   private orbitReturnPoint: Vec | null = null
@@ -904,6 +920,7 @@ class VectorShooter {
     touchAction: document.createElement('button'),
     touchDash: document.createElement('button'),
     title: document.createElement('section'),
+    sectorMap: document.createElement('section'),
     levelup: document.createElement('section'),
     planet: document.createElement('section'),
     gameover: document.createElement('section'),
@@ -1076,7 +1093,7 @@ class VectorShooter {
   }
 
   private generatePlanet(chunkX: number, chunkY: number, index: number, rng: () => number, existing: Planet[] = []): Planet {
-    const archetype = rollPlanetArchetype({ chunkX, chunkY, index, random: rng })
+    const archetype = this.pickSectorPlanetArchetype(chunkX, chunkY, index, rng)
     const biome = selectPlanetBiome(archetype, chunkX, chunkY, index)
     const prefix = ['LUX', 'RED', 'SAINT', 'GREEN', 'NULL', 'IRON', 'GHOST', 'VOID', 'GLASS', 'STATIC', 'DUST', 'HALO']
     const suffix = archetype === 'lore'
@@ -1139,6 +1156,13 @@ class VectorShooter {
     return Math.max(520, a + b + 300)
   }
 
+  private pickSectorPlanetArchetype(chunkX: number, chunkY: number, index: number, rng: () => number) {
+    const bias = this.sectorNodeProfile.planetBias
+    const inOpeningField = chunkX === 0 && chunkY === 0 && useOnboardingPlanetField(chunkX, chunkY, this.visitedPlanets.size)
+    if (!inOpeningField && bias.length && rng() < 0.55) return bias[Math.floor(rng() * bias.length)]
+    return rollPlanetArchetype({ chunkX, chunkY, index, random: rng })
+  }
+
   private planetFallbackSlot(index: number, existingCount: number) {
     const slots = [
       { x: 0.2, y: 0.24 },
@@ -1161,7 +1185,7 @@ class VectorShooter {
 
   private makeScreens() {
     const wrap = document.createElement('div')
-    const screenList = [this.ui.title, this.ui.levelup, this.ui.planet, this.ui.gameover, this.ui.scores]
+    const screenList = [this.ui.title, this.ui.sectorMap, this.ui.levelup, this.ui.planet, this.ui.gameover, this.ui.scores]
     for (const s of screenList) {
       s.className = 'screen'
       wrap.append(s)
@@ -1194,6 +1218,10 @@ class VectorShooter {
       if (e.code === 'Escape') this.togglePause()
       if (e.code === 'Enter' && this.state === 'title') this.showMothership()
       if (e.code === 'Enter' && this.state === 'mothership') this.start()
+      if (e.code === 'Enter' && this.state === 'sectorMap') {
+        const firstChoice = availableSectorChoices(this.sectorMap)[0]
+        if (firstChoice) this.launchSectorNode(firstChoice.id)
+      }
       if (e.code === 'Enter' && this.state === 'gameover') this.restartFromGameOver()
     })
     window.addEventListener('keyup', (e) => this.keys.delete(e.code))
@@ -1588,7 +1616,7 @@ class VectorShooter {
     if (distance < this.returnBeacon.radius) {
       this.returnBeacon.hold += dt
       if (this.returnBeacon.hold >= BEACON_HOLD_SECONDS) {
-        this.finishRun(this.skippedReturnBeacons > 0 ? 'deepExtraction' : 'cleanExtraction')
+        this.completeSectorNodeViaBeacon()
         return
       }
     } else {
@@ -2633,6 +2661,7 @@ class VectorShooter {
     this.recycleDistantEnemies()
     this.reinforceQuietField()
     const pressure = this.stats.time / 60
+    const sectorPressure = this.sectorNodeProfile.spawnMultiplier
     if (this.spawnTimer <= 0) {
       const cooldown = spaceSpawnBalance.spawnCooldown
       const packBalance = spaceSpawnBalance.pack
@@ -2640,8 +2669,8 @@ class VectorShooter {
         cooldown.maxSeconds - pressure * cooldown.pressureReductionPerMinute - this.stats.planets * cooldown.planetReduction,
         cooldown.minSeconds,
         cooldown.maxSeconds
-      ))
-      const pack = packBalance.base + Math.floor(pressure * packBalance.pressurePerMinute) + (Math.random() < packBalance.bonusChance ? packBalance.bonusCount : 0)
+      )) / sectorPressure
+      const pack = Math.ceil((packBalance.base + Math.floor(pressure * packBalance.pressurePerMinute) + (Math.random() < packBalance.bonusChance ? packBalance.bonusCount : 0)) * sectorPressure)
       const room = Math.max(0, MAX_ENEMIES - this.enemies.length)
       for (let i = 0; i < Math.min(pack, room); i += 1) this.spawnEnemy(this.pickEnemyKind())
     }
@@ -2665,10 +2694,11 @@ class VectorShooter {
       const kind = chooseSpaceEncounter({
         time: this.stats.time,
         planetsVisited: this.stats.planets,
-        nearbyPlanetArchetype: this.nearbyPlanetArchetype()
+        nearbyPlanetArchetype: this.nearbyPlanetArchetype(),
+        encounterBias: this.sectorNodeProfile.encounterBias
       })
       this.triggerSpaceEncounter(kind)
-      this.nextSpaceEncounterAt = nextSpaceEncounterTime(this.stats.time)
+      this.nextSpaceEncounterAt = this.nextSectorSpaceEncounterTime(this.stats.time)
     }
 
     for (let i = this.spaceHazards.length - 1; i >= 0; i -= 1) {
@@ -2756,6 +2786,11 @@ class VectorShooter {
     return best?.archetype
   }
 
+  private nextSectorSpaceEncounterTime(now: number) {
+    const scheduled = nextSpaceEncounterTime(now)
+    return now + (scheduled - now) * this.sectorNodeProfile.encounterGapMultiplier
+  }
+
   private recycleDistantEnemies() {
     for (let i = this.enemies.length - 1; i >= 0; i -= 1) {
       if (shouldRecycleEnemy(this.enemies[i], this.player, ENEMY_RECYCLE_RADIUS)) this.enemies.splice(i, 1)
@@ -2783,6 +2818,8 @@ class VectorShooter {
   }
 
   private pickEnemyKind(): EnemyKind {
+    const bias = this.sectorNodeProfile.enemyBias
+    if (bias.length && Math.random() < 0.38) return bias[Math.floor(Math.random() * bias.length)]
     return pickSpaceEnemyKind(this.stats.time)
   }
 
@@ -3146,6 +3183,9 @@ class VectorShooter {
     if (this.takeoffAfterWorkbench) {
       this.takeoffAfterWorkbench = false
       this.startTakeoff()
+    } else if (this.returnToSectorMapAfterWorkbench) {
+      this.returnToSectorMapAfterWorkbench = false
+      this.showSectorMap('Station workbench complete. Choose the next jump.')
     } else {
       this.state = 'playing'
     }
@@ -6808,6 +6848,9 @@ class VectorShooter {
     if (this.takeoffAfterWorkbench) {
       this.takeoffAfterWorkbench = false
       this.startTakeoff()
+    } else if (this.returnToSectorMapAfterWorkbench) {
+      this.returnToSectorMapAfterWorkbench = false
+      this.showSectorMap('Station service recycled. Choose the next jump.')
     } else {
       this.state = 'playing'
     }
@@ -7923,12 +7966,233 @@ class VectorShooter {
     this.showOnly('gameover')
   }
 
+  private showSectorMap(message = 'Choose the next jump. Route progress resets on death; mothership upgrades persist.') {
+    this.state = 'sectorMap'
+    this.ui.sectorMap.innerHTML = ''
+    this.ui.sectorMap.className = 'screen sector-map-screen'
+    const panel = document.createElement('div')
+    panel.className = 'sector-map-panel'
+    const top = document.createElement('div')
+    top.className = 'sector-map-top'
+    const titleBlock = document.createElement('div')
+    titleBlock.className = 'sector-map-title'
+    titleBlock.innerHTML = `<span>RUN ROUTE</span><h1>SECTOR MAP</h1><p>${this.escape(message)}</p>`
+    const status = document.createElement('div')
+    status.className = 'sector-map-status'
+    status.innerHTML = `
+      <span><b>${this.sectorMap.nodes.filter((node) => node.completed && node.kind !== 'mothership').length}</b> CLEARED</span>
+      <span><b>${availableSectorChoices(this.sectorMap).length}</b> ROUTES</span>
+      <span><b>${this.resources.scrap}</b> SCRAP</span>
+    `
+    top.append(titleBlock, status)
+
+    const body = document.createElement('div')
+    body.className = 'sector-map-body'
+    const graph = document.createElement('div')
+    graph.className = 'sector-map-graph'
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    svg.classList.add('sector-map-lines')
+    svg.setAttribute('viewBox', '0 0 100 100')
+    for (const edge of this.sectorMap.edges) {
+      const from = this.sectorMap.nodes.find((node) => node.id === edge.from)
+      const to = this.sectorMap.nodes.find((node) => node.id === edge.to)
+      if (!from || !to) continue
+      const a = this.sectorNodePosition(from)
+      const b = this.sectorNodePosition(to)
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+      line.setAttribute('x1', `${a.x}`)
+      line.setAttribute('y1', `${a.y}`)
+      line.setAttribute('x2', `${b.x}`)
+      line.setAttribute('y2', `${b.y}`)
+      line.classList.add(from.completed && to.completed ? 'completed' : from.id === this.sectorMap.currentNodeId ? 'available' : 'locked')
+      svg.append(line)
+    }
+    graph.append(svg)
+    const choices = availableSectorChoices(this.sectorMap)
+    for (const node of this.sectorMap.nodes) {
+      const pos = this.sectorNodePosition(node)
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = this.sectorNodeClass(node, choices)
+      button.style.left = `${pos.x}%`
+      button.style.top = `${pos.y}%`
+      button.textContent = node.kind === 'mothership' ? 'M' : node.kind === 'station' ? 'S' : node.kind === 'boss' ? 'B' : node.kind === 'final' ? 'F' : node.kind === 'planet' ? 'P' : node.kind === 'anomaly' ? 'N' : 'H'
+      button.title = `${node.label}: ${node.description}`
+      button.disabled = !choices.some((choice) => choice.id === node.id)
+      button.addEventListener('click', () => this.launchSectorNode(node.id))
+      graph.append(button)
+    }
+
+    const details = document.createElement('div')
+    details.className = 'sector-map-details'
+    const current = currentSectorNode(this.sectorMap)
+    const heading = document.createElement('div')
+    heading.className = 'sector-map-current'
+    heading.innerHTML = `<span>CURRENT NODE</span><h2>${this.escape(current.label)}</h2><p>${this.escape(current.description)}</p>`
+    const list = document.createElement('div')
+    list.className = 'sector-choice-list'
+    for (const choice of choices) {
+      const profile = sectorNodeRunProfile(choice)
+      const option = document.createElement('button')
+      option.type = 'button'
+      option.className = `sector-choice ${choice.kind}`
+      option.innerHTML = `
+        <span>${this.escape(choice.kind.toUpperCase())}</span>
+        <b>${this.escape(choice.label)}</b>
+        <small>${this.escape(choice.config.readout)}</small>
+        <i>${choice.kind === 'station' ? 'REPAIR / WORKBENCH / SCAN' : `WAVES ${this.sectorWaveLabel(choice.config.waveOrder)} / HAZARDS ${this.sectorHazardsLabel(choice.config.hazards)} / PRESSURE x${profile.spawnMultiplier.toFixed(2)}`}</i>
+      `
+      option.addEventListener('click', () => this.launchSectorNode(choice.id))
+      list.append(option)
+    }
+    if (!choices.length) {
+      const empty = document.createElement('p')
+      empty.className = 'copy small'
+      empty.textContent = 'No forward route is open yet.'
+      list.append(empty)
+    }
+    details.append(heading, list)
+    body.append(graph, details)
+    panel.append(top, body)
+    this.ui.sectorMap.append(panel)
+    this.showOnly('sectorMap')
+  }
+
+  private sectorNodePosition(node: SectorNode) {
+    const x = 8 + (node.column / Math.max(1, this.sectorMap.columns - 1)) * 84
+    const y = node.id === 'mothership' ? 48 : node.kind === 'final' ? 48 : 18 + node.row * 20
+    return { x, y }
+  }
+
+  private sectorNodeClass(node: SectorNode, choices: SectorNode[]) {
+    const classes = ['sector-node', node.kind]
+    if (node.completed) classes.push('completed')
+    if (node.id === this.sectorMap.currentNodeId) classes.push('current')
+    if (choices.some((choice) => choice.id === node.id)) classes.push('available')
+    if (!node.completed && node.id !== this.sectorMap.currentNodeId && !choices.some((choice) => choice.id === node.id)) classes.push('locked')
+    return classes.join(' ')
+  }
+
+  private sectorWaveLabel(wave: SectorWaveOrder) {
+    return {
+      scouts: 'SCOUTS',
+      swarm: 'SWARM',
+      ambush: 'AMBUSH',
+      bulwark: 'BULWARK',
+      cathedral: 'CATHEDRAL'
+    }[wave]
+  }
+
+  private sectorHazardsLabel(hazards: SectorHazardTag[]) {
+    const labels: Record<SectorHazardTag, string> = {
+      clear: 'CLEAR',
+      asteroids: 'ASTEROIDS',
+      hunterWing: 'HUNTER WING',
+      derelictCache: 'DERELICT CACHE',
+      nebula: 'NEBULA'
+    }
+    return hazards.map((hazard) => labels[hazard]).join(' + ')
+  }
+
+  private launchSectorNode(nodeId: string) {
+    const node = availableSectorChoices(this.sectorMap).find((choice) => choice.id === nodeId)
+    if (!node) return
+    this.sectorMap = selectSectorNode(this.sectorMap, nodeId)
+    const selected = currentSectorNode(this.sectorMap)
+    this.sectorNodeProfile = sectorNodeRunProfile(selected)
+    if (selected.kind === 'station') {
+      const report = this.applySectorStationServices(selected)
+      this.sectorMap = completeSectorNode(this.sectorMap)
+      if (this.pendingUpgrades > 0) {
+        this.returnToSectorMapAfterWorkbench = true
+        this.openLevelUp(`${selected.label} WORKBENCH`, report, true)
+        return
+      }
+      this.showSectorMap(`${selected.label}: ${report}`)
+      return
+    }
+    this.prepareSectorNode(selected)
+    this.state = 'playing'
+    this.showOnly(null)
+    this.toast(`${selected.label}: ${selected.kind === 'final' ? 'SURVIVE THE LAST STAND' : 'BEACON CLEARS THIS ROUTE'}`)
+  }
+
+  private applySectorStationServices(node: SectorNode) {
+    // Station services are run-only; permanent mothership meta upgrades remain game-over/mothership decisions.
+    let repaired = 0
+    if (node.stationServices.includes('repair')) {
+      const before = this.player.hull
+      this.player.hull = clamp(this.player.hull + 42, 0, this.player.maxHull)
+      repaired = Math.round(this.player.hull - before)
+    }
+    if (node.stationServices.includes('workbench')) {
+      this.pendingUpgrades = Math.max(this.pendingUpgrades, 1)
+      this.workbenchRerolls = Math.max(this.workbenchRerolls, 1)
+    }
+    if (node.stationServices.includes('trade')) {
+      this.resources.scrap += 35
+      this.resources.crystal += 1
+    }
+    this.audio.pickup('nav')
+    return `Station services are run-only. Hull +${repaired}, workbench choice staged, scrap +35, crystal +1.`
+  }
+
+  private prepareSectorNode(node: SectorNode) {
+    this.bullets = []
+    this.enemies = []
+    this.enemyGrid.clear()
+    this.pickups = []
+    this.particles = []
+    this.shockwaves = []
+    this.spaceHazards = []
+    this.derelictSignals = []
+    this.chunks.clear()
+    this.stars = []
+    this.planets = []
+    this.activeChunkKey = ''
+    this.returnBeacon = null
+    this.autoNavActive = false
+    this.autoNavTargetPlanetId = null
+    this.autoNavTargetBeacon = false
+    this.player.x = 0
+    this.player.y = 0
+    this.player.vx = 0
+    this.player.vy = 0
+    this.player.angle = -Math.PI / 2
+    this.player.aimAngle = -Math.PI / 2
+    this.spawnTimer = node.kind === 'final' ? 0.04 : 0.35
+    this.bossTimer = this.sectorNodeProfile.bossRequired ? 8 : 68
+    this.chestTimer = node.kind === 'planet' ? 18 : 28
+    this.nextReturnBeaconAt = nextBeaconWindow(Math.max(0, this.stats.time - 14))
+    this.nextSpaceEncounterAt = this.nextSectorSpaceEncounterTime(this.stats.time)
+    const target = cameraTargetFor(this.player, this.width, this.height, this.spaceScale())
+    this.camera.x = target.x
+    this.camera.y = target.y
+    this.updateSpaceChunks(true)
+    if (node.kind === 'boss') this.spawnEnemy('dreadnought')
+    if (node.kind === 'final') {
+      this.spawnEnemy('cathedral')
+      this.spawnEnemy('dreadnought')
+    }
+  }
+
+  private completeSectorNodeViaBeacon() {
+    const node = currentSectorNode(this.sectorMap)
+    if (node.kind === 'final') {
+      this.finishRun('cleanExtraction')
+      return
+    }
+    this.sectorMap = completeSectorNode(this.sectorMap)
+    this.returnBeacon = null
+    this.autoNavTargetBeacon = false
+    this.autoNavActive = false
+    this.showSectorMap(`${node.label} cleared. Pick the next route through the sector.`)
+  }
+
   private start() {
     this.audio.unlock()
     this.reset()
-    this.state = 'playing'
-    this.showOnly(null)
-    this.toast('FIND THE PLANETS. BUILD UNTIL THE SCREEN SINGS.')
+    this.showSectorMap()
   }
 
   private restartFromGameOver() {
@@ -7943,6 +8207,8 @@ class VectorShooter {
   }
 
   private reset() {
+    this.sectorMap = createSectorMap(Date.now())
+    this.sectorNodeProfile = sectorNodeRunProfile(currentSectorNode(this.sectorMap))
     this.player = this.makePlayer()
     const shipyard = this.mothership.departments.shipyard
     this.player.maxHull += shipyard * 12
@@ -7974,6 +8240,7 @@ class VectorShooter {
     this.pendingUpgrades = 0
     this.workbenchInstalling = false
     this.takeoffAfterWorkbench = false
+    this.returnToSectorMapAfterWorkbench = false
     this.discoverySuitOffer = false
     this.summonReturnBeaconAfterTakeoff = false
     this.workbenchRerolls = this.mothership.departments.workbench >= 1 ? 1 : 0
@@ -7992,7 +8259,7 @@ class VectorShooter {
     this.spawnTimer = 0.4
     this.bossTimer = 75
     this.chestTimer = 28
-    this.nextSpaceEncounterAt = nextSpaceEncounterTime(0)
+    this.nextSpaceEncounterAt = this.nextSectorSpaceEncounterTime(0)
     this.scoreSaved = false
     const target = cameraTargetFor(this.player, this.width, this.height, this.spaceScale())
     this.camera.x = target.x
@@ -8023,6 +8290,7 @@ class VectorShooter {
   private showOnly(which: GameState | null) {
     const screens: Partial<Record<GameState, HTMLElement>> = {
       title: this.ui.title,
+      sectorMap: this.ui.sectorMap,
       levelup: this.ui.levelup,
       planet: this.ui.planet,
       gameover: this.ui.gameover,

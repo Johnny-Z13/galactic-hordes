@@ -30,7 +30,14 @@ Galactic Hordes needs balance data to be easy to inspect, edit, test, and docume
 - ship movement, dash, shield, surface suit, and upgrade application values
 - planet cache, relic, alien gift, and workbench roll odds
 
-Runtime code may transform these values for elapsed time, planet count, or run state, but the underlying constants must live in the balance module with descriptive names.
+`src/sector-map.ts` is the source of truth for run-route construction:
+
+- sector node kinds and forward graph rules
+- node pace, wave order, hazard tags, objective text, and player-facing readouts
+- per-node enemy, planet, reward, boss, encounter-bias, and encounter-cadence profiles
+- station services that are explicitly run-only and do not purchase permanent mothership tiers
+
+Runtime code may transform these values for elapsed time, planet count, sector node, or run state, but the underlying constants must live in source modules with descriptive names.
 
 ## Difficulty Profiles
 
