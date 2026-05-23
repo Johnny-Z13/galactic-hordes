@@ -30,6 +30,11 @@ Galactic Hordes needs balance data to be easy to inspect, edit, test, and docume
 - ship movement, dash, shield, surface suit, and upgrade application values
 - planet cache, relic, alien gift, and workbench roll odds
 
+`src/surface-balance.ts` is the source of truth for:
+
+- planet surface world dimensions, spawn safe zones, resources, cache values, lore rewards, alien gifts, and ambush tuning
+- planet alien catalog rows, planet boss catalog rows, boss behavior assignment, and strange surface threat motion tuning
+
 `src/sector-map.ts` is the source of truth for run-route construction:
 
 - sector node kinds and forward graph rules

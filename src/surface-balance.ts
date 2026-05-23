@@ -1,11 +1,62 @@
 import type { SurfaceEventKind, SurfaceScenarioKind } from './surface-encounters'
 
 export type SurfaceResourceKind = 'crystal' | 'scrap' | 'repair' | 'cache'
+export type AlienGiftKind = 'herb' | 'idol' | 'map' | 'coin' | 'beacon'
+export type SurfaceThreatBehavior = 'chaser' | 'orbiter' | 'blinker' | 'splitter'
 
 export interface SurfacePoint {
   x: number
   y: number
 }
+
+export const planetBossCatalogVariants = [
+  { color: '#57fff3', behavior: 'chaser', title: 'Glass Crown Titan', note: 'boss-class biosignal' },
+  { color: '#fff27a', behavior: 'chaser', title: 'Cinder Bell Maw', note: 'boss-class biosignal' },
+  { color: '#8fff7d', behavior: 'chaser', title: 'Verdant Needle Saint', note: 'boss-class biosignal' },
+  { color: '#ff61d8', behavior: 'chaser', title: 'Static Brood Queen', note: 'boss-class biosignal' },
+  { color: '#d7fff7', behavior: 'chaser', title: 'Pale Cathedral Leech', note: 'boss-class biosignal' },
+  { color: '#ff9f4a', behavior: 'orbiter', title: 'Halo Grazer', note: 'orbiting predator biosignal' },
+  { color: '#a879ff', behavior: 'blinker', title: 'Phase Skipper', note: 'phase-jump predator biosignal' },
+  { color: '#7dffb0', behavior: 'splitter', title: 'Brood Prism', note: 'fracturing predator biosignal' }
+] as const satisfies readonly { color: string; behavior: SurfaceThreatBehavior; title: string; note: string }[]
+
+export const planetAlienCatalogVariants = [
+  { color: '#b990ff', name: 'THE GLASS HERBALIST', gift: 'herb' },
+  { color: '#fff27a', name: 'A STATIC PILGRIM', gift: 'idol' },
+  { color: '#57fff3', name: 'THE COIN KEEPER', gift: 'coin' },
+  { color: '#8fff7d', name: 'THE STAR MAPMAKER', gift: 'map' },
+  { color: '#70a8ff', name: 'THE STATION WIDOW', gift: 'beacon' },
+  { color: '#ff9f4a', name: 'THE SPORE CHOIR', gift: 'herb' },
+  { color: '#a879ff', name: 'THE MIRROR DRIFTER', gift: 'map' },
+  { color: '#7dffb0', name: 'THE SINGING ENGINE', gift: 'beacon' }
+] as const satisfies readonly { color: string; name: string; gift: AlienGiftKind }[]
+
+export const surfaceThreatMotionBalance = {
+  edgePadding: 40,
+  frictionBase: 0.16,
+  orbit: {
+    innerDistance: 175,
+    outerDistance: 300,
+    pull: 0.55,
+    repel: -0.42,
+    hold: 0.08,
+    tangent: 0.92
+  },
+  blink: {
+    cooldownMin: 2.4,
+    cooldownMax: 4.1,
+    minDistance: 145,
+    dashSpeedScale: 1.35,
+    sideSpeedScale: 0.52,
+    driftAccelerationScale: 0.45
+  },
+  splitter: {
+    childCount: 2,
+    childHpScale: 0.72,
+    childSpeedScale: 0.55,
+    childScatter: 42
+  }
+} as const
 
 export const surfaceRunBalance = {
   world: {

@@ -82,10 +82,15 @@ import { SURFACE_PILOT_SIZE_SCALE, surfacePilotCollisionRadius, surfacePilotMuzz
 import {
   bossCacheValue,
   pickSurfaceResourceKind,
+  planetAlienCatalogVariants,
+  planetBossCatalogVariants,
   surfaceEventPoint as plannedSurfaceEventPoint,
   surfaceResourceValue,
   surfaceRunBalance,
-  type SurfaceResourceKind
+  surfaceThreatMotionBalance,
+  type AlienGiftKind,
+  type SurfaceResourceKind,
+  type SurfaceThreatBehavior
 } from './surface-balance'
 import { planSurfaceEncounter, rollPlanetArchetype, type PlanetArchetype, type SurfaceEventKind, type SurfaceScenarioKind } from './surface-encounters'
 import { surfaceThreatSpawnPoint } from './surface-spawn'
@@ -125,7 +130,6 @@ type GameState = 'title' | 'mothership' | 'sectorMap' | 'playing' | 'paused' | '
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
 type EnemyKind = SpaceEnemyKind
 type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
-type AlienGiftKind = 'herb' | 'idol' | 'map' | 'coin' | 'beacon'
 type ArtifactKind = 'relic' | 'alien' | 'lore' | 'planet' | 'cache' | 'enemy'
 type MothershipConsoleView = 'workbench' | 'manifest' | 'collection'
 type MothershipCollectionFilter = 'all' | 'found' | 'locked' | ArtifactKind
@@ -254,6 +258,9 @@ interface SurfaceThreat {
   sprite?: 'glassMiteOracle' | 'bossCatalog'
   spriteRow?: number
   boss?: boolean
+  behavior?: SurfaceThreatBehavior
+  behaviorCooldown?: number
+  splitChild?: boolean
 }
 
 interface SurfaceBullet {
@@ -447,9 +454,9 @@ const ENEMY_PRESSURE_RADIUS = 1250
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
 const rand = (min: number, max: number) => min + Math.random() * (max - min)
-const BOSS_CATALOG_ROWS = 5
+const BOSS_CATALOG_ROWS = planetBossCatalogVariants.length
 const BOSS_CATALOG_FRAMES = 4
-const ALIEN_CATALOG_ROWS = 5
+const ALIEN_CATALOG_ROWS = planetAlienCatalogVariants.length
 const ALIEN_CATALOG_FRAMES = 4
 const dist2 = (a: Vec, b: Vec) => {
   const dx = a.x - b.x
@@ -3723,21 +3730,22 @@ class VectorShooter {
             : surfaceThreatBalance.generic.radius,
       phase: rand(0, TAU),
       color,
-      hit: 0
+      hit: 0,
+      behavior: 'chaser'
     }
   }
 
   private createPlanetBossThreat(planet: Planet, crowded: boolean, keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>): SurfaceThreat {
     const seed = hashString(planet.id, this.stats.planets + Math.floor(this.stats.time / 60))
     const row = seed % BOSS_CATALOG_ROWS
+    const variant = planetBossCatalogVariants[row]
     const angle = ((seed >>> 4) / 0xfffffff) * TAU
     const distance = crowded ? rand(280, 420) : rand(170, 320)
     const point = this.safeSurfaceThreatPoint({
       x: surfaceRunBalance.world.ship.x + 20 + Math.cos(angle) * distance,
       y: surfaceRunBalance.world.ship.y + Math.sin(angle) * distance
     }, keepouts, surfaceRunBalance.threatPlacement.bossClearance, angle)
-    const color = ['#57fff3', '#fff27a', '#8fff7d', '#ff61d8', '#d7fff7'][row]
-    this.recordEnemyDiscovery(`enemy:surface:boss:${row}`, `Planet Boss ${row + 1}`, `${planet.name} boss-class biosignal.`, 'Boss catalog telemetry', color)
+    this.recordEnemyDiscovery(`enemy:surface:boss:${row}`, variant.title, `${planet.name} ${variant.note}.`, 'Boss catalog telemetry', variant.color)
     return {
       x: point.x,
       y: point.y,
@@ -3746,11 +3754,13 @@ class VectorShooter {
       hp: scaledSurfaceHp(surfaceThreatBalance.boss.baseHp + this.stats.time * surfaceThreatBalance.boss.hpPerSecond + this.stats.level * surfaceThreatBalance.boss.hpPerLevel),
       radius: surfaceThreatBalance.boss.radius,
       phase: rand(0, TAU),
-      color,
+      color: variant.color,
       hit: 0,
       sprite: 'bossCatalog',
       spriteRow: row,
-      boss: true
+      boss: true,
+      behavior: variant.behavior,
+      behaviorCooldown: rand(surfaceThreatMotionBalance.blink.cooldownMin, surfaceThreatMotionBalance.blink.cooldownMax)
     }
   }
 
@@ -3767,7 +3777,8 @@ class VectorShooter {
       phase: rand(0, TAU),
       color: '#57fff3',
       hit: 0,
-      sprite: 'glassMiteOracle'
+      sprite: 'glassMiteOracle',
+      behavior: 'chaser'
     }
   }
 
@@ -3784,18 +3795,17 @@ class VectorShooter {
       event === 'relic' ? 0.46 :
       0.28
     if (forcedCount === undefined && Math.random() > chance + (quiet ? surfaceRunBalance.alien.quietBonusChance : 0)) return []
-    const colors = ['#b990ff', '#fff27a', '#57fff3', '#8fff7d', '#70a8ff']
-    const names = ['THE GLASS HERBALIST', 'A STATIC PILGRIM', 'THE COIN KEEPER', 'THE STAR MAPMAKER', 'THE STATION WIDOW']
     const gifts: AlienGiftKind[] = ['herb', 'idol', 'coin', 'map', 'beacon']
     const row = hashString(planet.id, Math.floor(this.stats.time) + 17) % ALIEN_CATALOG_ROWS
+    const variant = planetAlienCatalogVariants[row]
     return [{
       x: rand(260, 1340),
       y: rand(210, 960),
       radius: surfaceRunBalance.alien.radius,
       phase: rand(0, TAU),
-      color: colors[row % colors.length],
-      name: names[row],
-      gift: gifts[Math.floor(Math.random() * gifts.length)],
+      color: variant.color,
+      name: variant.name,
+      gift: Math.random() < 0.42 ? variant.gift : gifts[Math.floor(Math.random() * gifts.length)],
       resolved: false,
       sprite: 'alienCatalog',
       spriteRow: row
@@ -4017,7 +4027,8 @@ class VectorShooter {
           radius: ambush.radius,
           phase: Math.random() * TAU,
           color: '#ff5d73',
-          hit: 0
+          hit: 0,
+          behavior: 'chaser'
         })
       }
       this.surface.message = `${cacheMessage} CACHE WAS WIRED.`
@@ -4031,19 +4042,11 @@ class VectorShooter {
       threat.phase += dt
       threat.hit -= dt
       const toPilot = norm(this.surface.pilot.x - threat.x, this.surface.pilot.y - threat.y)
-      const accel = scaledSurfaceSpeed(threat.boss ? surfaceThreatBalance.boss.acceleration : surfaceThreatBalance.generic.acceleration)
-      const maxSpeed = scaledSurfaceSpeed(threat.boss ? surfaceThreatBalance.boss.maxSpeed : surfaceThreatBalance.generic.maxSpeed)
-      threat.vx += toPilot.x * accel * dt
-      threat.vy += toPilot.y * accel * dt
-      const speed = len(threat.vx, threat.vy)
-      if (speed > maxSpeed) {
-        threat.vx = (threat.vx / speed) * maxSpeed
-        threat.vy = (threat.vy / speed) * maxSpeed
-      }
-      threat.vx *= Math.pow(0.16, dt)
-      threat.vy *= Math.pow(0.16, dt)
-      threat.x = clamp(threat.x + threat.vx * dt, 40, this.surface.width - 40)
-      threat.y = clamp(threat.y + threat.vy * dt, 40, this.surface.height - 40)
+      this.steerSurfaceThreat(threat, toPilot, dt)
+      threat.vx *= Math.pow(surfaceThreatMotionBalance.frictionBase, dt)
+      threat.vy *= Math.pow(surfaceThreatMotionBalance.frictionBase, dt)
+      threat.x = clamp(threat.x + threat.vx * dt, surfaceThreatMotionBalance.edgePadding, this.surface.width - surfaceThreatMotionBalance.edgePadding)
+      threat.y = clamp(threat.y + threat.vy * dt, surfaceThreatMotionBalance.edgePadding, this.surface.height - surfaceThreatMotionBalance.edgePadding)
       const rr = threat.radius + surfacePilotCollisionRadius()
       if ((threat.x - this.surface.pilot.x) ** 2 + (threat.y - this.surface.pilot.y) ** 2 < rr * rr && this.surface.pilot.invuln <= 0) {
         this.damagePlayer(scaledSurfaceDamage(threat.boss ? surfaceThreatBalance.boss.contactDamage : surfaceThreatBalance.generic.contactDamage))
@@ -4053,9 +4056,72 @@ class VectorShooter {
         this.burst(threat.x, threat.y, threat.color, threat.boss ? 42 : 24, threat.boss ? 360 : 260)
         this.audio.boom(threat.boss ? 'heavy' : 'surface')
         this.stats.score += threat.boss ? runBalance.scoring.surfaceBossScore : runBalance.scoring.surfaceThreatScore
+        if (threat.behavior === 'splitter' && !threat.splitChild) this.spawnSurfaceSplitters(threat)
         if (threat.boss) this.dropSurfaceBossCache(threat)
         this.surface.threats.splice(i, 1)
       }
+    }
+  }
+
+  private steerSurfaceThreat(threat: SurfaceThreat, toPilot: Vec, dt: number) {
+    if (!this.surface) return
+    const accel = scaledSurfaceSpeed(threat.boss ? surfaceThreatBalance.boss.acceleration : surfaceThreatBalance.generic.acceleration)
+    const maxSpeed = scaledSurfaceSpeed(threat.boss ? surfaceThreatBalance.boss.maxSpeed : surfaceThreatBalance.generic.maxSpeed)
+    const behavior = threat.behavior ?? 'chaser'
+    if (behavior === 'orbiter') {
+      const distance = len(this.surface.pilot.x - threat.x, this.surface.pilot.y - threat.y)
+      const radial =
+        distance > surfaceThreatMotionBalance.orbit.outerDistance ? surfaceThreatMotionBalance.orbit.pull :
+        distance < surfaceThreatMotionBalance.orbit.innerDistance ? surfaceThreatMotionBalance.orbit.repel :
+        surfaceThreatMotionBalance.orbit.hold
+      threat.vx += (toPilot.x * radial - toPilot.y * surfaceThreatMotionBalance.orbit.tangent) * accel * dt
+      threat.vy += (toPilot.y * radial + toPilot.x * surfaceThreatMotionBalance.orbit.tangent) * accel * dt
+    } else if (behavior === 'blinker') {
+      threat.behaviorCooldown = (threat.behaviorCooldown ?? rand(surfaceThreatMotionBalance.blink.cooldownMin, surfaceThreatMotionBalance.blink.cooldownMax)) - dt
+      const distance = len(this.surface.pilot.x - threat.x, this.surface.pilot.y - threat.y)
+      if (threat.behaviorCooldown <= 0 && distance > surfaceThreatMotionBalance.blink.minDistance) {
+        threat.vx += (toPilot.x * surfaceThreatMotionBalance.blink.dashSpeedScale - toPilot.y * surfaceThreatMotionBalance.blink.sideSpeedScale) * maxSpeed
+        threat.vy += (toPilot.y * surfaceThreatMotionBalance.blink.dashSpeedScale + toPilot.x * surfaceThreatMotionBalance.blink.sideSpeedScale) * maxSpeed
+        threat.behaviorCooldown = rand(surfaceThreatMotionBalance.blink.cooldownMin, surfaceThreatMotionBalance.blink.cooldownMax)
+        this.burst(threat.x, threat.y, threat.color, 8, 120)
+      } else {
+        threat.vx += toPilot.x * accel * surfaceThreatMotionBalance.blink.driftAccelerationScale * dt
+        threat.vy += toPilot.y * accel * surfaceThreatMotionBalance.blink.driftAccelerationScale * dt
+      }
+    } else {
+      threat.vx += toPilot.x * accel * dt
+      threat.vy += toPilot.y * accel * dt
+    }
+    this.limitSurfaceThreatSpeed(threat, maxSpeed)
+  }
+
+  private limitSurfaceThreatSpeed(threat: SurfaceThreat, maxSpeed: number) {
+    const speed = len(threat.vx, threat.vy)
+    if (speed <= maxSpeed) return
+    threat.vx = (threat.vx / speed) * maxSpeed
+    threat.vy = (threat.vy / speed) * maxSpeed
+  }
+
+  private spawnSurfaceSplitters(threat: SurfaceThreat) {
+    if (!this.surface) return
+    for (let i = 0; i < surfaceThreatMotionBalance.splitter.childCount; i += 1) {
+      const angle = (i / surfaceThreatMotionBalance.splitter.childCount) * TAU + threat.phase
+      const x = clamp(threat.x + Math.cos(angle) * surfaceThreatMotionBalance.splitter.childScatter, surfaceThreatMotionBalance.edgePadding, this.surface.width - surfaceThreatMotionBalance.edgePadding)
+      const y = clamp(threat.y + Math.sin(angle) * surfaceThreatMotionBalance.splitter.childScatter, surfaceThreatMotionBalance.edgePadding, this.surface.height - surfaceThreatMotionBalance.edgePadding)
+      const childSpeed = scaledSurfaceSpeed(surfaceThreatBalance.generic.maxSpeed) * surfaceThreatMotionBalance.splitter.childSpeedScale
+      this.surface.threats.push({
+        x,
+        y,
+        vx: Math.cos(angle) * childSpeed,
+        vy: Math.sin(angle) * childSpeed,
+        hp: scaledSurfaceHp(surfaceThreatBalance.generic.swarmBaseHp + this.stats.time * surfaceThreatBalance.generic.swarmHpPerSecond) * surfaceThreatMotionBalance.splitter.childHpScale,
+        radius: surfaceThreatBalance.generic.swarmRadius,
+        phase: rand(0, TAU),
+        color: threat.color,
+        hit: 0,
+        behavior: 'chaser',
+        splitChild: true
+      })
     }
   }
 

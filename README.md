@@ -116,7 +116,7 @@ See [docs/sector-map-route-design.md](docs/sector-map-route-design.md) for the r
 
 ## Balance Calibration
 
-Combat and difficulty tuning lives in `src/game-balance.ts`. Power-up, pickup, relic, surface suit, cache, and workbench tuning lives in `src/powerup-balance.ts`. Run-level values live in `src/run-balance.ts`, surface expedition tuning lives in `src/surface-balance.ts`, and route-node tuning lives in `src/sector-map.ts`. Run `npm run docs:balance` after changing balance values, or install the local hook with `npm run hooks:install` so the generated balance docs update on commit.
+Combat and difficulty tuning lives in `src/game-balance.ts`. Power-up, pickup, relic, surface suit, cache, and workbench tuning lives in `src/powerup-balance.ts`. Run-level values live in `src/run-balance.ts`, surface expedition tuning, planet alien catalog rows, planet boss catalog rows, and strange surface threat behaviors live in `src/surface-balance.ts`, and route-node tuning lives in `src/sector-map.ts`. Run `npm run docs:balance` after changing balance values, or install the local hook with `npm run hooks:install` so the generated balance docs update on commit.
 
 <!-- BALANCE-GENERATED:START -->
 ### Active Balance Snapshot
