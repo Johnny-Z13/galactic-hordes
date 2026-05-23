@@ -80,8 +80,10 @@ ${enemyRows}
 | Config Area | Values |
 | --- | --- |
 | Themes | ${unionValues('SectorNodeTheme', sector)} |
+| Node templates | ${unionValues('SectorNodeTemplateId', sector)} |
 | Wave orders | ${unionValues('SectorWaveOrder', sector)} |
 | Hazard tags | ${unionValues('SectorHazardTag', sector)} |
+| Generation rules | fixed launch/final nodes, guaranteed early safe and planet routes, fixed stations, late boss gates, weighted template variety |
 | Planet config | count range, density, archetype bias |
 | Enemy config | starting spawns, enemy bias, spawn multiplier, max alive multiplier |
 | Wave config | trigger seconds, label, enemy counts, notes |

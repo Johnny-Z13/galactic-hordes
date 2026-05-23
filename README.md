@@ -94,8 +94,11 @@ See [docs/upgrade-progression-design.md](docs/upgrade-progression-design.md) for
 
 Expeditions now run through a portrait-friendly sector map. The mothership is the start node; each cleared combat node returns to the map by docking at a large route station; the final node is the run win condition. If the scout dies, route progress is lost, but permanent mothership upgrades and archive progression remain.
 
-Nodes carry explicit configs so the map constructs the run rather than only decorating it:
+Nodes are generated from named templates so the map constructs the run rather than only decorating it. Current template families include safe drifts, planet clusters, asteroid belts, hunter lanes, derelict fields, nebula anomalies, freeports, boss gates, and the final stand.
 
+Each template produces an explicit config:
+
+- `templateId` and `depth`: the route identity and how far into the run it appears.
 - `pace`: safe, mild, standard, intense, or boss.
 - `waveOrder`: scouts, swarm, ambush, bulwark, or cathedral.
 - `hazards`: clear space, asteroid fronts, hunter wings, derelict caches, or nebula volatility.
@@ -105,7 +108,7 @@ Nodes carry explicit configs so the map constructs the run rather than only deco
 - `hazardConfig` and `rewards`: asteroid behavior, encounter bias, chest cadence, and resource pressure.
 - `objective` and `readout`: short text that tells the player why the node matters before launch.
 
-Those configs feed runtime behavior: enemy recipe bias, planet archetype bias, spawn pressure, reward pressure, boss requirements, space encounter bias, and encounter cadence. A mild station route should feel meaningfully different from an intense asteroid ambush route.
+Those configs feed runtime behavior: enemy recipe bias, planet archetype bias, spawn pressure, reward pressure, boss requirements, space encounter bias, and encounter cadence. Route depth scales pressure and reward so late hunter lanes, asteroid belts, and anomalies become sharper without losing their identity. A safe drift should feel meaningfully different from a planet cluster, and both should feel different from an intense asteroid ambush route.
 
 See [docs/sector-map-route-design.md](docs/sector-map-route-design.md) for the route-layer design.
 
@@ -181,8 +184,10 @@ Active balance mode: `testEasy` (Testing Easy).
 | Config Area | Values |
 | --- | --- |
 | Themes | `openSpace`, `asteroidBelt`, `planetCluster`, `derelictField`, `nebula`, `bossGate`, `finalStand` |
+| Node templates | `mothership`, `safeDrift`, `planetCluster`, `asteroidBelt`, `hunterLane`, `derelictField`, `nebulaAnomaly`, `freeport`, `bossGate`, `finalStand` |
 | Wave orders | `scouts`, `swarm`, `ambush`, `bulwark`, `cathedral` |
 | Hazard tags | `clear`, `asteroids`, `hunterWing`, `derelictCache`, `nebula` |
+| Generation rules | fixed launch/final nodes, guaranteed early safe and planet routes, fixed stations, late boss gates, weighted template variety |
 | Planet config | count range, density, archetype bias |
 | Enemy config | starting spawns, enemy bias, spawn multiplier, max alive multiplier |
 | Wave config | trigger seconds, label, enemy counts, notes |

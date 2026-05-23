@@ -33,6 +33,7 @@ Galactic Hordes needs balance data to be easy to inspect, edit, test, and docume
 `src/sector-map.ts` is the source of truth for run-route construction:
 
 - sector node kinds and forward graph rules
+- named node templates and depth-aware template selection rules
 - node pace, theme, wave order, hazard tags, objective text, notes, and player-facing readouts
 - per-node planet count and archetype bias
 - per-node enemy starting spawns, enemy bias, spawn pressure, max-alive pressure, and timed wave counts
@@ -134,8 +135,10 @@ Active balance mode: `testEasy` (Testing Easy).
 | Config Area | Values |
 | --- | --- |
 | Themes | `openSpace`, `asteroidBelt`, `planetCluster`, `derelictField`, `nebula`, `bossGate`, `finalStand` |
+| Node templates | `mothership`, `safeDrift`, `planetCluster`, `asteroidBelt`, `hunterLane`, `derelictField`, `nebulaAnomaly`, `freeport`, `bossGate`, `finalStand` |
 | Wave orders | `scouts`, `swarm`, `ambush`, `bulwark`, `cathedral` |
 | Hazard tags | `clear`, `asteroids`, `hunterWing`, `derelictCache`, `nebula` |
+| Generation rules | fixed launch/final nodes, guaranteed early safe and planet routes, fixed stations, late boss gates, weighted template variety |
 | Planet config | count range, density, archetype bias |
 | Enemy config | starting spawns, enemy bias, spawn multiplier, max alive multiplier |
 | Wave config | trigger seconds, label, enemy counts, notes |

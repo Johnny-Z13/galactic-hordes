@@ -4,6 +4,7 @@ import {
   completeSectorNode,
   createSectorMap,
   sectorNodeRunProfile,
+  sectorNodeTemplateCatalog,
   selectSectorNode
 } from '../src/sector-map'
 import { spaceEncounterWeights } from '../src/space-encounters'
@@ -33,6 +34,23 @@ test('sector nodes carry readable run configs for pace waves hazards and objecti
   expect(playableNodes.every((node) => node.config.rewards.resourceMultiplier > 0)).toBe(true)
   expect(new Set(playableNodes.map((node) => node.config.waveOrder)).size).toBeGreaterThanOrEqual(3)
   expect(new Set(playableNodes.map((node) => node.config.pace)).size).toBeGreaterThanOrEqual(3)
+})
+
+test('sector template catalog defines distinct route identities for generation', () => {
+  expect(Object.keys(sectorNodeTemplateCatalog)).toEqual(expect.arrayContaining([
+    'safeDrift',
+    'planetCluster',
+    'asteroidBelt',
+    'hunterLane',
+    'derelictField',
+    'nebulaAnomaly',
+    'freeport',
+    'bossGate',
+    'finalStand'
+  ]))
+  expect(sectorNodeTemplateCatalog.planetCluster.rewardRole).toBe('exploration')
+  expect(sectorNodeTemplateCatalog.asteroidBelt.pressureRole).toBe('high')
+  expect(sectorNodeTemplateCatalog.freeport.kind).toBe('station')
 })
 
 test('sector map creates connected forward routes with stations before the final gate', () => {
@@ -70,18 +88,41 @@ test('sector choices only include connected unvisited next nodes', () => {
 
 test('sector node profiles provide enemy recipes planet bias and station services', () => {
   const map = createSectorMap(99)
-  const hostile = map.nodes.find((node) => node.kind === 'hostile')!
+  const sampledNodes = Array.from({ length: 30 }, (_, seed) => createSectorMap(seed + 1))
+    .flatMap((candidate) => candidate.nodes)
+  const hunterLane = sampledNodes.find((node) => node.config.templateId === 'hunterLane')!
   const station = map.nodes.find((node) => node.kind === 'station')!
   const final = map.nodes.find((node) => node.kind === 'final')!
 
-  expect(sectorNodeRunProfile(hostile).enemyBias).toEqual(expect.arrayContaining(['shooter']))
-  expect(sectorNodeRunProfile(hostile).spawnMultiplier).toBeGreaterThan(1)
-  expect(sectorNodeRunProfile(hostile).config.enemies.startingSpawns).toEqual(expect.arrayContaining(['shooter', 'razor']))
+  expect(sectorNodeRunProfile(hunterLane).enemyBias).toEqual(expect.arrayContaining(['shooter']))
+  expect(sectorNodeRunProfile(hunterLane).spawnMultiplier).toBeGreaterThan(1)
+  expect(sectorNodeRunProfile(hunterLane).config.enemies.startingSpawns).toEqual(expect.arrayContaining(['shooter', 'razor']))
   expect(sectorNodeRunProfile(station).stationServices).toEqual(expect.arrayContaining(['repair', 'workbench']))
   expect(sectorNodeRunProfile(station).allowsMetaUpgrades).toBe(false)
   expect(sectorNodeRunProfile(final).bossRequired).toBe(true)
   expect(sectorNodeRunProfile(final).enemyBias).toEqual(expect.arrayContaining(['cathedral']))
   expect(sectorNodeRunProfile(final).config.waves.every((wave) => wave.atSeconds > 0)).toBe(true)
+})
+
+test('sector generation guarantees early safety exploration anchors and late route checks', () => {
+  const map = createSectorMap(123)
+  const columnOneTemplates = new Set(map.nodes.filter((node) => node.column === 1).map((node) => node.config.templateId))
+  const columnFourTemplates = new Set(map.nodes.filter((node) => node.column === 4).map((node) => node.config.templateId))
+
+  expect([...columnOneTemplates]).toEqual(expect.arrayContaining(['safeDrift', 'planetCluster']))
+  expect(columnOneTemplates.size).toBeGreaterThanOrEqual(3)
+  expect([...columnFourTemplates]).toEqual(expect.arrayContaining(['bossGate', 'freeport']))
+  expect(columnFourTemplates.size).toBeGreaterThanOrEqual(3)
+})
+
+test('node depth increases pressure and reward readability deeper into the route', () => {
+  const map = createSectorMap(123)
+  const early = map.nodes.find((node) => node.column === 1 && node.config.templateId === 'safeDrift')!
+  const late = map.nodes.find((node) => node.column === 4 && node.config.templateId === 'bossGate')!
+
+  expect(early.config.depth).toBeLessThan(late.config.depth)
+  expect(early.config.rewards.resourceMultiplier).toBeLessThan(late.config.rewards.resourceMultiplier)
+  expect(sectorNodeRunProfile(early).spawnMultiplier).toBeLessThan(sectorNodeRunProfile(late).spawnMultiplier)
 })
 
 test('planet and anomaly node configs can describe dense clusters and asteroid belts', () => {
