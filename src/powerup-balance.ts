@@ -83,7 +83,8 @@ export const powerupBalance = {
     xpBaseBonus: 64,
     xpRangePerMagnetRank: 16,
     xpRangePerLimitRank: 4,
-    xpStrength: 980,
+    xpStrength: 1380,
+    repairStrength: 940,
     defaultStrength: 540
   },
   dash: {

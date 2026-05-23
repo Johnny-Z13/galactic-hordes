@@ -244,6 +244,19 @@ test('workbench card selection does not shift card layout or shake the camera', 
   expect(applyEvolution).not.toContain('this.camera.shake')
 })
 
+test('workbench install refresh keeps the current offer set and scroll position', () => {
+  const main = source()
+  const applyChoice = main.slice(main.indexOf('private applyWorkbenchChoice'), main.indexOf('private applyUpgrade'))
+  const recycleSignal = main.slice(main.indexOf('private recycleWorkbenchSignal'), main.indexOf('private beginWorkbenchInstall'))
+  const beginInstall = main.slice(main.indexOf('private beginWorkbenchInstall'), main.indexOf('private installCueFor'))
+
+  expect(main).toContain('private refreshLevelUp(')
+  expect(main).toContain("querySelector<HTMLElement>('.workbench-view')?.scrollTop")
+  expect(applyChoice).not.toContain('this.openLevelUp(')
+  expect(recycleSignal).not.toContain('this.openLevelUp(')
+  expect(beginInstall).not.toContain('this.upgradeChoices = this.rollUpgrades')
+})
+
 test('planet discoveries can force the first spacesuit workbench offer', () => {
   const main = source()
 

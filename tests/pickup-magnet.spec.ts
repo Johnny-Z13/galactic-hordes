@@ -23,3 +23,11 @@ test('xp pickups pull harder than other drops', () => {
   expect(pickupMagnetStrength('xp')).toBe(powerupBalance.pickupMagnet.xpStrength)
   expect(pickupMagnetStrength('xp')).toBeGreaterThan(pickupMagnetStrength('repair'))
 })
+
+test('xp and repair pickups have enough pull to catch a moving ship', () => {
+  expect(pickupMagnetStrength('xp')).toBeGreaterThanOrEqual(1300)
+  expect(pickupMagnetStrength('repair')).toBe(powerupBalance.pickupMagnet.repairStrength)
+  expect(pickupMagnetStrength('repair')).toBeGreaterThanOrEqual(900)
+  expect(pickupMagnetStrength('repair')).toBeGreaterThan(pickupMagnetStrength('core'))
+  expect(pickupMagnetStrength('xp')).toBeGreaterThan(pickupMagnetStrength('repair'))
+})

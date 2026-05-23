@@ -18,5 +18,6 @@ export const pickupMagnetRange = (kind: PickupMagnetKind, input: PickupMagnetInp
 
 export const pickupMagnetStrength = (kind: PickupMagnetKind) => {
   if (kind === 'xp') return powerupBalance.pickupMagnet.xpStrength
+  if (kind === 'repair') return powerupBalance.pickupMagnet.repairStrength
   return powerupBalance.pickupMagnet.defaultStrength
 }

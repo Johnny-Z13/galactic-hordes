@@ -3030,6 +3030,20 @@ class VectorShooter {
     this.renderLevelUp(title, copy)
   }
 
+  private refreshLevelUp(title = 'SHIPBOARD WORKBENCH', copy = 'Spend one banked mutation signal before takeoff.') {
+    const scrollTop = this.ui.levelup.querySelector<HTMLElement>('.workbench-view')?.scrollTop ?? 0
+    this.state = 'levelup'
+    this.workbenchInstalling = false
+    this.renderLevelUp(title, copy)
+    const view = this.ui.levelup.querySelector<HTMLElement>('.workbench-view')
+    if (view) {
+      view.scrollTop = scrollTop
+      window.requestAnimationFrame(() => {
+        view.scrollTop = scrollTop
+      })
+    }
+  }
+
   private openChest() {
     this.recordArtifact({
       id: 'cache:treasure-core',
@@ -3113,7 +3127,7 @@ class VectorShooter {
     this.workbenchInstalling = false
     if (!this.canApplyWorkbenchChoice(choice)) {
       this.toast('SIGNAL REJECTED: SYSTEM ALREADY MAXED')
-      this.openLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
+      this.refreshLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
       return
     }
     const rare = choice.kind !== 'upgrade' || choice.upgrade.rarity < workbenchBalance.rareInstallRarityThreshold
@@ -3125,7 +3139,7 @@ class VectorShooter {
     if (choice.kind === 'upgrade' && choice.upgrade.bucket === 'spacesuit') this.discoverySuitOffer = false
     this.pendingUpgrades = Math.max(0, this.pendingUpgrades - 1)
     if (this.pendingUpgrades > 0) {
-      this.openLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
+      this.refreshLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
       return
     }
     this.showOnly(null)
@@ -6787,7 +6801,7 @@ class VectorShooter {
     this.pendingUpgrades = Math.max(0, this.pendingUpgrades - 1)
     this.toast(`SIGNAL RECYCLED: +${scrap} SCRAP +${crystal} CRYSTALS`)
     if (this.pendingUpgrades > 0) {
-      this.openLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
+      this.refreshLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
       return
     }
     this.showOnly(null)
@@ -6805,8 +6819,7 @@ class VectorShooter {
       button.disabled = true
       button.classList.add('invalid')
       this.toast('SYSTEM ALREADY MAXED')
-      this.upgradeChoices = this.rollUpgrades(this.upgradeChoices.length || workbenchBalance.baseChoiceCount)
-      this.renderLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
+      this.refreshLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
       return
     }
     this.workbenchInstalling = true
@@ -6970,10 +6983,10 @@ class VectorShooter {
     const rows = workbenchUpgradeRows(upgrades, this.build, Array.from(offeredUpgradeChoices.keys()), this.workbenchExtraUnlockedIds())
     for (const row of rows) {
       const offered = offeredUpgradeChoices.get(row.upgrade.id)
-      if (offered) {
-        systemGrid.append(this.renderWorkbenchChoiceChip(offered))
-      } else if (row.status === 'maxed') {
+      if (row.status === 'maxed') {
         systemGrid.append(this.renderWorkbenchContextChip(row.upgrade, 'MAXED', this.maxedUnlockText(row.upgrade)))
+      } else if (offered && this.canApplyWorkbenchChoice(offered)) {
+        systemGrid.append(this.renderWorkbenchChoiceChip(offered))
       } else if (row.status === 'locked') {
         systemGrid.append(this.renderWorkbenchContextChip(row.upgrade, 'LOCKED', row.requirement ?? 'Future workbench unlock', 'future'))
       } else {
@@ -6987,8 +7000,10 @@ class VectorShooter {
     if (specialChoices.length) {
       const specialGrid = document.createElement('div')
       specialGrid.className = 'manifest-grid workbench-special-offers'
-      for (const choice of specialChoices) specialGrid.append(this.renderWorkbenchChoiceChip(choice))
-      wrap.append(this.workbenchSectionLabel('RARE AND LIMIT SIGNALS'), specialGrid)
+      for (const choice of specialChoices) {
+        if (this.canApplyWorkbenchChoice(choice)) specialGrid.append(this.renderWorkbenchChoiceChip(choice))
+      }
+      if (specialGrid.children.length) wrap.append(this.workbenchSectionLabel('RARE AND LIMIT SIGNALS'), specialGrid)
     }
 
     wrap.append(this.renderManifestRelicLine())

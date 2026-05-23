@@ -1,7 +1,7 @@
 export type Vec = { x: number; y: number }
 
 export function spaceViewportScale(width: number, height: number) {
-  if (height > width && width <= 520) return 0.76
+  if (height > width && width <= 520) return 0.65
   if (width <= 900) return 0.88
   return 1
 }
