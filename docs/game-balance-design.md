@@ -33,9 +33,17 @@ Galactic Hordes needs balance data to be easy to inspect, edit, test, and docume
 `src/sector-map.ts` is the source of truth for run-route construction:
 
 - sector node kinds and forward graph rules
-- node pace, wave order, hazard tags, objective text, and player-facing readouts
-- per-node enemy, planet, reward, boss, encounter-bias, and encounter-cadence profiles
+- node pace, theme, wave order, hazard tags, objective text, notes, and player-facing readouts
+- per-node planet count and archetype bias
+- per-node enemy starting spawns, enemy bias, spawn pressure, max-alive pressure, and timed wave counts
+- per-node reward pressure, chest cadence, asteroid behavior, encounter bias, and encounter cadence
 - station services that are explicitly run-only and do not purchase permanent mothership tiers
+
+`src/run-balance.ts` is the source of truth for run-level tuning:
+
+- starter ship hull, radius, speed, and XP curve
+- spawn, boss, chest, and sector launch timers
+- landing rewards, station services, mothership progression stats, and scoring
 
 Runtime code may transform these values for elapsed time, planet count, sector node, or run state, but the underlying constants must live in source modules with descriptive names.
 
@@ -51,7 +59,7 @@ The active mode is a single exported value in `src/game-balance.ts`. During deve
 
 ## Documentation Hook
 
-`scripts/update-balance-docs.mjs` reads `src/game-balance.ts` and `src/powerup-balance.ts`, then updates generated balance sections in:
+`scripts/update-balance-docs.mjs` reads `src/game-balance.ts`, `src/powerup-balance.ts`, `src/run-balance.ts`, `src/surface-balance.ts`, and `src/sector-map.ts`, then updates generated balance sections in:
 
 - `README.md`
 - `docs/game-balance-design.md`
@@ -106,5 +114,33 @@ Active balance mode: `testEasy` (Testing Easy).
 | Surface gun damage | 18 |
 | Surface health base | 86 |
 
-Generated from `src/game-balance.ts` and `src/powerup-balance.ts`. Do not edit this section by hand.
+### Run And Surface Balance Snapshot
+
+| System | Value |
+| --- | ---: |
+| Starter hull | 110 |
+| Starter speed | 270 |
+| Starting XP threshold | 24 |
+| XP growth multiplier | 1.18 |
+| Chest respawn minimum | 38s |
+| Station repair hull | 42 |
+| Surface world | 1600 x 1180 |
+| Surface cache safe distance | 240 |
+| Surface ambush base count | 2 |
+| Boss cache safe distance | 190 |
+
+### Sector Node Config Snapshot
+
+| Config Area | Values |
+| --- | --- |
+| Themes | `openSpace`, `asteroidBelt`, `planetCluster`, `derelictField`, `nebula`, `bossGate`, `finalStand` |
+| Wave orders | `scouts`, `swarm`, `ambush`, `bulwark`, `cathedral` |
+| Hazard tags | `clear`, `asteroids`, `hunterWing`, `derelictCache`, `nebula` |
+| Planet config | count range, density, archetype bias |
+| Enemy config | starting spawns, enemy bias, spawn multiplier, max alive multiplier |
+| Wave config | trigger seconds, label, enemy counts, notes |
+| Hazard config | asteroid density/damage/drift and encounter bias |
+| Reward config | resource multiplier, chest interval multiplier, upgrade signal chance |
+
+Generated from `src/game-balance.ts`, `src/powerup-balance.ts`, `src/run-balance.ts`, `src/surface-balance.ts`, and `src/sector-map.ts`. Do not edit this section by hand.
 <!-- BALANCE-GENERATED:END -->

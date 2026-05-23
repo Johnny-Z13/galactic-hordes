@@ -99,6 +99,10 @@ Nodes carry explicit configs so the map constructs the run rather than only deco
 - `pace`: safe, mild, standard, intense, or boss.
 - `waveOrder`: scouts, swarm, ambush, bulwark, or cathedral.
 - `hazards`: clear space, asteroid fronts, hunter wings, derelict caches, or nebula volatility.
+- `planets`: count range, density, and archetype bias for nodes such as asteroid belts or dense planet clusters.
+- `enemies`: starting spawns, enemy bias, spawn pressure, and max-alive pressure.
+- `waves`: timed enemy counts with optional designer notes.
+- `hazardConfig` and `rewards`: asteroid behavior, encounter bias, chest cadence, and resource pressure.
 - `objective` and `readout`: short text that tells the player why the node matters before launch.
 
 Those configs feed runtime behavior: enemy recipe bias, planet archetype bias, spawn pressure, reward pressure, boss requirements, space encounter bias, and encounter cadence. A mild station route should feel meaningfully different from an intense asteroid ambush route.
@@ -107,7 +111,7 @@ See [docs/sector-map-route-design.md](docs/sector-map-route-design.md) for the r
 
 ## Balance Calibration
 
-Combat and difficulty tuning lives in `src/game-balance.ts`. Power-up, pickup, relic, surface suit, cache, and workbench tuning lives in `src/powerup-balance.ts`. Run `npm run docs:balance` after changing balance values, or install the local hook with `npm run hooks:install` so the generated balance docs update on commit.
+Combat and difficulty tuning lives in `src/game-balance.ts`. Power-up, pickup, relic, surface suit, cache, and workbench tuning lives in `src/powerup-balance.ts`. Run-level values live in `src/run-balance.ts`, surface expedition tuning lives in `src/surface-balance.ts`, and route-node tuning lives in `src/sector-map.ts`. Run `npm run docs:balance` after changing balance values, or install the local hook with `npm run hooks:install` so the generated balance docs update on commit.
 
 <!-- BALANCE-GENERATED:START -->
 ### Active Balance Snapshot
@@ -157,14 +161,42 @@ Active balance mode: `testEasy` (Testing Easy).
 | Surface gun damage | 18 |
 | Surface health base | 86 |
 
-Generated from `src/game-balance.ts` and `src/powerup-balance.ts`. Do not edit this section by hand.
+### Run And Surface Balance Snapshot
+
+| System | Value |
+| --- | ---: |
+| Starter hull | 110 |
+| Starter speed | 270 |
+| Starting XP threshold | 24 |
+| XP growth multiplier | 1.18 |
+| Chest respawn minimum | 38s |
+| Station repair hull | 42 |
+| Surface world | 1600 x 1180 |
+| Surface cache safe distance | 240 |
+| Surface ambush base count | 2 |
+| Boss cache safe distance | 190 |
+
+### Sector Node Config Snapshot
+
+| Config Area | Values |
+| --- | --- |
+| Themes | `openSpace`, `asteroidBelt`, `planetCluster`, `derelictField`, `nebula`, `bossGate`, `finalStand` |
+| Wave orders | `scouts`, `swarm`, `ambush`, `bulwark`, `cathedral` |
+| Hazard tags | `clear`, `asteroids`, `hunterWing`, `derelictCache`, `nebula` |
+| Planet config | count range, density, archetype bias |
+| Enemy config | starting spawns, enemy bias, spawn multiplier, max alive multiplier |
+| Wave config | trigger seconds, label, enemy counts, notes |
+| Hazard config | asteroid density/damage/drift and encounter bias |
+| Reward config | resource multiplier, chest interval multiplier, upgrade signal chance |
+
+Generated from `src/game-balance.ts`, `src/powerup-balance.ts`, `src/run-balance.ts`, `src/surface-balance.ts`, and `src/sector-map.ts`. Do not edit this section by hand.
 <!-- BALANCE-GENERATED:END -->
 
 ## Endless Exploration
 
 Space is split into deterministic 3600px sectors around the player. The game keeps nearby sectors alive in memory and prunes distant ones, so travelling across boundaries feels seamless without turning the whole universe into one huge expensive scene.
 
-Each sector has its own generated starfield and one to three planets. Planets have an archetype:
+Each sector has its own generated starfield and a node-configured planet count. Planets have an archetype:
 
 - `cache`: richer salvage and more jackpot odds
 - `hostile`: heavier surface fights

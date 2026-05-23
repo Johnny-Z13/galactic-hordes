@@ -21,5 +21,10 @@ test('README and balance design doc contain generated balance sections', () => {
     expect(doc).toContain('<!-- BALANCE-GENERATED:END -->')
     expect(doc).toContain('Active balance mode')
     expect(doc).toContain('| Enemy | HP | Speed | Contact |')
+    expect(doc).toContain('Run And Surface Balance Snapshot')
+    expect(doc).toContain('Sector Node Config Snapshot')
+    expect(doc).toContain('src/run-balance.ts')
+    expect(doc).toContain('src/surface-balance.ts')
+    expect(doc).toContain('src/sector-map.ts')
   }
 })

@@ -28,6 +28,7 @@ import { ONBOARDING_PLANET_COUNT, onboardingPlanetSlot, useOnboardingPlanetField
 import { selectPlanetBiome, type PlanetBiomeProfile } from './planet-biomes'
 import { pickupMagnetRange, pickupMagnetStrength } from './pickup-magnet'
 import { planetRadius } from './planet-sizing'
+import { nextXpThreshold, runBalance } from './run-balance'
 import {
   evolutions,
   limitBreakChoices,
@@ -67,6 +68,7 @@ import {
   worldToScreen as spaceWorldToScreen
 } from './space-camera'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
+import { advancedRewardEnemyKinds, spaceEnemyBehavior } from './space-enemy-behavior'
 import {
   chooseSpaceEncounter,
   derelictCacheSignal,
@@ -77,6 +79,14 @@ import {
   type SpaceEncounterKind
 } from './space-encounters'
 import { SURFACE_PILOT_SIZE_SCALE, surfacePilotCollisionRadius, surfacePilotMuzzleOffset, surfacePilotSpawnKeepout, surfacePilotSpriteScale } from './surface-pilot'
+import {
+  bossCacheValue,
+  pickSurfaceResourceKind,
+  surfaceEventPoint as plannedSurfaceEventPoint,
+  surfaceResourceValue,
+  surfaceRunBalance,
+  type SurfaceResourceKind
+} from './surface-balance'
 import { planSurfaceEncounter, rollPlanetArchetype, type PlanetArchetype, type SurfaceEventKind, type SurfaceScenarioKind } from './surface-encounters'
 import { surfaceThreatSpawnPoint } from './surface-spawn'
 import { dashVector, touchActionLabel } from './mobile-controls'
@@ -111,7 +121,6 @@ import { optionOrbProfile, pulseVolleyCount, starterSignatureFlags } from './wea
 type GameState = 'title' | 'mothership' | 'sectorMap' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
 type EnemyKind = SpaceEnemyKind
-type SurfaceResourceKind = 'crystal' | 'scrap' | 'repair' | 'cache'
 type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
 type AlienGiftKind = 'herb' | 'idol' | 'map' | 'coin' | 'beacon'
 type ArtifactKind = 'relic' | 'alien' | 'lore' | 'planet' | 'cache' | 'enemy'
@@ -346,6 +355,41 @@ interface ReturnBeacon {
   age: number
   reminded: boolean
   assistTriggered: boolean
+}
+
+interface PlayerState {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  angle: number
+  aimAngle: number
+  radius: number
+  hull: number
+  maxHull: number
+  shield: number
+  maxShield: number
+  shieldDelay: number
+  invuln: number
+  fireCd: number
+  dashCd: number
+  dashTime: number
+  dashX: number
+  dashY: number
+  dashSpeed: number
+  speed: number
+  landedCd: number
+}
+
+interface RunStats {
+  time: number
+  kills: number
+  level: number
+  xp: number
+  nextXp: number
+  highScore: number
+  planets: number
+  score: number
 }
 
 interface SpaceHazardAsteroid extends MeteorAsteroidPlan {
@@ -817,6 +861,8 @@ class VectorShooter {
   private selectedCollectionId: string | null = null
   private sectorMap: SectorMap = createSectorMap()
   private sectorNodeProfile: SectorNodeRunProfile = sectorNodeRunProfile(currentSectorNode(this.sectorMap))
+  private sectorNodeStartedAt = 0
+  private firedSectorWaves = new Set<string>()
   private planetChoice: Planet | null = null
   private alienChoice: SurfaceAlien | null = null
   private orbitReturnPoint: Vec | null = null
@@ -833,8 +879,8 @@ class VectorShooter {
   private enemyId = 0
   private fireSerial = 0
   private spawnTimer = 0
-  private bossTimer = 75
-  private chestTimer = 30
+  private bossTimer: number = runBalance.timers.startingBossSeconds
+  private chestTimer: number = runBalance.timers.defaultChestSeconds
   private nextSpaceEncounterAt = nextSpaceEncounterTime(0)
   private chunks = new Map<string, SpaceChunk>()
   private stars: Vec[] = []
@@ -850,7 +896,7 @@ class VectorShooter {
   private artifacts = new Map<string, ArtifactRecord>()
   private limitBreaks: Record<LimitId, number> = { might: 0, cooldown: 0, amount: 0, speed: 0, magnet: 0, hull: 0 }
 
-  private player = this.makePlayer()
+  private player: PlayerState = this.makePlayer()
   private bullets: Bullet[] = []
   private enemies: Enemy[] = []
   private enemyGrid = new Map<number, Enemy[]>()
@@ -863,12 +909,12 @@ class VectorShooter {
   private planets: Planet[] = []
   private visitedPlanets = new Set<string>()
 
-  private stats = {
+  private stats: RunStats = {
     time: 0,
     kills: 0,
     level: 1,
     xp: 0,
-    nextXp: 24,
+    nextXp: runBalance.xp.startingNext,
     highScore: 0,
     planets: 0,
     score: 0
@@ -956,7 +1002,7 @@ class VectorShooter {
     requestAnimationFrame((t) => this.frame(t))
   }
 
-  private makePlayer() {
+  private makePlayer(): PlayerState {
     return {
       x: 0,
       y: 0,
@@ -964,9 +1010,9 @@ class VectorShooter {
       vy: 0,
       angle: -Math.PI / 2,
       aimAngle: -Math.PI / 2,
-      radius: 18,
-      hull: 110,
-      maxHull: 110,
+      radius: runBalance.player.radius,
+      hull: runBalance.player.baseHull,
+      maxHull: runBalance.player.baseHull,
       shield: 0,
       maxShield: 0,
       shieldDelay: 0,
@@ -977,7 +1023,7 @@ class VectorShooter {
       dashX: 0,
       dashY: -1,
       dashSpeed: 0,
-      speed: 270,
+      speed: runBalance.player.baseSpeed,
       landedCd: 0
     }
   }
@@ -1087,9 +1133,14 @@ class VectorShooter {
     }
     const planets: Planet[] = []
     const onboardingField = useOnboardingPlanetField(x, y, this.visitedPlanets.size)
-    const planetCount = onboardingField ? ONBOARDING_PLANET_COUNT : key === '0,0' ? 3 : 1 + Math.floor(rng() * 3)
+    const planetCount = onboardingField ? ONBOARDING_PLANET_COUNT : this.sectorPlanetCount(rng)
     for (let i = 0; i < planetCount; i += 1) planets.push(this.generatePlanet(x, y, i, rng, planets))
     return { key, x, y, stars, planets }
+  }
+
+  private sectorPlanetCount(rng: () => number) {
+    const planets = this.sectorNodeProfile.config.planets
+    return planets.countMin + Math.floor(rng() * (planets.countMax - planets.countMin + 1))
   }
 
   private generatePlanet(chunkX: number, chunkY: number, index: number, rng: () => number, existing: Planet[] = []): Planet {
@@ -1157,9 +1208,16 @@ class VectorShooter {
   }
 
   private pickSectorPlanetArchetype(chunkX: number, chunkY: number, index: number, rng: () => number) {
-    const bias = this.sectorNodeProfile.planetBias
     const inOpeningField = chunkX === 0 && chunkY === 0 && useOnboardingPlanetField(chunkX, chunkY, this.visitedPlanets.size)
-    if (!inOpeningField && bias.length && rng() < 0.55) return bias[Math.floor(rng() * bias.length)]
+    const bias = this.sectorNodeProfile.config.planets.archetypeBias
+    const total = Object.values(bias).reduce((sum, weight) => sum + (weight ?? 0), 0)
+    if (!inOpeningField && total > 0 && rng() < 0.55) {
+      let roll = rng() * total
+      for (const [archetype, weight] of Object.entries(bias) as Array<[PlanetArchetype, number]>) {
+        roll -= weight
+        if (roll <= 0) return archetype
+      }
+    }
     return rollPlanetArchetype({ chunkX, chunkY, index, random: rng })
   }
 
@@ -1373,6 +1431,7 @@ class VectorShooter {
     this.updateParticles(dt)
     this.updateOrbitals(dt)
     this.updateSpawning()
+    this.updateSectorWaves()
     this.updateReturnBeacon(dt)
     this.updateCamera(dt)
     this.updateHud()
@@ -2149,7 +2208,11 @@ class VectorShooter {
       b.life -= dt
       b.x += b.vx * dt
       b.y += b.vy * dt
-      if (b.life <= 0 || Math.abs(b.x - this.player.x) > 1900 || Math.abs(b.y - this.player.y) > 1900) {
+      if (
+        b.life <= 0 ||
+        Math.abs(b.x - this.player.x) > spaceEnemyBehavior.global.bulletDespawnDistance ||
+        Math.abs(b.y - this.player.y) > spaceEnemyBehavior.global.bulletDespawnDistance
+      ) {
         this.bullets.splice(i, 1)
         continue
       }
@@ -2244,6 +2307,7 @@ class VectorShooter {
 
   private updateEnemies(dt: number) {
     const hunger = this.relics.has('hungryCompass') ? 1.08 : 1
+    const behavior = spaceEnemyBehavior
     for (let i = this.enemies.length - 1; i >= 0; i -= 1) {
       const e = this.enemies[i]
       const enemyBalance = balancedSpaceEnemyDefinition(e.kind)
@@ -2252,20 +2316,22 @@ class VectorShooter {
       e.flash -= dt
       const toP = norm(this.player.x - e.x, this.player.y - e.y)
       if (e.kind === 'chaser' || e.kind === 'splinter') {
-        e.vx += toP.x * e.speed * 3.4 * hunger * dt
-        e.vy += toP.y * e.speed * 3.4 * hunger * dt
+        const pursuit = e.kind === 'chaser' ? behavior.chaser.pursuit : behavior.splinter.pursuit
+        e.vx += toP.x * e.speed * pursuit * hunger * dt
+        e.vy += toP.y * e.speed * pursuit * hunger * dt
       } else if (e.kind === 'brute') {
-        e.vx += toP.x * e.speed * 2.15 * hunger * dt
-        e.vy += toP.y * e.speed * 2.15 * hunger * dt
+        e.vx += toP.x * e.speed * behavior.brute.pursuit * hunger * dt
+        e.vy += toP.y * e.speed * behavior.brute.pursuit * hunger * dt
       } else if (e.kind === 'shooter') {
+        const tuned = behavior.shooter
         const d = Math.sqrt(dist2(e, this.player))
         const side = { x: -toP.y, y: toP.x }
-        const rangePull = d > 560 ? 1 : d < 360 ? -1.35 : 0.1
-        e.vx += (toP.x * rangePull * e.speed + side.x * e.speed * 0.55) * dt
-        e.vy += (toP.y * rangePull * e.speed + side.y * e.speed * 0.55) * dt
+        const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
+        e.vx += (toP.x * rangePull * e.speed + side.x * e.speed * tuned.strafe) * dt
+        e.vy += (toP.y * rangePull * e.speed + side.y * e.speed * tuned.strafe) * dt
         if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) {
           e.cd = enemyAttackCooldown(enemyBalance, this.stats.time)
-          const spread = this.stats.time > 210 ? 0.18 : 0
+          const spread = this.stats.time > tuned.spreadUnlockSeconds ? tuned.spreadRadians : 0
           for (let shot = spread ? -1 : 0; shot <= (spread ? 1 : 0); shot += 1) {
             const a = Math.atan2(toP.y, toP.x) + shot * spread
             this.bullets.push({
@@ -2273,9 +2339,9 @@ class VectorShooter {
               y: e.y + Math.sin(a) * e.radius,
               vx: Math.cos(a) * (enemyBalance.projectileSpeed ?? 0),
               vy: Math.sin(a) * (enemyBalance.projectileSpeed ?? 0),
-              life: 1.8,
+              life: tuned.projectileLife,
               damage: enemyBalance.projectileDamage ?? 0,
-              radius: 4,
+              radius: tuned.projectileRadius,
               color: '#ff61d8',
               pierce: 0,
               hostile: true
@@ -2284,37 +2350,39 @@ class VectorShooter {
           this.burst(e.x, e.y, '#ff61d8', 5, 100)
         }
       } else if (e.kind === 'razor') {
+        const tuned = behavior.razor
         const sideSign = e.id % 2 === 0 ? 1 : -1
         const side = { x: -toP.y * sideSign, y: toP.x * sideSign }
-        e.vx += (side.x * e.speed * 5.4 + toP.x * e.speed * 0.7) * dt
-        e.vy += (side.y * e.speed * 5.4 + toP.y * e.speed * 0.7) * dt
+        e.vx += (side.x * e.speed * tuned.strafe + toP.x * e.speed * tuned.pursuit) * dt
+        e.vy += (side.y * e.speed * tuned.strafe + toP.y * e.speed * tuned.pursuit) * dt
         if (e.cd <= 0) {
           e.cd = enemyBalance.attackCooldownSeconds ?? 0
-          e.vx += side.x * 220 + toP.x * 90
-          e.vy += side.y * 220 + toP.y * 90
-          this.emitEnemyTrail(e, '#57fff3', 2)
+          e.vx += side.x * tuned.dashSideImpulse + toP.x * tuned.dashForwardImpulse
+          e.vy += side.y * tuned.dashSideImpulse + toP.y * tuned.dashForwardImpulse
+          this.emitEnemyTrail(e, '#57fff3', tuned.trailIntensity)
         }
       } else if (e.kind === 'skimmer') {
+        const tuned = behavior.skimmer
         const d = Math.sqrt(dist2(e, this.player))
         const sideSign = e.id % 2 === 0 ? 1 : -1
         const side = { x: -toP.y * sideSign, y: toP.x * sideSign }
-        const rangePull = d > 650 ? 0.72 : d < 390 ? -1.15 : -0.04
-        const wave = Math.sin(e.phase * 3.6) * e.speed * 0.35
-        e.vx += (toP.x * rangePull * e.speed + side.x * e.speed * 1.28 + side.x * wave) * dt
-        e.vy += (toP.y * rangePull * e.speed + side.y * e.speed * 1.28 + side.y * wave) * dt
+        const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
+        const wave = Math.sin(e.phase * tuned.waveFrequency) * e.speed * tuned.waveScale
+        e.vx += (toP.x * rangePull * e.speed + side.x * e.speed * tuned.strafe + side.x * wave) * dt
+        e.vy += (toP.y * rangePull * e.speed + side.y * e.speed * tuned.strafe + side.y * wave) * dt
         if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) {
           e.cd = enemyAttackCooldown(enemyBalance, this.stats.time)
           const baseAngle = Math.atan2(toP.y, toP.x)
           for (let shot = -1; shot <= 1; shot += 1) {
-            const a = baseAngle + shot * 0.24
+            const a = baseAngle + shot * tuned.spreadRadians
             this.bullets.push({
               x: e.x + Math.cos(a) * e.radius,
               y: e.y + Math.sin(a) * e.radius,
               vx: Math.cos(a) * (enemyBalance.projectileSpeed ?? 0),
               vy: Math.sin(a) * (enemyBalance.projectileSpeed ?? 0),
-              life: 1.55,
+              life: tuned.projectileLife,
               damage: enemyBalance.projectileDamage ?? 0,
-              radius: 4.5,
+              radius: tuned.projectileRadius,
               color: '#ffe66d',
               pierce: 0,
               hostile: true
@@ -2323,24 +2391,25 @@ class VectorShooter {
           this.burst(e.x, e.y, '#ffe66d', 6, 120)
         }
       } else if (e.kind === 'bulwark') {
+        const tuned = behavior.bulwark
         const d = Math.sqrt(dist2(e, this.player))
         const side = { x: -toP.y, y: toP.x }
-        const rangePull = d > 620 ? 0.95 : d < 460 ? -1.25 : -0.1
-        const drift = Math.sin(e.phase * 1.6 + e.id) * e.speed * 0.65
+        const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
+        const drift = Math.sin(e.phase * tuned.driftFrequency + e.id) * e.speed * tuned.driftScale
         e.vx += (toP.x * rangePull * e.speed + side.x * drift) * dt
         e.vy += (toP.y * rangePull * e.speed + side.y * drift) * dt
         if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) {
           e.cd = enemyBalance.attackCooldownSeconds ?? 0
-          for (let k = 0; k < 10; k += 1) {
-            const a = (k / 10) * TAU + e.phase * 0.55
+          for (let k = 0; k < tuned.shotCount; k += 1) {
+            const a = (k / tuned.shotCount) * TAU + e.phase * tuned.spinScale
             this.bullets.push({
               x: e.x + Math.cos(a) * e.radius,
               y: e.y + Math.sin(a) * e.radius,
               vx: Math.cos(a) * (enemyBalance.projectileSpeed ?? 0),
               vy: Math.sin(a) * (enemyBalance.projectileSpeed ?? 0),
-              life: 1.45,
+              life: tuned.projectileLife,
               damage: enemyBalance.projectileDamage ?? 0,
-              radius: 4,
+              radius: tuned.projectileRadius,
               color: '#f46cff',
               pierce: 0,
               hostile: true
@@ -2349,65 +2418,72 @@ class VectorShooter {
           this.burst(e.x, e.y, '#f46cff', 10, 150)
         }
       } else if (e.kind === 'siphon') {
+        const tuned = behavior.siphon
         const d = Math.sqrt(dist2(e, this.player))
         const sideSign = e.id % 2 === 0 ? 1 : -1
         const side = { x: -toP.y * sideSign, y: toP.x * sideSign }
-        const rangePull = d > 720 ? 0.72 : d < 510 ? -1.05 : -0.08
-        const swirl = Math.sin(e.phase * 2.4) * e.speed * 0.52
-        e.vx += (toP.x * rangePull * e.speed + side.x * (e.speed * 0.95 + swirl)) * dt
-        e.vy += (toP.y * rangePull * e.speed + side.y * (e.speed * 0.95 + swirl)) * dt
+        const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
+        const swirl = Math.sin(e.phase * tuned.swirlFrequency) * e.speed * tuned.swirlScale
+        e.vx += (toP.x * rangePull * e.speed + side.x * (e.speed * tuned.strafe + swirl)) * dt
+        e.vy += (toP.y * rangePull * e.speed + side.y * (e.speed * tuned.strafe + swirl)) * dt
         if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) this.fireSiphonVortex(e, enemyBalance)
       } else if (e.kind === 'dreadnought') {
+        const tuned = behavior.dreadnought
         const d = Math.sqrt(dist2(e, this.player))
         const side = { x: -toP.y, y: toP.x }
-        const rangePull = d > 800 ? 0.75 : d < 620 ? -0.8 : -0.04
-        const broadsideDrift = Math.sin(e.phase * 1.1 + e.id) * e.speed * 0.38
+        const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
+        const broadsideDrift = Math.sin(e.phase * tuned.driftFrequency + e.id) * e.speed * tuned.driftScale
         e.vx += (toP.x * rangePull * e.speed + side.x * broadsideDrift) * dt
         e.vy += (toP.y * rangePull * e.speed + side.y * broadsideDrift) * dt
         if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) this.fireDreadnoughtBroadside(e, enemyBalance, toP)
       } else if (e.kind === 'cathedral') {
+        const tuned = behavior.cathedral
         const d = Math.sqrt(dist2(e, this.player))
         const side = { x: -toP.y, y: toP.x }
-        const rangePull = d > 850 ? 0.58 : d < 650 ? -0.9 : -0.02
-        const orbit = Math.sin(e.phase * 0.9) * e.speed * 0.42
+        const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
+        const orbit = Math.sin(e.phase * tuned.orbitFrequency) * e.speed * tuned.orbitScale
         e.vx += (toP.x * rangePull * e.speed + side.x * orbit) * dt
         e.vy += (toP.y * rangePull * e.speed + side.y * orbit) * dt
         if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) this.fireCathedralLattice(e, enemyBalance, toP)
       } else if (e.kind === 'lancer') {
+        const tuned = behavior.lancer
         const d = Math.sqrt(dist2(e, this.player))
-        if (e.cd <= 0 && d < 520) {
-          e.vx = toP.x * (520 + this.stats.time * 1.2)
-          e.vy = toP.y * (520 + this.stats.time * 1.2)
+        if (e.cd <= 0 && d < tuned.chargeRange) {
+          const chargeSpeed = tuned.chargeSpeedBase + this.stats.time * tuned.chargeSpeedPerSecond
+          e.vx = toP.x * chargeSpeed
+          e.vy = toP.y * chargeSpeed
           e.cd = enemyBalance.attackCooldownSeconds ?? 0
           this.burst(e.x, e.y, '#fff27a', 8, 120)
         } else {
-          e.vx += Math.sin(e.phase * 3) * 14 * dt
-          e.vy += Math.cos(e.phase * 2.5) * 14 * dt
+          e.vx += Math.sin(e.phase * tuned.wobbleXFrequency) * tuned.wobbleForce * dt
+          e.vy += Math.cos(e.phase * tuned.wobbleYFrequency) * tuned.wobbleForce * dt
         }
       } else if (e.kind === 'mine') {
-        e.vx += Math.sin(e.phase * 2.1) * 28 * dt
-        e.vy += Math.cos(e.phase * 1.7) * 28 * dt
-        if (Math.sqrt(dist2(e, this.player)) < 74) {
+        const tuned = behavior.mine
+        e.vx += Math.sin(e.phase * tuned.wobbleXFrequency) * tuned.wobbleForce * dt
+        e.vy += Math.cos(e.phase * tuned.wobbleYFrequency) * tuned.wobbleForce * dt
+        if (Math.sqrt(dist2(e, this.player)) < tuned.triggerRadius) {
           this.damagePlayer(enemyBalance.contactDamage)
           this.killEnemy(e, false)
           continue
         }
       } else if (e.kind === 'warden') {
+        const tuned = behavior.warden
         const d = Math.sqrt(dist2(e, this.player))
-        e.vx += toP.x * (d > 380 ? 120 : -70) * dt
-        e.vy += toP.y * (d > 380 ? 120 : -70) * dt
+        e.vx += toP.x * (d > tuned.desiredDistance ? tuned.approachForce : tuned.retreatForce) * dt
+        e.vy += toP.y * (d > tuned.desiredDistance ? tuned.approachForce : tuned.retreatForce) * dt
         if (e.cd <= 0) {
           e.cd = enemyBalance.attackCooldownSeconds ?? 0
-          for (let k = 0; k < 12; k += 1) {
-            const a = (k / 12) * TAU + e.phase
+          for (let k = 0; k < tuned.shotCount; k += 1) {
+            const a = (k / tuned.shotCount) * TAU + e.phase
             this.bullets.push({
               x: e.x + Math.cos(a) * e.radius,
               y: e.y + Math.sin(a) * e.radius,
               vx: Math.cos(a) * (enemyBalance.projectileSpeed ?? 0),
               vy: Math.sin(a) * (enemyBalance.projectileSpeed ?? 0),
-              life: 1.2,
+              life: tuned.projectileLife,
               damage: enemyBalance.projectileDamage ?? 0,
-              radius: 4,
+              radius: tuned.projectileRadius,
               color: '#ff5d73',
               pierce: 0,
               hostile: true
@@ -2415,14 +2491,14 @@ class VectorShooter {
           }
         }
       }
-      const max = enemyBalance.maxSpeed ?? (e.kind === 'brute' ? e.speed * 0.84 : e.speed)
+      const max = enemyBalance.maxSpeed ?? (e.kind === 'brute' ? e.speed * behavior.brute.maxSpeedMultiplier : e.speed)
       const s = len(e.vx, e.vy)
       if (s > max) {
         e.vx = (e.vx / s) * max
         e.vy = (e.vy / s) * max
       }
-      e.vx *= Math.pow(0.2, dt)
-      e.vy *= Math.pow(0.2, dt)
+      e.vx *= Math.pow(behavior.global.velocityDamping, dt)
+      e.vy *= Math.pow(behavior.global.velocityDamping, dt)
       e.x += e.vx * dt
       e.y += e.vy * dt
       if (isSpriteEnemyKind(e.kind)) this.emitEnemyTrail(e, e.color, e.kind === 'razor' ? 1.6 : 1)
@@ -2432,8 +2508,8 @@ class VectorShooter {
         if (this.tryDashRam(e)) continue
         this.damagePlayer(enemyBalance.contactDamage)
         if (e.kind === 'brute' || e.kind === 'bulwark' || isGiantEnemyKind(e.kind)) {
-          e.vx -= toP.x * 260
-          e.vy -= toP.y * 260
+          e.vx -= toP.x * behavior.global.contactKnockback
+          e.vy -= toP.y * behavior.global.contactKnockback
         } else if (e.kind !== 'warden') this.killEnemy(e, false)
       }
     }
@@ -2528,21 +2604,22 @@ class VectorShooter {
   }
 
   private fireSiphonVortex(e: Enemy, enemyBalance: ReturnType<typeof balancedSpaceEnemyDefinition>) {
+    const tuned = spaceEnemyBehavior.siphon
     e.cd = enemyAttackCooldown(enemyBalance, this.stats.time)
     const speed = enemyBalance.projectileSpeed ?? 0
     const damage = enemyBalance.projectileDamage ?? 0
-    for (let arm = 0; arm < 2; arm += 1) {
-      for (let k = 0; k < 7; k += 1) {
-        const a = e.phase * 2.4 + arm * Math.PI + k * 0.34
-        const laneSpeed = speed * (0.62 + k * 0.055)
+    for (let arm = 0; arm < tuned.vortexArms; arm += 1) {
+      for (let k = 0; k < tuned.vortexShotsPerArm; k += 1) {
+        const a = e.phase * tuned.swirlFrequency + arm * Math.PI + k * tuned.vortexAngleStep
+        const laneSpeed = speed * (tuned.vortexSpeedBase + k * tuned.vortexSpeedStep)
         this.bullets.push({
           x: e.x + Math.cos(a) * e.radius * 0.92,
           y: e.y + Math.sin(a) * e.radius * 0.92,
           vx: Math.cos(a) * laneSpeed,
           vy: Math.sin(a) * laneSpeed,
-          life: 2.15,
+          life: tuned.vortexProjectileLife,
           damage,
-          radius: 5,
+          radius: tuned.vortexProjectileRadius,
           color: k % 2 ? '#8fff7d' : '#57fff3',
           pierce: 0,
           hostile: true
@@ -2553,35 +2630,37 @@ class VectorShooter {
   }
 
   private fireDreadnoughtBroadside(e: Enemy, enemyBalance: ReturnType<typeof balancedSpaceEnemyDefinition>, toP: Vec) {
+    const tuned = spaceEnemyBehavior.dreadnought
     e.cd = enemyBalance.attackCooldownSeconds ?? 0
     const speed = enemyBalance.projectileSpeed ?? 0
     const damage = enemyBalance.projectileDamage ?? 0
     const baseAngle = Math.atan2(toP.y, toP.x)
     for (let shot = -3; shot <= 3; shot += 1) {
-      const a = baseAngle + shot * 0.13
+      const a = baseAngle + shot * tuned.broadsideSpreadRadians
+      const sideFalloff = 1 - Math.abs(shot) * tuned.broadsideSideSpeedLoss
       this.bullets.push({
         x: e.x + Math.cos(a) * e.radius,
         y: e.y + Math.sin(a) * e.radius,
-        vx: Math.cos(a) * speed * (1 - Math.abs(shot) * 0.035),
-        vy: Math.sin(a) * speed * (1 - Math.abs(shot) * 0.035),
-        life: 2.25,
+        vx: Math.cos(a) * speed * sideFalloff,
+        vy: Math.sin(a) * speed * sideFalloff,
+        life: tuned.broadsideLife,
         damage,
-        radius: shot === 0 ? 7 : 5.2,
+        radius: shot === 0 ? tuned.broadsideCenterRadius : tuned.broadsideSideRadius,
         color: shot === 0 ? '#fff27a' : '#ff5d73',
         pierce: 0,
         hostile: true
       })
     }
-    for (const offset of [-0.62, 0.62]) {
+    for (const offset of tuned.rearOffsets) {
       const a = baseAngle + Math.PI + offset
       this.bullets.push({
         x: e.x + Math.cos(a) * e.radius * 0.75,
         y: e.y + Math.sin(a) * e.radius * 0.75,
-        vx: Math.cos(a) * speed * 0.72,
-        vy: Math.sin(a) * speed * 0.72,
-        life: 2.7,
-        damage: damage * 0.75,
-        radius: 4.8,
+        vx: Math.cos(a) * speed * tuned.rearSpeedMultiplier,
+        vy: Math.sin(a) * speed * tuned.rearSpeedMultiplier,
+        life: tuned.rearLife,
+        damage: damage * tuned.rearDamageMultiplier,
+        radius: tuned.rearRadius,
         color: '#b990ff',
         pierce: 0,
         hostile: true
@@ -2592,20 +2671,22 @@ class VectorShooter {
   }
 
   private fireCathedralLattice(e: Enemy, enemyBalance: ReturnType<typeof balancedSpaceEnemyDefinition>, toP: Vec) {
+    const tuned = spaceEnemyBehavior.cathedral
     e.cd = enemyBalance.attackCooldownSeconds ?? 0
     const speed = enemyBalance.projectileSpeed ?? 0
     const damage = enemyBalance.projectileDamage ?? 0
-    for (let ring = 0; ring < 3; ring += 1) {
-      for (let k = 0; k < 6; k += 1) {
-        const a = e.phase * (ring % 2 ? -1.35 : 1.35) + (k / 6) * TAU + ring * 0.17
+    for (let ring = 0; ring < tuned.latticeRings; ring += 1) {
+      for (let k = 0; k < tuned.latticeShotsPerRing; k += 1) {
+        const a = e.phase * (ring % 2 ? -tuned.latticeSpinScale : tuned.latticeSpinScale) + (k / tuned.latticeShotsPerRing) * TAU + ring * tuned.latticeRingAngleStep
+        const outerRing = ring === tuned.latticeRings - 1
         this.bullets.push({
-          x: e.x + Math.cos(a) * e.radius * (0.52 + ring * 0.18),
-          y: e.y + Math.sin(a) * e.radius * (0.52 + ring * 0.18),
-          vx: Math.cos(a) * speed * (0.58 + ring * 0.16),
-          vy: Math.sin(a) * speed * (0.58 + ring * 0.16),
-          life: 2.35,
-          damage: damage * (ring === 2 ? 1 : 0.72),
-          radius: ring === 2 ? 5.4 : 4.2,
+          x: e.x + Math.cos(a) * e.radius * (tuned.latticeSpawnRadiusBase + ring * tuned.latticeSpawnRadiusStep),
+          y: e.y + Math.sin(a) * e.radius * (tuned.latticeSpawnRadiusBase + ring * tuned.latticeSpawnRadiusStep),
+          vx: Math.cos(a) * speed * (tuned.latticeSpeedBase + ring * tuned.latticeSpeedStep),
+          vy: Math.sin(a) * speed * (tuned.latticeSpeedBase + ring * tuned.latticeSpeedStep),
+          life: tuned.latticeLife,
+          damage: damage * (outerRing ? tuned.latticeOuterDamageMultiplier : tuned.latticeInnerDamageMultiplier),
+          radius: outerRing ? tuned.latticeOuterRadius : tuned.latticeInnerRadius,
           color: ring === 1 ? '#b990ff' : '#d7fff7',
           pierce: 0,
           hostile: true
@@ -2613,16 +2694,16 @@ class VectorShooter {
       }
     }
     const aim = Math.atan2(toP.y, toP.x)
-    for (const offset of [-0.2, 0, 0.2]) {
+    for (const offset of tuned.aimedOffsets) {
       const a = aim + offset
       this.bullets.push({
         x: e.x + Math.cos(a) * e.radius,
         y: e.y + Math.sin(a) * e.radius,
-        vx: Math.cos(a) * speed * 1.05,
-        vy: Math.sin(a) * speed * 1.05,
-        life: 1.8,
-        damage: damage * 1.05,
-        radius: 4.8,
+        vx: Math.cos(a) * speed * tuned.aimedSpeedMultiplier,
+        vy: Math.sin(a) * speed * tuned.aimedSpeedMultiplier,
+        life: tuned.aimedLife,
+        damage: damage * tuned.aimedDamageMultiplier,
+        radius: tuned.aimedRadius,
         color: '#fff27a',
         pierce: 0,
         hostile: true
@@ -2682,10 +2763,24 @@ class VectorShooter {
       this.toast('WARDEN VECTOR ENTERING THE FIELD')
     }
     if (this.chestTimer <= 0) {
-      this.chestTimer = 38 + Math.random() * 20
-      const p = this.randomNearPlayer(680, 980)
-      this.pickups.push({ kind: 'chest', x: p.x, y: p.y, vx: 0, vy: 0, value: 1, radius: 16, life: 999, color: '#fff27a' })
+      this.chestTimer = runBalance.spaceChest.respawnMinSeconds + Math.random() * runBalance.spaceChest.respawnRandomSeconds
+      const p = this.randomNearPlayer(runBalance.spaceChest.spawnMinDistance, runBalance.spaceChest.spawnMaxDistance)
+      this.pickups.push({ kind: 'chest', x: p.x, y: p.y, vx: 0, vy: 0, value: 1, radius: pickupBalance.chestRadius, life: pickupBalance.persistentLifeSeconds, color: '#fff27a' })
       this.toast('A TREASURE CORE IS BROADCASTING NEARBY')
+    }
+  }
+
+  private updateSectorWaves() {
+    if (this.state !== 'playing') return
+    const elapsed = this.stats.time - this.sectorNodeStartedAt
+    for (const wave of this.sectorNodeProfile.config.waves) {
+      const id = `${this.sectorMap.currentNodeId}:${wave.label}:${wave.atSeconds}`
+      if (this.firedSectorWaves.has(id) || elapsed < wave.atSeconds) continue
+      this.firedSectorWaves.add(id)
+      for (const [kind, count] of Object.entries(wave.enemies) as Array<[SpaceEnemyKind, number]>) {
+        for (let i = 0; i < count; i += 1) this.spawnEnemy(kind)
+      }
+      if (wave.notes) this.toast(`${wave.label.toUpperCase()}: ${wave.notes.toUpperCase()}`)
     }
   }
 
@@ -2775,7 +2870,7 @@ class VectorShooter {
 
   private nearbyPlanetArchetype(): PlanetArchetype | undefined {
     let best: Planet | null = null
-    let bestD = 1500 * 1500
+    let bestD = spaceEnemyBehavior.global.nearbyPlanetArchetypeRadius * spaceEnemyBehavior.global.nearbyPlanetArchetypeRadius
     for (const planet of this.planets) {
       const d = dist2(planet, this.player)
       if (d < bestD) {
@@ -2819,13 +2914,13 @@ class VectorShooter {
 
   private pickEnemyKind(): EnemyKind {
     const bias = this.sectorNodeProfile.enemyBias
-    if (bias.length && Math.random() < 0.38) return bias[Math.floor(Math.random() * bias.length)]
+    if (bias.length && Math.random() < spaceEnemyBehavior.global.sectorBiasChance) return bias[Math.floor(Math.random() * bias.length)]
     return pickSpaceEnemyKind(this.stats.time)
   }
 
   private spawnEnemy(kind: EnemyKind) {
     if (this.enemies.length >= MAX_ENEMIES) return
-    const p = spaceEnemySpawnPoint(kind, this.player, 620, 980)
+    const p = spaceEnemySpawnPoint(kind, this.player, spaceEnemyBehavior.global.spawnMinRadius, spaceEnemyBehavior.global.spawnMaxRadius)
     this.spawnEnemyAt(kind, p.x, p.y)
   }
 
@@ -2847,7 +2942,7 @@ class VectorShooter {
       speed: base.speed + spaceEnemySpeedBonus(this.stats.time),
       value: Math.floor(base.value * scale),
       phase: Math.random() * TAU,
-      cd: Math.random() * 2,
+      cd: Math.random() * spaceEnemyBehavior.global.initialCooldownRandomSeconds,
       color: base.color,
       flash: 0
     })
@@ -2888,13 +2983,33 @@ class VectorShooter {
     if (reward) {
       this.stats.kills += 1
       this.stats.score += e.value
-      const xpCount = isGiantEnemyKind(e.kind) ? 11 : e.kind === 'warden' ? 9 : e.kind === 'bulwark' ? 5 : e.kind === 'brute' ? 3 : e.kind === 'razor' || e.kind === 'skimmer' || e.kind === 'shooter' || e.kind === 'lancer' ? 2 : 1
+      const xpCount = isGiantEnemyKind(e.kind)
+        ? spaceEnemyBehavior.rewards.xpCount.giant
+        : e.kind === 'warden'
+          ? spaceEnemyBehavior.rewards.xpCount.warden
+          : e.kind === 'bulwark'
+            ? spaceEnemyBehavior.rewards.xpCount.bulwark
+            : e.kind === 'brute'
+              ? spaceEnemyBehavior.rewards.xpCount.brute
+              : advancedRewardEnemyKinds.includes(e.kind)
+                ? spaceEnemyBehavior.rewards.xpCount.advanced
+                : spaceEnemyBehavior.rewards.xpCount.default
       const xpDrops = highLoad && e.kind !== 'warden' ? 1 : xpCount
-      const xpValue = isGiantEnemyKind(e.kind) ? 9 : e.kind === 'warden' ? 8 : e.kind === 'bulwark' ? 5 : e.kind === 'brute' ? 4 : highLoad ? 3 * xpCount : 3
+      const xpValue = isGiantEnemyKind(e.kind)
+        ? spaceEnemyBehavior.rewards.xpValue.giant
+        : e.kind === 'warden'
+          ? spaceEnemyBehavior.rewards.xpValue.warden
+          : e.kind === 'bulwark'
+            ? spaceEnemyBehavior.rewards.xpValue.bulwark
+            : e.kind === 'brute'
+              ? spaceEnemyBehavior.rewards.xpValue.brute
+              : highLoad
+                ? spaceEnemyBehavior.rewards.xpValue.highLoadPerDrop * xpCount
+                : spaceEnemyBehavior.rewards.xpValue.default
       for (let i = 0; i < xpDrops; i += 1) this.drop('xp', e.x, e.y, xpValue)
       if (e.kind === 'warden' || isGiantEnemyKind(e.kind)) this.drop('chest', e.x, e.y, 1)
-      if (e.kind === 'splinter' && this.enemies.length < MAX_ENEMIES - 3 && Math.random() < 0.55) {
-        for (let k = 0; k < 3; k += 1) {
+      if (e.kind === 'splinter' && this.enemies.length < MAX_ENEMIES - spaceEnemyBehavior.splitChild.count && Math.random() < spaceEnemyBehavior.splitChild.chance) {
+        for (let k = 0; k < spaceEnemyBehavior.splitChild.count; k += 1) {
           const child = this.spawnChild(e.x, e.y)
           this.enemies.push(child)
         }
@@ -2920,15 +3035,15 @@ class VectorShooter {
     return {
       id: this.enemyId++,
       kind: 'chaser',
-      x: x + Math.cos(a) * 24,
-      y: y + Math.sin(a) * 24,
-      vx: Math.cos(a) * 160,
-      vy: Math.sin(a) * 160,
-      hp: 12 + this.stats.time / 18,
-      maxHp: 12 + this.stats.time / 18,
-      radius: 10,
-      speed: 185,
-      value: 3,
+      x: x + Math.cos(a) * spaceEnemyBehavior.splitChild.spawnOffset,
+      y: y + Math.sin(a) * spaceEnemyBehavior.splitChild.spawnOffset,
+      vx: Math.cos(a) * spaceEnemyBehavior.splitChild.launchSpeed,
+      vy: Math.sin(a) * spaceEnemyBehavior.splitChild.launchSpeed,
+      hp: spaceEnemyBehavior.splitChild.hpBase + this.stats.time / spaceEnemyBehavior.splitChild.hpTimeDivisor,
+      maxHp: spaceEnemyBehavior.splitChild.hpBase + this.stats.time / spaceEnemyBehavior.splitChild.hpTimeDivisor,
+      radius: spaceEnemyBehavior.splitChild.radius,
+      speed: spaceEnemyBehavior.splitChild.speed,
+      value: spaceEnemyBehavior.splitChild.value,
       phase: Math.random() * TAU,
       cd: 0,
       color: '#70a8ff',
@@ -3006,7 +3121,7 @@ class VectorShooter {
       while (this.stats.xp >= this.stats.nextXp) {
         this.stats.xp -= this.stats.nextXp
         this.stats.level += 1
-        this.stats.nextXp = Math.floor(this.stats.nextXp * 1.18 + 11)
+        this.stats.nextXp = nextXpThreshold(this.stats.nextXp)
         this.bankUpgrade('MUTATION SIGNAL BANKED. LAND TO INSTALL IT.')
       }
     } else if (p.kind === 'repair') {
@@ -3026,7 +3141,7 @@ class VectorShooter {
         icon: 73
       })
       this.bankUpgrade('TREASURE CORE BANKED. INSTALL IT WHEN YOU BOARD.')
-      this.stats.score += 250 + this.stats.level * 35
+      this.stats.score += runBalance.scoring.treasureCoreBase + this.stats.level * runBalance.scoring.treasureCorePerLevel
     }
   }
 
@@ -3238,7 +3353,7 @@ class VectorShooter {
   private acquireRelic(relic: Relic, message = 'PLANET RELIC FOUND') {
     if (this.relics.has(relic.id)) {
       this.resources.cores += 1
-      this.stats.score += 250
+      this.stats.score += runBalance.scoring.duplicateRelicScore
       this.toast('DUPLICATE RELIC CONVERTED TO CORE')
       return
     }
@@ -3252,7 +3367,7 @@ class VectorShooter {
       color: this.artifactColor('relic', relic.id),
       icon: hashString(relic.id, 41) % 16
     })
-    this.stats.score += 500 + this.relics.size * 120
+    this.stats.score += runBalance.scoring.relicBaseScore + this.relics.size * runBalance.scoring.relicScorePerOwned
     this.audio.level()
     const anchor = this.fxAnchor()
     this.upgradeSurge(anchor.x, anchor.y, '#fff27a', '#b990ff', 1.25)
@@ -3402,9 +3517,10 @@ class VectorShooter {
 
   private createSurfaceRun(planet: Planet): SurfaceRun {
     const resources: SurfaceResource[] = []
+    const world = surfaceRunBalance.world
     const pilot = {
-      x: 840,
-      y: 660,
+      x: world.pilotStart.x,
+      y: world.pilotStart.y,
       vx: 0,
       vy: 0,
       facing: 0,
@@ -3415,7 +3531,7 @@ class VectorShooter {
       oxygen: this.surfaceMaxOxygen(),
       maxOxygen: this.surfaceMaxOxygen()
     }
-    const ship = { x: 780, y: 590 }
+    const ship = { ...world.ship }
     const threatKeepouts = this.surfaceThreatKeepouts(pilot, ship)
     const first = !planet.visited
     const openingLanding = this.visitedPlanets.size === 0 && this.stats.planets === 0
@@ -3433,27 +3549,21 @@ class VectorShooter {
     const scenario = profile.scenario
     const count = profile.resourceCount
     for (let i = 0; i < count; i += 1) {
-      const kindRoll = Math.random()
-      const kind: SurfaceResourceKind =
-        i === 0 && first ? 'cache' :
-        openingLanding ? (kindRoll < 0.42 ? 'scrap' : kindRoll < 0.78 ? 'crystal' : 'repair') :
-        event === 'horde' && i < 5 ? 'cache' :
-        event === 'relic' && i < 3 ? 'cache' :
-        event === 'jackpot' && kindRoll < 0.16 ? 'cache' :
-        event === 'horde' && kindRoll < 0.2 ? 'cache' :
-        event === 'repair' && kindRoll < 0.55 ? 'repair' :
-        event === 'volatile' && kindRoll < 0.24 ? 'cache' :
-        kindRoll < 0.58 ? 'crystal' :
-        kindRoll < 0.84 ? 'scrap' :
-        'repair'
+      const kind = pickSurfaceResourceKind({
+        index: i,
+        firstVisit: first,
+        openingLanding,
+        event,
+        roll: Math.random()
+      })
       const color = kind === 'cache' ? '#fff27a' : kind === 'crystal' ? planet.color : kind === 'scrap' ? '#70a8ff' : '#8fff7d'
-      const cluster = this.surfaceSafePoint(this.surfaceEventPoint(event, i, count), kind === 'cache' ? 240 : 210)
+      const cluster = this.surfaceSafePoint(this.surfaceEventPoint(event, i, count), kind === 'cache' ? surfaceRunBalance.resource.cacheSafeDistance : surfaceRunBalance.resource.defaultSafeDistance)
       resources.push({
         kind,
         x: cluster.x,
         y: cluster.y,
-        radius: kind === 'cache' ? 18 : 12,
-        value: kind === 'crystal' ? (event === 'horde' ? 18 : event === 'jackpot' ? 12 : 8) : kind === 'scrap' ? (event === 'horde' ? 260 : event === 'jackpot' ? 165 : 120) : kind === 'repair' ? (event === 'repair' ? 28 : 18) : 1,
+        radius: kind === 'cache' ? surfaceRunBalance.resource.radius.cache : surfaceRunBalance.resource.radius.default,
+        value: surfaceResourceValue(kind, event),
         color,
         collected: false
       })
@@ -3477,8 +3587,8 @@ class VectorShooter {
       planet,
       event,
       scenario,
-      width: 1600,
-      height: 1180,
+      width: world.width,
+      height: world.height,
       pilot,
       ship,
       camera: { x: 0, y: 0 },
@@ -3498,7 +3608,13 @@ class VectorShooter {
   }
 
   private surfaceInterest() {
-    return clamp(this.stats.time / 420 + this.stats.planets * 0.075 + this.stats.level * 0.012, 0, 1)
+    return clamp(
+      this.stats.time / surfaceRunBalance.interest.timeDivisor
+        + this.stats.planets * surfaceRunBalance.interest.perPlanet
+        + this.stats.level * surfaceRunBalance.interest.perLevel,
+      0,
+      1
+    )
   }
 
   private surfaceMaxHealth() {
@@ -3534,21 +3650,27 @@ class VectorShooter {
   private surfaceThreatKeepouts(pilot: Vec, ship: Vec) {
     return [
       { x: pilot.x, y: pilot.y, radius: surfacePilotSpawnKeepout() },
-      { x: ship.x, y: ship.y, radius: 34 }
+      { x: ship.x, y: ship.y, radius: surfaceRunBalance.threatPlacement.shipKeepoutRadius }
     ]
   }
 
-  private safeSurfaceThreatPoint(candidate: Vec, keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>, clearance = 120, fallbackAngle = 0) {
-    return surfaceThreatSpawnPoint(candidate, keepouts, { minX: 40, maxX: 1560, minY: 40, maxY: 1140 }, clearance, fallbackAngle)
+  private safeSurfaceThreatPoint(candidate: Vec, keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>, clearance: number = surfaceRunBalance.threatPlacement.safeDefaultClearance, fallbackAngle = 0) {
+    const world = surfaceRunBalance.world
+    return surfaceThreatSpawnPoint(candidate, keepouts, { minX: world.threatMinX, maxX: world.threatMaxX, minY: world.threatMinY, maxY: world.threatMaxY }, clearance, fallbackAngle)
   }
 
   private createGenericSurfaceThreat(planet: Planet, event: SurfaceEventKind, i: number, total: number, keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>): SurfaceThreat {
     const a = (i / Math.max(1, total)) * TAU + rand(-0.25, 0.25)
-    const r = event === 'horde' ? rand(240, 620) : event === 'swarm' ? rand(260, 520) : rand(120, 440)
+    const placement = surfaceRunBalance.threatPlacement
+    const r = event === 'horde'
+      ? rand(placement.hordeDistanceMin, placement.hordeDistanceMax)
+      : event === 'swarm'
+        ? rand(placement.swarmDistanceMin, placement.swarmDistanceMax)
+        : rand(placement.defaultDistanceMin, placement.defaultDistanceMax)
     const point = this.safeSurfaceThreatPoint({
-      x: 800 + Math.cos(a) * r,
-      y: 590 + Math.sin(a) * r
-    }, keepouts, event === 'swarm' || event === 'horde' ? 150 : 132, a)
+      x: surfaceRunBalance.world.ship.x + 20 + Math.cos(a) * r,
+      y: surfaceRunBalance.world.ship.y + Math.sin(a) * r
+    }, keepouts, event === 'swarm' || event === 'horde' ? placement.swarmClearance : placement.defaultClearance, a)
     const id = event === 'horde'
       ? 'enemy:surface:horde'
       : event === 'swarm'
@@ -3598,9 +3720,9 @@ class VectorShooter {
     const angle = ((seed >>> 4) / 0xfffffff) * TAU
     const distance = crowded ? rand(280, 420) : rand(170, 320)
     const point = this.safeSurfaceThreatPoint({
-      x: 800 + Math.cos(angle) * distance,
-      y: 590 + Math.sin(angle) * distance
-    }, keepouts, 170, angle)
+      x: surfaceRunBalance.world.ship.x + 20 + Math.cos(angle) * distance,
+      y: surfaceRunBalance.world.ship.y + Math.sin(angle) * distance
+    }, keepouts, surfaceRunBalance.threatPlacement.bossClearance, angle)
     const color = ['#57fff3', '#fff27a', '#8fff7d', '#ff61d8', '#d7fff7'][row]
     this.recordEnemyDiscovery(`enemy:surface:boss:${row}`, `Planet Boss ${row + 1}`, `${planet.name} boss-class biosignal.`, 'Boss catalog telemetry', color)
     return {
@@ -3620,7 +3742,7 @@ class VectorShooter {
   }
 
   private createGlassMiteOracleThreat(keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>): SurfaceThreat {
-    const point = this.safeSurfaceThreatPoint({ x: rand(990, 1080), y: rand(760, 880) }, keepouts, 150, Math.PI * 0.25)
+    const point = this.safeSurfaceThreatPoint({ x: rand(990, 1080), y: rand(760, 880) }, keepouts, surfaceRunBalance.threatPlacement.oracleClearance, Math.PI * 0.25)
     this.recordEnemyDiscovery('enemy:surface:oracle', 'Glass Mite Oracle', 'Rare crystalline oracle encountered on a strange surface.', 'Planet surface telemetry', '#57fff3')
     return {
       x: point.x,
@@ -3648,7 +3770,7 @@ class VectorShooter {
       event === 'standard' ? 0.58 :
       event === 'relic' ? 0.46 :
       0.28
-    if (forcedCount === undefined && Math.random() > chance + (quiet ? 0.18 : 0)) return []
+    if (forcedCount === undefined && Math.random() > chance + (quiet ? surfaceRunBalance.alien.quietBonusChance : 0)) return []
     const colors = ['#b990ff', '#fff27a', '#57fff3', '#8fff7d', '#70a8ff']
     const names = ['THE GLASS HERBALIST', 'A STATIC PILGRIM', 'THE COIN KEEPER', 'THE STAR MAPMAKER', 'THE STATION WIDOW']
     const gifts: AlienGiftKind[] = ['herb', 'idol', 'coin', 'map', 'beacon']
@@ -3656,7 +3778,7 @@ class VectorShooter {
     return [{
       x: rand(260, 1340),
       y: rand(210, 960),
-      radius: 28,
+      radius: surfaceRunBalance.alien.radius,
       phase: rand(0, TAU),
       color: colors[row % colors.length],
       name: names[row],
@@ -3723,34 +3845,15 @@ class VectorShooter {
   }
 
   private surfaceEventPoint(event: SurfaceEventKind, i: number, count: number): Vec {
-    if (event === 'jackpot') {
-      const a = (i / count) * TAU * 3
-      const r = 60 + i * 8
-      return { x: clamp(800 + Math.cos(a) * r + rand(-18, 18), 110, 1490), y: clamp(590 + Math.sin(a) * r + rand(-18, 18), 110, 1070) }
-    }
-    if (event === 'horde') {
-      const a = (i / Math.max(1, count)) * TAU * 2.4
-      const r = 120 + i * 7
-      return { x: clamp(800 + Math.cos(a) * r + rand(-32, 32), 120, 1480), y: clamp(590 + Math.sin(a) * r + rand(-32, 32), 120, 1060) }
-    }
-    if (event === 'swarm') {
-      return { x: rand(220, 1380), y: rand(190, 990) }
-    }
-    if (event === 'repair') {
-      return { x: rand(560, 1040), y: rand(400, 780) }
-    }
-    if (event === 'relic') {
-      const a = (i / Math.max(1, count)) * TAU
-      return { x: clamp(800 + Math.cos(a) * rand(80, 360), 130, 1470), y: clamp(590 + Math.sin(a) * rand(80, 360), 130, 1050) }
-    }
-    return { x: rand(180, 1420), y: rand(170, 1010) }
+    return plannedSurfaceEventPoint(event, i, count, rand)
   }
 
   private surfaceSafePoint(point: Vec, minDistance = 210): Vec {
-    const ship = { x: 780, y: 590 }
-    const pilot = { x: 840, y: 660 }
-    let x = clamp(point.x, 110, 1490)
-    let y = clamp(point.y, 110, 1070)
+    const world = surfaceRunBalance.world
+    const ship = world.ship
+    const pilot = world.pilotStart
+    let x = clamp(point.x, world.resourceSafeMinX, world.resourceSafeMaxX)
+    let y = clamp(point.y, world.resourceSafeMinY, world.resourceSafeMaxY)
     for (let pass = 0; pass < 3; pass += 1) {
       for (const anchor of [ship, pilot]) {
         const dx = x - anchor.x
@@ -3759,8 +3862,8 @@ class VectorShooter {
         if (distance >= minDistance) continue
         const angle = distance > 1 ? Math.atan2(dy, dx) : rand(0, TAU)
         const push = minDistance + rand(18, 96)
-        x = clamp(anchor.x + Math.cos(angle) * push, 110, 1490)
-        y = clamp(anchor.y + Math.sin(angle) * push, 110, 1070)
+        x = clamp(anchor.x + Math.cos(angle) * push, world.resourceSafeMinX, world.resourceSafeMaxX)
+        y = clamp(anchor.y + Math.sin(angle) * push, world.resourceSafeMinY, world.resourceSafeMaxY)
       }
     }
     return { x, y }
@@ -3788,17 +3891,19 @@ class VectorShooter {
     p.visited = true
     this.visitedPlanets.add(p.id)
     this.stats.planets = this.visitedPlanets.size
-    this.stats.score += first ? 900 + this.stats.planets * 300 : 120
+    this.stats.score += first
+      ? runBalance.landing.firstVisitScoreBase + this.stats.planets * runBalance.landing.firstVisitScorePerPlanet
+      : runBalance.landing.revisitScore
     if (first) this.recordPlanetArtifact(p, 'Docked from orbit')
-    this.player.hull = clamp(this.player.hull + (first ? 45 : 14), 0, this.player.maxHull)
+    this.player.hull = clamp(this.player.hull + (first ? runBalance.landing.firstVisitHullRepair : runBalance.landing.revisitHullRepair), 0, this.player.maxHull)
     if (p.name === 'NULL CATHEDRAL' && first) this.spawnEnemy('warden')
     if (p.name === 'SAINT STATIC' && first) this.drop('chest', p.x, p.y, 1)
     if (p.name === 'GREEN CHOIR' && first) {
-      this.build.shield = clamp(this.build.shield + 1, 0, 5)
-      this.player.maxShield += 22
+      this.build.shield = clamp(this.build.shield + runBalance.landing.greenChoirShieldRanks, 0, 5)
+      this.player.maxShield += runBalance.landing.greenChoirShieldCapacity
       this.player.shield = this.player.maxShield
     }
-    this.player.landedCd = 2.2
+    this.player.landedCd = runBalance.landing.landedCooldownSeconds
     this.state = 'playing'
     this.toast(first ? `${p.name}: ${p.reward.toUpperCase()}` : `${p.name}: QUIET DOCKING COMPLETE`)
     if (first) this.openLevelUp()
@@ -3809,7 +3914,7 @@ class VectorShooter {
     if (!this.surface) return
     for (const resource of this.surface.resources) {
       if (resource.collected) continue
-      const rr = resource.radius + 18
+      const rr = resource.radius + surfaceRunBalance.resource.collectionBonusRadius
       if ((resource.x - this.surface.pilot.x) ** 2 + (resource.y - this.surface.pilot.y) ** 2 > rr * rr) continue
       resource.collected = true
       this.surface.collected += 1
@@ -3823,7 +3928,7 @@ class VectorShooter {
         while (this.stats.xp >= this.stats.nextXp) {
           this.stats.xp -= this.stats.nextXp
           this.stats.level += 1
-          this.stats.nextXp = Math.floor(this.stats.nextXp * 1.18 + 11)
+          this.stats.nextXp = nextXpThreshold(this.stats.nextXp)
           this.bankSurfaceUpgrade()
         }
       } else if (resource.kind === 'scrap') {
@@ -3884,18 +3989,19 @@ class VectorShooter {
     )
     if (Math.random() < ambushChance) {
       const keepouts = this.surfaceThreatKeepouts(this.surface.pilot, this.surface.ship)
-      for (let i = 0; i < 2 + Math.floor(this.stats.time / 90); i += 1) {
+      const ambush = surfaceRunBalance.cacheAmbush
+      for (let i = 0; i < ambush.baseCount + Math.floor(this.stats.time / ambush.timeDivisor); i += 1) {
         const point = this.safeSurfaceThreatPoint({
-          x: resource.x + rand(-180, 180),
-          y: resource.y + rand(-180, 180)
-        }, keepouts, 132, rand(0, TAU))
+          x: resource.x + rand(-ambush.scatter, ambush.scatter),
+          y: resource.y + rand(-ambush.scatter, ambush.scatter)
+        }, keepouts, ambush.clearance, rand(0, TAU))
         this.surface.threats.push({
           x: point.x,
           y: point.y,
           vx: 0,
           vy: 0,
-          hp: 24 + this.stats.time * 0.25,
-          radius: 14,
+          hp: ambush.hpBase + this.stats.time * ambush.hpPerSecond,
+          radius: ambush.radius,
           phase: Math.random() * TAU,
           color: '#ff5d73',
           hit: 0
@@ -3933,7 +4039,7 @@ class VectorShooter {
       if (threat.hp <= 0) {
         this.burst(threat.x, threat.y, threat.color, threat.boss ? 42 : 24, threat.boss ? 360 : 260)
         this.audio.boom(threat.boss ? 'heavy' : 'surface')
-        this.stats.score += threat.boss ? 1200 : 160
+        this.stats.score += threat.boss ? runBalance.scoring.surfaceBossScore : runBalance.scoring.surfaceThreatScore
         if (threat.boss) this.dropSurfaceBossCache(threat)
         this.surface.threats.splice(i, 1)
       }
@@ -3945,14 +4051,15 @@ class VectorShooter {
     const count = this.surface.bossCacheCount
     for (let i = 0; i < count; i += 1) {
       const a = (i / count) * TAU + rand(-0.2, 0.2)
-      const r = rand(22, 96)
-      const point = this.surfaceSafePoint({ x: threat.x + Math.cos(a) * r, y: threat.y + Math.sin(a) * r }, 190)
+      const bossCache = surfaceRunBalance.bossCache
+      const r = rand(bossCache.scatterMin, bossCache.scatterMax)
+      const point = this.surfaceSafePoint({ x: threat.x + Math.cos(a) * r, y: threat.y + Math.sin(a) * r }, bossCache.safeDistance)
       this.surface.resources.push({
-        kind: i < 2 && this.surface.scenario === 'horde' ? 'cache' : i === 0 ? 'cache' : Math.random() < 0.65 ? 'crystal' : 'scrap',
+        kind: i < 2 && this.surface.scenario === 'horde' ? 'cache' : i === 0 ? 'cache' : Math.random() < bossCache.crystalChance ? 'crystal' : 'scrap',
         x: point.x,
         y: point.y,
-        radius: i === 0 ? 18 : 12,
-        value: i === 0 ? 1 : this.surface.scenario === 'horde' ? (i % 2 ? 22 + this.stats.level : 300 + this.stats.level * 12) : i % 2 ? 12 + this.stats.level : 150 + this.stats.level * 8,
+        radius: i === 0 ? surfaceRunBalance.resource.radius.cache : surfaceRunBalance.resource.radius.default,
+        value: bossCacheValue(i, this.surface.scenario, this.stats.level),
         color: i === 0 ? '#fff27a' : i % 2 ? threat.color : '#70a8ff',
         collected: false
       })
@@ -3963,12 +4070,12 @@ class VectorShooter {
 
   private findNearbyAlien() {
     if (!this.surface) return null
-    return this.surface.aliens.find((alien) => !alien.resolved && Math.sqrt(dist2(alien, this.surface!.pilot)) < alien.radius + 34) ?? null
+    return this.surface.aliens.find((alien) => !alien.resolved && Math.sqrt(dist2(alien, this.surface!.pilot)) < alien.radius + surfaceRunBalance.alien.interactionRadiusBonus) ?? null
   }
 
   private findNearbyLoreSite() {
     if (!this.surface) return null
-    return this.surface.loreSites.find((site) => !site.resolved && Math.sqrt(dist2(site, this.surface!.pilot)) < site.radius + 30) ?? null
+    return this.surface.loreSites.find((site) => !site.resolved && Math.sqrt(dist2(site, this.surface!.pilot)) < site.radius + surfaceRunBalance.lore.interactionRadiusBonus) ?? null
   }
 
   private inspectLoreSite(site: SurfaceLoreSite) {
@@ -3976,9 +4083,9 @@ class VectorShooter {
     this.state = 'lore'
     site.resolved = true
     this.surface.message = `${site.title}: ${site.copy}`
-    const score = 260 + this.stats.level * 35
+    const score = runBalance.scoring.loreBaseScore + this.stats.level * runBalance.scoring.loreScorePerLevel
     this.stats.score += score
-    this.resources.crystal += 1
+    this.resources.crystal += surfaceRunBalance.lore.crystalReward
     this.recordArtifact({
       id: `lore:${site.kind}`,
       kind: 'lore',
@@ -4095,9 +4202,10 @@ class VectorShooter {
 
   private applyGoodAlienGift(alien: SurfaceAlien) {
     if (!this.surface) return
+    const gift = surfaceRunBalance.alien.goodGift
     if (alien.gift === 'herb') {
-      this.player.hull = clamp(this.player.hull + 34, 0, this.player.maxHull)
-      this.resources.crystal += 4
+      this.player.hull = clamp(this.player.hull + gift.herbHullRepair, 0, this.player.maxHull)
+      this.resources.crystal += gift.herbCrystals
       this.surface.message = 'THE HERB IS SWEET. HULL KNITS SHUT.'
     } else if (alien.gift === 'idol') {
       const missingRelics = relics.filter((relic) => !this.relics.has(relic.id))
@@ -4106,23 +4214,23 @@ class VectorShooter {
         this.surface.message = 'THE IDOL OPENS INTO A RARE ARTEFACT.'
       } else {
         const banked = this.bankSurfaceUpgrade('ALIEN IDOL BANKED A MUTATION SIGNAL')
-        this.resources.cores += 1
+        this.resources.cores += gift.idolCores
         this.surface.message = banked ? 'THE IDOL HUMS IN TUNE WITH THE SHIP.' : 'THE IDOL OVERLOADS THE BUFFER AND HARDENS INTO CARGO.'
       }
     } else if (alien.gift === 'map') {
       this.build.survey = clamp(this.build.survey + 1, 0, upgrades.find((u) => u.id === 'survey')?.max ?? 6)
-      this.stats.score += 650
+      this.stats.score += gift.mapScore
       this.surface.message = 'THE MAP BURNS A BETTER PLANET SENSE INTO YOUR HUD.'
     } else if (alien.gift === 'coin') {
-      this.resources.scrap += 180
-      this.resources.cores += 1
-      this.stats.score += 900
+      this.resources.scrap += gift.coinScrap
+      this.resources.cores += gift.coinCores
+      this.stats.score += gift.coinScore
       this.surface.message = 'THE COIN LANDS EDGE-UP. IMPOSSIBLE. PROFITABLE.'
     } else {
-      this.resources.crystal += 6
+      this.resources.crystal += gift.beaconCrystals
       const banked = this.bankSurfaceUpgrade('STATION WIDOW BANKED A MUTATION SIGNAL')
       this.summonReturnBeaconAfterTakeoff = true
-      this.stats.score += 720
+      this.stats.score += gift.beaconScore
       this.surface.message = banked
         ? 'THE STATION STARTS LISTENING FROM ORBIT. GET BACK TO THE SHIP.'
         : 'THE STATION WAKES ORBIT, BUT THE EXTRA SIGNAL BECOMES CARGO.'
@@ -4134,19 +4242,20 @@ class VectorShooter {
 
   private applyBadAlienGift(alien: SurfaceAlien) {
     if (!this.surface) return
+    const gift = surfaceRunBalance.alien.badGift
     if (alien.gift === 'herb') {
-      this.damagePlayer(18)
+      this.damagePlayer(gift.herbDamage)
       this.surface.message = 'THE HERB BITES BACK. YOUR SUIT HATES IT.'
     } else if (alien.gift === 'idol') {
-      this.damagePlayer(9)
-      for (let i = 0; i < 3; i += 1) {
+      this.damagePlayer(gift.idolDamage)
+      for (let i = 0; i < gift.idolThreatCount; i += 1) {
         this.surface.threats.push({
-          x: clamp(alien.x + rand(-150, 150), 60, this.surface.width - 60),
-          y: clamp(alien.y + rand(-150, 150), 60, this.surface.height - 60),
+          x: clamp(alien.x + rand(-gift.idolThreatScatter, gift.idolThreatScatter), 60, this.surface.width - 60),
+          y: clamp(alien.y + rand(-gift.idolThreatScatter, gift.idolThreatScatter), 60, this.surface.height - 60),
           vx: 0,
           vy: 0,
-          hp: 22 + this.stats.time * 0.1,
-          radius: 13,
+          hp: gift.idolThreatHpBase + this.stats.time * gift.idolThreatHpPerSecond,
+          radius: gift.idolThreatRadius,
           phase: rand(0, TAU),
           color: '#ff5d73',
           hit: 0
@@ -4154,23 +4263,23 @@ class VectorShooter {
       }
       this.surface.message = 'THE IDOL OPENS. SMALL HUNGRY THINGS FALL OUT.'
     } else if (alien.gift === 'map') {
-      this.resources.crystal = Math.max(0, this.resources.crystal - 8)
+      this.resources.crystal = Math.max(0, this.resources.crystal - gift.mapCrystalLoss)
       this.surface.message = 'THE MAP IS A MOUTH. IT EATS YOUR CRYSTALS.'
     } else if (alien.gift === 'coin') {
-      this.resources.scrap = Math.max(0, this.resources.scrap - 120)
-      this.damagePlayer(12)
+      this.resources.scrap = Math.max(0, this.resources.scrap - gift.coinScrapLoss)
+      this.damagePlayer(gift.coinDamage)
       this.surface.message = 'THE COIN LANDS ON A SIDE YOU DO NOT HAVE.'
     } else {
-      this.damagePlayer(10)
-      this.surface.pilot.oxygen = Math.max(6, this.surface.pilot.oxygen - 12)
-      for (let i = 0; i < 2; i += 1) {
+      this.damagePlayer(gift.beaconDamage)
+      this.surface.pilot.oxygen = Math.max(gift.beaconMinOxygen, this.surface.pilot.oxygen - gift.beaconOxygenLoss)
+      for (let i = 0; i < gift.beaconThreatCount; i += 1) {
         this.surface.threats.push({
-          x: clamp(alien.x + rand(-190, 190), 60, this.surface.width - 60),
-          y: clamp(alien.y + rand(-190, 190), 60, this.surface.height - 60),
+          x: clamp(alien.x + rand(-gift.beaconThreatScatter, gift.beaconThreatScatter), 60, this.surface.width - 60),
+          y: clamp(alien.y + rand(-gift.beaconThreatScatter, gift.beaconThreatScatter), 60, this.surface.height - 60),
           vx: 0,
           vy: 0,
-          hp: 28 + this.stats.time * 0.12,
-          radius: 15,
+          hp: gift.beaconThreatHpBase + this.stats.time * gift.beaconThreatHpPerSecond,
+          radius: gift.beaconThreatRadius,
           phase: rand(0, TAU),
           color: '#70a8ff',
           hit: 0
@@ -4296,9 +4405,11 @@ class VectorShooter {
       this.updateSpaceChunks(true)
     }
     if (first) this.recordPlanetArtifact(this.surface.planet, 'Surface expedition')
-    this.stats.score += first ? 420 + this.surface.collected * 45 : this.surface.collected * 25
-    this.player.landedCd = 2.2
-    this.player.invuln = 0.8
+    this.stats.score += first
+      ? runBalance.landing.surfaceExtractScoreBase + this.surface.collected * runBalance.landing.surfaceExtractScorePerResource
+      : this.surface.collected * runBalance.landing.surfaceRevisitScorePerResource
+    this.player.landedCd = runBalance.landing.landedCooldownSeconds
+    this.player.invuln = runBalance.landing.orbitInvulnerabilitySeconds
     const planetName = this.surface.planet.name
     this.surface = null
     this.alienChoice = null
@@ -8072,7 +8183,7 @@ class VectorShooter {
         <span>${this.escape(choice.kind.toUpperCase())}</span>
         <b>${this.escape(choice.label)}</b>
         <small>${this.escape(choice.config.readout)}</small>
-        <i>${choice.kind === 'station' ? 'REPAIR / WORKBENCH / SCAN' : `WAVES ${this.sectorWaveLabel(choice.config.waveOrder)} / HAZARDS ${this.sectorHazardsLabel(choice.config.hazards)} / PRESSURE x${profile.spawnMultiplier.toFixed(2)}`}</i>
+        <i>${this.escape(this.sectorNodeConfigSummary(choice, profile))}</i>
       `
       option.addEventListener('click', () => this.launchSectorNode(choice.id))
       list.append(option)
@@ -8115,6 +8226,20 @@ class VectorShooter {
     }[wave]
   }
 
+  private sectorNodeConfigSummary(node: SectorNode, profile: SectorNodeRunProfile) {
+    if (node.kind === 'station') return 'REPAIR / WORKBENCH / SCAN'
+    return [
+      `PLANETS ${this.sectorPlanetLabel(node.config.planets.countMin, node.config.planets.countMax)}`,
+      `WAVES ${node.config.waves.length} ${this.sectorWaveLabel(node.config.waveOrder)}`,
+      `HAZARDS ${this.sectorHazardsLabel(node.config.hazards)}`,
+      `PRESSURE x${profile.spawnMultiplier.toFixed(2)}`
+    ].join(' / ')
+  }
+
+  private sectorPlanetLabel(min: number, max: number) {
+    return min === max ? `${min}` : `${min}-${max}`
+  }
+
   private sectorHazardsLabel(hazards: SectorHazardTag[]) {
     const labels: Record<SectorHazardTag, string> = {
       clear: 'CLEAR',
@@ -8154,19 +8279,19 @@ class VectorShooter {
     let repaired = 0
     if (node.stationServices.includes('repair')) {
       const before = this.player.hull
-      this.player.hull = clamp(this.player.hull + 42, 0, this.player.maxHull)
+      this.player.hull = clamp(this.player.hull + runBalance.station.repairHull, 0, this.player.maxHull)
       repaired = Math.round(this.player.hull - before)
     }
     if (node.stationServices.includes('workbench')) {
-      this.pendingUpgrades = Math.max(this.pendingUpgrades, 1)
-      this.workbenchRerolls = Math.max(this.workbenchRerolls, 1)
+      this.pendingUpgrades = Math.max(this.pendingUpgrades, runBalance.station.workbenchSignals)
+      this.workbenchRerolls = Math.max(this.workbenchRerolls, runBalance.station.rerolls)
     }
     if (node.stationServices.includes('trade')) {
-      this.resources.scrap += 35
-      this.resources.crystal += 1
+      this.resources.scrap += runBalance.station.tradeScrap
+      this.resources.crystal += runBalance.station.tradeCrystal
     }
     this.audio.pickup('nav')
-    return `Station services are run-only. Hull +${repaired}, workbench choice staged, scrap +35, crystal +1.`
+    return `Station services are run-only. Hull +${repaired}, workbench choice staged, scrap +${runBalance.station.tradeScrap}, crystal +${runBalance.station.tradeCrystal}.`
   }
 
   private prepareSectorNode(node: SectorNode) {
@@ -8178,6 +8303,7 @@ class VectorShooter {
     this.shockwaves = []
     this.spaceHazards = []
     this.derelictSignals = []
+    this.firedSectorWaves.clear()
     this.chunks.clear()
     this.stars = []
     this.planets = []
@@ -8192,20 +8318,17 @@ class VectorShooter {
     this.player.vy = 0
     this.player.angle = -Math.PI / 2
     this.player.aimAngle = -Math.PI / 2
-    this.spawnTimer = node.kind === 'final' ? 0.04 : 0.35
-    this.bossTimer = this.sectorNodeProfile.bossRequired ? 8 : 68
-    this.chestTimer = node.kind === 'planet' ? 18 : 28
+    this.sectorNodeStartedAt = this.stats.time
+    this.spawnTimer = node.kind === 'final' ? runBalance.timers.finalSectorSpawnSeconds : runBalance.timers.sectorSpawnSeconds
+    this.bossTimer = this.sectorNodeProfile.bossRequired ? runBalance.timers.requiredBossSeconds : runBalance.timers.sectorBossSeconds
+    this.chestTimer = node.kind === 'planet' ? runBalance.timers.planetNodeChestSeconds : runBalance.timers.startingChestSeconds
     this.nextReturnBeaconAt = nextBeaconWindow(Math.max(0, this.stats.time - 14))
     this.nextSpaceEncounterAt = this.nextSectorSpaceEncounterTime(this.stats.time)
     const target = cameraTargetFor(this.player, this.width, this.height, this.spaceScale())
     this.camera.x = target.x
     this.camera.y = target.y
     this.updateSpaceChunks(true)
-    if (node.kind === 'boss') this.spawnEnemy('dreadnought')
-    if (node.kind === 'final') {
-      this.spawnEnemy('cathedral')
-      this.spawnEnemy('dreadnought')
-    }
+    for (const kind of this.sectorNodeProfile.config.enemies.startingSpawns) this.spawnEnemy(kind)
   }
 
   private completeSectorNodeViaBeacon() {
@@ -8248,9 +8371,9 @@ class VectorShooter {
     this.sectorNodeProfile = sectorNodeRunProfile(currentSectorNode(this.sectorMap))
     this.player = this.makePlayer()
     const shipyard = this.mothership.departments.shipyard
-    this.player.maxHull += shipyard * 12
+    this.player.maxHull += shipyard * runBalance.progression.shipyardHullPerTier
     this.player.hull = this.player.maxHull
-    this.player.speed += shipyard * 8
+    this.player.speed += shipyard * runBalance.progression.shipyardSpeedPerTier
     this.bullets = []
     this.enemies = []
     this.enemyGrid.clear()
@@ -8265,6 +8388,8 @@ class VectorShooter {
     this.visitedPlanets.clear()
     this.activeChunkKey = ''
     this.autoNavHeading = 0
+    this.sectorNodeStartedAt = 0
+    this.firedSectorWaves.clear()
     this.autoNavActive = false
     this.autoNavTargetPlanetId = null
     this.autoNavTargetBeacon = false
@@ -8283,19 +8408,19 @@ class VectorShooter {
     this.workbenchRerolls = this.mothership.departments.workbench >= 1 ? 1 : 0
     const hangarCrew = this.mothership.departments.hangarCrew
     this.resources = {
-      scrap: hangarCrew * 25,
-      crystal: hangarCrew >= 2 ? hangarCrew * 2 : 0,
-      cores: hangarCrew >= 4 ? 1 : 0
+      scrap: hangarCrew * runBalance.progression.hangarCrewScrapPerTier,
+      crystal: hangarCrew >= runBalance.progression.hangarCrewCrystalUnlockTier ? hangarCrew * runBalance.progression.hangarCrewCrystalPerTier : 0,
+      cores: hangarCrew >= runBalance.progression.hangarCrewCoreUnlockTier ? runBalance.progression.hangarCrewCores : 0
     }
     this.relics.clear()
     this.evolved.clear()
     this.artifacts.clear()
     this.limitBreaks = { might: 0, cooldown: 0, amount: 0, speed: 0, magnet: 0, hull: 0 }
-    this.stats = { time: 0, kills: 0, level: 1, xp: 0, nextXp: 24, highScore: this.highs[0]?.score ?? 0, planets: 0, score: 0 }
+    this.stats = { time: 0, kills: 0, level: 1, xp: 0, nextXp: runBalance.xp.startingNext, highScore: this.highs[0]?.score ?? 0, planets: 0, score: 0 }
     for (const k of Object.keys(this.build) as UpgradeId[]) this.build[k] = 0
-    this.spawnTimer = 0.4
-    this.bossTimer = 75
-    this.chestTimer = 28
+    this.spawnTimer = runBalance.timers.startingSpawnSeconds
+    this.bossTimer = runBalance.timers.startingBossSeconds
+    this.chestTimer = runBalance.timers.startingChestSeconds
     this.nextSpaceEncounterAt = this.nextSectorSpaceEncounterTime(0)
     this.scoreSaved = false
     const target = cameraTargetFor(this.player, this.width, this.height, this.spaceScale())

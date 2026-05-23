@@ -25,7 +25,12 @@ test('sector nodes carry readable run configs for pace waves hazards and objecti
 
   expect(playableNodes.every((node) => node.config.readout.length > 12)).toBe(true)
   expect(playableNodes.every((node) => node.config.objective.length > 12)).toBe(true)
+  expect(playableNodes.every((node) => node.config.notes.length > 0)).toBe(true)
   expect(playableNodes.every((node) => node.config.hazards.length > 0)).toBe(true)
+  expect(playableNodes.every((node) => node.config.planets.countMax >= node.config.planets.countMin)).toBe(true)
+  expect(playableNodes.every((node) => Object.keys(node.config.enemies.bias).length > 0)).toBe(true)
+  expect(playableNodes.every((node) => node.config.waves.length > 0)).toBe(true)
+  expect(playableNodes.every((node) => node.config.rewards.resourceMultiplier > 0)).toBe(true)
   expect(new Set(playableNodes.map((node) => node.config.waveOrder)).size).toBeGreaterThanOrEqual(3)
   expect(new Set(playableNodes.map((node) => node.config.pace)).size).toBeGreaterThanOrEqual(3)
 })
@@ -71,10 +76,25 @@ test('sector node profiles provide enemy recipes planet bias and station service
 
   expect(sectorNodeRunProfile(hostile).enemyBias).toEqual(expect.arrayContaining(['shooter']))
   expect(sectorNodeRunProfile(hostile).spawnMultiplier).toBeGreaterThan(1)
+  expect(sectorNodeRunProfile(hostile).config.enemies.startingSpawns).toEqual(expect.arrayContaining(['shooter', 'razor']))
   expect(sectorNodeRunProfile(station).stationServices).toEqual(expect.arrayContaining(['repair', 'workbench']))
   expect(sectorNodeRunProfile(station).allowsMetaUpgrades).toBe(false)
   expect(sectorNodeRunProfile(final).bossRequired).toBe(true)
   expect(sectorNodeRunProfile(final).enemyBias).toEqual(expect.arrayContaining(['cathedral']))
+  expect(sectorNodeRunProfile(final).config.waves.every((wave) => wave.atSeconds > 0)).toBe(true)
+})
+
+test('planet and anomaly node configs can describe dense clusters and asteroid belts', () => {
+  const sampledNodes = Array.from({ length: 30 }, (_, seed) => createSectorMap(seed + 1))
+    .flatMap((candidate) => candidate.nodes)
+  const planet = sampledNodes.find((node) => node.kind === 'planet')!
+  const anomaly = sampledNodes.find((node) => node.config.theme === 'asteroidBelt')!
+
+  expect(planet.config.planets.countMin).toBeGreaterThanOrEqual(3)
+  expect(planet.config.planets.density).toBe('dense')
+  expect(planet.config.planets.archetypeBias.cache).toBeGreaterThan(1)
+  expect(anomaly.config.hazardConfig.asteroids?.density).toBeGreaterThan(1)
+  expect(anomaly.config.hazardConfig.asteroids?.drift).toMatch(/slow|crosswind|chaotic/)
 })
 
 test('node configs change encounter cadence and bias asteroid or hunter events', () => {
