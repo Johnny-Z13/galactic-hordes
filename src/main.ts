@@ -1010,6 +1010,7 @@ class VectorShooter {
     this.planetBossCatalog.src = planetBossCatalogUrl
     this.spaceEnemyCatalog.src = spaceEnemyCatalogUrl
     this.surfaceSpacemanSheet.src = surfaceSpacemanSheetUrl
+    this.resetProgressFromUrl()
     this.highs = this.loadScores()
     this.mothership = this.loadMothership()
     this.stats.highScore = this.highs[0]?.score ?? 0
@@ -8778,6 +8779,14 @@ class VectorShooter {
     } catch {
       return []
     }
+  }
+
+  private resetProgressFromUrl() {
+    const params = new URLSearchParams(window.location.search)
+    if (!['1', 'true', 'yes'].includes((params.get('resetProgress') ?? '').toLowerCase())) return
+    localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(MOTHERSHIP_STORAGE_KEY)
+    localStorage.removeItem('galactic_hordes_mothership_v1')
   }
 
   private loadMothership() {
