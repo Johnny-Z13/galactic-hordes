@@ -7210,7 +7210,7 @@ class VectorShooter {
   private workbenchSectionLabel(label: string) {
     const el = document.createElement('div')
     el.className = 'workbench-section-label'
-    el.textContent = label
+    el.innerHTML = `<b>${this.escape(label)}</b><span></span>`
     return el
   }
 
@@ -7222,11 +7222,12 @@ class VectorShooter {
     chip.className = `manifest-chip available workbench-install-choice ${kindClass}`
     chip.addEventListener('click', () => this.beginWorkbenchInstall(choice, chip))
     chip.innerHTML = `
+      <i class="manifest-chip-node">${this.escape(this.choiceKindLabel(choice))}</i>
       <div class="manifest-chip-head">
         <strong>${this.escape(this.choiceTitle(choice))}</strong>
-        <b>${this.choiceKindLabel(choice)}</b>
+        <b>${this.escape(this.workbenchChoiceRoute(choice, level))}</b>
       </div>
-      <span>${this.escape(`${this.workbenchChoiceRoute(choice, level)} // ${this.choiceDetail(choice)}`)}</span>
+      <span>${this.escape(this.choiceDetail(choice))}</span>
       <em>${this.escape(this.choiceCategoryLabel(choice))}</em>
     `
     return chip
@@ -7246,6 +7247,7 @@ class VectorShooter {
     const chip = document.createElement('div')
     chip.className = `manifest-chip ${level > 0 ? 'owned' : 'unowned'} status-${status.toLowerCase()} ${status === 'LOCKED' ? 'locked future' : ''} ${status === 'MAXED' ? 'maxed' : ''} ${extraClass} ${upgrade.bucket}`
     chip.innerHTML = `
+      <i class="manifest-chip-node">${this.escape(status)}</i>
       <div class="manifest-chip-head">
         <strong>${this.escape(upgrade.name)}</strong>
         <b>${level}/${upgrade.max}</b>
@@ -7292,13 +7294,16 @@ class VectorShooter {
             : `Next: ${nextRow.upgrade.name}`
       : 'Bay complete'
     button.innerHTML = `
-      <div class="workbench-bay-topline">
-        <strong>${this.escape(bay.label)}</strong>
-        <b>${ownedRanks}/${totalRanks}</b>
+      <i class="workbench-bay-code">${this.escape(bay.shortLabel.slice(0, 3).toUpperCase())}</i>
+      <div class="workbench-bay-copy">
+        <div class="workbench-bay-topline">
+          <strong>${this.escape(bay.label)}</strong>
+          <b>${ownedRanks}/${totalRanks}</b>
+        </div>
+        <span>${this.escape(nextStatus)}</span>
+        <div class="workbench-bay-meter"><i style="width: ${Math.round(progress * 100)}%"></i></div>
+        <em>${maxedCount}/${bayRows.length} maxed${lockedCount > 0 ? ` // ${lockedCount} locked` : ''}${offerCount > 0 ? ` // ${offerCount} signal${offerCount === 1 ? '' : 's'}` : ''}</em>
       </div>
-      <span>${this.escape(nextStatus)}</span>
-      <div class="workbench-bay-meter"><i style="width: ${Math.round(progress * 100)}%"></i></div>
-      <em>${maxedCount}/${bayRows.length} maxed${lockedCount > 0 ? ` // ${lockedCount} locked` : ''}${offerCount > 0 ? ` // ${offerCount} signal${offerCount === 1 ? '' : 's'}` : ''}</em>
     `
     return button
   }
@@ -7312,7 +7317,7 @@ class VectorShooter {
     detail.className = 'workbench-bay-detail'
     const head = document.createElement('div')
     head.className = 'workbench-bay-detail-head'
-    head.innerHTML = `<b>${this.escape(bay.label)}</b><span>${this.escape(bay.summary)}</span>`
+    head.innerHTML = `<div><b>${this.escape(bay.label)}</b><span>${this.escape(bay.summary)}</span></div><em>${this.escape(bay.shortLabel.toUpperCase())} DATABASE</em>`
     const grid = document.createElement('div')
     grid.className = 'manifest-grid workbench-bay-grid'
     for (const row of rows.filter((candidate) => bay.upgradeIds.includes(candidate.upgrade.id))) {
@@ -7338,7 +7343,7 @@ class VectorShooter {
     wrap.className = 'build-manifest workbench'
     const title = document.createElement('div')
     title.className = 'manifest-title'
-    title.innerHTML = '<b>SHIP WORKBENCH</b><span>signal offers above // bay detail below</span>'
+    title.innerHTML = '<b>SHIP WORKBENCH</b><span>install signals first // inspect bays below</span>'
     const offeredUpgradeChoices = new Map<UpgradeId, WorkbenchChoice>()
     for (const choice of this.upgradeChoices) {
       if (choice.kind === 'upgrade') offeredUpgradeChoices.set(choice.upgrade.id, choice)
@@ -8065,11 +8070,14 @@ class VectorShooter {
     meter.append(fill)
     const status = unlocked ? next ? `Next: ${next.name}` : 'Fully online' : `Locked: ${mothershipDepartmentUnlockText(id)}`
     button.innerHTML = `
-      <div class="meta-department-topline">
-        <strong>${this.escape(definition.name)}</strong>
-        <b>${tier}/${maxTier}</b>
+      <i class="meta-department-code">${this.escape(definition.name.split(' ').map((part) => part[0] ?? '').join('').slice(0, 3).toUpperCase())}</i>
+      <div class="meta-department-copy">
+        <div class="meta-department-topline">
+          <strong>${this.escape(definition.name)}</strong>
+          <b>${tier}/${maxTier}</b>
+        </div>
+        <span>${this.escape(status)}</span>
       </div>
-      <span>${this.escape(status)}</span>
     `
     button.append(meter)
     return button

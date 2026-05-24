@@ -9,6 +9,12 @@
   --red: #ff5d73;
   --blue: #70a8ff;
   --ink: rgba(4, 9, 14, 0.82);
+  --console-bg: rgba(1, 8, 13, 0.86);
+  --console-edge: rgba(87, 255, 243, 0.36);
+  --console-edge-strong: rgba(87, 255, 243, 0.78);
+  --console-hot: rgba(255, 242, 122, 0.84);
+  --violet: #b990ff;
+  --panel-cut: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
 }
 
 * {
@@ -282,13 +288,13 @@ canvas {
   padding: 0;
   overflow: hidden;
   background:
-    linear-gradient(rgba(87, 255, 243, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(87, 255, 243, 0.04) 1px, transparent 1px),
-    radial-gradient(circle at 50% 12%, rgba(255, 242, 122, 0.13), transparent 26%),
-    radial-gradient(circle at 18% 28%, rgba(255, 93, 115, 0.08), transparent 28%),
-    radial-gradient(circle at 82% 32%, rgba(143, 255, 125, 0.09), transparent 30%),
+    linear-gradient(rgba(87, 255, 243, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(87, 255, 243, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(87, 255, 243, 0.07), transparent 18%, transparent 72%, rgba(87, 255, 243, 0.05)),
+    radial-gradient(circle at 50% 8%, rgba(87, 255, 243, 0.18), transparent 34%),
+    radial-gradient(circle at 76% 28%, rgba(185, 144, 255, 0.1), transparent 30%),
     #010408;
-  background-size: 22px 22px, 22px 22px, auto, auto, auto, auto;
+  background-size: 24px 24px, 24px 24px, auto, auto, auto, auto;
 }
 
 .screen.sector-map-screen {
@@ -661,15 +667,17 @@ canvas {
   justify-content: space-between;
   gap: 16px;
   align-items: flex-start;
-  border: 1px solid rgba(87, 255, 243, 0.24);
+  border: 1px solid var(--console-edge);
   border-top-color: rgba(215, 255, 247, 0.48);
   background:
-    linear-gradient(135deg, rgba(87, 255, 243, 0.11), transparent 24%),
-    linear-gradient(180deg, rgba(5, 18, 25, 0.9), rgba(1, 6, 10, 0.78));
+    linear-gradient(90deg, rgba(87, 255, 243, 0.065) 1px, transparent 1px),
+    linear-gradient(135deg, rgba(87, 255, 243, 0.13), transparent 26%),
+    linear-gradient(180deg, rgba(5, 18, 25, 0.94), rgba(1, 6, 10, 0.82));
+  background-size: 18px 100%, auto, auto;
   padding: 14px;
   margin-bottom: 12px;
   border-radius: 8px;
-  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+  clip-path: var(--panel-cut);
   box-shadow: inset 0 1px 0 rgba(215, 255, 247, 0.08), 0 0 30px rgba(87, 255, 243, 0.08);
 }
 
@@ -718,12 +726,14 @@ canvas {
 .mothership-resources span {
   display: grid;
   gap: 2px;
-  border: 1px solid rgba(255, 242, 122, 0.28);
-  border-radius: 999px;
-  background: rgba(24, 21, 5, 0.72);
+  border: 1px solid rgba(255, 242, 122, 0.38);
+  border-radius: 5px;
+  background:
+    linear-gradient(180deg, rgba(38, 32, 6, 0.84), rgba(12, 13, 9, 0.78));
   padding: 7px 12px;
   min-width: 84px;
   text-align: center;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));
 }
 
 .mothership-resources b {
@@ -787,10 +797,13 @@ canvas {
 
 .mothership-console-stack,
 .mothership-ship-bay {
-  border: 1px solid rgba(87, 255, 243, 0.28);
+  border: 1px solid var(--console-edge);
   border-radius: 8px;
-  background: linear-gradient(180deg, rgba(6, 17, 25, 0.88), rgba(2, 7, 12, 0.84));
-  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  background:
+    linear-gradient(90deg, rgba(87, 255, 243, 0.05) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(6, 17, 25, 0.9), rgba(2, 7, 12, 0.86));
+  background-size: 18px 100%, auto;
+  clip-path: var(--panel-cut);
   box-shadow: inset 0 1px 0 rgba(215, 255, 247, 0.08), 0 0 26px rgba(87, 255, 243, 0.07);
 }
 
@@ -934,8 +947,9 @@ canvas {
   gap: 2px;
   align-content: center;
   border: 1px solid rgba(87, 255, 243, 0.28);
-  border-radius: 6px;
-  background: rgba(2, 10, 16, 0.74);
+  border-radius: 5px;
+  background:
+    linear-gradient(180deg, rgba(4, 18, 25, 0.86), rgba(1, 8, 13, 0.78));
   color: rgba(215, 255, 247, 0.7);
   cursor: pointer;
   font: inherit;
@@ -965,18 +979,20 @@ canvas {
 .mothership-console-tab.active {
   border-color: rgba(255, 242, 122, 0.72);
   background:
-    linear-gradient(135deg, rgba(255, 242, 122, 0.12), transparent 42%),
-    rgba(10, 12, 16, 0.88);
+    linear-gradient(135deg, rgba(255, 242, 122, 0.18), transparent 42%),
+    linear-gradient(180deg, rgba(40, 32, 6, 0.9), rgba(9, 11, 12, 0.88));
   box-shadow: inset 0 0 24px rgba(255, 242, 122, 0.06), 0 0 18px rgba(255, 242, 122, 0.06);
 }
 
 .mothership-console-content {
   min-height: 248px;
-  border: 1px solid rgba(87, 255, 243, 0.18);
-  border-radius: 6px;
+  border: 1px solid rgba(87, 255, 243, 0.24);
+  border-radius: 5px;
   background:
-    linear-gradient(135deg, rgba(87, 255, 243, 0.045), transparent 30%),
-    rgba(2, 10, 16, 0.68);
+    linear-gradient(90deg, rgba(87, 255, 243, 0.04) 1px, transparent 1px),
+    linear-gradient(135deg, rgba(87, 255, 243, 0.055), transparent 30%),
+    rgba(2, 10, 16, 0.72);
+  background-size: 18px 100%, auto, auto;
   padding: 10px;
   overflow: auto;
 }
@@ -1133,13 +1149,13 @@ canvas {
   grid-template-columns: minmax(220px, 0.38fr) minmax(0, 1fr);
   gap: 10px;
   padding: 10px;
-  border: 1px solid rgba(87, 255, 243, 0.28);
+  border: 1px solid var(--console-edge);
   border-radius: 8px;
   background:
-    linear-gradient(90deg, rgba(87, 255, 243, 0.04) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(6, 17, 25, 0.86), rgba(2, 7, 12, 0.82));
+    linear-gradient(90deg, rgba(87, 255, 243, 0.055) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(6, 17, 25, 0.9), rgba(2, 7, 12, 0.84));
   background-size: 18px 100%, auto;
-  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  clip-path: var(--panel-cut);
   box-shadow: inset 0 1px 0 rgba(215, 255, 247, 0.08), 0 0 26px rgba(87, 255, 243, 0.07);
 }
 
@@ -1153,23 +1169,30 @@ canvas {
   overflow: hidden;
   min-height: 82px;
   display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  gap: 7px 9px;
   align-content: start;
-  gap: 6px;
-  border: 1px solid rgba(87, 255, 243, 0.28);
-  border-radius: 7px;
+  border: 1px solid rgba(87, 255, 243, 0.3);
+  border-radius: 5px;
   color: rgba(215, 255, 247, 0.72);
-  background: rgba(0, 8, 12, 0.68);
+  background:
+    linear-gradient(90deg, rgba(87, 255, 243, 0.06), transparent 58%),
+    rgba(0, 8, 12, 0.72);
   padding: 9px;
   text-align: left;
   font: inherit;
   cursor: pointer;
   touch-action: manipulation;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
 }
 
 .meta-department-toggle.active {
   border-color: rgba(255, 242, 122, 0.86);
   color: #f6fffe;
-  background: rgba(28, 22, 3, 0.72);
+  background:
+    linear-gradient(90deg, rgba(255, 242, 122, 0.16), transparent 62%),
+    rgba(28, 22, 3, 0.76);
   box-shadow: inset 0 0 24px rgba(255, 242, 122, 0.08), 0 0 18px rgba(255, 242, 122, 0.1);
 }
 
@@ -1220,6 +1243,43 @@ canvas {
   align-items: baseline;
 }
 
+.meta-department-code,
+.workbench-bay-code,
+.manifest-chip-node {
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(87, 255, 243, 0.36);
+  border-radius: 5px;
+  color: #061114;
+  background:
+    linear-gradient(180deg, rgba(215, 255, 247, 0.92), rgba(87, 255, 243, 0.76));
+  box-shadow: 0 0 14px rgba(87, 255, 243, 0.18);
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.meta-department-code {
+  grid-row: 1 / 3;
+  width: 42px;
+  min-height: 42px;
+  align-self: start;
+  font-size: 12px;
+}
+
+.meta-department-copy {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.meta-department-toggle > .station-tier-meter {
+  grid-column: 2;
+  grid-row: 2;
+  width: 100%;
+}
+
 .meta-department-topline strong,
 .meta-department-toggle span {
   display: block;
@@ -1256,9 +1316,13 @@ canvas {
     "meter ladder"
     "action ladder";
   gap: 10px;
-  border: 1px solid rgba(87, 255, 243, 0.22);
-  background: rgba(87, 255, 243, 0.035);
+  border: 1px solid rgba(87, 255, 243, 0.26);
+  background:
+    linear-gradient(90deg, rgba(87, 255, 243, 0.038) 1px, transparent 1px),
+    rgba(87, 255, 243, 0.035);
+  background-size: 18px 100%, auto;
   padding: 12px;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
 }
 
 .meta-upgrade-detail.locked {
@@ -1314,8 +1378,11 @@ canvas {
   display: grid;
   gap: 4px;
   border: 1px solid rgba(87, 255, 243, 0.18);
-  background: rgba(0, 8, 12, 0.48);
+  background:
+    linear-gradient(90deg, rgba(87, 255, 243, 0.035), transparent 48%),
+    rgba(0, 8, 12, 0.52);
   padding: 9px;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
 }
 
 .meta-tier-row.complete {
@@ -1685,13 +1752,17 @@ canvas {
 
 .panel {
   width: min(940px, calc(100vw - 36px));
-  border: 1px solid rgba(87, 255, 243, 0.64);
+  border: 1px solid var(--console-edge-strong);
   border-radius: 8px;
-  background: linear-gradient(180deg, rgba(4, 12, 16, 0.9), rgba(0, 0, 0, 0.9));
+  background:
+    linear-gradient(90deg, rgba(87, 255, 243, 0.055) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(4, 17, 24, 0.94), rgba(0, 3, 7, 0.94));
+  background-size: 18px 100%, auto;
   padding: clamp(18px, 3vw, 34px);
+  clip-path: var(--panel-cut);
   box-shadow:
-    inset 0 0 40px rgba(87, 255, 243, 0.08),
-    0 0 36px rgba(87, 255, 243, 0.14);
+    inset 0 0 42px rgba(87, 255, 243, 0.1),
+    0 0 38px rgba(87, 255, 243, 0.16);
   touch-action: pan-y;
 }
 
@@ -1822,13 +1893,17 @@ canvas {
 
 .vector-button {
   min-height: 44px;
-  border: 1px solid rgba(87, 255, 243, 0.75);
-  border-radius: 7px;
+  border: 1px solid rgba(87, 255, 243, 0.86);
+  border-radius: 5px;
   color: #021215;
-  background: var(--cyan);
+  background:
+    linear-gradient(180deg, #b9fffb, var(--cyan) 42%, #29c9c1);
   padding: 10px 16px;
   cursor: pointer;
-  box-shadow: 0 0 18px rgba(87, 255, 243, 0.32);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  box-shadow: 0 0 18px rgba(87, 255, 243, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .start-button {
@@ -1840,7 +1915,9 @@ canvas {
 
 .vector-button.secondary {
   color: var(--cyan);
-  background: rgba(2, 12, 16, 0.76);
+  background:
+    linear-gradient(180deg, rgba(8, 24, 34, 0.88), rgba(1, 8, 12, 0.82));
+  box-shadow: inset 0 0 20px rgba(87, 255, 243, 0.08);
 }
 
 .vector-button.danger {
@@ -2172,9 +2249,14 @@ button.manifest-chip:focus-visible,
 
 .build-manifest {
   margin-top: 0;
-  border: 1px solid rgba(87, 255, 243, 0.3);
-  background: rgba(0, 8, 12, 0.72);
+  border: 1px solid var(--console-edge);
+  border-radius: 6px;
+  background:
+    linear-gradient(90deg, rgba(87, 255, 243, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(2, 12, 18, 0.84), rgba(0, 6, 10, 0.78));
+  background-size: 18px 100%, auto;
   padding: 10px;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
 }
 
 .manifest-title {
@@ -2188,6 +2270,13 @@ button.manifest-chip:focus-visible,
 
 .manifest-title b {
   color: var(--cyan);
+  font-size: 14px;
+  text-shadow: 0 0 14px rgba(87, 255, 243, 0.4);
+}
+
+.manifest-title span {
+  color: rgba(255, 242, 122, 0.76);
+  text-align: right;
 }
 
 .manifest-summary {
@@ -2199,9 +2288,11 @@ button.manifest-chip:focus-visible,
 
 .manifest-summary div {
   min-height: 48px;
-  border: 1px solid rgba(87, 255, 243, 0.22);
-  background: rgba(87, 255, 243, 0.045);
+  border: 1px solid rgba(87, 255, 243, 0.25);
+  background:
+    linear-gradient(180deg, rgba(8, 24, 34, 0.7), rgba(1, 9, 13, 0.6));
   padding: 7px 8px;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
 }
 
 .manifest-summary b,
@@ -2237,9 +2328,12 @@ button.manifest-chip:focus-visible,
 
 .workbench-current-offers {
   margin-bottom: 10px;
-  border: 1px solid rgba(255, 242, 122, 0.18);
-  background: rgba(0, 8, 12, 0.78);
+  border: 1px solid rgba(255, 242, 122, 0.3);
+  background:
+    linear-gradient(90deg, rgba(255, 242, 122, 0.065), transparent 42%),
+    rgba(0, 8, 12, 0.82);
   padding: 8px;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
 }
 
 .build-manifest.workbench .workbench-current-offers {
@@ -2259,7 +2353,7 @@ button.manifest-chip:focus-visible,
 
 .workbench-bay-shell {
   display: grid;
-  grid-template-columns: minmax(210px, 0.42fr) minmax(0, 1fr);
+  grid-template-columns: minmax(230px, 0.38fr) minmax(0, 1fr);
   gap: 10px;
   align-items: start;
 }
@@ -2274,28 +2368,36 @@ button.manifest-chip:focus-visible,
   overflow: hidden;
   min-height: 88px;
   display: grid;
-  gap: 5px;
-  border: 1px solid rgba(87, 255, 243, 0.28);
-  border-radius: 7px;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 7px 9px;
+  border: 1px solid rgba(87, 255, 243, 0.32);
+  border-radius: 5px;
   color: rgba(215, 255, 247, 0.7);
-  background: rgba(0, 8, 12, 0.68);
+  background:
+    linear-gradient(90deg, rgba(87, 255, 243, 0.055), transparent 58%),
+    rgba(0, 8, 12, 0.72);
   padding: 9px;
   text-align: left;
   font: inherit;
   cursor: pointer;
   touch-action: manipulation;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
 }
 
 .workbench-bay-toggle.active {
   border-color: rgba(255, 242, 122, 0.86);
   color: #f6fffe;
-  background: rgba(28, 22, 3, 0.72);
+  background:
+    linear-gradient(90deg, rgba(255, 242, 122, 0.16), transparent 62%),
+    rgba(28, 22, 3, 0.76);
   box-shadow: inset 0 0 24px rgba(255, 242, 122, 0.08), 0 0 18px rgba(255, 242, 122, 0.1);
 }
 
 .workbench-bay-toggle.has-offer:not(.active) {
   border-color: rgba(143, 255, 125, 0.58);
-  background: rgba(6, 24, 12, 0.62);
+  background:
+    linear-gradient(90deg, rgba(143, 255, 125, 0.12), transparent 62%),
+    rgba(6, 24, 12, 0.62);
 }
 
 .workbench-bay-toggle.locked:not(.active) {
@@ -2324,6 +2426,19 @@ button.manifest-chip:focus-visible,
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: baseline;
+}
+
+.workbench-bay-code {
+  width: 42px;
+  min-height: 42px;
+  align-self: start;
+  font-size: 11px;
+}
+
+.workbench-bay-copy {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
 }
 
 .workbench-bay-topline strong,
@@ -2374,14 +2489,19 @@ button.manifest-chip:focus-visible,
 
 .workbench-bay-detail {
   min-height: 462px;
-  border: 1px solid rgba(87, 255, 243, 0.22);
-  background: rgba(87, 255, 243, 0.035);
+  border: 1px solid rgba(87, 255, 243, 0.26);
+  background:
+    linear-gradient(90deg, rgba(87, 255, 243, 0.038) 1px, transparent 1px),
+    rgba(87, 255, 243, 0.035);
+  background-size: 18px 100%, auto;
   padding: 9px;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
 }
 
 .workbench-bay-detail-head {
-  display: grid;
-  gap: 3px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
   margin-bottom: 8px;
 }
 
@@ -2396,6 +2516,15 @@ button.manifest-chip:focus-visible,
   line-height: 1.25;
 }
 
+.workbench-bay-detail-head em {
+  flex: 0 0 auto;
+  color: rgba(255, 242, 122, 0.76);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  text-align: right;
+}
+
 .manifest-chip.offer-ready {
   border-color: rgba(143, 255, 125, 0.72);
   color: rgba(246, 255, 254, 0.88);
@@ -2405,11 +2534,20 @@ button.manifest-chip:focus-visible,
 }
 
 .workbench-section-label {
-  margin: 10px 0 6px;
-  color: rgba(255, 242, 122, 0.82);
+  display: grid;
+  grid-template-columns: auto minmax(24px, 1fr);
+  align-items: center;
+  gap: 9px;
+  margin: 12px 0 7px;
+  color: rgba(255, 242, 122, 0.84);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0;
+}
+
+.workbench-section-label span {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 242, 122, 0.5), rgba(87, 255, 243, 0.12), transparent);
 }
 
 .manifest-special-grid {
@@ -2423,16 +2561,24 @@ button.manifest-chip:focus-visible,
   --install-color: var(--yellow);
   position: relative;
   overflow: hidden;
-  min-height: 74px;
-  border: 1px solid rgba(215, 255, 247, 0.18);
+  min-height: 78px;
+  border: 1px solid rgba(215, 255, 247, 0.2);
+  border-radius: 5px;
   color: rgba(215, 255, 247, 0.52);
-  background: rgba(215, 255, 247, 0.035);
+  background:
+    linear-gradient(90deg, rgba(87, 255, 243, 0.035), transparent 52%),
+    rgba(215, 255, 247, 0.035);
   padding: 8px;
   display: grid;
   align-content: start;
   gap: 5px;
   text-align: left;
   font: inherit;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+}
+
+.manifest-chip:has(.manifest-chip-node) {
+  grid-template-columns: 38px minmax(0, 1fr);
 }
 
 button.manifest-chip {
@@ -2450,6 +2596,19 @@ button.manifest-chip:disabled {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: baseline;
+}
+
+.manifest-chip-node {
+  grid-row: 1 / 4;
+  width: 34px;
+  min-height: 34px;
+  align-self: start;
+  font-size: 8px;
+  text-align: center;
+}
+
+.manifest-chip:has(.manifest-chip-node) .manifest-chip-head {
+  grid-column: 2;
 }
 
 .manifest-chip strong,
@@ -2483,6 +2642,11 @@ button.manifest-chip:disabled {
   color: rgba(215, 255, 247, 0.48);
   font-size: 8px;
   font-style: normal;
+}
+
+.manifest-chip:has(.manifest-chip-node) span,
+.manifest-chip:has(.manifest-chip-node) em {
+  grid-column: 2;
 }
 
 .manifest-chip.owned {
@@ -3065,6 +3229,21 @@ button.manifest-chip:disabled {
   .sector-choice-list {
     overflow: visible;
   }
+
+  .workbench-bay-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .workbench-bay-list {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(210px, 42vw);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-bottom: 4px;
+    scrollbar-color: rgba(87, 255, 243, 0.52) rgba(87, 255, 243, 0.08);
+  }
+
 }
 
 @media (max-width: 760px) {
