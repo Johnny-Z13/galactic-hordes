@@ -70,6 +70,7 @@ export const powerupBalance = {
     surfaceReturnAcceleration: 1360,
     surfaceMaxSpeedBase: 178,
     surfaceMaxSpeedPerEngineRank: 10,
+    navPlanetLockRank: 3,
     navPickupReachBase: 760,
     navPickupReachPerNavRank: 90,
     navPickupReachPerMagnetRank: 26,
@@ -202,7 +203,10 @@ export const powerupBalance = {
     engineSpeedPerRank: 18,
     shieldCapacityPerRank: 18,
     repairHullPerRank: 18,
+    temporaryMagnetRanks: 1,
     magnetInstallScore: 60,
+    limitHullMaxPerRank: 3,
+    limitHullRepairPerRank: 10,
     phaseShipDamageReductionPerRank: 0.08,
     phaseSurfaceDamageReductionPerRank: 0.05,
     vampireRepairDropBaseChance: 0.03,
@@ -222,7 +226,8 @@ export const powerupBalance = {
     alienGiftSurveyPerRank: 0.025,
     alienGiftGoodBaseChance: 0.62,
     alienIdolRelicBaseChance: 0.45,
-    alienIdolRelicLuckChancePerRank: 0.04
+    alienIdolRelicLuckChancePerRank: 0.04,
+    alienMapSurveyRanks: 1
   },
   surface: {
     baseGunDamage: 18,
@@ -285,6 +290,7 @@ export const workbenchBalance = {
   relicChanceSurveyPerRank: 0.018,
   ownedBiasBase: 1.55,
   ownedBiasLuckPerRank: 0.08,
+  ownedBiasWorkbenchTier: 3,
   ownedBiasWorkbenchBonus: 0.2,
   weaponFocusWeight: 1.08,
   rareUpgradeWeightMultiplier: 0.72,
@@ -358,3 +364,11 @@ export const evolutions: Evolution[] = upgrades
     name: upgrade.evolutionName!,
     description: upgrade.evolutionDescription!
   }))
+
+export const upgradeDefinition = (id: UpgradeId): Upgrade => {
+  const upgrade = upgrades.find((candidate) => candidate.id === id)
+  if (!upgrade) throw new Error(`Unknown upgrade: ${id}`)
+  return upgrade
+}
+
+export const upgradeMaxRank = (id: UpgradeId): number => upgradeDefinition(id).max

@@ -7,6 +7,7 @@ import {
   pickupBalance,
   powerupBalance,
   relics,
+  upgradeMaxRank,
   upgrades,
   workbenchBalance
 } from '../src/powerup-balance'
@@ -34,10 +35,31 @@ test('weapon and pickup tuning values are named config, not main-loop constants'
 test('workbench roll tuning is configurable', () => {
   expect(workbenchBalance.baseChoiceCount).toBe(5)
   expect(workbenchBalance.ownedBiasBase).toBeGreaterThan(1)
+  expect(workbenchBalance.ownedBiasWorkbenchTier).toBe(3)
   expect(workbenchBalance.relicChanceRare).toBeGreaterThan(workbenchBalance.relicChanceBase)
   expect(workbenchBalance.surfaceSignalCapBase).toBe(3)
   expect(workbenchBalance.surfaceSignalCapRewardEventBonus).toBe(1)
   expect(workbenchBalance.overflowSignalScrap).toBeGreaterThan(0)
+})
+
+test('power-up application values are driven by balance data and upgrade definitions', () => {
+  const main = mainSource()
+
+  expect(powerupBalance.ship.navPlanetLockRank).toBe(3)
+  expect(powerupBalance.upgradeApply.temporaryMagnetRanks).toBe(1)
+  expect(powerupBalance.upgradeApply.limitHullMaxPerRank).toBe(3)
+  expect(powerupBalance.upgradeApply.limitHullRepairPerRank).toBe(10)
+  expect(powerupBalance.upgradeApply.alienMapSurveyRanks).toBe(1)
+  expect(upgradeMaxRank('shield')).toBe(upgrades.find((upgrade) => upgrade.id === 'shield')?.max)
+  expect(main).toContain("upgradeMaxRank('magnet')")
+  expect(main).toContain('powerupBalance.ship.navPlanetLockRank')
+  expect(main).toContain('powerupBalance.upgradeApply.limitHullMaxPerRank')
+  expect(main).toContain("upgradeMaxRank('survey')")
+  expect(main).not.toContain('this.player.maxHull += 3')
+  expect(main).not.toContain('this.player.hull + 10')
+  expect(main).not.toContain("upgrades.find((u) => u.id === 'survey')?.max ?? 6")
+  expect(main).not.toContain('this.build.nav >= 3')
+  expect(main).not.toContain('250 + this.stats.level * 35')
 })
 
 test('signal magnet upgrade copy matches range tuning', () => {

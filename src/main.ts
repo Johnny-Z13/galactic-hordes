@@ -35,6 +35,7 @@ import {
   pickupBalance,
   powerupBalance,
   relics,
+  upgradeMaxRank,
   upgrades,
   workbenchBalance,
   type Evolution,
@@ -3155,7 +3156,7 @@ class VectorShooter {
       this.player.hull = clamp(this.player.hull + p.value, 0, this.player.maxHull)
     } else if (p.kind === 'magnet') {
       for (const drop of this.pickups) drop.life = Math.max(drop.life, 2)
-      this.build.magnet = clamp(this.build.magnet + 1, 0, upgrades.find((u) => u.id === 'magnet')!.max)
+      this.build.magnet = clamp(this.build.magnet + powerupBalance.upgradeApply.temporaryMagnetRanks, 0, upgradeMaxRank('magnet'))
       this.toast('SIGNAL MAGNET TEMPORARILY OVERCHARGED')
     } else if (p.kind === 'chest') {
       this.recordArtifact({
@@ -3228,7 +3229,7 @@ class VectorShooter {
       icon: 73
     })
     this.bankUpgrade('TREASURE CORE BANKED. INSTALL IT WHEN YOU BOARD.')
-    this.stats.score += 250 + this.stats.level * 35
+    this.stats.score += runBalance.scoring.treasureCoreBase + this.stats.level * runBalance.scoring.treasureCorePerLevel
   }
 
   private rollUpgrades(count: number, rare = false): WorkbenchChoice[] {
@@ -3258,7 +3259,7 @@ class VectorShooter {
     const benchTier = this.mothership.departments.workbench
     const ownedBias = workbenchBalance.ownedBiasBase
       + this.build.luck * workbenchBalance.ownedBiasLuckPerRank
-      + (benchTier >= 3 ? workbenchBalance.ownedBiasWorkbenchBonus : 0)
+      + (benchTier >= workbenchBalance.ownedBiasWorkbenchTier ? workbenchBalance.ownedBiasWorkbenchBonus : 0)
     const rareBias = rare ? workbenchBalance.rareUpgradeWeightMultiplier : 1
     const weights = pool.map((upgrade) => {
       const owned = this.build[upgrade.id] > 0
@@ -3293,7 +3294,7 @@ class VectorShooter {
   }
 
   private availableEvolutions() {
-    return evolutions.filter((evolution) => this.build[evolution.weapon] >= upgrades.find((upgrade) => upgrade.id === evolution.weapon)!.max && this.relics.has(evolution.relic) && !this.evolved.has(evolution.weapon))
+    return evolutions.filter((evolution) => this.build[evolution.weapon] >= upgradeMaxRank(evolution.weapon) && this.relics.has(evolution.relic) && !this.evolved.has(evolution.weapon))
   }
 
   private applyWorkbenchChoice(choice: WorkbenchChoice) {
@@ -3398,8 +3399,8 @@ class VectorShooter {
   private applyLimitBreak(choice: Extract<WorkbenchChoice, { kind: 'limit' }>) {
     this.limitBreaks[choice.id] += 1
     if (choice.id === 'hull') {
-      this.player.maxHull += 3
-      this.player.hull = clamp(this.player.hull + 10, 0, this.player.maxHull)
+      this.player.maxHull += powerupBalance.upgradeApply.limitHullMaxPerRank
+      this.player.hull = clamp(this.player.hull + powerupBalance.upgradeApply.limitHullRepairPerRank, 0, this.player.maxHull)
     }
     const anchor = this.fxAnchor()
     this.upgradeSurge(anchor.x, anchor.y, '#70a8ff', '#d7fff7', 0.72)
@@ -3490,7 +3491,7 @@ class VectorShooter {
     const planet = this.planets.find((p) => Math.sqrt(dist2(p, this.player)) < p.radius + 86)
     if (!planet) {
       if (this.lockReturnBeacon()) return
-      if (this.build.nav >= 3) {
+      if (this.build.nav >= powerupBalance.ship.navPlanetLockRank) {
         const target = this.nearestPlanetBeacon()
         if (target) {
           this.autoNavTargetPlanetId = target.id
@@ -3923,7 +3924,7 @@ class VectorShooter {
     if (p.name === 'NULL CATHEDRAL' && first) this.spawnEnemy('warden')
     if (p.name === 'SAINT STATIC' && first) this.drop('chest', p.x, p.y, 1)
     if (p.name === 'GREEN CHOIR' && first) {
-      this.build.shield = clamp(this.build.shield + runBalance.landing.greenChoirShieldRanks, 0, 5)
+      this.build.shield = clamp(this.build.shield + runBalance.landing.greenChoirShieldRanks, 0, upgradeMaxRank('shield'))
       this.player.maxShield += runBalance.landing.greenChoirShieldCapacity
       this.player.shield = this.player.maxShield
     }
@@ -4298,7 +4299,7 @@ class VectorShooter {
         this.surface.message = banked ? 'THE IDOL HUMS IN TUNE WITH THE SHIP.' : 'THE IDOL OVERLOADS THE BUFFER AND HARDENS INTO CARGO.'
       }
     } else if (alien.gift === 'map') {
-      this.build.survey = clamp(this.build.survey + 1, 0, upgrades.find((u) => u.id === 'survey')?.max ?? 6)
+      this.build.survey = clamp(this.build.survey + powerupBalance.upgradeApply.alienMapSurveyRanks, 0, upgradeMaxRank('survey'))
       this.stats.score += gift.mapScore
       this.surface.message = 'THE MAP BURNS A BETTER PLANET SENSE INTO YOUR HUD.'
     } else if (alien.gift === 'coin') {
@@ -7008,7 +7009,7 @@ class VectorShooter {
       state: 'playing',
       planetNearby: Boolean(planet),
       returnBeaconAvailable: stationAvailable,
-      canPlanetLock: Boolean(!this.autoNavTargetPlanetId && !stationAvailable && this.build.nav >= 3 && this.planets.length)
+      canPlanetLock: Boolean(!this.autoNavTargetPlanetId && !stationAvailable && this.build.nav >= powerupBalance.ship.navPlanetLockRank && this.planets.length)
     })
     this.ui.touchAction.classList.toggle('hidden', !action)
     this.ui.touchAction.classList.toggle('urgent', stationAvailable)
