@@ -121,12 +121,11 @@ import {
 } from './return-beacons'
 import {
   firstOpportunityUpgrade,
-  workbenchRollableUpgrades,
   workbenchUnlockEdges,
   workbenchUpgradeRows,
   type WorkbenchUpgradeRow
 } from './workbench-rolls'
-import { workbenchBayDefinitions, type WorkbenchBayDefinition, type WorkbenchBayId } from './workbench-bays'
+import { workbenchBayDefinitions, workbenchBayForUpgrade, type WorkbenchBayDefinition, type WorkbenchBayId } from './workbench-bays'
 import { optionOrbProfile, pulseVolleyCount, starterSignatureFlags } from './weapon-signatures'
 
 type GameState = 'title' | 'mothership' | 'sectorMap' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
@@ -3207,8 +3206,7 @@ class VectorShooter {
     this.state = 'levelup'
     this.audio.level()
     this.workbenchInstalling = false
-    const count = workbenchBalance.baseChoiceCount
-    this.upgradeChoices = this.rollUpgrades(count, rare)
+    this.upgradeChoices = []
     this.renderLevelUp(title, copy)
   }
 
@@ -3246,7 +3244,8 @@ class VectorShooter {
       ? firstOpportunityUpgrade(upgrades, this.build, 'suitO2')
       : null
     if (discoverySuit && choices.length < count) choices.push({ kind: 'upgrade', upgrade: discoverySuit })
-    const available = workbenchRollableUpgrades(upgrades, this.build, this.workbenchExtraUnlockedIds())
+    const available = upgrades
+      .filter((upgrade) => this.isWorkbenchUpgradeUnlocked(upgrade.id) && this.build[upgrade.id] < upgrade.max)
       .filter((u) => !choices.some((choice) => choice.kind === 'upgrade' && choice.upgrade.id === u.id))
     while (choices.length < count && available.length) {
       const selected = this.weightedUpgrade(available, rare)
@@ -7034,20 +7033,6 @@ class VectorShooter {
     p.textContent = copy
     const actions = document.createElement('div')
     actions.className = 'workbench-actions'
-    if (this.workbenchRerolls > 0) {
-      const reroll = document.createElement('button')
-      reroll.className = 'workbench-command reroll'
-      reroll.textContent = `Reroll (${this.workbenchRerolls})`
-      reroll.addEventListener('click', () => {
-        if (this.workbenchRerolls <= 0 || this.workbenchInstalling) return
-        const scrollTop = this.currentLevelUpScrollTop()
-        this.workbenchRerolls -= 1
-        this.upgradeChoices = this.rollUpgrades(this.upgradeChoices.length || workbenchBalance.baseChoiceCount)
-        this.renderLevelUp(title, copy)
-        this.restoreLevelUpScroll(scrollTop)
-      })
-      actions.append(reroll)
-    }
     const view = document.createElement('div')
     view.className = 'workbench-view manifest'
     if (this.mothership.departments.workbench >= 4 && this.pendingUpgrades > 0) {
@@ -7136,7 +7121,7 @@ class VectorShooter {
   }
 
   private canApplyWorkbenchChoice(choice: WorkbenchChoice) {
-    if (choice.kind === 'upgrade') return this.build[choice.upgrade.id] < choice.upgrade.max
+    if (choice.kind === 'upgrade') return this.pendingUpgrades > 0 && this.build[choice.upgrade.id] < choice.upgrade.max && this.isWorkbenchUpgradeUnlocked(choice.upgrade.id) && !this.workbenchBayBalanceGate(choice.upgrade)
     if (choice.kind === 'evolution') {
       const upgrade = upgrades.find((candidate) => candidate.id === choice.evolution.weapon)
       return !!upgrade && this.build[choice.evolution.weapon] >= upgrade.max && this.relics.has(choice.evolution.relic) && !this.evolved.has(choice.evolution.weapon)
@@ -7178,6 +7163,38 @@ class VectorShooter {
     if (choice.kind === 'evolution') return 'EVOLUTION'
     if (choice.kind === 'relic') return 'RELIC'
     return 'LIMIT BREAK'
+  }
+
+  private isWorkbenchUpgradeUnlocked(id: UpgradeId) {
+    const rows = workbenchUpgradeRows(upgrades, this.build, [], this.workbenchExtraUnlockedIds())
+    return rows.some((row) => row.upgrade.id === id && row.status !== 'locked')
+  }
+
+  private workbenchBayOwnedRanks(bay: WorkbenchBayDefinition) {
+    return bay.upgradeIds.reduce((sum, id) => {
+      const upgrade = upgrades.find((candidate) => candidate.id === id)
+      return sum + Math.min(this.build[id], upgrade?.max ?? this.build[id])
+    }, 0)
+  }
+
+  private workbenchBayHasUpgradeableSystem(bay: WorkbenchBayDefinition) {
+    return bay.upgradeIds.some((id) => {
+      const upgrade = upgrades.find((candidate) => candidate.id === id)
+      return !!upgrade && this.isWorkbenchUpgradeUnlocked(id) && this.build[id] < upgrade.max
+    })
+  }
+
+  private workbenchBayBalanceGate(upgrade: Upgrade) {
+    const bay = workbenchBayForUpgrade(upgrade)
+    if (bay.id === 'spacesuit') return ''
+    const activeBays = workbenchBayDefinitions.filter((candidate) => candidate.id !== 'spacesuit' && this.workbenchBayHasUpgradeableSystem(candidate))
+    if (activeBays.length < 2) return ''
+    const lowestRanks = Math.min(...activeBays.map((candidate) => this.workbenchBayOwnedRanks(candidate)))
+    const bayRanks = this.workbenchBayOwnedRanks(bay)
+    const maxLead = 2
+    if (bayRanks <= lowestRanks + maxLead) return ''
+    const catchupTarget = lowestRanks + 1
+    return `SYNC LOCK // upgrade another bay to ${catchupTarget}+ ranks`
   }
 
   private renderManifestSummary() {
@@ -7244,7 +7261,25 @@ class VectorShooter {
     return this.upgradeLevelDetail(upgrade, upgrade.max)
   }
 
-  private renderWorkbenchContextChip(upgrade: Upgrade, status: 'MAXED' | 'LOCKED' | 'STANDBY' | 'OFFER', detail: string, extraClass = '') {
+  private renderWorkbenchUpgradeChip(upgrade: Upgrade) {
+    const chip = document.createElement('button')
+    chip.type = 'button'
+    const next = Math.min(this.build[upgrade.id] + 1, upgrade.max)
+    chip.className = `manifest-chip available workbench-install-choice offer-ready ${upgrade.bucket}`
+    chip.addEventListener('click', () => this.beginWorkbenchInstall({ kind: 'upgrade', upgrade }, chip))
+    chip.innerHTML = `
+      <i class="manifest-chip-node">UP</i>
+      <div class="manifest-chip-head">
+        <strong>${this.escape(upgrade.name)}</strong>
+        <b>${this.build[upgrade.id]}/${upgrade.max}</b>
+      </div>
+      <span>${this.escape(`INSTALL RANK ${next}/${upgrade.max} // ${this.upgradeLevelDetail(upgrade, next)}`)}</span>
+      <em>${this.bucketLabel(upgrade.bucket)}</em>
+    `
+    return chip
+  }
+
+  private renderWorkbenchContextChip(upgrade: Upgrade, status: 'MAXED' | 'LOCKED' | 'STANDBY', detail: string, extraClass = '') {
     const level = this.build[upgrade.id]
     const chip = document.createElement('div')
     chip.className = `manifest-chip ${level > 0 ? 'owned' : 'unowned'} status-${status.toLowerCase()} ${status === 'LOCKED' ? 'locked future' : ''} ${status === 'MAXED' ? 'maxed' : ''} ${extraClass} ${upgrade.bucket}`
@@ -7270,8 +7305,8 @@ class VectorShooter {
     const ownedRanks = bayRows.reduce((sum, row) => sum + Math.min(this.build[row.upgrade.id], row.upgrade.max), 0)
     const maxedCount = bayRows.filter((row) => row.status === 'maxed').length
     const lockedCount = bayRows.filter((row) => row.status === 'locked').length
-    const offerCount = bayRows.filter((row) => offeredUpgradeChoices.has(row.upgrade.id)).length
-    const nextRow = bayRows.find((row) => offeredUpgradeChoices.has(row.upgrade.id))
+    const upgradeableCount = bayRows.filter((row) => row.status === 'standby' && !this.workbenchBayBalanceGate(row.upgrade)).length
+    const nextRow = bayRows.find((row) => row.status === 'standby' && !this.workbenchBayBalanceGate(row.upgrade))
       ?? bayRows.find((row) => row.status === 'standby')
       ?? bayRows.find((row) => row.status === 'locked')
       ?? bayRows[0]
@@ -7279,7 +7314,7 @@ class VectorShooter {
     const button = document.createElement('button')
     button.type = 'button'
     button.id = `workbench-bay-${bay.id}-toggle`
-    button.className = `workbench-bay-toggle ${this.expandedWorkbenchBay === bay.id ? 'active' : ''} ${offerCount > 0 ? 'has-offer' : ''} ${lockedCount === bayRows.length ? 'locked' : ''}`.trim()
+    button.className = `workbench-bay-toggle ${this.expandedWorkbenchBay === bay.id ? 'active' : ''} ${upgradeableCount > 0 ? 'has-offer' : ''} ${lockedCount === bayRows.length ? 'locked' : ''}`.trim()
     button.setAttribute('aria-controls', `workbench-bay-${bay.id}-panel`)
     button.setAttribute('aria-expanded', String(this.expandedWorkbenchBay === bay.id))
     button.addEventListener('click', () => {
@@ -7295,7 +7330,7 @@ class VectorShooter {
     })
     const nextStatus = nextRow
       ? offeredUpgradeChoices.has(nextRow.upgrade.id)
-        ? `Offer ready: ${nextRow.upgrade.name}`
+        ? `Upgrade ready: ${nextRow.upgrade.name}`
         : nextRow.status === 'locked'
           ? `Locked: ${nextRow.upgrade.name}`
           : nextRow.status === 'maxed'
@@ -7311,7 +7346,7 @@ class VectorShooter {
         </div>
         <span>${this.escape(nextStatus)}</span>
         <div class="workbench-bay-meter"><i style="width: ${Math.round(progress * 100)}%"></i></div>
-        <em>${maxedCount}/${bayRows.length} maxed${lockedCount > 0 ? ` // ${lockedCount} locked` : ''}${offerCount > 0 ? ` // ${offerCount} signal${offerCount === 1 ? '' : 's'}` : ''}</em>
+        <em>${maxedCount}/${bayRows.length} maxed${lockedCount > 0 ? ` // ${lockedCount} locked` : ''}${upgradeableCount > 0 ? ` // ${upgradeableCount} ready` : ''}</em>
       </div>
     `
     return button
@@ -7345,17 +7380,14 @@ class VectorShooter {
     const grid = document.createElement('div')
     grid.className = 'manifest-grid workbench-bay-grid'
     for (const row of rows.filter((candidate) => bay.upgradeIds.includes(candidate.upgrade.id))) {
-      const offered = offeredUpgradeChoices.get(row.upgrade.id)
       if (row.status === 'maxed') {
         grid.append(this.renderWorkbenchContextChip(row.upgrade, 'MAXED', this.maxedUnlockText(row.upgrade)))
-      } else if (offered && this.canApplyWorkbenchChoice(offered)) {
-        const next = Math.min(this.build[row.upgrade.id] + 1, row.upgrade.max)
-        grid.append(this.renderWorkbenchContextChip(row.upgrade, 'OFFER', `NEXT: ${this.upgradeLevelDetail(row.upgrade, next)}`, 'offer-ready'))
       } else if (row.status === 'locked') {
         grid.append(this.renderWorkbenchContextChip(row.upgrade, 'LOCKED', row.requirement ?? 'Future workbench unlock', 'future'))
+      } else if (!this.workbenchBayBalanceGate(row.upgrade)) {
+        grid.append(this.renderWorkbenchUpgradeChip(row.upgrade))
       } else {
-        const next = Math.min(this.build[row.upgrade.id] + 1, row.upgrade.max)
-        grid.append(this.renderWorkbenchContextChip(row.upgrade, 'STANDBY', `NEXT: ${this.upgradeLevelDetail(row.upgrade, next)}`, 'standby'))
+        grid.append(this.renderWorkbenchContextChip(row.upgrade, 'STANDBY', this.workbenchBayBalanceGate(row.upgrade), 'standby'))
       }
     }
     detail.append(head, grid)
@@ -7367,26 +7399,12 @@ class VectorShooter {
     wrap.className = 'build-manifest workbench'
     const title = document.createElement('div')
     title.className = 'manifest-title'
-    title.innerHTML = '<b>SHIP WORKBENCH</b><span>install signals first // inspect bays below</span>'
+    title.innerHTML = '<b>SHIP WORKBENCH</b><span>open a bay // spend signals on unlocked systems</span>'
     const offeredUpgradeChoices = new Map<UpgradeId, WorkbenchChoice>()
-    for (const choice of this.upgradeChoices) {
-      if (choice.kind === 'upgrade') offeredUpgradeChoices.set(choice.upgrade.id, choice)
-    }
     if (!workbenchBayDefinitions.some((bay) => bay.id === this.selectedWorkbenchBay)) this.selectedWorkbenchBay = 'weapons'
     if (this.expandedWorkbenchBay && !workbenchBayDefinitions.some((bay) => bay.id === this.expandedWorkbenchBay)) this.expandedWorkbenchBay = null
 
-    const rows = workbenchUpgradeRows(upgrades, this.build, Array.from(offeredUpgradeChoices.keys()), this.workbenchExtraUnlockedIds())
-    const offerGrid = document.createElement('div')
-    offerGrid.className = 'manifest-grid workbench-current-offers'
-    for (const choice of this.upgradeChoices) {
-      if (this.canApplyWorkbenchChoice(choice)) offerGrid.append(this.renderWorkbenchChoiceChip(choice))
-    }
-    if (!offerGrid.children.length) {
-      const empty = document.createElement('div')
-      empty.className = 'workbench-empty-offers'
-      empty.textContent = 'No compatible signals in this roll.'
-      offerGrid.append(empty)
-    }
+    const rows = workbenchUpgradeRows(upgrades, this.build, [], this.workbenchExtraUnlockedIds())
 
     const bayShell = document.createElement('div')
     bayShell.className = 'workbench-bay-shell'
@@ -7398,8 +7416,6 @@ class VectorShooter {
     wrap.append(
       title,
       this.renderManifestSummary(),
-      this.workbenchSectionLabel('SIGNAL OFFERS'),
-      offerGrid,
       this.workbenchSectionLabel('SYSTEM BAYS'),
       bayShell
     )

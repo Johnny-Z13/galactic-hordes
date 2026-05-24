@@ -70,16 +70,26 @@ Accessibility:
 
 Preferred structure for dense upgrade systems:
 
-1. Immediate action surface at the top.
-   Show only actionable current offers or purchase buttons.
+1. Spendable currency status at the top.
+   Show how many signals or resources can be spent, but do not render random signal-offer strips in the workbench.
 
 2. Grouped system headers below.
    Headers summarize progress, lock state, and next opportunity.
 
 3. Inline detail panel under the selected header.
-   Show ranks, requirements, and context chips inside the expanded section.
+   Show ranks, requirements, context chips, and direct upgrade buttons inside the expanded section.
 
-The player should never need to scan a long flat list of every possible upgrade before seeing what they can do now.
+The player should never need to scan a long flat list of every possible upgrade before seeing what they can do now. In the workbench, spend mutation signals directly from the relevant bay menu rather than choosing from a separate roll of signal offers.
+
+## Workbench Tech Path
+
+The workbench uses a visible tech tree path:
+
+- Starter systems begin in separate bays so early upgrades naturally spread across weapons, maneuver, cargo/survey, and survival.
+- Upgrade edges unlock deeper systems at specific rank thresholds.
+- Direct bay upgrades can be temporarily sync-locked if one non-spacesuit bay gets too far ahead of other active bays.
+- Spacesuit upgrades are exempt from bay sync locking because they are discovery-gated and surface-specific.
+- Locked nodes must show their requirement. Sync-locked nodes must show the catch-up requirement.
 
 ## Button and State Rules
 

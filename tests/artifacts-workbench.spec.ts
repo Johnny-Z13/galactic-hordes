@@ -16,7 +16,7 @@ test('shipboard workbench keeps discoveries in the mothership collection', () =>
   expect(main).toContain("this.mothershipConsoleTab('Collection'")
 })
 
-test('shipboard workbench separates signal offers from bay detail', () => {
+test('shipboard workbench installs directly from bay detail', () => {
   const main = source()
   const css = styles()
 
@@ -25,22 +25,21 @@ test('shipboard workbench separates signal offers from bay detail', () => {
   expect(main).not.toContain("manifestTab.textContent = 'Manifest'")
   expect(main).toContain("view.append(this.renderWorkbenchInstallSurface())")
   expect(main).toContain('workbenchUpgradeRows(upgrades, this.build')
-  expect(main).toContain("offerGrid.className = 'manifest-grid workbench-current-offers'")
   expect(main).toContain("bayShell.className = 'workbench-bay-shell'")
   expect(main).toContain("bayList.className = 'workbench-bay-list'")
   expect(main).toContain("detail.className = 'workbench-bay-detail'")
-  expect(main).toContain("this.workbenchSectionLabel('SIGNAL OFFERS')")
   expect(main).toContain("this.workbenchSectionLabel('SYSTEM BAYS')")
   expect(main).toContain("row.status === 'maxed'")
   expect(main).toContain("row.status === 'locked'")
   expect(main).toContain("this.renderWorkbenchContextChip(row.upgrade, 'STANDBY'")
+  expect(main).toContain('this.renderWorkbenchUpgradeChip(row.upgrade)')
+  expect(main).toContain('this.workbenchBayBalanceGate(row.upgrade)')
   expect(main).toContain('status-${status.toLowerCase()}')
   expect(main).toContain("lockedCount === bayRows.length ? 'locked' : ''")
   expect(main).toContain('workbench-install-choice')
-  expect(main).toContain('this.beginWorkbenchInstall(choice, chip)')
+  expect(main).toContain("this.beginWorkbenchInstall({ kind: 'upgrade', upgrade }, chip)")
   expect(main).not.toContain('button.disabled = !available')
   expect(css).toContain('.workbench-section-label')
-  expect(css).toContain('.workbench-current-offers')
   expect(css).toContain('.workbench-bay-toggle')
   expect(css).toContain('.workbench-bay-detail')
   expect(css).toContain('.manifest-chip.available')
@@ -49,7 +48,7 @@ test('shipboard workbench separates signal offers from bay detail', () => {
   expect(css).toContain('.manifest-chip.selected')
 })
 
-test('shipboard workbench preserves scroll position across installs and rerolls', () => {
+test('shipboard workbench preserves scroll position across installs', () => {
   const main = source()
 
   expect(main).toContain('private currentLevelUpScrollTop()')
@@ -267,8 +266,9 @@ test('scores screen can reset persistent progress back to first play', () => {
   expect(main).toContain("reset.textContent = 'Reset Save'")
   expect(main).toContain("reset.textContent = 'Confirm Reset'")
   expect(main).toContain('private resetPersistentProgress()')
-  expect(main).toContain('localStorage.removeItem(STORAGE_KEY)')
-  expect(main).toContain('localStorage.removeItem(MOTHERSHIP_STORAGE_KEY)')
+  expect(main).toContain('key === STORAGE_KEY')
+  expect(main).toContain('key === MOTHERSHIP_STORAGE_KEY')
+  expect(main).toContain('localStorage.removeItem(key)')
   expect(main).toContain('this.mothership = defaultMothershipState()')
   expect(main).toContain('this.stats.highScore = 0')
   expect(main).toContain('this.showTitle()')
@@ -301,7 +301,7 @@ test('workbench card selection does not shift card layout or shake the camera', 
   expect(applyEvolution).not.toContain('this.camera.shake')
 })
 
-test('workbench install refresh keeps the current offer set and scroll position', () => {
+test('workbench install refresh keeps the current bay set and scroll position', () => {
   const main = source()
   const applyChoice = main.slice(main.indexOf('private applyWorkbenchChoice'), main.indexOf('private applyUpgrade'))
   const recycleSignal = main.slice(main.indexOf('private recycleWorkbenchSignal'), main.indexOf('private beginWorkbenchInstall'))
@@ -315,7 +315,7 @@ test('workbench install refresh keeps the current offer set and scroll position'
   expect(beginInstall).not.toContain('this.upgradeChoices = this.rollUpgrades')
 })
 
-test('planet discoveries can force the first spacesuit workbench offer', () => {
+test('planet discoveries unlock the first spacesuit workbench path', () => {
   const main = source()
 
   expect(main).toContain('firstOpportunityUpgrade')
