@@ -7242,7 +7242,7 @@ class VectorShooter {
   private renderWorkbenchContextChip(upgrade: Upgrade, status: 'MAXED' | 'LOCKED' | 'STANDBY' | 'OFFER', detail: string, extraClass = '') {
     const level = this.build[upgrade.id]
     const chip = document.createElement('div')
-    chip.className = `manifest-chip ${level > 0 ? 'owned' : 'locked'} ${status === 'MAXED' ? 'maxed' : ''} ${extraClass} ${upgrade.bucket}`
+    chip.className = `manifest-chip ${level > 0 ? 'owned' : 'unowned'} status-${status.toLowerCase()} ${status === 'LOCKED' ? 'locked future' : ''} ${status === 'MAXED' ? 'maxed' : ''} ${extraClass} ${upgrade.bucket}`
     chip.innerHTML = `
       <div class="manifest-chip-head">
         <strong>${this.escape(upgrade.name)}</strong>
@@ -7263,6 +7263,7 @@ class VectorShooter {
     const totalRanks = bayRows.reduce((sum, row) => sum + row.upgrade.max, 0)
     const ownedRanks = bayRows.reduce((sum, row) => sum + Math.min(this.build[row.upgrade.id], row.upgrade.max), 0)
     const maxedCount = bayRows.filter((row) => row.status === 'maxed').length
+    const lockedCount = bayRows.filter((row) => row.status === 'locked').length
     const offerCount = bayRows.filter((row) => offeredUpgradeChoices.has(row.upgrade.id)).length
     const nextRow = bayRows.find((row) => offeredUpgradeChoices.has(row.upgrade.id))
       ?? bayRows.find((row) => row.status === 'standby')
@@ -7271,7 +7272,7 @@ class VectorShooter {
     const progress = totalRanks > 0 ? ownedRanks / totalRanks : 0
     const button = document.createElement('button')
     button.type = 'button'
-    button.className = `workbench-bay-toggle ${this.selectedWorkbenchBay === bay.id ? 'active' : ''} ${offerCount > 0 ? 'has-offer' : ''}`
+    button.className = `workbench-bay-toggle ${this.selectedWorkbenchBay === bay.id ? 'active' : ''} ${offerCount > 0 ? 'has-offer' : ''} ${lockedCount === bayRows.length ? 'locked' : ''}`.trim()
     button.addEventListener('click', () => {
       if (this.selectedWorkbenchBay === bay.id) return
       const scrollTop = this.currentLevelUpScrollTop()
@@ -7295,7 +7296,7 @@ class VectorShooter {
       </div>
       <span>${this.escape(nextStatus)}</span>
       <div class="workbench-bay-meter"><i style="width: ${Math.round(progress * 100)}%"></i></div>
-      <em>${maxedCount}/${bayRows.length} maxed${offerCount > 0 ? ` // ${offerCount} signal${offerCount === 1 ? '' : 's'}` : ''}</em>
+      <em>${maxedCount}/${bayRows.length} maxed${lockedCount > 0 ? ` // ${lockedCount} locked` : ''}${offerCount > 0 ? ` // ${offerCount} signal${offerCount === 1 ? '' : 's'}` : ''}</em>
     `
     return button
   }
@@ -7912,8 +7913,7 @@ class VectorShooter {
     const systemsHeader = document.createElement('div')
     systemsHeader.className = 'mothership-section-title'
     systemsHeader.innerHTML = '<h2>Command Systems</h2><span>Permanent mothership departments bought with recovered cargo</span>'
-    shell.append(header, flight)
-    if (!firstCommand) shell.append(systemsHeader, this.renderMothershipMetaSystems())
+    shell.append(header, flight, systemsHeader, this.renderMothershipMetaSystems())
     this.ui.title.append(shell)
     this.showOnly('title')
     if (options.scrollTop !== undefined) {
@@ -8050,7 +8050,7 @@ class VectorShooter {
     fill.className = 'station-tier-fill'
     fill.style.width = `${tierPct * 100}%`
     meter.append(fill)
-    const status = unlocked ? next ? `Next: ${next.name}` : 'Fully online' : `Requires ${mothershipDepartmentUnlockText(id)}`
+    const status = unlocked ? next ? `Next: ${next.name}` : 'Fully online' : `Locked: ${mothershipDepartmentUnlockText(id)}`
     button.innerHTML = `
       <div class="meta-department-topline">
         <strong>${this.escape(definition.name)}</strong>
@@ -8076,7 +8076,7 @@ class VectorShooter {
     header.innerHTML = `
       <div>
         <b>${this.escape(definition.name)}</b>
-        <span>${this.escape(unlocked ? definition.description : `Offline. Requires ${mothershipDepartmentUnlockText(id)}.`)}</span>
+        <span>${this.escape(unlocked ? definition.description : `Locked system. Unlock by completing ${mothershipDepartmentUnlockText(id)}.`)}</span>
       </div>
       <em>Tier ${tier}/${maxTier}</em>
     `
@@ -8105,7 +8105,7 @@ class VectorShooter {
     })
     const button = document.createElement('button')
     button.className = 'vector-button secondary'
-    button.textContent = unlocked ? next ? 'Authorize Upgrade' : 'Fully Online' : 'Offline'
+    button.textContent = unlocked ? next ? 'Authorize Upgrade' : 'Fully Online' : 'Locked'
     button.disabled = !next || !unlocked
     button.addEventListener('click', () => this.buyMothershipDepartment(id))
     detail.append(header, meter, ladder, button)
@@ -8389,7 +8389,12 @@ class VectorShooter {
       button.className = this.sectorNodeClass(node, choices)
       button.style.left = `${pos.x}%`
       button.style.top = `${pos.y}%`
-      button.textContent = node.kind === 'mothership' ? 'M' : node.kind === 'station' ? 'S' : node.kind === 'boss' ? 'B' : node.kind === 'final' ? 'F' : node.kind === 'planet' ? 'P' : node.kind === 'anomaly' ? 'N' : 'H'
+      button.dataset.label = node.label
+      button.setAttribute('aria-label', `${this.sectorKindLabel(node.kind)}: ${node.label}`)
+      button.innerHTML = `
+        <span class="sector-node-glyph">${this.sectorNodeGlyph(node.kind)}</span>
+        <span class="sector-node-label">${this.escape(node.label.replace(/\s+\d+-\d+$/, ''))}</span>
+      `
       button.title = `${node.label}: ${node.description}`
       button.disabled = !choices.some((choice) => choice.id === node.id)
       button.addEventListener('click', () => this.launchSectorNode(node.id))
@@ -8410,7 +8415,7 @@ class VectorShooter {
       option.type = 'button'
       option.className = `sector-choice ${choice.kind}`
       option.innerHTML = `
-        <span>${this.escape(choice.kind.toUpperCase())}</span>
+        <span class="sector-choice-kind">${this.escape(this.sectorKindLabel(choice.kind))}</span>
         <b>${this.escape(choice.label)}</b>
         <small>${this.escape(choice.config.readout)}</small>
         <i>${this.escape(this.sectorNodeConfigSummary(choice, profile))}</i>
@@ -8447,6 +8452,30 @@ class VectorShooter {
     return classes.join(' ')
   }
 
+  private sectorNodeGlyph(kind: SectorNode['kind']) {
+    return {
+      mothership: 'M',
+      hostile: 'H',
+      planet: 'P',
+      station: 'S',
+      anomaly: 'A',
+      boss: 'B',
+      final: 'F'
+    }[kind]
+  }
+
+  private sectorKindLabel(kind: SectorNode['kind']) {
+    return {
+      mothership: 'MOTHERSHIP',
+      hostile: 'COMBAT',
+      planet: 'PLANET',
+      station: 'STATION',
+      anomaly: 'ANOMALY',
+      boss: 'BOSS',
+      final: 'FINAL'
+    }[kind]
+  }
+
   private sectorWaveLabel(wave: SectorWaveOrder) {
     return {
       scouts: 'SCOUTS',
@@ -8468,7 +8497,7 @@ class VectorShooter {
   }
 
   private sectorMapDebugReadout() {
-    const wrap = document.createElement('div')
+    const wrap = document.createElement('details')
     wrap.className = 'sector-debug-readout'
     const rows = this.sectorMap.nodes
       .filter((node) => node.kind !== 'mothership')
@@ -8486,7 +8515,7 @@ class VectorShooter {
         `
       })
       .join('')
-    wrap.innerHTML = `<span>ROUTE DEBUG</span>${rows}`
+    wrap.innerHTML = `<summary>ROUTE DEBUG</summary>${rows}`
     return wrap
   }
 

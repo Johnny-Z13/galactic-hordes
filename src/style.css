@@ -305,7 +305,7 @@ canvas {
 }
 
 .sector-map-panel {
-  width: min(1220px, 100%);
+  width: min(1280px, 100%);
   height: 100svh;
   margin: 0 auto;
   padding: max(14px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
@@ -323,8 +323,11 @@ canvas {
   border: 1px solid rgba(87, 255, 243, 0.25);
   border-top-color: rgba(215, 255, 247, 0.5);
   border-radius: 8px;
-  background: linear-gradient(180deg, rgba(5, 18, 25, 0.9), rgba(1, 6, 10, 0.8));
+  background:
+    linear-gradient(135deg, rgba(87, 255, 243, 0.1), transparent 28%),
+    linear-gradient(180deg, rgba(5, 18, 25, 0.9), rgba(1, 6, 10, 0.8));
   padding: 14px;
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
 }
 
 .sector-map-title {
@@ -386,7 +389,7 @@ canvas {
 .sector-map-body {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(310px, 0.34fr);
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 410px);
   gap: 12px;
 }
 
@@ -402,6 +405,36 @@ canvas {
 .sector-map-graph {
   position: relative;
   overflow: hidden;
+  min-height: 430px;
+  background:
+    linear-gradient(rgba(87, 255, 243, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(87, 255, 243, 0.06) 1px, transparent 1px),
+    radial-gradient(circle at 8% 50%, rgba(87, 255, 243, 0.18), transparent 18%),
+    radial-gradient(circle at 92% 50%, rgba(255, 242, 122, 0.14), transparent 18%),
+    linear-gradient(180deg, rgba(4, 12, 16, 0.84), rgba(0, 0, 0, 0.7));
+  background-size: 38px 38px, 38px 38px, auto, auto, auto;
+}
+
+.sector-map-graph::before,
+.sector-map-graph::after {
+  position: absolute;
+  top: 14px;
+  z-index: 1;
+  color: rgba(215, 255, 247, 0.48);
+  font-size: 10px;
+  letter-spacing: 0;
+  pointer-events: none;
+}
+
+.sector-map-graph::before {
+  content: "MOTHERSHIP";
+  left: 16px;
+}
+
+.sector-map-graph::after {
+  content: "LAST STAND";
+  right: 16px;
+  color: rgba(255, 242, 122, 0.62);
 }
 
 .sector-map-lines {
@@ -414,12 +447,12 @@ canvas {
 
 .sector-map-lines line {
   stroke: rgba(215, 255, 247, 0.28);
-  stroke-width: 0.6;
+  stroke-width: 0.7;
 }
 
 .sector-map-lines line.available {
   stroke: rgba(255, 242, 122, 0.72);
-  stroke-width: 0.9;
+  stroke-width: 1.05;
 }
 
 .sector-map-lines line.completed {
@@ -428,16 +461,39 @@ canvas {
 
 .sector-node {
   position: absolute;
-  width: clamp(34px, 4.6vw, 54px);
-  aspect-ratio: 1;
+  width: clamp(52px, 5.4vw, 74px);
+  min-height: clamp(48px, 4.8vw, 64px);
   transform: translate(-50%, -50%);
   border: 2px solid rgba(215, 255, 247, 0.45);
-  border-radius: 50%;
+  border-radius: 8px;
   background: rgba(5, 13, 18, 0.95);
   color: rgba(215, 255, 247, 0.82);
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 0 18px rgba(87, 255, 243, 0.08);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 1px;
+  padding: 5px;
+  line-height: 1;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+}
+
+.sector-node-glyph {
+  color: #f6fffe;
+  font-size: clamp(16px, 2vw, 23px);
+}
+
+.sector-node-label {
+  width: 100%;
+  color: rgba(215, 255, 247, 0.64);
+  font-size: clamp(6px, 0.72vw, 8px);
+  line-height: 1;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sector-node.hostile {
@@ -463,8 +519,13 @@ canvas {
 
 .sector-node.available {
   color: #01080a;
-  background: var(--yellow);
+  background: linear-gradient(180deg, rgba(255, 242, 122, 0.96), rgba(255, 179, 77, 0.86));
   box-shadow: 0 0 24px rgba(255, 242, 122, 0.34);
+}
+
+.sector-node.available .sector-node-glyph,
+.sector-node.available .sector-node-label {
+  color: #061014;
 }
 
 .sector-node.current {
@@ -509,17 +570,20 @@ canvas {
   display: grid;
   gap: 4px;
   width: 100%;
-  min-height: 100px;
+  min-height: 112px;
   text-align: left;
   border: 1px solid rgba(87, 255, 243, 0.26);
   border-radius: 8px;
-  background: rgba(2, 12, 16, 0.78);
+  background:
+    linear-gradient(90deg, rgba(87, 255, 243, 0.08), transparent 44%),
+    rgba(2, 12, 16, 0.78);
   color: #d7fff7;
-  padding: 11px 12px;
+  padding: 12px 13px;
   cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
 }
 
-.sector-choice span,
+.sector-choice-kind,
 .sector-choice i {
   color: rgba(255, 242, 122, 0.78);
   font-size: 10px;
@@ -528,10 +592,19 @@ canvas {
 
 .sector-choice b {
   color: #f6fffe;
+  font-size: 18px;
+  line-height: 1;
 }
 
 .sector-choice.station {
   border-color: rgba(143, 255, 125, 0.48);
+}
+
+.sector-choice:hover,
+.sector-choice:focus-visible {
+  border-color: rgba(255, 242, 122, 0.72);
+  box-shadow: 0 0 24px rgba(255, 242, 122, 0.16);
+  outline: none;
 }
 
 .sector-debug-readout {
@@ -542,9 +615,10 @@ canvas {
   padding-top: 10px;
 }
 
-.sector-debug-readout > span {
+.sector-debug-readout > summary {
   color: rgba(255, 242, 122, 0.78);
   font-size: 10px;
+  cursor: pointer;
 }
 
 .sector-debug-row {
@@ -1075,6 +1149,8 @@ canvas {
 }
 
 .meta-department-toggle {
+  position: relative;
+  overflow: hidden;
   min-height: 82px;
   display: grid;
   align-content: start;
@@ -1101,6 +1177,40 @@ canvas {
   border-color: rgba(185, 144, 255, 0.28);
   color: rgba(215, 255, 247, 0.46);
   background: rgba(17, 8, 28, 0.42);
+}
+
+.meta-department-toggle.locked::before,
+.meta-upgrade-detail.locked::before,
+.manifest-chip.status-locked::before {
+  content: "LOCKED";
+  position: absolute;
+  right: 8px;
+  bottom: 7px;
+  z-index: 1;
+  border: 1px solid rgba(185, 144, 255, 0.42);
+  border-radius: 4px;
+  color: rgba(215, 255, 247, 0.62);
+  background: rgba(7, 4, 13, 0.78);
+  padding: 2px 5px;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.meta-department-toggle.locked::after,
+.meta-upgrade-detail.locked::after,
+.manifest-chip.status-locked::after {
+  content: "";
+  position: absolute;
+  right: 17px;
+  bottom: 17px;
+  z-index: 2;
+  width: 10px;
+  height: 7px;
+  border: 1px solid rgba(185, 144, 255, 0.48);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  pointer-events: none;
 }
 
 .meta-department-topline {
@@ -1135,6 +1245,8 @@ canvas {
 }
 
 .meta-upgrade-detail {
+  position: relative;
+  overflow: hidden;
   min-height: 524px;
   display: grid;
   grid-template-columns: minmax(0, 0.58fr) minmax(280px, 0.42fr);
@@ -1219,7 +1331,23 @@ canvas {
 }
 
 .meta-tier-row.locked {
+  position: relative;
   color: rgba(215, 255, 247, 0.48);
+  border-style: dashed;
+  background: rgba(215, 255, 247, 0.018);
+  filter: grayscale(0.55);
+}
+
+.meta-tier-row.locked::after {
+  content: "LOCKED";
+  justify-self: start;
+  border: 1px solid rgba(185, 144, 255, 0.32);
+  border-radius: 4px;
+  color: rgba(215, 255, 247, 0.48);
+  padding: 2px 5px;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .meta-tier-row b,
@@ -2130,6 +2258,8 @@ button.manifest-chip:focus-visible,
 }
 
 .workbench-bay-toggle {
+  position: relative;
+  overflow: hidden;
   min-height: 88px;
   display: grid;
   gap: 5px;
@@ -2154,6 +2284,27 @@ button.manifest-chip:focus-visible,
 .workbench-bay-toggle.has-offer:not(.active) {
   border-color: rgba(143, 255, 125, 0.58);
   background: rgba(6, 24, 12, 0.62);
+}
+
+.workbench-bay-toggle.locked:not(.active) {
+  border-color: rgba(185, 144, 255, 0.24);
+  color: rgba(215, 255, 247, 0.44);
+  background: rgba(17, 8, 28, 0.34);
+}
+
+.workbench-bay-toggle.locked::before {
+  content: "LOCKED";
+  position: absolute;
+  right: 8px;
+  bottom: 7px;
+  border: 1px solid rgba(185, 144, 255, 0.34);
+  border-radius: 4px;
+  color: rgba(215, 255, 247, 0.5);
+  background: rgba(7, 4, 13, 0.72);
+  padding: 2px 5px;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .workbench-bay-topline {
@@ -2351,6 +2502,25 @@ button.manifest-chip:disabled {
   border-color: rgba(87, 255, 243, 0.18);
   color: rgba(215, 255, 247, 0.44);
   background: rgba(215, 255, 247, 0.025);
+}
+
+.manifest-chip.status-locked {
+  border-color: rgba(185, 144, 255, 0.28);
+  border-style: dashed;
+  color: rgba(215, 255, 247, 0.46);
+  background:
+    linear-gradient(135deg, rgba(185, 144, 255, 0.08), transparent 34%),
+    rgba(17, 8, 28, 0.32);
+  filter: grayscale(0.45);
+}
+
+.manifest-chip.status-locked strong {
+  color: rgba(215, 255, 247, 0.66);
+}
+
+.manifest-chip.status-locked b,
+.manifest-chip.status-locked em {
+  color: rgba(185, 144, 255, 0.7);
 }
 
 .manifest-chip.standby {
@@ -2851,6 +3021,40 @@ button.manifest-chip:disabled {
   margin-top: 18px;
 }
 
+@media (max-width: 980px) {
+  .sector-map-screen {
+    overflow-y: auto;
+  }
+
+  .sector-map-panel {
+    height: auto;
+    min-height: 100svh;
+    overflow: visible;
+  }
+
+  .sector-map-top {
+    display: grid;
+  }
+
+  .sector-map-body {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .sector-map-graph {
+    min-height: min(460px, 44svh);
+  }
+
+  .sector-map-details {
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .sector-choice-list {
+    overflow: visible;
+  }
+}
+
 @media (max-width: 760px) {
   .screen {
     padding: 10px;
@@ -2868,7 +3072,6 @@ button.manifest-chip:disabled {
   }
 
   .sector-map-top {
-    flex-direction: column;
     padding: 12px;
   }
 
@@ -2891,11 +3094,11 @@ button.manifest-chip:disabled {
   }
 
   .sector-map-graph {
-    min-height: 360px;
+    min-height: 320px;
   }
 
   .sector-map-details {
-    min-height: 320px;
+    min-height: 0;
     overflow: visible;
   }
 
@@ -2905,6 +3108,16 @@ button.manifest-chip:disabled {
 
   .sector-choice {
     min-height: 92px;
+  }
+
+  .sector-node {
+    width: 42px;
+    min-height: 42px;
+    padding: 3px;
+  }
+
+  .sector-node-label {
+    display: none;
   }
 
   .topbar {
