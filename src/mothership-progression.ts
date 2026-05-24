@@ -63,7 +63,7 @@ export const defaultMothershipState = (): MothershipState => ({
   departments: {
     scanner: 0,
     workbench: 0,
-    archive: 1,
+    archive: 0,
     shipyard: 0,
     signalCore: 0,
     hangarCrew: 0
@@ -209,7 +209,7 @@ export const normalizeMothershipState = (value: unknown): MothershipState => {
     departments: {
       scanner: clampDepartmentTier('scanner', input.departments?.scanner ?? 0),
       workbench: clampDepartmentTier('workbench', input.departments?.workbench ?? 0),
-      archive: Math.max(1, clampDepartmentTier('archive', input.departments?.archive ?? 1)),
+      archive: clampDepartmentTier('archive', input.departments?.archive ?? 0),
       shipyard: clampDepartmentTier('shipyard', input.departments?.shipyard ?? 0),
       signalCore: clampDepartmentTier('signalCore', input.departments?.signalCore ?? 0),
       hangarCrew: clampDepartmentTier('hangarCrew', input.departments?.hangarCrew ?? 0)

@@ -10,11 +10,11 @@ import {
   purchaseMothershipTier
 } from '../src/mothership-progression'
 
-test('starts with archive enabled and no persistent resources', () => {
+test('starts with all mothership departments at zero and no persistent resources', () => {
   const state = defaultMothershipState()
 
   expect(state.resources).toEqual({ scrap: 0, crystal: 0, cores: 0 })
-  expect(state.departments.archive).toBe(1)
+  expect(state.departments.archive).toBe(0)
   expect(state.departments.scanner).toBe(0)
   expect(state.departments.workbench).toBe(0)
   expect(state.departments.shipyard).toBe(0)
