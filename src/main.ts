@@ -871,6 +871,7 @@ class VectorShooter {
   private levelUpTitle = 'SHIPBOARD WORKBENCH'
   private levelUpCopy = 'Spend one banked mutation signal before takeoff.'
   private selectedMothershipDepartment: MothershipDepartmentId = 'scanner'
+  private expandedMothershipDepartment: MothershipDepartmentId | null = null
   private returnToSectorMapAfterWorkbench = false
   private discoverySuitOffer = false
   private summonReturnBeaconAfterTakeoff = false
@@ -8053,12 +8054,13 @@ class VectorShooter {
   private renderMothershipMetaSystems() {
     const departments: MothershipDepartmentId[] = ['scanner', 'workbench', 'archive', 'shipyard', 'signalCore', 'hangarCrew']
     if (!departments.includes(this.selectedMothershipDepartment)) this.selectedMothershipDepartment = 'scanner'
+    if (this.expandedMothershipDepartment && !departments.includes(this.expandedMothershipDepartment)) this.expandedMothershipDepartment = null
     const window = document.createElement('section')
     window.className = 'permanent-upgrades-window meta-upgrade-window'
     const rail = document.createElement('div')
     rail.className = 'meta-upgrade-rail'
-    for (const id of departments) rail.append(this.metaDepartmentToggle(id))
-    window.append(rail, this.metaDepartmentDetail(this.selectedMothershipDepartment))
+    for (const id of departments) rail.append(this.metaDepartmentEntry(id))
+    window.append(rail)
     return window
   }
 
@@ -8071,12 +8073,17 @@ class VectorShooter {
     const unlocked = isMothershipDepartmentUnlocked(this.mothership, id)
     const button = document.createElement('button')
     button.type = 'button'
-    button.className = `meta-department-toggle ${this.selectedMothershipDepartment === id ? 'active' : ''} ${unlocked ? '' : 'locked'}`.trim()
-    button.setAttribute('aria-pressed', String(this.selectedMothershipDepartment === id))
+    button.className = `meta-department-toggle ${this.expandedMothershipDepartment === id ? 'active' : ''} ${unlocked ? '' : 'locked'}`.trim()
+    button.setAttribute('aria-pressed', String(this.expandedMothershipDepartment === id))
+    button.setAttribute('aria-expanded', String(this.expandedMothershipDepartment === id))
     button.addEventListener('click', () => {
-      if (this.selectedMothershipDepartment === id) return
       const scrollTop = this.ui.title.querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
-      this.selectedMothershipDepartment = id
+      if (this.expandedMothershipDepartment === id) {
+        this.expandedMothershipDepartment = null
+      } else {
+        this.selectedMothershipDepartment = id
+        this.expandedMothershipDepartment = id
+      }
       this.showMothership({ scrollTop })
     })
     const meter = document.createElement('div')
@@ -8099,6 +8106,14 @@ class VectorShooter {
     `
     button.append(meter)
     return button
+  }
+
+  private metaDepartmentEntry(id: MothershipDepartmentId) {
+    const entry = document.createElement('div')
+    entry.className = `meta-department-entry ${this.expandedMothershipDepartment === id ? 'expanded' : ''}`
+    entry.append(this.metaDepartmentToggle(id))
+    if (this.expandedMothershipDepartment === id) entry.append(this.metaDepartmentDetail(id))
+    return entry
   }
 
   private metaDepartmentDetail(id: MothershipDepartmentId) {

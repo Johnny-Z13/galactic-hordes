@@ -1146,7 +1146,7 @@ canvas {
 
 .permanent-upgrades-window {
   display: grid;
-  grid-template-columns: minmax(220px, 0.38fr) minmax(0, 1fr);
+  grid-template-columns: 1fr;
   gap: 10px;
   padding: 10px;
   border: 1px solid var(--console-edge);
@@ -1161,7 +1161,17 @@ canvas {
 
 .meta-upgrade-rail {
   display: grid;
+  gap: 8px;
+}
+
+.meta-department-entry {
+  min-width: 0;
+  display: grid;
   gap: 7px;
+}
+
+.meta-department-entry.expanded {
+  padding-bottom: 4px;
 }
 
 .meta-department-toggle {
@@ -1194,6 +1204,12 @@ canvas {
     linear-gradient(90deg, rgba(255, 242, 122, 0.16), transparent 62%),
     rgba(28, 22, 3, 0.76);
   box-shadow: inset 0 0 24px rgba(255, 242, 122, 0.08), 0 0 18px rgba(255, 242, 122, 0.1);
+}
+
+.meta-department-toggle.active .meta-department-code {
+  border-color: rgba(255, 242, 122, 0.62);
+  background:
+    linear-gradient(180deg, rgba(255, 250, 196, 0.96), rgba(255, 242, 122, 0.78));
 }
 
 .meta-department-toggle.locked:not(.active) {
@@ -1307,7 +1323,7 @@ canvas {
 .meta-upgrade-detail {
   position: relative;
   overflow: hidden;
-  min-height: 524px;
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 0.58fr) minmax(280px, 0.42fr);
   grid-template-rows: auto auto 1fr;
