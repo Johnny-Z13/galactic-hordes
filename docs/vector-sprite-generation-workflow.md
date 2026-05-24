@@ -20,7 +20,7 @@ Characters: [list eight concrete creature concepts].
 Keep generous separation between cells. Center every character in its cell. Full body visible.
 ```
 
-Use one sheet for hostile bosses and one sheet for friendly aliens so their silhouette language stays distinct.
+Use separate sheets for open-space enemies, hostile planet bosses, and friendly aliens so their silhouette language stays distinct.
 
 ## Repacking Rules
 
@@ -29,6 +29,7 @@ Use one sheet for hostile bosses and one sheet for friendly aliens so their silh
 - Crop every pose to visible pixels.
 - Fit bosses into a `4 x 8` atlas with `256px` cells.
 - Fit friendly aliens into a `4 x 8` atlas with `192px` cells.
+- Fit open-space enemy sprites into a `4 x N` atlas with `192px` cells.
 - Save optimized transparent PNGs in `src/assets/`.
 - Sample by `row = creature variant`, `column = animation frame`.
 
@@ -36,6 +37,7 @@ Current catalog assets:
 
 - `src/assets/planet-boss-catalog-alpha.png`: eight boss variants, four frames each.
 - `src/assets/planet-alien-catalog-alpha.png`: eight friendly alien variants, four frames each.
+- `src/assets/space-enemy-catalog-alpha.png`: sprite-backed open-space enemies, four frames each.
 
 The canonical row config lives in `src/surface-balance.ts`:
 
@@ -44,6 +46,10 @@ The canonical row config lives in `src/surface-balance.ts`:
 - `surfaceThreatMotionBalance`: orbit, blink, splitter, friction, and edge tuning for strange surface enemies.
 
 Use `python3 scripts/generate-planet-catalog-sprites.py` to regenerate the current local atlas rows after changing the deterministic vector catalog additions.
+
+The canonical open-space sprite row list lives in `src/space-enemies.ts`, with stats in `src/game-balance.ts` and deterministic atlas generation in `scripts/generate-space-enemy-catalog.mjs`. Use `node scripts/generate-space-enemy-catalog.mjs` after changing the space sprite rows or generated art.
+
+See [enemy-alien-catalog.md](enemy-alien-catalog.md) for the current visual roster log.
 
 ## Design Language
 

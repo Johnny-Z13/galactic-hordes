@@ -5,21 +5,21 @@ export const runBalance = {
     baseSpeed: 270
   },
   xp: {
-    startingNext: 24,
-    growthMultiplier: 1.18,
-    growthFlat: 11
+    startingNext: 42,
+    growthMultiplier: 1.24,
+    growthFlat: 18
   },
   timers: {
-    startingSpawnSeconds: 0.4,
-    startingBossSeconds: 75,
+    startingSpawnSeconds: 0.8,
+    startingBossSeconds: 86,
     startingChestSeconds: 28,
-    defaultChestSeconds: 30,
-    sectorSpawnSeconds: 0.35,
-    finalSectorSpawnSeconds: 0.04,
-    sectorBossSeconds: 68,
+    defaultChestSeconds: 38,
+    sectorSpawnSeconds: 0.7,
+    finalSectorSpawnSeconds: 0.08,
+    sectorBossSeconds: 76,
     requiredBossSeconds: 8,
-    planetNodeChestSeconds: 18,
-    introSectorBeaconSeconds: 37.5
+    planetNodeChestSeconds: 26,
+    introSectorBeaconSeconds: 43
   },
   spaceChest: {
     respawnMinSeconds: 38,
@@ -43,7 +43,7 @@ export const runBalance = {
     surfaceExtractScoreBase: 420,
     surfaceExtractScorePerResource: 45,
     surfaceRevisitScorePerResource: 25,
-    firstVisitHullRepair: 45,
+    firstVisitHullRepair: 30,
     revisitHullRepair: 14,
     landedCooldownSeconds: 2.2,
     orbitInvulnerabilitySeconds: 0.8,

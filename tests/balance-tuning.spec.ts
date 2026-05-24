@@ -5,12 +5,13 @@ import { pickupBalance, powerupBalance } from '../src/powerup-balance'
 
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
 
-test('starter ship fire cadence is thirty percent slower', () => {
+test('starter ship fire cadence and bullet speed begin slower', () => {
   const main = source()
 
-  expect(powerupBalance.weapon.baseFireCooldown).toBe(0.234)
-  expect(powerupBalance.weapon.rapidCooldownPerRank).toBe(0.014)
-  expect(powerupBalance.weapon.minFireCooldown).toBe(0.055)
+  expect(powerupBalance.weapon.baseFireCooldown).toBe(0.31)
+  expect(powerupBalance.weapon.rapidCooldownPerRank).toBe(0.012)
+  expect(powerupBalance.weapon.minFireCooldown).toBe(0.075)
+  expect(powerupBalance.weapon.baseProjectileSpeed).toBe(650)
   expect(main).toContain('powerupBalance.weapon.baseFireCooldown')
   expect(main).toContain('powerupBalance.weapon.rapidCooldownPerRank')
 })

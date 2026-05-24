@@ -22,8 +22,8 @@ test('upgrade and relic definitions live in the powerup balance source', () => {
 })
 
 test('weapon and pickup tuning values are named config, not main-loop constants', () => {
-  expect(powerupBalance.weapon.baseFireCooldown).toBe(0.234)
-  expect(powerupBalance.weapon.minFireCooldown).toBe(0.055)
+  expect(powerupBalance.weapon.baseFireCooldown).toBe(0.31)
+  expect(powerupBalance.weapon.minFireCooldown).toBe(0.075)
   expect(pickupBalance.xp.radius).toBe(5.6)
   expect(pickupBalance.xp.mergeRadiusMax).toBe(12.6)
 
@@ -33,11 +33,11 @@ test('weapon and pickup tuning values are named config, not main-loop constants'
 })
 
 test('workbench roll tuning is configurable', () => {
-  expect(workbenchBalance.baseChoiceCount).toBe(5)
+  expect(workbenchBalance.baseChoiceCount).toBe(4)
   expect(workbenchBalance.ownedBiasBase).toBeGreaterThan(1)
   expect(workbenchBalance.ownedBiasWorkbenchTier).toBe(3)
   expect(workbenchBalance.relicChanceRare).toBeGreaterThan(workbenchBalance.relicChanceBase)
-  expect(workbenchBalance.surfaceSignalCapBase).toBe(3)
+  expect(workbenchBalance.surfaceSignalCapBase).toBe(2)
   expect(workbenchBalance.surfaceSignalCapRewardEventBonus).toBe(1)
   expect(workbenchBalance.overflowSignalScrap).toBeGreaterThan(0)
 })
@@ -88,6 +88,7 @@ test('workbench upgrade cards distinguish next rank from current manifest rank',
   expect(main).toContain('INSTALL RANK ${level}/${choice.upgrade.max}')
   expect(main).toContain('upgradeLevelDetail(upgrade, level)')
   expect(main).toContain('workbenchRollableUpgrades(upgrades, this.build, this.workbenchExtraUnlockedIds())')
-  expect(main).toContain('const count = workbenchBalance.baseChoiceCount')
+  expect(main).toContain('renderWorkbenchBayDetail')
+  expect(main).toContain('renderWorkbenchUpgradeChip')
   expect(main).not.toContain('fourthChoiceChance')
 })

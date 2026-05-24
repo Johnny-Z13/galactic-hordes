@@ -15,7 +15,7 @@ export interface Point {
   y: number
 }
 
-export const spriteEnemyKinds = ['razor', 'skimmer', 'bulwark', 'siphon', 'dreadnought', 'cathedral'] as const
+export const spriteEnemyKinds = ['razor', 'skimmer', 'shard', 'helix', 'prism', 'bulwark', 'siphon', 'dreadnought', 'cathedral'] as const
 export const spaceBossEnemyKinds = ['siphon', 'dreadnought', 'cathedral'] as const
 
 export const spaceEnemyDefinitions = spaceEnemyBalance

@@ -2,17 +2,29 @@ import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { isForwardAmbushEnemy, spaceBossEnemyKinds, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds } from '../src/space-enemies'
 
-test('sprite enemy catalog defines six harder forward ambush enemies', () => {
-  expect(spriteEnemyKinds).toEqual(['razor', 'skimmer', 'bulwark', 'siphon', 'dreadnought', 'cathedral'])
+test('sprite enemy catalog defines harder forward ambush enemies', () => {
+  expect(spriteEnemyKinds).toEqual(['razor', 'skimmer', 'shard', 'helix', 'prism', 'bulwark', 'siphon', 'dreadnought', 'cathedral'])
 
   for (const [row, kind] of spriteEnemyKinds.entries()) {
     const definition = spaceEnemyDefinitions[kind]
 
     expect(definition.spriteRow).toBe(row)
     expect(definition.forwardAmbush).toBe(true)
-    expect(definition.hp).toBeGreaterThanOrEqual(82)
+    expect(definition.hp).toBeGreaterThanOrEqual(84)
     expect(definition.value).toBeGreaterThanOrEqual(22)
     expect(isForwardAmbushEnemy(kind)).toBe(true)
+  }
+})
+
+test('new strange alien entities fill fast angular and projectile roles', () => {
+  expect(spaceEnemyDefinitions.shard.speed).toBeGreaterThan(380)
+  expect(spaceEnemyDefinitions.shard.maxSpeed).toBeGreaterThan(700)
+  expect(spaceEnemyDefinitions.shard.attackCooldownSeconds).toBeLessThan(1)
+
+  for (const kind of ['helix', 'prism'] as const) {
+    expect(spaceEnemyDefinitions[kind].projectileDamage).toBeGreaterThan(0)
+    expect(spaceEnemyDefinitions[kind].attackRange).toBeGreaterThan(800)
+    expect(spaceEnemyDefinitions[kind].bossPattern).toBeUndefined()
   }
 })
 
@@ -88,4 +100,12 @@ test('giant boss enemies have dedicated attack routines', () => {
   expect(source).toContain('this.fireSiphonVortex')
   expect(source).toContain('this.fireDreadnoughtBroadside')
   expect(source).toContain('this.fireCathedralLattice')
+})
+
+test('strange sprite aliens have dedicated movement and attack routines', () => {
+  const source = readFileSync('src/main.ts', 'utf8')
+
+  expect(source).toContain("e.kind === 'shard'")
+  expect(source).toContain('this.fireHelixSpikes')
+  expect(source).toContain('this.firePrismFan')
 })

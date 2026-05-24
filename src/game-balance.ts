@@ -1,4 +1,4 @@
-export const GAME_BALANCE_MODE = 'testEasy' as const
+export const GAME_BALANCE_MODE = 'normal' as const
 
 export type GameBalanceMode = 'testEasy' | 'normal' | 'hard'
 
@@ -60,7 +60,7 @@ export const gameBalanceProfiles: Record<GameBalanceMode, GameBalanceProfile> = 
 
 export const activeBalanceProfile = gameBalanceProfiles[GAME_BALANCE_MODE]
 
-export const spaceEnemyKinds = ['chaser', 'splinter', 'lancer', 'mine', 'brute', 'shooter', 'warden', 'razor', 'skimmer', 'bulwark', 'siphon', 'dreadnought', 'cathedral'] as const
+export const spaceEnemyKinds = ['chaser', 'splinter', 'lancer', 'mine', 'brute', 'shooter', 'warden', 'razor', 'skimmer', 'shard', 'helix', 'prism', 'bulwark', 'siphon', 'dreadnought', 'cathedral'] as const
 export type SpaceEnemyKind = (typeof spaceEnemyKinds)[number]
 export type SpaceBossPattern = 'vortexSpiral' | 'siegeBroadside' | 'cathedralLattice'
 
@@ -95,31 +95,34 @@ export const spaceEnemyBalance: Record<SpaceEnemyKind, SpaceEnemyBalance> = {
   warden: { hp: 520, radius: 50, speed: 134, value: 90, color: '#b990ff', contactDamage: 24, timeGateSeconds: 0, spawnRollCeiling: 0, projectileDamage: 8, projectileSpeed: 260, attackCooldownSeconds: 1.2, forwardAmbush: false },
   razor: { hp: 92, radius: 18, speed: 335, value: 26, color: '#57fff3', contactDamage: 17, timeGateSeconds: 205, spawnRollCeiling: 0.18, attackCooldownSeconds: 1.15, maxSpeed: 690, spriteRow: 0, forwardAmbush: true },
   skimmer: { hp: 126, radius: 24, speed: 176, value: 32, color: '#ffe66d', contactDamage: 13, timeGateSeconds: 165, spawnRollCeiling: 0.29, projectileDamage: 11, projectileSpeed: 340, attackCooldownSeconds: 2.15, minimumAttackCooldownSeconds: 1.35, attackCooldownReductionPerSecond: 0.00313, attackRange: 840, spriteRow: 1, forwardAmbush: true },
-  bulwark: { hp: 270, radius: 38, speed: 86, value: 46, color: '#f46cff', contactDamage: 22, timeGateSeconds: 270, spawnRollCeiling: 0.07, projectileDamage: 9, projectileSpeed: 235, attackCooldownSeconds: 1.55, attackRange: 900, spriteRow: 2, forwardAmbush: true },
-  siphon: { hp: 540, radius: 52, speed: 94, value: 92, color: '#8fff7d', contactDamage: 25, timeGateSeconds: 330, spawnRollCeiling: 0.055, projectileDamage: 12, projectileSpeed: 245, attackCooldownSeconds: 1.45, minimumAttackCooldownSeconds: 1.05, attackCooldownReductionPerSecond: 0.0015, attackRange: 940, maxSpeed: 118, spriteRow: 3, bossPattern: 'vortexSpiral', forwardAmbush: true },
-  dreadnought: { hp: 760, radius: 64, speed: 70, value: 128, color: '#ff5d73', contactDamage: 30, timeGateSeconds: 420, spawnRollCeiling: 0.038, projectileDamage: 16, projectileSpeed: 285, attackCooldownSeconds: 1.9, attackRange: 1020, maxSpeed: 96, spriteRow: 4, bossPattern: 'siegeBroadside', forwardAmbush: true },
-  cathedral: { hp: 980, radius: 76, speed: 56, value: 170, color: '#d7fff7', contactDamage: 34, timeGateSeconds: 560, spawnRollCeiling: 0.024, projectileDamage: 14, projectileSpeed: 305, attackCooldownSeconds: 1.18, attackRange: 1080, maxSpeed: 82, spriteRow: 5, bossPattern: 'cathedralLattice', forwardAmbush: true }
+  shard: { hp: 84, radius: 16, speed: 392, value: 27, color: '#a6ff4d', contactDamage: 18, timeGateSeconds: 145, spawnRollCeiling: 0.33, attackCooldownSeconds: 0.82, maxSpeed: 760, spriteRow: 2, forwardAmbush: true },
+  helix: { hp: 136, radius: 23, speed: 188, value: 34, color: '#7df7ff', contactDamage: 14, timeGateSeconds: 225, spawnRollCeiling: 0.17, projectileDamage: 10, projectileSpeed: 295, attackCooldownSeconds: 1.85, minimumAttackCooldownSeconds: 1.15, attackCooldownReductionPerSecond: 0.0026, attackRange: 820, spriteRow: 3, forwardAmbush: true },
+  prism: { hp: 180, radius: 29, speed: 142, value: 40, color: '#ff8cf0', contactDamage: 16, timeGateSeconds: 250, spawnRollCeiling: 0.12, projectileDamage: 9, projectileSpeed: 365, attackCooldownSeconds: 2.05, minimumAttackCooldownSeconds: 1.25, attackCooldownReductionPerSecond: 0.0022, attackRange: 900, spriteRow: 4, forwardAmbush: true },
+  bulwark: { hp: 270, radius: 38, speed: 86, value: 46, color: '#f46cff', contactDamage: 22, timeGateSeconds: 270, spawnRollCeiling: 0.07, projectileDamage: 9, projectileSpeed: 235, attackCooldownSeconds: 1.55, attackRange: 900, spriteRow: 5, forwardAmbush: true },
+  siphon: { hp: 540, radius: 52, speed: 94, value: 92, color: '#8fff7d', contactDamage: 25, timeGateSeconds: 330, spawnRollCeiling: 0.055, projectileDamage: 12, projectileSpeed: 245, attackCooldownSeconds: 1.45, minimumAttackCooldownSeconds: 1.05, attackCooldownReductionPerSecond: 0.0015, attackRange: 940, maxSpeed: 118, spriteRow: 6, bossPattern: 'vortexSpiral', forwardAmbush: true },
+  dreadnought: { hp: 760, radius: 64, speed: 70, value: 128, color: '#ff5d73', contactDamage: 30, timeGateSeconds: 420, spawnRollCeiling: 0.038, projectileDamage: 16, projectileSpeed: 285, attackCooldownSeconds: 1.9, attackRange: 1020, maxSpeed: 96, spriteRow: 7, bossPattern: 'siegeBroadside', forwardAmbush: true },
+  cathedral: { hp: 980, radius: 76, speed: 56, value: 170, color: '#d7fff7', contactDamage: 34, timeGateSeconds: 560, spawnRollCeiling: 0.024, projectileDamage: 14, projectileSpeed: 305, attackCooldownSeconds: 1.18, attackRange: 1080, maxSpeed: 82, spriteRow: 8, bossPattern: 'cathedralLattice', forwardAmbush: true }
 }
 
 export const spaceEnemyRunScaling = {
-  base: 1.12,
-  perSecond: 0.005,
-  perPlanet: 0.1,
-  speedPerSecond: 0.3
+  base: 1,
+  perSecond: 0.0065,
+  perPlanet: 0.13,
+  speedPerSecond: 0.24
 } as const
 
 export const spaceSpawnBalance = {
   spawnCooldown: {
-    maxSeconds: 0.62,
-    minSeconds: 0.12,
-    pressureReductionPerMinute: 0.045,
-    planetReduction: 0.025
+    maxSeconds: 1.15,
+    minSeconds: 0.2,
+    pressureReductionPerMinute: 0.08,
+    planetReduction: 0.018
   },
   pack: {
     base: 1,
-    pressurePerMinute: 0.65,
-    bonusChance: 0.2,
-    bonusCount: 2
+    pressurePerMinute: 0.45,
+    bonusChance: 0.16,
+    bonusCount: 1
   },
   boss: {
     maxSeconds: 95,
@@ -129,13 +132,13 @@ export const spaceSpawnBalance = {
     reinforcementChance: 0.55
   },
   quietField: {
-    targetNearbyBase: 7,
-    targetNearbyPerMinute: 0.9,
-    targetNearbyMin: 7,
-    targetNearbyMax: 18,
-    maxPackBase: 3,
+    targetNearbyBase: 5,
+    targetNearbyPerMinute: 1.15,
+    targetNearbyMin: 5,
+    targetNearbyMax: 20,
+    maxPackBase: 2,
     maxPackPerMinute: 0.4,
-    maxPackMin: 3,
+    maxPackMin: 2,
     maxPackMax: 7
   }
 } as const

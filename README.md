@@ -18,6 +18,7 @@ Galactic Hordes is a mobile-first portrait survival shooter: Vampire Survivors p
 - Procedural planet encounter types: salvage, boss, friendly contact, and mixed mystery sites.
 - Lore planets with inspectable fossils, pyramids, graves, machines, and other short narrative nuggets.
 - Generated boss and friendly alien sprite catalogs for stranger planet discoveries.
+- Generated open-space enemy sprite catalog with fast angular aliens, projectile entities, and giant boss threats.
 - Quiet planet encounters with one-time alien bargains and rare artefact rolls.
 - A generated 8-frame surface spaceman sprite replaces the original stick pilot.
 - Mothership command hub wraps launch, a real discoverable collection catalogue with unique in-game-style icons, category filters, archive data, and department upgrades.
@@ -110,9 +111,21 @@ Each template produces an explicit config:
 
 Those configs feed runtime behavior: enemy recipe bias, planet archetype bias, spawn pressure, reward pressure, boss requirements, space encounter bias, and encounter cadence. Route depth scales pressure and reward so late hunter lanes, asteroid belts, and anomalies become sharper without losing their identity. A safe drift should feel meaningfully different from a planet cluster, and both should feel different from an intense asteroid ambush route.
 
-The first post-mothership node has a shorter station window so new runs demonstrate the sector-map loop quickly: launch, survive a compact node, dock, and choose the next route. The sector map also includes a compact route debug readout showing template, depth, planets, hazards, pressure, rewards, and wave timing for generated nodes.
+Each sector node now gets bounded seeded texture on top of its template: visible modifiers, an enemy packet, a reward shape, and small wave timing/count jitter. This keeps runs different without hiding the risk profile from the route card.
+
+The first post-mothership node has a shorter station window so new runs demonstrate the sector-map loop quickly: launch, survive a compact node, dock, and choose the next route. The sector map also includes a compact route debug readout showing template, depth, procedural texture, planets, hazards, pressure, rewards, and wave timing for generated nodes.
 
 See [docs/sector-map-route-design.md](docs/sector-map-route-design.md) for the route-layer design.
+
+## Enemy And Alien Log
+
+The living roster is documented in [docs/enemy-alien-catalog.md](docs/enemy-alien-catalog.md). It tracks open-space enemies, strange alien entities, route encounters, planet bosses, surface threats, and friendly alien contacts.
+
+![Space enemy sprite atlas](src/assets/space-enemy-catalog-alpha.png)
+
+Open-space sprite rows currently cover `razor`, `skimmer`, `shard`, `helix`, `prism`, `bulwark`, `siphon`, `dreadnought`, and `cathedral`. Vector-only enemies such as `chaser`, `splinter`, `lancer`, `mine`, `shooter`, `brute`, and `warden` remain in the collection log and balance tables.
+
+Asteroid routes now include both meteor-front crossings and short asteroid-field phases. Field phases procedurally dot rocks around the route for a while, and ship fire can break larger rocks into smaller chunks.
 
 ## Balance Calibration
 
@@ -121,20 +134,20 @@ Combat and difficulty tuning lives in `src/game-balance.ts`. Power-up, pickup, r
 <!-- BALANCE-GENERATED:START -->
 ### Active Balance Snapshot
 
-Active balance mode: `testEasy` (Testing Easy).
+Active balance mode: `normal` (Normal).
 
 | Multiplier | Value |
 | --- | ---: |
-| Enemy HP | 0.45 |
-| Enemy damage | 0.4 |
-| Enemy speed | 0.82 |
-| Enemy projectile speed | 0.85 |
-| Enemy attack cooldown | 1.35 |
-| Spawn rate | 0.55 |
-| Boss rate | 0.65 |
-| Surface HP | 0.5 |
-| Surface damage | 0.45 |
-| Surface speed | 0.8 |
+| Enemy HP | 1 |
+| Enemy damage | 1 |
+| Enemy speed | 1 |
+| Enemy projectile speed | 1 |
+| Enemy attack cooldown | 1 |
+| Spawn rate | 1 |
+| Boss rate | 1 |
+| Surface HP | 1 |
+| Surface damage | 1 |
+| Surface speed | 1 |
 
 | Enemy | HP | Speed | Contact | Time Gate | Spawn Roll |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -147,6 +160,9 @@ Active balance mode: `testEasy` (Testing Easy).
 | warden | 520 | 134 | 24 | 0s | 0 |
 | razor | 92 | 335 | 17 | 205s | 0.18 |
 | skimmer | 126 | 176 | 13 | 165s | 0.29 |
+| shard | 84 | 392 | 18 | 145s | 0.33 |
+| helix | 136 | 188 | 14 | 225s | 0.17 |
+| prism | 180 | 142 | 16 | 250s | 0.12 |
 | bulwark | 270 | 86 | 22 | 270s | 0.07 |
 | siphon | 540 | 94 | 25 | 330s | 0.055 |
 | dreadnought | 760 | 70 | 30 | 420s | 0.038 |
@@ -156,12 +172,12 @@ Active balance mode: `testEasy` (Testing Easy).
 
 | System | Value |
 | --- | ---: |
-| Weapon base cooldown | 0.234s |
-| Weapon minimum cooldown | 0.055s |
-| Weapon base damage | 14 |
+| Weapon base cooldown | 0.31s |
+| Weapon minimum cooldown | 0.075s |
+| Weapon base damage | 13 |
 | XP pickup radius | 5.6 |
 | XP merge radius max | 12.6 |
-| Workbench base choices | 5 |
+| Workbench base choices | 4 |
 | Relic chance base | 0.18 |
 | Surface gun damage | 18 |
 | Surface health base | 86 |
@@ -172,10 +188,10 @@ Active balance mode: `testEasy` (Testing Easy).
 | --- | ---: |
 | Starter hull | 100 |
 | Starter speed | 270 |
-| Starting XP threshold | 24 |
-| XP growth multiplier | 1.18 |
+| Starting XP threshold | 42 |
+| XP growth multiplier | 1.24 |
 | Chest respawn minimum | 38s |
-| Intro node station timing | 37.5s |
+| Intro node station timing | 43s |
 | Station repair hull | 42 |
 | Surface world | 1600 x 1180 |
 | Surface cache safe distance | 240 |

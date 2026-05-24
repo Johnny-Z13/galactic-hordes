@@ -3,7 +3,7 @@ import { writeFileSync } from 'node:fs'
 
 const cell = 192
 const columns = 4
-const rows = 6
+const rows = 9
 const width = cell * columns
 const height = cell * rows
 const pixels = new Uint8ClampedArray(width * height * 4)
@@ -118,6 +118,72 @@ const drawSkimmer = (row, col) => {
   line(cx - 12, cy + 31, cx + 4, cy + 58 + sway, violet, 1)
 }
 
+const drawShard = (row, col) => {
+  const lime = rgba('#a6ff4d')
+  const cyan = rgba('#57fff3')
+  const yellow = rgba('#fff27a')
+  const magenta = rgba('#ff61d8')
+  const slash = Math.sin(col * 1.9) * 8
+  const [cx, cy] = local(row, col, 96, 96)
+  poly([[cx + 76, cy], [cx - 6, cy - 40 - slash], [cx - 36, cy - 10], [cx - 88, cy - 25 + slash], [cx - 32, cy + 12], [cx - 6, cy + 42 + slash]], lime, 1.8)
+  poly([[cx + 42, cy], [cx - 8, cy - 18], [cx - 22, cy], [cx - 8, cy + 18]], cyan, 1.1)
+  line(cx - 50, cy - 27, cx - 96 - slash, cy - 58, magenta, 1.15)
+  line(cx - 46, cy + 27, cx - 102 - slash, cy + 59, magenta, 1.15)
+  line(cx + 6, cy - 34, cx + 54, cy + 8, cyan, 1)
+  line(cx + 6, cy + 34, cx + 54, cy - 8, cyan, 1)
+  dot(cx + 33, cy, 6, yellow, 0.92)
+  dot(cx - 13, cy, 4, lime, 0.86)
+}
+
+const drawHelix = (row, col) => {
+  const cyan = rgba('#7df7ff')
+  const lime = rgba('#a6ff4d')
+  const violet = rgba('#b990ff')
+  const white = rgba('#f6fffe')
+  const wave = Math.sin(col * 1.6) * 9
+  const [cx, cy] = local(row, col, 96, 96)
+  for (let i = 0; i < 6; i += 1) {
+    const t = i / 5
+    const x = cx - 58 + t * 116
+    const y1 = cy + Math.sin(t * Math.PI * 2 + col * 0.7) * (36 + wave * 0.2)
+    const y2 = cy - Math.sin(t * Math.PI * 2 + col * 0.7) * (36 + wave * 0.2)
+    dot(x, y1, 4.5, i % 2 ? lime : cyan, 0.85)
+    dot(x, y2, 4.5, i % 2 ? cyan : violet, 0.78)
+    if (i > 0) {
+      const px = cx - 58 + ((i - 1) / 5) * 116
+      const py1 = cy + Math.sin(((i - 1) / 5) * Math.PI * 2 + col * 0.7) * (36 + wave * 0.2)
+      const py2 = cy - Math.sin(((i - 1) / 5) * Math.PI * 2 + col * 0.7) * (36 + wave * 0.2)
+      line(px, py1, x, y1, cyan, 1.25)
+      line(px, py2, x, y2, lime, 1.05)
+    }
+    line(x, y1, x, y2, violet, 0.8)
+  }
+  arc(cx, cy, 46 + wave * 0.2, -0.6, Math.PI * 1.45, cyan, 1.2)
+  poly([[cx + 62, cy], [cx + 24, cy - 24], [cx - 38, cy - 18], [cx - 68, cy], [cx - 38, cy + 18], [cx + 24, cy + 24]], cyan, 1.35)
+  dot(cx + 16, cy, 10, lime, 0.58)
+  dot(cx + 18, cy, 4, white, 0.92)
+}
+
+const drawPrism = (row, col) => {
+  const pink = rgba('#ff8cf0')
+  const yellow = rgba('#fff27a')
+  const cyan = rgba('#57fff3')
+  const violet = rgba('#b990ff')
+  const tilt = Math.sin(col * 1.3) * 6
+  const [cx, cy] = local(row, col, 96, 96)
+  poly([[cx + 64, cy], [cx + 16, cy - 62 + tilt], [cx - 54, cy - 36], [cx - 70, cy + 24 + tilt], [cx - 8, cy + 58], [cx + 48, cy + 30]], pink, 1.85)
+  line(cx + 16, cy - 62 + tilt, cx - 8, cy + 58, cyan, 1.15)
+  line(cx - 54, cy - 36, cx + 48, cy + 30, yellow, 1)
+  line(cx - 70, cy + 24 + tilt, cx + 64, cy, violet, 1)
+  poly([[cx + 24, cy - 20], [cx - 14, cy - 32], [cx - 35, cy + 4], [cx + 4, cy + 24]], yellow, 1)
+  for (let i = 0; i < 5; i += 1) {
+    const a = -0.55 + i * 0.28 + tilt * 0.01
+    line(cx + 42, cy, cx + 92, cy + Math.sin(a) * 58, i % 2 ? cyan : yellow, 0.85)
+  }
+  dot(cx + 11, cy, 9, pink, 0.72)
+  dot(cx + 13, cy, 4, rgba('#ffffff'), 0.95)
+}
+
 const drawBulwark = (row, col) => {
   const magenta = rgba('#f46cff')
   const cyan = rgba('#57fff3')
@@ -220,10 +286,13 @@ const drawCathedral = (row, col) => {
 for (let col = 0; col < columns; col += 1) {
   drawRazor(0, col)
   drawSkimmer(1, col)
-  drawBulwark(2, col)
-  drawSiphon(3, col)
-  drawDreadnought(4, col)
-  drawCathedral(5, col)
+  drawShard(2, col)
+  drawHelix(3, col)
+  drawPrism(4, col)
+  drawBulwark(5, col)
+  drawSiphon(6, col)
+  drawDreadnought(7, col)
+  drawCathedral(8, col)
 }
 
 const crcTable = new Uint32Array(256)

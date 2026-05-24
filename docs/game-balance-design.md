@@ -18,6 +18,7 @@ Galactic Hordes needs balance data to be easy to inspect, edit, test, and docume
 - global difficulty multipliers
 - space enemy base stats
 - space enemy attack stats
+- space enemy roster membership and sprite row assignment
 - space spawn pressure
 - boss cadence
 - surface threat stats
@@ -53,6 +54,8 @@ Galactic Hordes needs balance data to be easy to inspect, edit, test, and docume
 
 Runtime code may transform these values for elapsed time, planet count, sector node, or run state, but the underlying constants must live in source modules with descriptive names.
 
+The readable roster log, with sprite sheet images, lives in [enemy-alien-catalog.md](enemy-alien-catalog.md).
+
 ## Difficulty Profiles
 
 Profiles are named modes, not loose multipliers in random files:
@@ -75,20 +78,20 @@ The active mode is a single exported value in `src/game-balance.ts`. During deve
 <!-- BALANCE-GENERATED:START -->
 ### Active Balance Snapshot
 
-Active balance mode: `testEasy` (Testing Easy).
+Active balance mode: `normal` (Normal).
 
 | Multiplier | Value |
 | --- | ---: |
-| Enemy HP | 0.45 |
-| Enemy damage | 0.4 |
-| Enemy speed | 0.82 |
-| Enemy projectile speed | 0.85 |
-| Enemy attack cooldown | 1.35 |
-| Spawn rate | 0.55 |
-| Boss rate | 0.65 |
-| Surface HP | 0.5 |
-| Surface damage | 0.45 |
-| Surface speed | 0.8 |
+| Enemy HP | 1 |
+| Enemy damage | 1 |
+| Enemy speed | 1 |
+| Enemy projectile speed | 1 |
+| Enemy attack cooldown | 1 |
+| Spawn rate | 1 |
+| Boss rate | 1 |
+| Surface HP | 1 |
+| Surface damage | 1 |
+| Surface speed | 1 |
 
 | Enemy | HP | Speed | Contact | Time Gate | Spawn Roll |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -101,6 +104,9 @@ Active balance mode: `testEasy` (Testing Easy).
 | warden | 520 | 134 | 24 | 0s | 0 |
 | razor | 92 | 335 | 17 | 205s | 0.18 |
 | skimmer | 126 | 176 | 13 | 165s | 0.29 |
+| shard | 84 | 392 | 18 | 145s | 0.33 |
+| helix | 136 | 188 | 14 | 225s | 0.17 |
+| prism | 180 | 142 | 16 | 250s | 0.12 |
 | bulwark | 270 | 86 | 22 | 270s | 0.07 |
 | siphon | 540 | 94 | 25 | 330s | 0.055 |
 | dreadnought | 760 | 70 | 30 | 420s | 0.038 |
@@ -110,12 +116,12 @@ Active balance mode: `testEasy` (Testing Easy).
 
 | System | Value |
 | --- | ---: |
-| Weapon base cooldown | 0.234s |
-| Weapon minimum cooldown | 0.055s |
-| Weapon base damage | 14 |
+| Weapon base cooldown | 0.31s |
+| Weapon minimum cooldown | 0.075s |
+| Weapon base damage | 13 |
 | XP pickup radius | 5.6 |
 | XP merge radius max | 12.6 |
-| Workbench base choices | 5 |
+| Workbench base choices | 4 |
 | Relic chance base | 0.18 |
 | Surface gun damage | 18 |
 | Surface health base | 86 |
@@ -126,10 +132,10 @@ Active balance mode: `testEasy` (Testing Easy).
 | --- | ---: |
 | Starter hull | 100 |
 | Starter speed | 270 |
-| Starting XP threshold | 24 |
-| XP growth multiplier | 1.18 |
+| Starting XP threshold | 42 |
+| XP growth multiplier | 1.24 |
 | Chest respawn minimum | 38s |
-| Intro node station timing | 37.5s |
+| Intro node station timing | 43s |
 | Station repair hull | 42 |
 | Surface world | 1600 x 1180 |
 | Surface cache safe distance | 240 |

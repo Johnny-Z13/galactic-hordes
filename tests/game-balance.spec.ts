@@ -17,11 +17,12 @@ const sequenceRandom = (values: number[]) => {
   return () => values[index++] ?? 0.99
 }
 
-test('active balance mode is explicit and currently easy for testing', () => {
-  expect(GAME_BALANCE_MODE).toBe('testEasy')
-  expect(activeBalanceProfile.enemyHpMultiplier).toBeLessThan(gameBalanceProfiles.normal.enemyHpMultiplier)
-  expect(activeBalanceProfile.enemyDamageMultiplier).toBeLessThan(gameBalanceProfiles.normal.enemyDamageMultiplier)
-  expect(activeBalanceProfile.spawnRateMultiplier).toBeLessThan(gameBalanceProfiles.normal.spawnRateMultiplier)
+test('active balance mode uses the normal first-pass tuning profile', () => {
+  expect(GAME_BALANCE_MODE).toBe('normal')
+  expect(activeBalanceProfile.enemyHpMultiplier).toBe(gameBalanceProfiles.normal.enemyHpMultiplier)
+  expect(activeBalanceProfile.enemyDamageMultiplier).toBe(gameBalanceProfiles.normal.enemyDamageMultiplier)
+  expect(activeBalanceProfile.spawnRateMultiplier).toBe(gameBalanceProfiles.normal.spawnRateMultiplier)
+  expect(gameBalanceProfiles.testEasy.spawnRateMultiplier).toBeLessThan(activeBalanceProfile.spawnRateMultiplier)
 })
 
 test('each space enemy exposes editable balance stats', () => {
@@ -58,7 +59,9 @@ test('enemy attack cooldown ramps are balance data', () => {
 
 test('spawn and surface balance values are named and profile-scaled', () => {
   expect(spaceSpawnBalance.spawnCooldown.minSeconds).toBeGreaterThan(0)
+  expect(spaceSpawnBalance.spawnCooldown.maxSeconds).toBeGreaterThan(1)
   expect(spaceSpawnBalance.quietField.targetNearbyBase).toBeGreaterThan(0)
+  expect(spaceSpawnBalance.quietField.targetNearbyMax).toBeGreaterThan(spaceSpawnBalance.quietField.targetNearbyBase)
   expect(surfaceThreatBalance.generic.baseHp).toBeGreaterThan(0)
   expect(surfaceThreatBalance.boss.contactDamage).toBeGreaterThan(surfaceThreatBalance.generic.contactDamage)
 })

@@ -111,18 +111,18 @@ export const powerupBalance = {
     ramDamagePerEngineRank: 1.5
   },
   weapon: {
-    baseFireCooldown: 0.234,
-    minFireCooldown: 0.055,
-    rapidCooldownPerRank: 0.014,
+    baseFireCooldown: 0.31,
+    minFireCooldown: 0.075,
+    rapidCooldownPerRank: 0.012,
     heatCooldownPerRank: 0.006,
     limitCooldownPerRank: 0.004,
     choirCooldownMultiplier: 0.88,
-    baseDamage: 14,
-    damagePerLevel: 0.65,
+    baseDamage: 13,
+    damagePerLevel: 0.45,
     railDamagePerRank: 2,
     riftDamagePerRank: 2,
     limitMightDamagePerRank: 1.6,
-    baseProjectileSpeed: 780,
+    baseProjectileSpeed: 650,
     echoProjectileSpeedPerRank: 55,
     heatProjectileSpeedPerRank: 18,
     limitSpeedProjectileSpeedPerRank: 14,
@@ -281,7 +281,7 @@ export const pickupBalance = {
 } as const
 
 export const workbenchBalance = {
-  baseChoiceCount: 5,
+  baseChoiceCount: 4,
   evolutionChanceBase: 0.55,
   evolutionChanceLuckPerRank: 0.06,
   relicChanceBase: 0.04,
@@ -298,7 +298,7 @@ export const workbenchBalance = {
   rareInstallRarityThreshold: 65,
   installDelaySeconds: 0.56,
   rareInstallDelaySeconds: 0.76,
-  surfaceSignalCapBase: 3,
+  surfaceSignalCapBase: 2,
   surfaceSignalCapRewardEventBonus: 1,
   overflowSignalScrap: 85,
   overflowSignalCrystal: 2,

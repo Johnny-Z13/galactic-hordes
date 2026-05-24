@@ -36,6 +36,8 @@ Generation uses fixed structural beats plus weighted variety:
 
 - Column 1 always offers at least one safe drift and one planet cluster.
 - The first launched route node has a shorter station timing so the player sees the map loop quickly.
+- Opening space no longer forces a special nearby planet field; planet cadence comes from the selected sector node.
+- Every generated node receives seeded texture: one or two visible sector modifiers, one enemy packet, one reward shape, and bounded wave timing/count jitter.
 - Stations are fixed service anchors before mid and late pressure.
 - Late boss gates are fixed route checks.
 - Other slots are weighted by column depth, with duplicate templates in the same column discouraged.
@@ -51,6 +53,9 @@ Every sector node has a readable config:
 - `theme`: open space, asteroid belt, planet cluster, derelict field, nebula, boss gate, or final stand.
 - `waveOrder`: scouts, swarm, ambush, bulwark, or cathedral.
 - `hazards`: clear, asteroids, hunterWing, derelictCache, or nebula.
+- `modifiers`: seeded route personality tags such as quiet dead zones, rich salvage, aggressive hunters, asteroid storms, signal droughts, and old warzones.
+- `enemyPacket`: the dominant contact family for the node, such as scout pickets, knife wings, alien blooms, mine screens, gunlines, or siege guards.
+- `rewardShape`: bounded economy variance such as scrap-heavy, signal-bloom, lean-cache, relic-trace, or repair-cache nodes.
 - `planets`: count range, density, and archetype bias.
 - `enemies`: starting spawns, enemy bias, spawn pressure, and max-alive pressure.
 - `waves`: timed enemy counts and optional designer notes.
@@ -62,7 +67,7 @@ Every sector node has a readable config:
 This means a node can be described as more than "hostile" or "planet." Example:
 
 - Safe drift: lower spawn pressure, simple scout waves, recovery-biased planets.
-- Planet cluster: more landings, slower encounter cadence, derelict-cache or clear-space bias.
+- Planet cluster: more landings than other routes, but capped so upgrade signals remain a deliberate route payoff.
 - Asteroid belt: faster pressure, meteor event bias, fewer recovery beats.
 - Hunter lane: high enemy pressure, hunter-wing encounter bias, stronger combat payoff.
 - Derelict field: cache lure, lower chest interval, delayed guardian waves.
@@ -82,7 +87,20 @@ This means a node can be described as more than "hostile" or "planet." Example:
 - space encounter gap multiplier
 - station services
 
-`src/space-encounters.ts` accepts encounter bias from the active sector node. This lets map choices influence whether the player sees more meteor fronts, hunter wings, or derelict caches.
+`src/space-encounters.ts` accepts encounter bias from the active sector node. This lets map choices influence whether the player sees more meteor fronts, hunter wings, derelict caches, or alien blooms.
+
+Current encounter families are logged in [enemy-alien-catalog.md](enemy-alien-catalog.md). In short: hunter wings bring fast ambush enemies, derelict caches create guarded reward detours, meteor fronts create cross-route hazard lines, asteroid fields force a short Asteroids-style weave-and-shoot pocket, and alien blooms splash `shard`, `helix`, and `prism` entities across strange/nebula routes.
+
+## Procedural Variety
+
+Randomness is seeded per map, so the same sector seed creates the same route texture while different runs produce different route personalities. The variability is intentionally bounded:
+
+- Sector modifiers change pressure, encounter gaps, asteroid intensity, planet cadence, or signal odds by small multipliers.
+- Enemy packets add a readable contact family without replacing the template's core identity.
+- Reward shapes change the economy profile, not just total loot.
+- Waves keep their authored labels and purpose, but their timing and enemy counts jitter within safe limits.
+
+This gives runs a stronger first-minute personality while keeping the generated readout honest about risk and payoff.
 
 ## UI Rules
 

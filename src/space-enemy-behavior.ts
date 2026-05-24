@@ -14,19 +14,19 @@ export const spaceEnemyBehavior = {
   rewards: {
     xpCount: {
       default: 1,
-      advanced: 2,
-      brute: 3,
-      bulwark: 5,
-      warden: 9,
-      giant: 11
+      advanced: 1,
+      brute: 2,
+      bulwark: 4,
+      warden: 6,
+      giant: 8
     },
     xpValue: {
-      default: 3,
-      highLoadPerDrop: 3,
-      brute: 4,
-      bulwark: 5,
-      warden: 8,
-      giant: 9
+      default: 2,
+      highLoadPerDrop: 2,
+      brute: 3,
+      bulwark: 4,
+      warden: 6,
+      giant: 7
     }
   },
   splitChild: {
@@ -81,6 +81,41 @@ export const spaceEnemyBehavior = {
     spreadRadians: 0.24,
     projectileLife: 1.55,
     projectileRadius: 4.5
+  },
+  shard: {
+    strafe: 2.6,
+    pursuit: 2.25,
+    cornerFrequency: 5.6,
+    cornerForce: 390,
+    dashForwardImpulse: 260,
+    dashSideImpulse: 310,
+    trailIntensity: 2.8
+  },
+  helix: {
+    farDistance: 620,
+    nearDistance: 340,
+    farPull: 0.92,
+    nearPull: -1.25,
+    holdPull: 0.05,
+    corkscrewFrequency: 5.2,
+    corkscrewScale: 0.92,
+    shotPairs: 2,
+    shotAngleStep: 0.42,
+    projectileLife: 1.65,
+    projectileRadius: 4
+  },
+  prism: {
+    farDistance: 720,
+    nearDistance: 470,
+    farPull: 0.72,
+    nearPull: -1.05,
+    holdPull: -0.02,
+    orbitFrequency: 2.2,
+    orbitScale: 0.74,
+    beamCount: 5,
+    beamSpreadRadians: 0.16,
+    projectileLife: 1.45,
+    projectileRadius: 4.6
   },
   bulwark: {
     farDistance: 620,
@@ -182,4 +217,4 @@ export const spaceEnemyBehavior = {
   }
 } as const
 
-export const advancedRewardEnemyKinds: readonly SpaceEnemyKind[] = ['razor', 'skimmer', 'shooter', 'lancer'] as const
+export const advancedRewardEnemyKinds: readonly SpaceEnemyKind[] = ['razor', 'skimmer', 'shard', 'helix', 'prism', 'shooter', 'lancer'] as const

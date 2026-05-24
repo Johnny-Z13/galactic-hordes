@@ -1,37 +1,21 @@
 import { expect, test } from '@playwright/test'
 import fs from 'node:fs'
-import { ONBOARDING_PLANET_COUNT, ONBOARDING_PLANET_MIN_CENTER_DISTANCE, onboardingPlanetSlot, useOnboardingPlanetField } from '../src/onboarding-planets'
 
 const mainSource = () => fs.readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8')
 
-test('adds a denser planet field only before the first successful planet loop', () => {
-  expect(useOnboardingPlanetField(0, 0, 0)).toBe(true)
-  expect(useOnboardingPlanetField(0, 0, 1)).toBe(false)
-  expect(useOnboardingPlanetField(1, 0, 0)).toBe(false)
-  expect(ONBOARDING_PLANET_COUNT).toBe(3)
-})
-
-test('places at least one onboarding planet close enough to read as landable immediately', () => {
-  const slots = Array.from({ length: ONBOARDING_PLANET_COUNT }, (_, i) => onboardingPlanetSlot(i))
-  expect(slots.some((slot) => Math.hypot(slot.x, slot.y) < 520)).toBe(true)
-  expect(slots.filter((slot) => Math.hypot(slot.x, slot.y) < 900).length).toBeGreaterThanOrEqual(3)
-})
-
-test('keeps onboarding planets visually separated from each other', () => {
-  const slots = Array.from({ length: ONBOARDING_PLANET_COUNT }, (_, i) => onboardingPlanetSlot(i))
-
-  for (let i = 0; i < slots.length; i += 1) {
-    for (let j = i + 1; j < slots.length; j += 1) {
-      const distance = Math.hypot(slots[i].x - slots[j].x, slots[i].y - slots[j].y)
-      expect(distance).toBeGreaterThanOrEqual(ONBOARDING_PLANET_MIN_CENTER_DISTANCE)
-    }
-  }
-})
-
-test('main planet generator uses onboarding field before returning to normal density', () => {
+test('main planet generator no longer forces an opening onboarding field', () => {
   const main = mainSource()
 
-  expect(main).toContain('useOnboardingPlanetField')
-  expect(main).toContain('ONBOARDING_PLANET_COUNT')
-  expect(main).toContain('onboardingPlanetSlot')
+  expect(main).not.toContain('useOnboardingPlanetField')
+  expect(main).not.toContain('ONBOARDING_PLANET_COUNT')
+  expect(main).not.toContain('onboardingPlanetSlot')
+  expect(main).toContain('const planetCount = this.sectorPlanetCount(rng)')
+})
+
+test('origin planets are placed by procedural chunk rules instead of a fixed dock point', () => {
+  const main = mainSource()
+
+  expect(main).not.toContain("chunkX === 0 && chunkY === 0 && index === 0 ? 'LUX MORGUE'")
+  expect(main).not.toContain('centerBias ? 720')
+  expect(main).not.toContain('centerBias ? 220')
 })

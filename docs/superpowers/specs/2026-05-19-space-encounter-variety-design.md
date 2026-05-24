@@ -6,11 +6,13 @@ Make open-space play feel less like a smooth enemy-stat curve and more like a ru
 
 ## First Slice
 
-This pass adds a lightweight encounter director that periodically injects one of three event families while the player is in space:
+This pass adds a lightweight encounter director that periodically injects event families while the player is in space:
 
 - **Meteor Front:** a readable line of large asteroids drifts across the player route. Asteroids damage the scout and enemies, creating temporary terrain and route pressure.
+- **Asteroid Field:** a short procedural field phase dots drifting rocks around the route so the player has to steer and shoot through a temporary Asteroids-style pocket.
 - **Hunter Wing:** a deliberate enemy formation spawns ahead of the player's travel vector, then closes in using existing fast enemy behaviors.
 - **Derelict Cache:** a temporary off-route cache signal appears with a reward and guardians, turning navigation into a short detour decision.
+- **Alien Bloom:** a strange ring of `shard`, `helix`, and `prism` entities unfurls ahead of travel, biased toward nebula, relic, lore, and strange-world pressure.
 
 ## Design Rules
 
@@ -32,8 +34,10 @@ This pass adds a lightweight encounter director that periodically injects one of
 - The director is a pure helper; `VectorShooter` stores the next-event time and active meteor/derelict objects.
 - Sector node profiles pass encounter bias and cadence multipliers into the director, so map choices change open-space texture without hard-coding route logic into the encounter module.
 - Meteor asteroids use world-space circles with velocity and lifetime. They collide with the player and enemies.
-- Hunter Wing spawns existing `razor`, `skimmer`, and `lancer` enemies in formation using existing enemy behaviors.
+- Asteroid Field reuses the same asteroid hazard objects, keeps seeding around/ahead of the player for a timed window, and lets player bullets break larger rocks into smaller pieces.
+- Hunter Wing spawns `razor`, `shard`, `lancer`, and `skimmer` enemies in formation using existing enemy behaviors.
 - Derelict Cache uses a persistent `chest` pickup plus a rendered derelict marker and guardian enemies.
+- Alien Bloom uses the newer strange space enemy set and is tracked in `docs/enemy-alien-catalog.md`.
 
 ## Non-Goals
 

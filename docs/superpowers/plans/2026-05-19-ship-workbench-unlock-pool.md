@@ -196,7 +196,7 @@ Update the workbench tuning test in `tests/powerup-balance.spec.ts`:
 
 ```ts
 test('workbench roll tuning is configurable', () => {
-  expect(workbenchBalance.baseChoiceCount).toBe(5)
+  expect(workbenchBalance.baseChoiceCount).toBe(4)
   expect(workbenchBalance.ownedBiasBase).toBeGreaterThan(1)
   expect(workbenchBalance.relicChanceRare).toBeGreaterThan(workbenchBalance.relicChanceBase)
 })
@@ -218,7 +218,7 @@ Expected: FAIL because the base choice count is still 3 and `main.ts` still comp
 
 - [ ] **Step 3: Update roll tuning and roll source**
 
-In `src/powerup-balance.ts`, set `baseChoiceCount` to `5` and remove `fourthChoiceBaseChance`, `fourthChoiceLuckChancePerRank`, and `fourthChoiceWorkbenchBonus`.
+In `src/powerup-balance.ts`, set `baseChoiceCount` to `4` and remove `fourthChoiceBaseChance`, `fourthChoiceLuckChancePerRank`, and `fourthChoiceWorkbenchBonus`.
 
 In `src/main.ts`, add this import:
 
@@ -397,7 +397,7 @@ Update workbench copy to say the workbench shows five clickable offers, maxed sy
 
 Run: `npm run docs:balance`
 
-Expected: README and `docs/game-balance-design.md` generated sections show `Workbench base choices | 5 |`.
+Expected: README and `docs/game-balance-design.md` generated sections show `Workbench base choices | 4 |`.
 
 - [ ] **Step 3: Run targeted tests**
 
