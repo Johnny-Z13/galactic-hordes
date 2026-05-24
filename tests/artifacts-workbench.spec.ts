@@ -260,6 +260,22 @@ test('mothership console controls expose clear focus disabled and tab labels', (
   expect(css).toContain('background: linear-gradient(135deg, rgba(255, 242, 122, 0.2)')
 })
 
+test('scores screen can reset persistent progress back to first play', () => {
+  const main = source()
+  const css = styles()
+
+  expect(main).toContain("reset.textContent = 'Reset Save'")
+  expect(main).toContain("reset.textContent = 'Confirm Reset'")
+  expect(main).toContain('private resetPersistentProgress()')
+  expect(main).toContain('localStorage.removeItem(STORAGE_KEY)')
+  expect(main).toContain('localStorage.removeItem(MOTHERSHIP_STORAGE_KEY)')
+  expect(main).toContain('this.mothership = defaultMothershipState()')
+  expect(main).toContain('this.stats.highScore = 0')
+  expect(main).toContain('this.showTitle()')
+  expect(css).toContain('.vector-button.danger')
+  expect(css).toContain('.vector-button.danger[data-confirm="true"]')
+})
+
 test('mobile workbench install manifest uses full width touch targets', () => {
   const css = styles()
 

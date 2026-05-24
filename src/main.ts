@@ -8154,10 +8154,34 @@ class VectorShooter {
     back.className = 'vector-button'
     back.textContent = 'Back'
     back.addEventListener('click', () => this.showTitle())
-    row.append(back)
+    const reset = document.createElement('button')
+    reset.className = 'vector-button secondary danger'
+    reset.textContent = 'Reset Save'
+    reset.addEventListener('click', () => {
+      if (reset.dataset.confirm === 'true') {
+        this.resetPersistentProgress()
+        return
+      }
+      reset.dataset.confirm = 'true'
+      reset.textContent = 'Confirm Reset'
+    })
+    row.append(back, reset)
     panel.append(h, table, row)
     this.ui.scores.append(panel)
     this.showOnly('scores')
+  }
+
+  private resetPersistentProgress() {
+    localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(MOTHERSHIP_STORAGE_KEY)
+    this.highs = []
+    this.mothership = defaultMothershipState()
+    this.debrief = null
+    this.scoreSaved = false
+    this.scoreName = 'ACE'
+    this.stats.highScore = 0
+    this.reset()
+    this.showTitle()
   }
 
   private gameOver() {

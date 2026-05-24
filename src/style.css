@@ -1843,6 +1843,18 @@ canvas {
   background: rgba(2, 12, 16, 0.76);
 }
 
+.vector-button.danger {
+  border-color: rgba(255, 93, 115, 0.6);
+  color: rgba(255, 188, 198, 0.92);
+  background: rgba(31, 5, 11, 0.78);
+}
+
+.vector-button.danger[data-confirm="true"] {
+  border-color: rgba(255, 242, 122, 0.82);
+  color: #fff4c2;
+  background: rgba(58, 20, 4, 0.84);
+}
+
 .vector-button.tiny {
   min-height: 34px;
   padding: 7px 10px;
