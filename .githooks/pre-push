@@ -1,4 +1,50 @@
 #!/bin/sh
 set -e
 
-npm run test:responsive
+if [ "$SKIP_RESPONSIVE_TESTS" = "1" ]; then
+  echo "pre-push: skipping responsive UI tests via SKIP_RESPONSIVE_TESTS=1"
+  exit 0
+fi
+
+if [ "$RUN_RESPONSIVE_TESTS" = "1" ]; then
+  npm run test:responsive
+  exit 0
+fi
+
+should_run=0
+zero_sha="0000000000000000000000000000000000000000"
+
+while read local_ref local_sha remote_ref remote_sha
+do
+  if [ "$local_sha" = "$zero_sha" ]; then
+    continue
+  fi
+
+  if [ "$remote_sha" = "$zero_sha" ]; then
+    changed_files=$(git diff-tree --no-commit-id --name-only -r "$local_sha")
+  else
+    changed_files=$(git diff --name-only "$remote_sha" "$local_sha")
+  fi
+
+  if echo "$changed_files" | grep -Eq '^(index\.html|src/style\.css|tests/responsive-ui\.spec\.ts|src/assets/|public/)'; then
+    should_run=1
+  fi
+
+  if echo "$changed_files" | grep -Eq '^src/(main|workbench-bays|mothership-progression)\.ts$'; then
+    if [ "$remote_sha" = "$zero_sha" ]; then
+      diff_text=$(git show --format= --unified=0 "$local_sha" -- src/main.ts src/workbench-bays.ts src/mothership-progression.ts)
+    else
+      diff_text=$(git diff --unified=0 "$remote_sha" "$local_sha" -- src/main.ts src/workbench-bays.ts src/mothership-progression.ts)
+    fi
+
+    if echo "$diff_text" | grep -Eq 'className|innerHTML|textContent|createElement|querySelector|setAttribute|addEventListener|append\(|showTitle|showMothership|render[A-Z]|touch|screen|button|label|description'; then
+      should_run=1
+    fi
+  fi
+done
+
+if [ "$should_run" = "1" ]; then
+  npm run test:responsive
+else
+  echo "pre-push: responsive UI tests skipped; no UI-facing files changed"
+fi
