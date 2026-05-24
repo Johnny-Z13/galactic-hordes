@@ -7082,6 +7082,33 @@ class VectorShooter {
     window.requestAnimationFrame(restore)
   }
 
+  private centerElementInScrollContainer(container: HTMLElement | null, target: HTMLElement | null) {
+    if (!container || !target) return
+    const center = () => {
+      const containerRect = container.getBoundingClientRect()
+      const targetRect = target.getBoundingClientRect()
+      const delta = (targetRect.top + targetRect.height / 2) - (containerRect.top + containerRect.height / 2)
+      container.scrollTop = clamp(container.scrollTop + delta, 0, Math.max(0, container.scrollHeight - container.clientHeight))
+    }
+    center()
+    window.requestAnimationFrame(center)
+  }
+
+  private centerLevelUpTarget(selector: string) {
+    const target = this.ui.levelup.querySelector<HTMLElement>(selector)
+    if (!target) return
+    const candidates = [
+      this.ui.levelup.querySelector<HTMLElement>('.workbench-panel'),
+      this.ui.levelup.querySelector<HTMLElement>('.workbench-view')
+    ].filter((candidate): candidate is HTMLElement => {
+      if (!candidate) return false
+      return candidate.contains(target)
+        && candidate.scrollHeight > candidate.clientHeight + 1
+        && getComputedStyle(candidate).overflowY !== 'visible'
+    })
+    this.centerElementInScrollContainer(candidates[0] ?? null, target)
+  }
+
   private recycleWorkbenchSignal() {
     if (this.workbenchInstalling || this.pendingUpgrades <= 0 || this.mothership.departments.workbench < 4) return
     const scrap = workbenchBalance.recycleScrapBase + Math.floor(this.stats.level * workbenchBalance.recycleScrapPerLevel)
@@ -7282,6 +7309,7 @@ class VectorShooter {
     button.setAttribute('aria-expanded', String(this.expandedWorkbenchBay === bay.id))
     button.addEventListener('click', () => {
       const scrollTop = this.currentLevelUpScrollTop()
+      const opening = this.expandedWorkbenchBay !== bay.id
       if (this.expandedWorkbenchBay === bay.id) {
         this.expandedWorkbenchBay = null
       } else {
@@ -7289,7 +7317,8 @@ class VectorShooter {
         this.expandedWorkbenchBay = bay.id
       }
       this.renderLevelUp(this.levelUpTitle, this.levelUpCopy)
-      this.restoreLevelUpScroll(scrollTop)
+      if (opening) this.centerLevelUpTarget(`[data-workbench-bay="${bay.id}"] > .workbench-bay-toggle`)
+      else this.restoreLevelUpScroll(scrollTop)
     })
     const nextStatus = nextRow
       ? offeredUpgradeChoices.has(nextRow.upgrade.id)
@@ -7322,6 +7351,7 @@ class VectorShooter {
   ) {
     const entry = document.createElement('div')
     entry.className = `workbench-bay-entry ${this.expandedWorkbenchBay === bay.id ? 'expanded' : ''}`
+    entry.dataset.workbenchBay = bay.id
     entry.append(this.renderWorkbenchBayToggle(bay, rows, offeredUpgradeChoices))
     if (this.expandedWorkbenchBay === bay.id) entry.append(this.renderWorkbenchBayDetail(bay, rows, offeredUpgradeChoices))
     return entry
@@ -7881,7 +7911,7 @@ class VectorShooter {
     this.showOnly('title')
   }
 
-  private showMothership(options: { scrollTop?: number } = {}) {
+  private showMothership(options: { scrollTop?: number; centerDepartment?: MothershipDepartmentId } = {}) {
     this.state = 'mothership'
     this.ui.title.innerHTML = ''
     this.ui.title.className = 'screen mothership-screen'
@@ -7953,12 +7983,20 @@ class VectorShooter {
     shell.append(header, flight, systemsHeader, this.renderMothershipMetaSystems())
     this.ui.title.append(shell)
     this.showOnly('title')
-    if (options.scrollTop !== undefined) {
-      const restoreScroll = () => {
-        shell.scrollTop = clamp(options.scrollTop ?? 0, 0, Math.max(0, shell.scrollHeight - shell.clientHeight))
+    if (options.scrollTop !== undefined || options.centerDepartment) {
+      const alignScroll = () => {
+        if (options.scrollTop !== undefined) {
+          shell.scrollTop = clamp(options.scrollTop ?? 0, 0, Math.max(0, shell.scrollHeight - shell.clientHeight))
+        }
+        if (options.centerDepartment) {
+          this.centerElementInScrollContainer(
+            shell,
+            shell.querySelector<HTMLElement>(`[data-mothership-department="${options.centerDepartment}"] > .meta-department-toggle`)
+          )
+        }
       }
-      restoreScroll()
-      requestAnimationFrame(restoreScroll)
+      alignScroll()
+      requestAnimationFrame(alignScroll)
     }
   }
 
@@ -8078,13 +8116,14 @@ class VectorShooter {
     button.setAttribute('aria-expanded', String(this.expandedMothershipDepartment === id))
     button.addEventListener('click', () => {
       const scrollTop = this.ui.title.querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
+      const opening = this.expandedMothershipDepartment !== id
       if (this.expandedMothershipDepartment === id) {
         this.expandedMothershipDepartment = null
       } else {
         this.selectedMothershipDepartment = id
         this.expandedMothershipDepartment = id
       }
-      this.showMothership({ scrollTop })
+      this.showMothership({ scrollTop, centerDepartment: opening ? id : undefined })
     })
     const meter = document.createElement('div')
     meter.className = 'station-tier-meter'
@@ -8111,6 +8150,7 @@ class VectorShooter {
   private metaDepartmentEntry(id: MothershipDepartmentId) {
     const entry = document.createElement('div')
     entry.className = `meta-department-entry ${this.expandedMothershipDepartment === id ? 'expanded' : ''}`
+    entry.dataset.mothershipDepartment = id
     entry.append(this.metaDepartmentToggle(id))
     if (this.expandedMothershipDepartment === id) entry.append(this.metaDepartmentDetail(id))
     return entry
