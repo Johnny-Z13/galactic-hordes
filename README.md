@@ -22,7 +22,7 @@ Galactic Hordes is a mobile-first portrait survival shooter: Vampire Survivors p
 - Quiet planet encounters with one-time alien bargains and rare artefact rolls.
 - A generated 8-frame surface spaceman sprite replaces the original stick pilot.
 - Mothership command hub wraps launch, a real discoverable collection catalogue with unique in-game-style icons, category filters, archive data, and department upgrades.
-- Space station nodes provide run-only repairs, workbench service, and trade without granting permanent mothership upgrades.
+- Space station nodes provide a fiction-forward docking menu with run-only repairs, workbench service, cargo manifest, and trade without granting permanent mothership upgrades.
 - Large octagonal route stations appear after a planet and about four minutes, then escalate from visible docking offer to soft autopilot route.
 - Destroyed runs recover black-box archive data and partial resources.
 - High scores with editable pilot names.
@@ -113,7 +113,7 @@ Those configs feed runtime behavior: enemy recipe bias, planet archetype bias, s
 
 Each sector node now gets bounded seeded texture on top of its template: visible modifiers, an enemy packet, a reward shape, and small wave timing/count jitter. This keeps runs different without hiding the risk profile from the route card.
 
-The first post-mothership node has a shorter station window so new runs demonstrate the sector-map loop quickly: launch, survive a compact node, dock, and choose the next route. The sector map also includes a compact route debug readout showing template, depth, procedural texture, planets, hazards, pressure, rewards, and wave timing for generated nodes.
+The first post-mothership node has a shorter station window so new runs demonstrate the sector-map loop quickly: launch, survive a compact node, dock into a named space station menu, and choose the next route. The sector map also includes a compact route debug readout showing template, depth, procedural texture, planets, hazards, pressure, rewards, and wave timing for generated nodes.
 
 See [docs/sector-map-route-design.md](docs/sector-map-route-design.md) for the route-layer design.
 

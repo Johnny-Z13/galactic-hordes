@@ -12,8 +12,8 @@ This is the FTL-inspired layer for Galactic Hordes. The map is not only a level 
 
 - A run starts at the mothership node.
 - The player picks one connected forward node at a time.
-- Clearing a combat node by docking at its route station marks that node complete and returns to the sector map.
-- Space stations are safe run-only stops for repair, trade, route scan flavor, and workbench service.
+- Clearing a combat node by docking at its route station marks that node complete and opens a named station menu before returning to the sector map.
+- Space stations are safe run-only stops with docking fiction, repair, trade, route scan flavor, cargo manifest, and workbench service.
 - Death wipes sector route progress.
 - Permanent mothership meta upgrades survive death and remain managed from the mothership/game-over loop.
 - The final node is the win condition for a run.
@@ -72,7 +72,7 @@ This means a node can be described as more than "hostile" or "planet." Example:
 - Hunter lane: high enemy pressure, hunter-wing encounter bias, stronger combat payoff.
 - Derelict field: cache lure, lower chest interval, delayed guardian waves.
 - Boss gate: heavy enemy recipes, shorter encounter gaps, elite spawn requirement.
-- Station: no permanent meta upgrades, but immediate run recovery and workbench agency.
+- Station: no permanent meta upgrades, but a fiction-forward docking menu, run recovery, cargo manifest, and workbench agency.
 
 ## Runtime Effects
 
@@ -110,6 +110,7 @@ The map must stay portrait-mobile friendly:
 - Choices are large touch targets below the graph on mobile.
 - Desktop uses a wide graph plus detail rail.
 - Node choice cards must show wave and hazard readouts before launch.
+- Station docking screens should name the station and keep workbench, cargo, and route-map actions visible as explicit menu choices.
 
 The player should understand the risk profile before committing. Hidden modifiers are allowed only if the visible readout gives the right expectation.
 

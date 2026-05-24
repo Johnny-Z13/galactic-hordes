@@ -8,8 +8,11 @@ test('sector map is a first class screen between mothership and expeditions', ()
   const main = mainSource()
 
   expect(main).toContain("| 'sectorMap'")
+  expect(main).toContain("| 'station'")
   expect(main).toContain('sectorMap: document.createElement')
+  expect(main).toContain('station: document.createElement')
   expect(main).toContain('private showSectorMap(')
+  expect(main).toContain('private showStationDock(')
   expect(main).toContain('private launchSectorNode(')
   expect(main).toContain('private completeSectorNodeViaBeacon(')
   expect(main).toContain('private sectorNodeGlyph(')
@@ -44,8 +47,24 @@ test('station docking advances the sector map instead of always ending the run',
   expect(main).toContain('this.completeSectorNodeViaBeacon()')
   expect(main).toContain("node.kind === 'final'")
   expect(main).toContain("this.finishRun('cleanExtraction')")
-  expect(main).toContain('ORBITAL STATION WORKBENCH')
-  expect(main).toContain('Docking complete. Choose the next route through the sector.')
+  expect(main).toContain('this.showStationDock(this.routeStationDockReport(node))')
+  expect(main).toContain('Departure lane open. Choose the next jump.')
+})
+
+test('station docking opens a fiction menu with workbench and route actions', () => {
+  const main = mainSource()
+  const css = readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8')
+
+  expect(main).toContain('WELCOME TO ${this.escape(report.stationName)}')
+  expect(main).toContain('private stationNameForNode(')
+  expect(main).toContain('private stationFictionForNode(')
+  expect(main).toContain('Open Workbench')
+  expect(main).toContain('Cargo Manifest')
+  expect(main).toContain('Route Map')
+  expect(main).toContain('private openStationWorkbench(')
+  expect(main).toContain('private leaveStationForSectorMap(')
+  expect(css).toContain('.station-dock-panel')
+  expect(css).toContain('.station-dock-actions')
 })
 
 test('sector stations offer run services but not permanent meta upgrades', () => {

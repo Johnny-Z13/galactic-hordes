@@ -130,7 +130,7 @@ import {
 import { workbenchBayDefinitions, workbenchBayForUpgrade, type WorkbenchBayDefinition, type WorkbenchBayId } from './workbench-bays'
 import { optionOrbProfile, pulseVolleyCount, starterSignatureFlags } from './weapon-signatures'
 
-type GameState = 'title' | 'mothership' | 'sectorMap' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
+type GameState = 'title' | 'mothership' | 'sectorMap' | 'station' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
 type EnemyKind = SpaceEnemyKind
 type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
@@ -369,6 +369,18 @@ interface ReturnBeacon {
   age: number
   reminded: boolean
   assistTriggered: boolean
+}
+
+interface StationDockReport {
+  stationName: string
+  nodeLabel: string
+  fiction: string
+  serviceLine: string
+  repaired: number
+  workbenchSignals: number
+  scrap: number
+  crystal: number
+  routeStatus: string
 }
 
 interface PlayerState {
@@ -882,6 +894,7 @@ class VectorShooter {
   private selectedCollectionId: string | null = null
   private sectorMap: SectorMap = createSectorMap()
   private sectorNodeProfile: SectorNodeRunProfile = sectorNodeRunProfile(currentSectorNode(this.sectorMap))
+  private stationDockReport: StationDockReport | null = null
   private sectorNodeStartedAt = 0
   private firedSectorWaves = new Set<string>()
   private planetChoice: Planet | null = null
@@ -990,6 +1003,7 @@ class VectorShooter {
     touchDash: document.createElement('button'),
     title: document.createElement('section'),
     sectorMap: document.createElement('section'),
+    station: document.createElement('section'),
     levelup: document.createElement('section'),
     planet: document.createElement('section'),
     gameover: document.createElement('section'),
@@ -1260,7 +1274,7 @@ class VectorShooter {
 
   private makeScreens() {
     const wrap = document.createElement('div')
-    const screenList = [this.ui.title, this.ui.sectorMap, this.ui.levelup, this.ui.planet, this.ui.gameover, this.ui.scores]
+    const screenList = [this.ui.title, this.ui.sectorMap, this.ui.station, this.ui.levelup, this.ui.planet, this.ui.gameover, this.ui.scores]
     for (const s of screenList) {
       s.className = 'screen'
       wrap.append(s)
@@ -8888,12 +8902,7 @@ class VectorShooter {
     if (selected.kind === 'station') {
       const report = this.applySectorStationServices(selected)
       this.sectorMap = completeSectorNode(this.sectorMap)
-      if (this.pendingUpgrades > 0) {
-        this.returnToSectorMapAfterWorkbench = true
-        this.openLevelUp(`${selected.label} WORKBENCH`, report, true)
-        return
-      }
-      this.showSectorMap(`${selected.label}: ${report}`)
+      this.showStationDock(report)
       return
     }
     this.prepareSectorNode(selected)
@@ -8905,21 +8914,139 @@ class VectorShooter {
   private applySectorStationServices(node: SectorNode) {
     // Station services are run-only; permanent mothership meta upgrades remain game-over/mothership decisions.
     let repaired = 0
+    let workbenchSignals = 0
+    let scrap = 0
+    let crystal = 0
     if (node.stationServices.includes('repair')) {
       const before = this.player.hull
       this.player.hull = clamp(this.player.hull + runBalance.station.repairHull, 0, this.player.maxHull)
       repaired = Math.round(this.player.hull - before)
     }
     if (node.stationServices.includes('workbench')) {
+      const before = this.pendingUpgrades
       this.pendingUpgrades = Math.max(this.pendingUpgrades, runBalance.station.workbenchSignals)
       this.workbenchRerolls = Math.max(this.workbenchRerolls, runBalance.station.rerolls)
+      workbenchSignals = Math.max(0, this.pendingUpgrades - before)
     }
     if (node.stationServices.includes('trade')) {
-      this.resources.scrap += runBalance.station.tradeScrap
-      this.resources.crystal += runBalance.station.tradeCrystal
+      scrap = runBalance.station.tradeScrap
+      crystal = runBalance.station.tradeCrystal
+      this.resources.scrap += scrap
+      this.resources.crystal += crystal
     }
     this.audio.pickup('nav')
-    return `Station services are run-only. Hull +${repaired}, workbench choice staged, scrap +${runBalance.station.tradeScrap}, crystal +${runBalance.station.tradeCrystal}.`
+    const stationName = this.stationNameForNode(node)
+    return {
+      stationName,
+      nodeLabel: node.label,
+      fiction: this.stationFictionForNode(node, stationName, true),
+      serviceLine: `Station services are run-only. Hull +${repaired}, workbench ${workbenchSignals > 0 ? `+${workbenchSignals} signal` : 'signal already staged'}, scrap +${scrap}, crystal +${crystal}.`,
+      repaired,
+      workbenchSignals,
+      scrap,
+      crystal,
+      routeStatus: 'Service berth clear. Route traffic control is holding your next jump.'
+    }
+  }
+
+  private stationNameForNode(node: SectorNode) {
+    return `SPACE STATION ${17 + (hashString(`${node.id}:${node.label}`, 27) % 83)}`
+  }
+
+  private stationFictionForNode(node: SectorNode, stationName: string, serviceDock: boolean) {
+    const lines = serviceDock
+      ? [
+          `${stationName} answers with a warm carrier tone. Docking arms fold around the hull and a tired traffic officer stamps your route charter.`,
+          `${stationName} smells of hot coolant, recycled coffee, and old jump maps. The berth crew patch the hull while the route board blinks awake.`,
+          `${stationName} rotates under your canopy like a brass compass. Service crews swarm the scorch marks and the station AI opens a temporary workbench lane.`
+        ]
+      : [
+          `Welcome to ${stationName}. The docking collar seals with a low magnetic thud while the station master reads your route clearance aloud.`,
+          `${stationName} catches the ship on a green-lit gantry. Beyond the glass, freight drones cut silent lanes through the dark.`,
+          `A cracked sign over the airlock flickers: WELCOME TO ${stationName}. Your ship settles into the berth and the sector map spools back online.`
+        ]
+    return lines[hashString(node.id, serviceDock ? 91 : 47) % lines.length]
+  }
+
+  private routeStationDockReport(node: SectorNode): StationDockReport {
+    const stationName = this.stationNameForNode(node)
+    return {
+      stationName,
+      nodeLabel: node.label,
+      fiction: this.stationFictionForNode(node, stationName, false),
+      serviceLine: this.pendingUpgrades > 0
+        ? `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} banked in the station buffer.`
+        : 'No mutation signals are waiting in the station buffer.',
+      repaired: 0,
+      workbenchSignals: 0,
+      scrap: 0,
+      crystal: 0,
+      routeStatus: `${node.label} logged complete. Departure control is ready to hand you back to the sector map.`
+    }
+  }
+
+  private showStationDock(report: StationDockReport) {
+    this.stationDockReport = report
+    this.state = 'station'
+    this.ui.station.innerHTML = ''
+    this.ui.station.className = 'screen station-dock-screen'
+    const panel = document.createElement('div')
+    panel.className = 'station-dock-panel'
+    const signalCopy = this.pendingUpgrades > 0
+      ? `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} banked`
+      : 'No mutation signals banked'
+    panel.innerHTML = `
+      <div class="station-dock-header">
+        <span>DOCKING BERTH SECURED</span>
+        <h1>WELCOME TO ${this.escape(report.stationName)}</h1>
+        <p>${this.escape(report.fiction)}</p>
+      </div>
+      <div class="station-dock-grid">
+        <div><b>${this.escape(report.nodeLabel)}</b><span>route berth</span></div>
+        <div><b>${Math.max(0, report.repaired)}</b><span>hull repaired</span></div>
+        <div><b>${this.resources.scrap}</b><span>scrap manifest</span></div>
+        <div><b>${signalCopy}</b><span>workbench buffer</span></div>
+      </div>
+      <p class="station-dock-copy">${this.escape(report.serviceLine)}</p>
+      <p class="station-dock-copy">${this.escape(report.routeStatus)}</p>
+    `
+    const actions = document.createElement('div')
+    actions.className = 'station-dock-actions'
+    const workbench = document.createElement('button')
+    workbench.type = 'button'
+    workbench.className = 'station-dock-button primary'
+    workbench.textContent = 'Open Workbench'
+    workbench.disabled = this.pendingUpgrades <= 0
+    workbench.addEventListener('click', () => this.openStationWorkbench())
+    const manifest = document.createElement('button')
+    manifest.type = 'button'
+    manifest.className = 'station-dock-button'
+    manifest.textContent = 'Cargo Manifest'
+    manifest.addEventListener('click', () => this.toast(`CARGO MANIFEST: ${this.resources.scrap} SCRAP // ${this.resources.crystal} CRYSTALS // ${this.resources.cores} CORES`))
+    const route = document.createElement('button')
+    route.type = 'button'
+    route.className = 'station-dock-button'
+    route.textContent = 'Route Map'
+    route.addEventListener('click', () => this.leaveStationForSectorMap())
+    actions.append(workbench, manifest, route)
+    panel.append(actions)
+    this.ui.station.append(panel)
+    this.showOnly('station')
+  }
+
+  private openStationWorkbench() {
+    if (!this.stationDockReport || this.pendingUpgrades <= 0) {
+      this.toast('STATION WORKBENCH BUFFER EMPTY')
+      return
+    }
+    this.returnToSectorMapAfterWorkbench = true
+    this.openLevelUp(`${this.stationDockReport.stationName} WORKBENCH`, `${this.stationDockReport.serviceLine} Spend ${this.pendingUpgrades} banked mutation signal${this.pendingUpgrades === 1 ? '' : 's'}, then choose the next route through the sector.`, true)
+  }
+
+  private leaveStationForSectorMap() {
+    const report = this.stationDockReport
+    this.stationDockReport = null
+    this.showSectorMap(report ? `${report.stationName}: Departure lane open. Choose the next jump.` : 'Choose the next jump.')
   }
 
   private prepareSectorNode(node: SectorNode) {
@@ -8973,12 +9100,7 @@ class VectorShooter {
     this.returnBeacon = null
     this.autoNavTargetBeacon = false
     this.autoNavActive = false
-    if (this.pendingUpgrades > 0) {
-      this.returnToSectorMapAfterWorkbench = true
-      this.openLevelUp('ORBITAL STATION WORKBENCH', `${node.label}: Docking complete. Spend ${this.pendingUpgrades} banked mutation signal${this.pendingUpgrades === 1 ? '' : 's'}, then choose the next route through the sector.`, true)
-      return
-    }
-    this.showSectorMap(`${node.label}: Docking complete. Choose the next route through the sector.`)
+    this.showStationDock(this.routeStationDockReport(node))
   }
 
   private start() {
@@ -9030,6 +9152,7 @@ class VectorShooter {
     this.orbitReturnPoint = null
     this.surface = null
     this.returnBeacon = null
+    this.stationDockReport = null
     this.nextReturnBeaconAt = 0
     this.skippedReturnBeacons = 0
     this.transitionTimer = 0
@@ -9087,6 +9210,7 @@ class VectorShooter {
     const screens: Partial<Record<GameState, HTMLElement>> = {
       title: this.ui.title,
       sectorMap: this.ui.sectorMap,
+      station: this.ui.station,
       levelup: this.ui.levelup,
       planet: this.ui.planet,
       gameover: this.ui.gameover,

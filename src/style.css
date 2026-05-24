@@ -647,6 +647,120 @@ canvas {
   line-height: 1.3;
 }
 
+.station-dock-screen {
+  place-items: center;
+  background:
+    linear-gradient(rgba(143, 255, 125, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(87, 255, 243, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 50% 8%, rgba(143, 255, 125, 0.14), transparent 32%),
+    rgba(0, 0, 0, 0.68);
+  background-size: 24px 24px, 24px 24px, auto, auto;
+}
+
+.station-dock-panel {
+  width: min(940px, calc(100vw - 34px));
+  display: grid;
+  gap: 14px;
+  border: 1px solid rgba(143, 255, 125, 0.5);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(143, 255, 125, 0.055) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(5, 20, 18, 0.96), rgba(1, 6, 10, 0.94));
+  background-size: 18px 100%, auto;
+  padding: clamp(18px, 3vw, 32px);
+  clip-path: var(--panel-cut);
+  box-shadow:
+    inset 0 0 42px rgba(143, 255, 125, 0.08),
+    0 0 34px rgba(87, 255, 243, 0.14);
+}
+
+.station-dock-header {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+
+.station-dock-header span {
+  color: rgba(255, 242, 122, 0.82);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.station-dock-header h1 {
+  margin: 0;
+  color: #f6fffe;
+  font-size: clamp(30px, 4.8vw, 56px);
+  line-height: 1;
+}
+
+.station-dock-header p,
+.station-dock-copy {
+  margin: 0;
+  color: rgba(215, 255, 247, 0.76);
+  line-height: 1.42;
+}
+
+.station-dock-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.station-dock-grid div {
+  min-height: 72px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  border: 1px solid rgba(87, 255, 243, 0.22);
+  border-radius: 7px;
+  background: rgba(0, 8, 11, 0.68);
+  padding: 10px;
+}
+
+.station-dock-grid b {
+  color: var(--green);
+  font-size: clamp(16px, 2vw, 22px);
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.station-dock-grid span {
+  color: rgba(215, 255, 247, 0.62);
+  font-size: 10px;
+}
+
+.station-dock-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.station-dock-button {
+  min-height: 42px;
+  border: 1px solid rgba(87, 255, 243, 0.42);
+  border-radius: 7px;
+  background: rgba(4, 10, 24, 0.78);
+  color: rgba(246, 255, 254, 0.92);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  padding: 10px 13px;
+}
+
+.station-dock-button.primary {
+  border-color: rgba(255, 242, 122, 0.72);
+  color: #061014;
+  background: linear-gradient(180deg, rgba(255, 242, 122, 0.96), rgba(143, 255, 125, 0.84));
+}
+
+.station-dock-button:disabled {
+  cursor: default;
+  opacity: 0.46;
+  color: rgba(215, 255, 247, 0.5);
+  background: rgba(4, 10, 24, 0.5);
+}
+
 .mothership-command {
   width: 100%;
   max-width: 1180px;
@@ -3272,6 +3386,19 @@ button.manifest-chip:disabled {
 @media (max-width: 760px) {
   .screen {
     padding: 10px;
+  }
+
+  .station-dock-panel {
+    width: min(100%, calc(100vw - 20px));
+    padding: max(14px, env(safe-area-inset-top)) 14px max(16px, env(safe-area-inset-bottom));
+  }
+
+  .station-dock-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .station-dock-actions {
+    display: grid;
   }
 
   .sector-map-screen {
