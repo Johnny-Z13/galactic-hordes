@@ -175,7 +175,7 @@ Active balance mode: `testEasy` (Testing Easy).
 | Starting XP threshold | 24 |
 | XP growth multiplier | 1.18 |
 | Chest respawn minimum | 38s |
-| Intro node station timing | 75s |
+| Intro node station timing | 37.5s |
 | Station repair hull | 42 |
 | Surface world | 1600 x 1180 |
 | Surface cache safe distance | 240 |

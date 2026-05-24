@@ -194,7 +194,7 @@ test('advanced departments stay locked until their core department is maxed', ()
   const locked = purchaseMothershipTier(state, 'shipyard')
 
   expect(locked.ok).toBe(false)
-  expect(locked.reason).toContain('Workbench Bay 4/4')
+  expect(locked.reason).toContain('Mutation Foundry 4/4')
   expect(locked.state.departments.shipyard).toBe(0)
 })
 

@@ -122,8 +122,10 @@ import {
   firstOpportunityUpgrade,
   workbenchRollableUpgrades,
   workbenchUnlockEdges,
-  workbenchUpgradeRows
+  workbenchUpgradeRows,
+  type WorkbenchUpgradeRow
 } from './workbench-rolls'
+import { workbenchBayDefinitions, type WorkbenchBayDefinition, type WorkbenchBayId } from './workbench-bays'
 import { optionOrbProfile, pulseVolleyCount, starterSignatureFlags } from './weapon-signatures'
 
 type GameState = 'title' | 'mothership' | 'sectorMap' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
@@ -863,6 +865,10 @@ class VectorShooter {
   private upgradeChoices: WorkbenchChoice[] = []
   private workbenchInstalling = false
   private workbenchRerolls = 0
+  private selectedWorkbenchBay: WorkbenchBayId = 'weapons'
+  private levelUpTitle = 'SHIPBOARD WORKBENCH'
+  private levelUpCopy = 'Spend one banked mutation signal before takeoff.'
+  private selectedMothershipDepartment: MothershipDepartmentId = 'scanner'
   private returnToSectorMapAfterWorkbench = false
   private discoverySuitOffer = false
   private summonReturnBeaconAfterTakeoff = false
@@ -3203,17 +3209,11 @@ class VectorShooter {
   }
 
   private refreshLevelUp(title = 'SHIPBOARD WORKBENCH', copy = 'Spend one banked mutation signal before takeoff.') {
-    const scrollTop = this.ui.levelup.querySelector<HTMLElement>('.workbench-view')?.scrollTop ?? 0
+    const scrollTop = this.currentLevelUpScrollTop()
     this.state = 'levelup'
     this.workbenchInstalling = false
     this.renderLevelUp(title, copy)
-    const view = this.ui.levelup.querySelector<HTMLElement>('.workbench-view')
-    if (view) {
-      view.scrollTop = scrollTop
-      window.requestAnimationFrame(() => {
-        view.scrollTop = scrollTop
-      })
-    }
+    this.restoreLevelUpScroll(scrollTop)
   }
 
   private openChest() {
@@ -7017,6 +7017,8 @@ class VectorShooter {
   }
 
   private renderLevelUp(title: string, copy: string) {
+    this.levelUpTitle = title
+    this.levelUpCopy = copy
     this.ui.levelup.innerHTML = ''
     const panel = document.createElement('div')
     panel.className = 'panel workbench-panel'
@@ -7034,9 +7036,11 @@ class VectorShooter {
       reroll.textContent = `Reroll (${this.workbenchRerolls})`
       reroll.addEventListener('click', () => {
         if (this.workbenchRerolls <= 0 || this.workbenchInstalling) return
+        const scrollTop = this.currentLevelUpScrollTop()
         this.workbenchRerolls -= 1
         this.upgradeChoices = this.rollUpgrades(this.upgradeChoices.length || workbenchBalance.baseChoiceCount)
         this.renderLevelUp(title, copy)
+        this.restoreLevelUpScroll(scrollTop)
       })
       actions.append(reroll)
     }
@@ -7055,6 +7059,23 @@ class VectorShooter {
     panel.append(view)
     this.ui.levelup.append(panel)
     this.showOnly('levelup')
+  }
+
+  private currentLevelUpScrollTop() {
+    const panel = this.ui.levelup.querySelector<HTMLElement>('.workbench-panel')
+    const view = this.ui.levelup.querySelector<HTMLElement>('.workbench-view')
+    return Math.max(panel?.scrollTop ?? 0, view?.scrollTop ?? 0)
+  }
+
+  private restoreLevelUpScroll(scrollTop: number) {
+    const restore = () => {
+      const panel = this.ui.levelup.querySelector<HTMLElement>('.workbench-panel')
+      const view = this.ui.levelup.querySelector<HTMLElement>('.workbench-view')
+      if (panel) panel.scrollTop = scrollTop
+      if (view) view.scrollTop = scrollTop
+    }
+    restore()
+    window.requestAnimationFrame(restore)
   }
 
   private recycleWorkbenchSignal() {
@@ -7218,7 +7239,7 @@ class VectorShooter {
     return this.upgradeLevelDetail(upgrade, upgrade.max)
   }
 
-  private renderWorkbenchContextChip(upgrade: Upgrade, status: 'MAXED' | 'LOCKED' | 'STANDBY', detail: string, extraClass = '') {
+  private renderWorkbenchContextChip(upgrade: Upgrade, status: 'MAXED' | 'LOCKED' | 'STANDBY' | 'OFFER', detail: string, extraClass = '') {
     const level = this.build[upgrade.id]
     const chip = document.createElement('div')
     chip.className = `manifest-chip ${level > 0 ? 'owned' : 'locked'} ${status === 'MAXED' ? 'maxed' : ''} ${extraClass} ${upgrade.bucket}`
@@ -7233,46 +7254,123 @@ class VectorShooter {
     return chip
   }
 
+  private renderWorkbenchBayToggle(
+    bay: WorkbenchBayDefinition,
+    rows: Array<WorkbenchUpgradeRow<Upgrade>>,
+    offeredUpgradeChoices: Map<UpgradeId, WorkbenchChoice>
+  ) {
+    const bayRows = rows.filter((row) => bay.upgradeIds.includes(row.upgrade.id))
+    const totalRanks = bayRows.reduce((sum, row) => sum + row.upgrade.max, 0)
+    const ownedRanks = bayRows.reduce((sum, row) => sum + Math.min(this.build[row.upgrade.id], row.upgrade.max), 0)
+    const maxedCount = bayRows.filter((row) => row.status === 'maxed').length
+    const offerCount = bayRows.filter((row) => offeredUpgradeChoices.has(row.upgrade.id)).length
+    const nextRow = bayRows.find((row) => offeredUpgradeChoices.has(row.upgrade.id))
+      ?? bayRows.find((row) => row.status === 'standby')
+      ?? bayRows.find((row) => row.status === 'locked')
+      ?? bayRows[0]
+    const progress = totalRanks > 0 ? ownedRanks / totalRanks : 0
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = `workbench-bay-toggle ${this.selectedWorkbenchBay === bay.id ? 'active' : ''} ${offerCount > 0 ? 'has-offer' : ''}`
+    button.addEventListener('click', () => {
+      if (this.selectedWorkbenchBay === bay.id) return
+      const scrollTop = this.currentLevelUpScrollTop()
+      this.selectedWorkbenchBay = bay.id
+      this.renderLevelUp(this.levelUpTitle, this.levelUpCopy)
+      this.restoreLevelUpScroll(scrollTop)
+    })
+    const nextStatus = nextRow
+      ? offeredUpgradeChoices.has(nextRow.upgrade.id)
+        ? `Offer ready: ${nextRow.upgrade.name}`
+        : nextRow.status === 'locked'
+          ? `Locked: ${nextRow.upgrade.name}`
+          : nextRow.status === 'maxed'
+            ? 'Bay complete'
+            : `Next: ${nextRow.upgrade.name}`
+      : 'Bay complete'
+    button.innerHTML = `
+      <div class="workbench-bay-topline">
+        <strong>${this.escape(bay.label)}</strong>
+        <b>${ownedRanks}/${totalRanks}</b>
+      </div>
+      <span>${this.escape(nextStatus)}</span>
+      <div class="workbench-bay-meter"><i style="width: ${Math.round(progress * 100)}%"></i></div>
+      <em>${maxedCount}/${bayRows.length} maxed${offerCount > 0 ? ` // ${offerCount} signal${offerCount === 1 ? '' : 's'}` : ''}</em>
+    `
+    return button
+  }
+
+  private renderWorkbenchBayDetail(
+    bay: WorkbenchBayDefinition,
+    rows: Array<WorkbenchUpgradeRow<Upgrade>>,
+    offeredUpgradeChoices: Map<UpgradeId, WorkbenchChoice>
+  ) {
+    const detail = document.createElement('div')
+    detail.className = 'workbench-bay-detail'
+    const head = document.createElement('div')
+    head.className = 'workbench-bay-detail-head'
+    head.innerHTML = `<b>${this.escape(bay.label)}</b><span>${this.escape(bay.summary)}</span>`
+    const grid = document.createElement('div')
+    grid.className = 'manifest-grid workbench-bay-grid'
+    for (const row of rows.filter((candidate) => bay.upgradeIds.includes(candidate.upgrade.id))) {
+      const offered = offeredUpgradeChoices.get(row.upgrade.id)
+      if (row.status === 'maxed') {
+        grid.append(this.renderWorkbenchContextChip(row.upgrade, 'MAXED', this.maxedUnlockText(row.upgrade)))
+      } else if (offered && this.canApplyWorkbenchChoice(offered)) {
+        const next = Math.min(this.build[row.upgrade.id] + 1, row.upgrade.max)
+        grid.append(this.renderWorkbenchContextChip(row.upgrade, 'OFFER', `NEXT: ${this.upgradeLevelDetail(row.upgrade, next)}`, 'offer-ready'))
+      } else if (row.status === 'locked') {
+        grid.append(this.renderWorkbenchContextChip(row.upgrade, 'LOCKED', row.requirement ?? 'Future workbench unlock', 'future'))
+      } else {
+        const next = Math.min(this.build[row.upgrade.id] + 1, row.upgrade.max)
+        grid.append(this.renderWorkbenchContextChip(row.upgrade, 'STANDBY', `NEXT: ${this.upgradeLevelDetail(row.upgrade, next)}`, 'standby'))
+      }
+    }
+    detail.append(head, grid)
+    return detail
+  }
+
   private renderWorkbenchInstallSurface() {
     const wrap = document.createElement('div')
     wrap.className = 'build-manifest workbench'
     const title = document.createElement('div')
     title.className = 'manifest-title'
-    title.innerHTML = '<b>SHIP WORKBENCH</b><span>fixed system order // bright rows are installable</span>'
+    title.innerHTML = '<b>SHIP WORKBENCH</b><span>signal offers above // bay detail below</span>'
     const offeredUpgradeChoices = new Map<UpgradeId, WorkbenchChoice>()
-    const specialChoices: WorkbenchChoice[] = []
     for (const choice of this.upgradeChoices) {
       if (choice.kind === 'upgrade') offeredUpgradeChoices.set(choice.upgrade.id, choice)
-      else specialChoices.push(choice)
     }
+    if (!workbenchBayDefinitions.some((bay) => bay.id === this.selectedWorkbenchBay)) this.selectedWorkbenchBay = 'weapons'
 
-    const systemGrid = document.createElement('div')
-    systemGrid.className = 'manifest-grid workbench-offers workbench-systems'
     const rows = workbenchUpgradeRows(upgrades, this.build, Array.from(offeredUpgradeChoices.keys()), this.workbenchExtraUnlockedIds())
-    for (const row of rows) {
-      const offered = offeredUpgradeChoices.get(row.upgrade.id)
-      if (row.status === 'maxed') {
-        systemGrid.append(this.renderWorkbenchContextChip(row.upgrade, 'MAXED', this.maxedUnlockText(row.upgrade)))
-      } else if (offered && this.canApplyWorkbenchChoice(offered)) {
-        systemGrid.append(this.renderWorkbenchChoiceChip(offered))
-      } else if (row.status === 'locked') {
-        systemGrid.append(this.renderWorkbenchContextChip(row.upgrade, 'LOCKED', row.requirement ?? 'Future workbench unlock', 'future'))
-      } else {
-        const next = Math.min(this.build[row.upgrade.id] + 1, row.upgrade.max)
-        systemGrid.append(this.renderWorkbenchContextChip(row.upgrade, 'STANDBY', `NEXT: ${this.upgradeLevelDetail(row.upgrade, next)}`, 'standby'))
-      }
+    const offerGrid = document.createElement('div')
+    offerGrid.className = 'manifest-grid workbench-current-offers'
+    for (const choice of this.upgradeChoices) {
+      if (this.canApplyWorkbenchChoice(choice)) offerGrid.append(this.renderWorkbenchChoiceChip(choice))
+    }
+    if (!offerGrid.children.length) {
+      const empty = document.createElement('div')
+      empty.className = 'workbench-empty-offers'
+      empty.textContent = 'No compatible signals in this roll.'
+      offerGrid.append(empty)
     }
 
-    wrap.append(title, this.renderManifestSummary(), this.workbenchSectionLabel('SYSTEM BAY'), systemGrid)
+    const bayShell = document.createElement('div')
+    bayShell.className = 'workbench-bay-shell'
+    const bayList = document.createElement('div')
+    bayList.className = 'workbench-bay-list'
+    for (const bay of workbenchBayDefinitions) bayList.append(this.renderWorkbenchBayToggle(bay, rows, offeredUpgradeChoices))
+    const selectedBay = workbenchBayDefinitions.find((bay) => bay.id === this.selectedWorkbenchBay) ?? workbenchBayDefinitions[0]
+    bayShell.append(bayList, this.renderWorkbenchBayDetail(selectedBay, rows, offeredUpgradeChoices))
 
-    if (specialChoices.length) {
-      const specialGrid = document.createElement('div')
-      specialGrid.className = 'manifest-grid workbench-special-offers'
-      for (const choice of specialChoices) {
-        if (this.canApplyWorkbenchChoice(choice)) specialGrid.append(this.renderWorkbenchChoiceChip(choice))
-      }
-      if (specialGrid.children.length) wrap.append(this.workbenchSectionLabel('RARE AND LIMIT SIGNALS'), specialGrid)
-    }
+    wrap.append(
+      title,
+      this.renderManifestSummary(),
+      this.workbenchSectionLabel('SIGNAL OFFERS'),
+      offerGrid,
+      this.workbenchSectionLabel('SYSTEM BAYS'),
+      bayShell
+    )
 
     wrap.append(this.renderManifestRelicLine())
     return wrap
@@ -7813,19 +7911,9 @@ class VectorShooter {
 
     const systemsHeader = document.createElement('div')
     systemsHeader.className = 'mothership-section-title'
-    systemsHeader.innerHTML = '<h2>Meta Systems</h2><span>Permanent upgrades bought with recovered cargo</span>'
-    const grid = document.createElement('section')
-    grid.className = 'station-grid permanent-upgrades-window'
-    grid.append(
-      this.departmentStation('scanner'),
-      this.departmentStation('workbench'),
-      this.departmentStation('archive'),
-      this.departmentStation('shipyard'),
-      this.departmentStation('signalCore'),
-      this.departmentStation('hangarCrew')
-    )
+    systemsHeader.innerHTML = '<h2>Command Systems</h2><span>Permanent mothership departments bought with recovered cargo</span>'
     shell.append(header, flight)
-    if (!firstCommand) shell.append(systemsHeader, grid)
+    if (!firstCommand) shell.append(systemsHeader, this.renderMothershipMetaSystems())
     this.ui.title.append(shell)
     this.showOnly('title')
     if (options.scrollTop !== undefined) {
@@ -7926,25 +8014,35 @@ class VectorShooter {
     return card
   }
 
-  private departmentStation(id: MothershipDepartmentId) {
+  private renderMothershipMetaSystems() {
+    const departments: MothershipDepartmentId[] = ['scanner', 'workbench', 'archive', 'shipyard', 'signalCore', 'hangarCrew']
+    if (!departments.includes(this.selectedMothershipDepartment)) this.selectedMothershipDepartment = 'scanner'
+    const window = document.createElement('section')
+    window.className = 'permanent-upgrades-window meta-upgrade-window'
+    const rail = document.createElement('div')
+    rail.className = 'meta-upgrade-rail'
+    for (const id of departments) rail.append(this.metaDepartmentToggle(id))
+    window.append(rail, this.metaDepartmentDetail(this.selectedMothershipDepartment))
+    return window
+  }
+
+  private metaDepartmentToggle(id: MothershipDepartmentId) {
     const definition = mothershipDepartments[id]
     const tier = this.mothership.departments[id]
     const maxTier = definition.tiers.length
     const tierPct = clamp(tier / Math.max(1, maxTier), 0, 1)
     const next = definition.tiers[tier]
     const unlocked = isMothershipDepartmentUnlocked(this.mothership, id)
-    const card = document.createElement('div')
-    card.className = `station-card ${unlocked ? '' : 'locked'}`.trim()
-    const header = document.createElement('div')
-    header.className = 'station-card-header'
-    const h = document.createElement('h2')
-    h.textContent = definition.name
-    const tierLabel = document.createElement('span')
-    tierLabel.className = 'station-tier-label'
-    tierLabel.textContent = `Tier ${tier}/${maxTier}`
-    header.append(h, tierLabel)
-    const p = document.createElement('p')
-    p.textContent = unlocked ? next ? next.description : 'Department maxed.' : definition.description
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = `meta-department-toggle ${this.selectedMothershipDepartment === id ? 'active' : ''} ${unlocked ? '' : 'locked'}`.trim()
+    button.setAttribute('aria-pressed', String(this.selectedMothershipDepartment === id))
+    button.addEventListener('click', () => {
+      if (this.selectedMothershipDepartment === id) return
+      const scrollTop = this.ui.title.querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
+      this.selectedMothershipDepartment = id
+      this.showMothership({ scrollTop })
+    })
     const meter = document.createElement('div')
     meter.className = 'station-tier-meter'
     meter.setAttribute('aria-label', `${definition.name} tier ${tier} of ${maxTier}`)
@@ -7952,16 +8050,66 @@ class VectorShooter {
     fill.className = 'station-tier-fill'
     fill.style.width = `${tierPct * 100}%`
     meter.append(fill)
-    const cost = document.createElement('span')
-    cost.className = 'station-cost'
-    cost.textContent = unlocked ? next ? `Scrap ${next.cost.scrap} // Crystals ${next.cost.crystal} // Cores ${next.cost.cores}` : 'MAXED' : `Requires ${mothershipDepartmentUnlockText(id)}`
+    const status = unlocked ? next ? `Next: ${next.name}` : 'Fully online' : `Requires ${mothershipDepartmentUnlockText(id)}`
+    button.innerHTML = `
+      <div class="meta-department-topline">
+        <strong>${this.escape(definition.name)}</strong>
+        <b>${tier}/${maxTier}</b>
+      </div>
+      <span>${this.escape(status)}</span>
+    `
+    button.append(meter)
+    return button
+  }
+
+  private metaDepartmentDetail(id: MothershipDepartmentId) {
+    const definition = mothershipDepartments[id]
+    const tier = this.mothership.departments[id]
+    const maxTier = definition.tiers.length
+    const tierPct = clamp(tier / Math.max(1, maxTier), 0, 1)
+    const next = definition.tiers[tier]
+    const unlocked = isMothershipDepartmentUnlocked(this.mothership, id)
+    const detail = document.createElement('article')
+    detail.className = `meta-upgrade-detail ${unlocked ? '' : 'locked'}`.trim()
+    const header = document.createElement('div')
+    header.className = 'meta-upgrade-detail-head'
+    header.innerHTML = `
+      <div>
+        <b>${this.escape(definition.name)}</b>
+        <span>${this.escape(unlocked ? definition.description : `Offline. Requires ${mothershipDepartmentUnlockText(id)}.`)}</span>
+      </div>
+      <em>Tier ${tier}/${maxTier}</em>
+    `
+    const meter = document.createElement('div')
+    meter.className = 'station-tier-meter meta-detail-meter'
+    meter.setAttribute('aria-label', `${definition.name} tier ${tier} of ${maxTier}`)
+    const fill = document.createElement('i')
+    fill.className = 'station-tier-fill'
+    fill.style.width = `${tierPct * 100}%`
+    meter.append(fill)
+    const ladder = document.createElement('div')
+    ladder.className = 'meta-tier-ladder'
+    definition.tiers.forEach((candidate, index) => {
+      const row = document.createElement('div')
+      const state = index < tier ? 'complete' : index === tier && unlocked ? 'current' : 'locked'
+      row.className = `meta-tier-row ${state}`
+      const cost = index < tier
+        ? 'INSTALLED'
+        : `Scrap ${candidate.cost.scrap} // Crystals ${candidate.cost.crystal} // Cores ${candidate.cost.cores}`
+      row.innerHTML = `
+        <b>${index + 1}. ${this.escape(candidate.name)}</b>
+        <span>${this.escape(candidate.description)}</span>
+        <em>${this.escape(cost)}</em>
+      `
+      ladder.append(row)
+    })
     const button = document.createElement('button')
     button.className = 'vector-button secondary'
-    button.textContent = unlocked ? next ? 'Upgrade' : 'Online' : 'Offline'
+    button.textContent = unlocked ? next ? 'Authorize Upgrade' : 'Fully Online' : 'Offline'
     button.disabled = !next || !unlocked
     button.addEventListener('click', () => this.buyMothershipDepartment(id))
-    card.append(header, p, meter, cost, button)
-    return card
+    detail.append(header, meter, ladder, button)
+    return detail
   }
 
   private buyMothershipDepartment(id: MothershipDepartmentId) {

@@ -16,7 +16,7 @@ test('shipboard workbench keeps discoveries in the mothership collection', () =>
   expect(main).toContain("this.mothershipConsoleTab('Collection'")
 })
 
-test('shipboard workbench shows clickable offers in a fixed system manifest', () => {
+test('shipboard workbench separates signal offers from bay detail', () => {
   const main = source()
   const css = styles()
 
@@ -25,8 +25,12 @@ test('shipboard workbench shows clickable offers in a fixed system manifest', ()
   expect(main).not.toContain("manifestTab.textContent = 'Manifest'")
   expect(main).toContain("view.append(this.renderWorkbenchInstallSurface())")
   expect(main).toContain('workbenchUpgradeRows(upgrades, this.build')
-  expect(main).toContain("systemGrid.className = 'manifest-grid workbench-offers workbench-systems'")
-  expect(main).toContain("this.workbenchSectionLabel('SYSTEM BAY')")
+  expect(main).toContain("offerGrid.className = 'manifest-grid workbench-current-offers'")
+  expect(main).toContain("bayShell.className = 'workbench-bay-shell'")
+  expect(main).toContain("bayList.className = 'workbench-bay-list'")
+  expect(main).toContain("detail.className = 'workbench-bay-detail'")
+  expect(main).toContain("this.workbenchSectionLabel('SIGNAL OFFERS')")
+  expect(main).toContain("this.workbenchSectionLabel('SYSTEM BAYS')")
   expect(main).toContain("row.status === 'maxed'")
   expect(main).toContain("row.status === 'locked'")
   expect(main).toContain("this.renderWorkbenchContextChip(row.upgrade, 'STANDBY'")
@@ -34,10 +38,27 @@ test('shipboard workbench shows clickable offers in a fixed system manifest', ()
   expect(main).toContain('this.beginWorkbenchInstall(choice, chip)')
   expect(main).not.toContain('button.disabled = !available')
   expect(css).toContain('.workbench-section-label')
+  expect(css).toContain('.workbench-current-offers')
+  expect(css).toContain('.workbench-bay-toggle')
+  expect(css).toContain('.workbench-bay-detail')
   expect(css).toContain('.manifest-chip.available')
   expect(css).toContain('.manifest-chip.future')
   expect(css).toContain('.manifest-chip.standby')
   expect(css).toContain('.manifest-chip.selected')
+})
+
+test('shipboard workbench preserves scroll position across installs and rerolls', () => {
+  const main = source()
+
+  expect(main).toContain('private currentLevelUpScrollTop()')
+  expect(main).toContain("this.ui.levelup.querySelector<HTMLElement>('.workbench-panel')")
+  expect(main).toContain("this.ui.levelup.querySelector<HTMLElement>('.workbench-view')")
+  expect(main).toContain('return Math.max(panel?.scrollTop ?? 0, view?.scrollTop ?? 0)')
+  expect(main).toContain('private restoreLevelUpScroll(scrollTop: number)')
+  expect(main).toContain('if (panel) panel.scrollTop = scrollTop')
+  expect(main).toContain('if (view) view.scrollTop = scrollTop')
+  expect(main).toContain('const scrollTop = this.currentLevelUpScrollTop()')
+  expect(main).toContain('this.restoreLevelUpScroll(scrollTop)')
 })
 
 test('mothership command integrates workbench manifest and collection tabs', () => {
@@ -80,17 +101,24 @@ test('desktop mothership console and health meters stack below launch controls',
   expect(css).toContain('.mothership-first-briefing')
 })
 
-test('mothership permanent upgrades render as one vertical window with tier meters', () => {
+test('mothership permanent upgrades render as selected command departments', () => {
   const main = source()
   const css = styles()
 
-  expect(main).toContain("grid.className = 'station-grid permanent-upgrades-window'")
+  expect(main).toContain('private renderMothershipMetaSystems()')
+  expect(main).toContain("window.className = 'permanent-upgrades-window meta-upgrade-window'")
+  expect(main).toContain("rail.className = 'meta-upgrade-rail'")
+  expect(main).toContain("button.className = `meta-department-toggle")
+  expect(main).toContain("detail.className = `meta-upgrade-detail")
+  expect(main).toContain("ladder.className = 'meta-tier-ladder'")
   expect(main).toContain("meter.className = 'station-tier-meter'")
   expect(main).toContain("fill.className = 'station-tier-fill'")
   expect(main).toContain("fill.style.width = `${tierPct * 100}%`")
-  expect(main).toContain('card.append(header, p, meter, cost, button)')
+  expect(main).toContain('Authorize Upgrade')
   expect(css).toContain('.permanent-upgrades-window')
-  expect(css).toContain('grid-template-columns: minmax(0, 1fr) minmax(160px, 0.36fr) minmax(132px, auto)')
+  expect(css).toContain('.meta-department-toggle')
+  expect(css).toContain('.meta-upgrade-detail')
+  expect(css).toContain('.meta-tier-ladder')
   expect(css).toContain('.station-tier-fill')
 })
 
@@ -251,7 +279,8 @@ test('workbench install refresh keeps the current offer set and scroll position'
   const beginInstall = main.slice(main.indexOf('private beginWorkbenchInstall'), main.indexOf('private installCueFor'))
 
   expect(main).toContain('private refreshLevelUp(')
-  expect(main).toContain("querySelector<HTMLElement>('.workbench-view')?.scrollTop")
+  expect(main).toContain('const scrollTop = this.currentLevelUpScrollTop()')
+  expect(main).toContain('this.restoreLevelUpScroll(scrollTop)')
   expect(applyChoice).not.toContain('this.openLevelUp(')
   expect(recycleSignal).not.toContain('this.openLevelUp(')
   expect(beginInstall).not.toContain('this.upgradeChoices = this.rollUpgrades')

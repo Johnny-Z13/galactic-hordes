@@ -78,71 +78,71 @@ export const defaultMothershipState = (): MothershipState => ({
 export const mothershipDepartments: Record<MothershipDepartmentId, DepartmentDefinition> = {
   scanner: {
     id: 'scanner',
-    name: 'Scanner Array',
-    description: 'Planet, station, risk, and relic signal intelligence.',
+    name: 'Star-Signal Array',
+    description: 'Long-range cartography for planets, route stations, hazards, and relic traces.',
     tiers: [
-      { name: 'Planet Signatures', description: 'Reveal planet archetype labels before landing.', cost: { scrap: 120, crystal: 0, cores: 0 } },
-      { name: 'Station Sweep', description: 'Show route station direction and distance once eligible.', cost: { scrap: 220, crystal: 18, cores: 0 } },
-      { name: 'Risk Reading', description: 'Show simple planet risk hints.', cost: { scrap: 360, crystal: 44, cores: 1 } },
-      { name: 'Relic Trace', description: 'Mark planets with stronger relic or cache signal odds.', cost: { scrap: 520, crystal: 80, cores: 2 } }
+      { name: 'Cartographer Lenses', description: 'Reveal planet archetype labels before landing.', cost: { scrap: 120, crystal: 0, cores: 0 } },
+      { name: 'Docking Transponder', description: 'Show route station direction and distance once eligible.', cost: { scrap: 220, crystal: 18, cores: 0 } },
+      { name: 'Threat Telemetry', description: 'Show simple planet risk hints.', cost: { scrap: 360, crystal: 44, cores: 1 } },
+      { name: 'Relic Cartography', description: 'Mark planets with stronger relic or cache signal odds.', cost: { scrap: 520, crystal: 80, cores: 2 } }
     ]
   },
   workbench: {
     id: 'workbench',
-    name: 'Workbench Bay',
-    description: 'Improves mutation signal drafting between landings.',
+    name: 'Mutation Foundry',
+    description: 'Permanent control over mutation drafting, rerolls, and signal salvage.',
     tiers: [
-      { name: 'Emergency Reroll', description: 'Start each expedition with 1 workbench reroll.', cost: { scrap: 140, crystal: 0, cores: 0 } },
-      { name: 'Expanded Bench', description: 'Maxed and locked systems stay visible below current offers.', cost: { scrap: 260, crystal: 16, cores: 0 } },
+      { name: 'Emergency Reforge', description: 'Start each expedition with 1 workbench reroll.', cost: { scrap: 140, crystal: 0, cores: 0 } },
+      { name: 'Bay Manifestor', description: 'Project upgrade families as readable ship-system bays.', cost: { scrap: 260, crystal: 16, cores: 0 } },
       { name: 'Coherence Bias', description: 'Owned and same-bucket upgrades appear more often.', cost: { scrap: 420, crystal: 36, cores: 1 } },
-      { name: 'Salvage Recycle', description: 'Convert unwanted mutation signals into resources.', cost: { scrap: 640, crystal: 70, cores: 2 } }
+      { name: 'Signal Reclaimer', description: 'Convert unwanted mutation signals into resources.', cost: { scrap: 640, crystal: 70, cores: 2 } }
     ]
   },
   archive: {
     id: 'archive',
-    name: 'Archive Lab',
-    description: 'Turns discoveries into permanent progression.',
+    name: 'Black Box Archive',
+    description: 'Converts expedition discoveries into permanent ship memory and milestone rewards.',
     tiers: [
-      { name: 'Permanent Archive', description: 'Discovered planets, relics, aliens, lore, and caches persist.', cost: { scrap: 0, crystal: 0, cores: 0 } },
-      { name: 'Relic Blueprints', description: 'Found relics become future blueprint progress.', cost: { scrap: 160, crystal: 26, cores: 0 } },
-      { name: 'Discovery Rewards', description: 'Archive milestones grant crystals and cores.', cost: { scrap: 340, crystal: 58, cores: 1 } },
-      { name: 'Signal Decoding', description: 'Lore contributes to Signal Core fragments.', cost: { scrap: 520, crystal: 96, cores: 2 } }
+      { name: 'Permanent Memory', description: 'Discovered planets, relics, aliens, lore, and caches persist.', cost: { scrap: 0, crystal: 0, cores: 0 } },
+      { name: 'Relic Schematics', description: 'Found relics become future blueprint progress.', cost: { scrap: 160, crystal: 26, cores: 0 } },
+      { name: 'Milestone Grants', description: 'Archive milestones grant crystals and cores.', cost: { scrap: 340, crystal: 58, cores: 1 } },
+      { name: 'Choir Decryption', description: 'Lore contributes to Signal Core fragments.', cost: { scrap: 520, crystal: 96, cores: 2 } }
     ]
   },
   shipyard: {
     id: 'shipyard',
-    name: 'Shipyard',
-    description: 'Launch frames, hull prep, and scout handling upgrades.',
+    name: 'Scout Shipyard',
+    description: 'Permanent launch-frame construction, hull reinforcement, and scout handling.',
     unlock: { department: 'workbench', tier: 4 },
     tiers: [
-      { name: 'Reinforced Frame', description: 'Launch scouts with a stronger permanent hull frame.', cost: { scrap: 760, crystal: 86, cores: 2 } },
-      { name: 'Vector Thrusters', description: 'Improve launch handling and baseline scout speed.', cost: { scrap: 980, crystal: 124, cores: 3 } },
-      { name: 'Reserve Plating', description: 'Further improve hull integrity before every expedition.', cost: { scrap: 1240, crystal: 172, cores: 4 } },
-      { name: 'Elite Scout Frame', description: 'Maximize mothership-backed launch durability.', cost: { scrap: 1580, crystal: 230, cores: 5 } }
+      { name: 'Armored Keel', description: 'Launch scouts with a stronger permanent hull frame.', cost: { scrap: 760, crystal: 86, cores: 2 } },
+      { name: 'Vector Drives', description: 'Improve launch handling and baseline scout speed.', cost: { scrap: 980, crystal: 124, cores: 3 } },
+      { name: 'Redundant Hull', description: 'Further improve hull integrity before every expedition.', cost: { scrap: 1240, crystal: 172, cores: 4 } },
+      { name: 'Vanguard Frame', description: 'Maximize mothership-backed launch durability.', cost: { scrap: 1580, crystal: 230, cores: 5 } }
     ]
   },
   signalCore: {
     id: 'signalCore',
-    name: 'Signal Core',
-    description: 'Deep signal decoding, stronger extraction telemetry, and station analysis.',
+    name: 'Deep Signal Core',
+    description: 'Extraction telemetry, destroyed-run reconstruction, and deep-route processing.',
     unlock: { department: 'scanner', tier: 4 },
     tiers: [
-      { name: 'Signal Triage', description: 'Recover a little more cargo from every completed extraction.', cost: { scrap: 720, crystal: 112, cores: 2 } },
-      { name: 'Station Memory', description: 'Improve deep route processing after skipped stations.', cost: { scrap: 940, crystal: 152, cores: 3 } },
-      { name: 'Black Box Decode', description: 'Improve destroyed-run cargo reconstruction.', cost: { scrap: 1220, crystal: 198, cores: 4 } },
+      { name: 'Extraction Lattice', description: 'Recover a little more cargo from every completed extraction.', cost: { scrap: 720, crystal: 112, cores: 2 } },
+      { name: 'Deep Route Memory', description: 'Improve deep route processing after skipped stations.', cost: { scrap: 940, crystal: 152, cores: 3 } },
+      { name: 'Wreckage Reconstruction', description: 'Improve destroyed-run cargo reconstruction.', cost: { scrap: 1220, crystal: 198, cores: 4 } },
       { name: 'Core Harmonics', description: 'Maximize persistent extraction signal processing.', cost: { scrap: 1560, crystal: 260, cores: 5 } }
     ]
   },
   hangarCrew: {
     id: 'hangarCrew',
-    name: 'Hangar Crew',
-    description: 'Crew assignments that improve launch cargo and planet-side preparation.',
+    name: 'Launch Crew',
+    description: 'Crew assignments that load every expedition with prepared cargo and reserves.',
     unlock: { department: 'archive', tier: 4 },
     tiers: [
-      { name: 'Salvage Crew', description: 'Start each expedition with a small scrap manifest.', cost: { scrap: 700, crystal: 104, cores: 2 } },
-      { name: 'Crystal Runners', description: 'Add starting crystal reserves to each expedition.', cost: { scrap: 920, crystal: 148, cores: 3 } },
-      { name: 'Dockside Scouts', description: 'Increase launch cargo and improve early economy.', cost: { scrap: 1180, crystal: 190, cores: 4 } },
-      { name: 'Core Handlers', description: 'Start elite expeditions with one prepared core.', cost: { scrap: 1500, crystal: 248, cores: 5 } }
+      { name: 'Salvage Deckhands', description: 'Start each expedition with a small scrap manifest.', cost: { scrap: 700, crystal: 104, cores: 2 } },
+      { name: 'Crystal Quartermasters', description: 'Add starting crystal reserves to each expedition.', cost: { scrap: 920, crystal: 148, cores: 3 } },
+      { name: 'Forward Deck Crew', description: 'Increase launch cargo and improve early economy.', cost: { scrap: 1180, crystal: 190, cores: 4 } },
+      { name: 'Core Custodians', description: 'Start elite expeditions with one prepared core.', cost: { scrap: 1500, crystal: 248, cores: 5 } }
     ]
   }
 }

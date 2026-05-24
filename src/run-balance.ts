@@ -19,7 +19,7 @@ export const runBalance = {
     sectorBossSeconds: 68,
     requiredBossSeconds: 8,
     planetNodeChestSeconds: 18,
-    introSectorBeaconSeconds: 75
+    introSectorBeaconSeconds: 37.5
   },
   spaceChest: {
     respawnMinSeconds: 38,
