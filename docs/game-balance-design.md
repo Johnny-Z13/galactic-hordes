@@ -124,7 +124,7 @@ Active balance mode: `testEasy` (Testing Easy).
 
 | System | Value |
 | --- | ---: |
-| Starter hull | 110 |
+| Starter hull | 100 |
 | Starter speed | 270 |
 | Starting XP threshold | 24 |
 | XP growth multiplier | 1.18 |

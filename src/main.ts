@@ -7897,7 +7897,7 @@ class VectorShooter {
     const hullPct = clamp(Math.max(0, this.player.hull) / Math.max(1, this.player.maxHull), 0, 1)
     const xpPct = clamp(this.stats.xp / Math.max(1, this.stats.nextXp), 0, 1)
     status.append(
-      this.mothershipMeter('Hull Integrity', `${Math.ceil(Math.max(0, this.player.hull))}/${this.player.maxHull}`, hullPct, 'health'),
+      this.mothershipMeter('Hull Integrity', `${Math.round(hullPct * 100)}%`, hullPct, 'health'),
       this.mothershipMeter('Mutation XP', `LV ${this.stats.level} // ${Math.floor(this.stats.xp)}/${this.stats.nextXp}`, xpPct, 'xp'),
       this.mothershipMeter('Archive Signal', `${archiveRecordCount} records`, clamp(archiveRecordCount / 18, 0, 1), 'archive')
     )

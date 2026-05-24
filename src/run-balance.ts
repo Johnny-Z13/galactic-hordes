@@ -1,7 +1,7 @@
 export const runBalance = {
   player: {
     radius: 18,
-    baseHull: 110,
+    baseHull: 100,
     baseSpeed: 270
   },
   xp: {
