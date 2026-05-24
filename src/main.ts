@@ -867,6 +867,7 @@ class VectorShooter {
   private workbenchInstalling = false
   private workbenchRerolls = 0
   private selectedWorkbenchBay: WorkbenchBayId = 'weapons'
+  private expandedWorkbenchBay: WorkbenchBayId | null = null
   private levelUpTitle = 'SHIPBOARD WORKBENCH'
   private levelUpCopy = 'Spend one banked mutation signal before takeoff.'
   private selectedMothershipDepartment: MothershipDepartmentId = 'scanner'
@@ -7276,11 +7277,16 @@ class VectorShooter {
     const progress = totalRanks > 0 ? ownedRanks / totalRanks : 0
     const button = document.createElement('button')
     button.type = 'button'
-    button.className = `workbench-bay-toggle ${this.selectedWorkbenchBay === bay.id ? 'active' : ''} ${offerCount > 0 ? 'has-offer' : ''} ${lockedCount === bayRows.length ? 'locked' : ''}`.trim()
+    button.className = `workbench-bay-toggle ${this.expandedWorkbenchBay === bay.id ? 'active' : ''} ${offerCount > 0 ? 'has-offer' : ''} ${lockedCount === bayRows.length ? 'locked' : ''}`.trim()
+    button.setAttribute('aria-expanded', String(this.expandedWorkbenchBay === bay.id))
     button.addEventListener('click', () => {
-      if (this.selectedWorkbenchBay === bay.id) return
       const scrollTop = this.currentLevelUpScrollTop()
-      this.selectedWorkbenchBay = bay.id
+      if (this.expandedWorkbenchBay === bay.id) {
+        this.expandedWorkbenchBay = null
+      } else {
+        this.selectedWorkbenchBay = bay.id
+        this.expandedWorkbenchBay = bay.id
+      }
       this.renderLevelUp(this.levelUpTitle, this.levelUpCopy)
       this.restoreLevelUpScroll(scrollTop)
     })
@@ -7306,6 +7312,18 @@ class VectorShooter {
       </div>
     `
     return button
+  }
+
+  private renderWorkbenchBayEntry(
+    bay: WorkbenchBayDefinition,
+    rows: Array<WorkbenchUpgradeRow<Upgrade>>,
+    offeredUpgradeChoices: Map<UpgradeId, WorkbenchChoice>
+  ) {
+    const entry = document.createElement('div')
+    entry.className = `workbench-bay-entry ${this.expandedWorkbenchBay === bay.id ? 'expanded' : ''}`
+    entry.append(this.renderWorkbenchBayToggle(bay, rows, offeredUpgradeChoices))
+    if (this.expandedWorkbenchBay === bay.id) entry.append(this.renderWorkbenchBayDetail(bay, rows, offeredUpgradeChoices))
+    return entry
   }
 
   private renderWorkbenchBayDetail(
@@ -7349,6 +7367,7 @@ class VectorShooter {
       if (choice.kind === 'upgrade') offeredUpgradeChoices.set(choice.upgrade.id, choice)
     }
     if (!workbenchBayDefinitions.some((bay) => bay.id === this.selectedWorkbenchBay)) this.selectedWorkbenchBay = 'weapons'
+    if (this.expandedWorkbenchBay && !workbenchBayDefinitions.some((bay) => bay.id === this.expandedWorkbenchBay)) this.expandedWorkbenchBay = null
 
     const rows = workbenchUpgradeRows(upgrades, this.build, Array.from(offeredUpgradeChoices.keys()), this.workbenchExtraUnlockedIds())
     const offerGrid = document.createElement('div')
@@ -7367,9 +7386,8 @@ class VectorShooter {
     bayShell.className = 'workbench-bay-shell'
     const bayList = document.createElement('div')
     bayList.className = 'workbench-bay-list'
-    for (const bay of workbenchBayDefinitions) bayList.append(this.renderWorkbenchBayToggle(bay, rows, offeredUpgradeChoices))
-    const selectedBay = workbenchBayDefinitions.find((bay) => bay.id === this.selectedWorkbenchBay) ?? workbenchBayDefinitions[0]
-    bayShell.append(bayList, this.renderWorkbenchBayDetail(selectedBay, rows, offeredUpgradeChoices))
+    for (const bay of workbenchBayDefinitions) bayList.append(this.renderWorkbenchBayEntry(bay, rows, offeredUpgradeChoices))
+    bayShell.append(bayList)
 
     wrap.append(
       title,

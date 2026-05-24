@@ -2353,14 +2353,24 @@ button.manifest-chip:focus-visible,
 
 .workbench-bay-shell {
   display: grid;
-  grid-template-columns: minmax(230px, 0.38fr) minmax(0, 1fr);
+  grid-template-columns: 1fr;
   gap: 10px;
   align-items: start;
 }
 
 .workbench-bay-list {
   display: grid;
+  gap: 8px;
+}
+
+.workbench-bay-entry {
+  min-width: 0;
+  display: grid;
   gap: 7px;
+}
+
+.workbench-bay-entry.expanded {
+  padding-bottom: 4px;
 }
 
 .workbench-bay-toggle {
@@ -2391,6 +2401,12 @@ button.manifest-chip:focus-visible,
     linear-gradient(90deg, rgba(255, 242, 122, 0.16), transparent 62%),
     rgba(28, 22, 3, 0.76);
   box-shadow: inset 0 0 24px rgba(255, 242, 122, 0.08), 0 0 18px rgba(255, 242, 122, 0.1);
+}
+
+.workbench-bay-toggle.active .workbench-bay-code {
+  border-color: rgba(255, 242, 122, 0.62);
+  background:
+    linear-gradient(180deg, rgba(255, 250, 196, 0.96), rgba(255, 242, 122, 0.78));
 }
 
 .workbench-bay-toggle.has-offer:not(.active) {
@@ -3230,18 +3246,8 @@ button.manifest-chip:disabled {
     overflow: visible;
   }
 
-  .workbench-bay-shell {
-    grid-template-columns: 1fr;
-  }
-
   .workbench-bay-list {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(210px, 42vw);
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    padding-bottom: 4px;
-    scrollbar-color: rgba(87, 255, 243, 0.52) rgba(87, 255, 243, 0.08);
+    gap: 7px;
   }
 
 }
@@ -3473,10 +3479,6 @@ button.manifest-chip:disabled {
   }
 
   .build-manifest.workbench .workbench-current-offers {
-    grid-template-columns: 1fr;
-  }
-
-  .workbench-bay-shell {
     grid-template-columns: 1fr;
   }
 
