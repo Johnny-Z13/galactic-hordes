@@ -7839,7 +7839,18 @@ class VectorShooter {
     scores.className = 'vector-button secondary'
     scores.textContent = 'Scores'
     scores.addEventListener('click', () => this.showScores())
-    row.append(start, scores)
+    const reset = document.createElement('button')
+    reset.className = 'vector-button secondary danger'
+    reset.textContent = 'Reset Progress'
+    reset.addEventListener('click', () => {
+      if (reset.dataset.confirm === 'true') {
+        this.resetPersistentProgress()
+        return
+      }
+      reset.dataset.confirm = 'true'
+      reset.textContent = 'Confirm Reset'
+    })
+    row.append(start, scores, reset)
     panel.append(logo, wordmark, row)
     this.ui.title.append(panel)
     this.showOnly('title')
@@ -8173,8 +8184,7 @@ class VectorShooter {
   }
 
   private resetPersistentProgress() {
-    localStorage.removeItem(STORAGE_KEY)
-    localStorage.removeItem(MOTHERSHIP_STORAGE_KEY)
+    this.clearPersistentProgressStorage()
     this.highs = []
     this.mothership = defaultMothershipState()
     this.debrief = null
@@ -8783,10 +8793,23 @@ class VectorShooter {
 
   private resetProgressFromUrl() {
     const params = new URLSearchParams(window.location.search)
-    if (!['1', 'true', 'yes'].includes((params.get('resetProgress') ?? '').toLowerCase())) return
-    localStorage.removeItem(STORAGE_KEY)
-    localStorage.removeItem(MOTHERSHIP_STORAGE_KEY)
-    localStorage.removeItem('galactic_hordes_mothership_v1')
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#\??/, ''))
+    const requested = params.get('resetProgress') ?? hashParams.get('resetProgress') ?? ''
+    if (!['1', 'true', 'yes'].includes(requested.toLowerCase())) return
+    this.clearPersistentProgressStorage()
+  }
+
+  private clearPersistentProgressStorage() {
+    const keys = Object.keys(localStorage)
+    for (const key of keys) {
+      if (
+        key === STORAGE_KEY
+        || key === MOTHERSHIP_STORAGE_KEY
+        || key.startsWith('galactic_hordes_')
+      ) {
+        localStorage.removeItem(key)
+      }
+    }
   }
 
   private loadMothership() {
