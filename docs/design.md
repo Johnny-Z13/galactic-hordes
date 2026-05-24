@@ -43,6 +43,8 @@ Color meanings must stay consistent:
 
 Examples:
 - A workbench bay header that is open should glow cyan, not yellow.
+- A closed workbench bay header should stay normal cyan even when it contains available upgrades.
+- A workbench bay header should only glow stronger while its detail panel is open.
 - A workbench install offer should use yellow because tapping it spends a signal.
 - A mothership department header that is open should glow cyan.
 - A mothership tier that can be purchased may use yellow.
@@ -97,6 +99,7 @@ The workbench uses a visible tech tree path:
 - Upgrade action: amber/yellow border/glow or button treatment.
 - Secondary navigation: cyan outline/dark fill.
 - Selected/open state: cyan glow and border, not yellow.
+- Workbench bay closed state: normal cyan only; do not use bold color/glow to indicate available child upgrades.
 - Disabled/locked: grey low-contrast fill, explicit lock marker.
 - Complete/maxed: green border or badge, explicit text.
 

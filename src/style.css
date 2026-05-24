@@ -2427,10 +2427,10 @@ button.manifest-chip:focus-visible,
 }
 
 .workbench-bay-toggle.has-offer:not(.active) {
-  border-color: rgba(87, 255, 243, 0.58);
+  border-color: rgba(87, 255, 243, 0.32);
   background:
-    linear-gradient(90deg, rgba(87, 255, 243, 0.1), transparent 62%),
-    rgba(3, 18, 23, 0.66);
+    linear-gradient(90deg, rgba(87, 255, 243, 0.055), transparent 58%),
+    rgba(0, 8, 12, 0.72);
 }
 
 .workbench-bay-toggle.locked:not(.active) {
