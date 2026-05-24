@@ -977,11 +977,11 @@ canvas {
 }
 
 .mothership-console-tab.active {
-  border-color: rgba(255, 242, 122, 0.72);
+  border-color: rgba(87, 255, 243, 0.82);
   background:
-    linear-gradient(135deg, rgba(255, 242, 122, 0.18), transparent 42%),
-    linear-gradient(180deg, rgba(40, 32, 6, 0.9), rgba(9, 11, 12, 0.88));
-  box-shadow: inset 0 0 24px rgba(255, 242, 122, 0.06), 0 0 18px rgba(255, 242, 122, 0.06);
+    linear-gradient(135deg, rgba(87, 255, 243, 0.17), transparent 42%),
+    linear-gradient(180deg, rgba(7, 28, 34, 0.92), rgba(4, 13, 17, 0.88));
+  box-shadow: inset 0 0 24px rgba(87, 255, 243, 0.08), 0 0 18px rgba(87, 255, 243, 0.1);
 }
 
 .mothership-console-content {
@@ -1198,24 +1198,24 @@ canvas {
 }
 
 .meta-department-toggle.active {
-  border-color: rgba(255, 242, 122, 0.86);
+  border-color: rgba(87, 255, 243, 0.9);
   color: #f6fffe;
   background:
-    linear-gradient(90deg, rgba(255, 242, 122, 0.16), transparent 62%),
-    rgba(28, 22, 3, 0.76);
-  box-shadow: inset 0 0 24px rgba(255, 242, 122, 0.08), 0 0 18px rgba(255, 242, 122, 0.1);
+    linear-gradient(90deg, rgba(87, 255, 243, 0.18), transparent 62%),
+    rgba(4, 22, 27, 0.78);
+  box-shadow: inset 0 0 24px rgba(87, 255, 243, 0.08), 0 0 18px rgba(87, 255, 243, 0.12);
 }
 
 .meta-department-toggle.active .meta-department-code {
-  border-color: rgba(255, 242, 122, 0.62);
+  border-color: rgba(87, 255, 243, 0.72);
   background:
-    linear-gradient(180deg, rgba(255, 250, 196, 0.96), rgba(255, 242, 122, 0.78));
+    linear-gradient(180deg, rgba(215, 255, 247, 0.98), rgba(87, 255, 243, 0.82));
 }
 
 .meta-department-toggle.locked:not(.active) {
-  border-color: rgba(185, 144, 255, 0.28);
+  border-color: rgba(156, 176, 184, 0.26);
   color: rgba(215, 255, 247, 0.46);
-  background: rgba(17, 8, 28, 0.42);
+  background: rgba(12, 17, 20, 0.46);
 }
 
 .meta-department-toggle.locked::before,
@@ -1226,10 +1226,10 @@ canvas {
   right: 8px;
   bottom: 7px;
   z-index: 1;
-  border: 1px solid rgba(185, 144, 255, 0.42);
+  border: 1px solid rgba(156, 176, 184, 0.42);
   border-radius: 4px;
   color: rgba(215, 255, 247, 0.62);
-  background: rgba(7, 4, 13, 0.78);
+  background: rgba(7, 10, 12, 0.78);
   padding: 2px 5px;
   font-size: 8px;
   font-weight: 800;
@@ -1246,7 +1246,7 @@ canvas {
   z-index: 2;
   width: 10px;
   height: 7px;
-  border: 1px solid rgba(185, 144, 255, 0.48);
+  border: 1px solid rgba(156, 176, 184, 0.48);
   border-bottom: 0;
   border-radius: 7px 7px 0 0;
   pointer-events: none;
@@ -1342,8 +1342,8 @@ canvas {
 }
 
 .meta-upgrade-detail.locked {
-  border-color: rgba(185, 144, 255, 0.28);
-  background: rgba(17, 8, 28, 0.34);
+  border-color: rgba(156, 176, 184, 0.28);
+  background: rgba(12, 17, 20, 0.34);
 }
 
 .meta-upgrade-detail-head {
@@ -1417,16 +1417,17 @@ canvas {
   position: relative;
   color: rgba(215, 255, 247, 0.48);
   border-style: dashed;
-  background: rgba(215, 255, 247, 0.018);
+  border-color: rgba(156, 176, 184, 0.24);
+  background: rgba(156, 176, 184, 0.025);
   filter: grayscale(0.55);
 }
 
 .meta-tier-row.locked::after {
   content: "LOCKED";
   justify-self: start;
-  border: 1px solid rgba(185, 144, 255, 0.32);
+  border: 1px solid rgba(156, 176, 184, 0.34);
   border-radius: 4px;
-  color: rgba(215, 255, 247, 0.48);
+  color: rgba(215, 255, 247, 0.52);
   padding: 2px 5px;
   font-size: 8px;
   font-weight: 800;
@@ -2411,18 +2412,18 @@ button.manifest-chip:focus-visible,
 }
 
 .workbench-bay-toggle.active {
-  border-color: rgba(255, 242, 122, 0.86);
+  border-color: rgba(87, 255, 243, 0.9);
   color: #f6fffe;
   background:
-    linear-gradient(90deg, rgba(255, 242, 122, 0.16), transparent 62%),
-    rgba(28, 22, 3, 0.76);
-  box-shadow: inset 0 0 24px rgba(255, 242, 122, 0.08), 0 0 18px rgba(255, 242, 122, 0.1);
+    linear-gradient(90deg, rgba(87, 255, 243, 0.18), transparent 62%),
+    rgba(4, 22, 27, 0.78);
+  box-shadow: inset 0 0 24px rgba(87, 255, 243, 0.08), 0 0 18px rgba(87, 255, 243, 0.12);
 }
 
 .workbench-bay-toggle.active .workbench-bay-code {
-  border-color: rgba(255, 242, 122, 0.62);
+  border-color: rgba(87, 255, 243, 0.72);
   background:
-    linear-gradient(180deg, rgba(255, 250, 196, 0.96), rgba(255, 242, 122, 0.78));
+    linear-gradient(180deg, rgba(215, 255, 247, 0.98), rgba(87, 255, 243, 0.82));
 }
 
 .workbench-bay-toggle.has-offer:not(.active) {
@@ -2433,9 +2434,9 @@ button.manifest-chip:focus-visible,
 }
 
 .workbench-bay-toggle.locked:not(.active) {
-  border-color: rgba(185, 144, 255, 0.24);
+  border-color: rgba(156, 176, 184, 0.26);
   color: rgba(215, 255, 247, 0.44);
-  background: rgba(17, 8, 28, 0.34);
+  background: rgba(12, 17, 20, 0.42);
 }
 
 .workbench-bay-toggle.locked::before {
@@ -2443,10 +2444,10 @@ button.manifest-chip:focus-visible,
   position: absolute;
   right: 8px;
   bottom: 7px;
-  border: 1px solid rgba(185, 144, 255, 0.34);
+  border: 1px solid rgba(156, 176, 184, 0.36);
   border-radius: 4px;
   color: rgba(215, 255, 247, 0.5);
-  background: rgba(7, 4, 13, 0.72);
+  background: rgba(7, 10, 12, 0.72);
   padding: 2px 5px;
   font-size: 8px;
   font-weight: 800;
@@ -2697,8 +2698,8 @@ button.manifest-chip:disabled {
 
 .manifest-chip.maxed,
 .manifest-chip.ready {
-  border-color: rgba(255, 242, 122, 0.72);
-  background: rgba(255, 242, 122, 0.06);
+  border-color: rgba(143, 255, 125, 0.64);
+  background: rgba(143, 255, 125, 0.06);
 }
 
 .manifest-chip.evolved {
@@ -2713,12 +2714,12 @@ button.manifest-chip:disabled {
 }
 
 .manifest-chip.status-locked {
-  border-color: rgba(185, 144, 255, 0.28);
+  border-color: rgba(156, 176, 184, 0.28);
   border-style: dashed;
   color: rgba(215, 255, 247, 0.46);
   background:
-    linear-gradient(135deg, rgba(185, 144, 255, 0.08), transparent 34%),
-    rgba(17, 8, 28, 0.32);
+    linear-gradient(135deg, rgba(156, 176, 184, 0.08), transparent 34%),
+    rgba(12, 17, 20, 0.34);
   filter: grayscale(0.45);
 }
 
@@ -2728,7 +2729,7 @@ button.manifest-chip:disabled {
 
 .manifest-chip.status-locked b,
 .manifest-chip.status-locked em {
-  color: rgba(185, 144, 255, 0.7);
+  color: rgba(156, 176, 184, 0.72);
 }
 
 .manifest-chip.standby {

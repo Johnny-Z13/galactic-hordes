@@ -7278,7 +7278,9 @@ class VectorShooter {
     const progress = totalRanks > 0 ? ownedRanks / totalRanks : 0
     const button = document.createElement('button')
     button.type = 'button'
+    button.id = `workbench-bay-${bay.id}-toggle`
     button.className = `workbench-bay-toggle ${this.expandedWorkbenchBay === bay.id ? 'active' : ''} ${offerCount > 0 ? 'has-offer' : ''} ${lockedCount === bayRows.length ? 'locked' : ''}`.trim()
+    button.setAttribute('aria-controls', `workbench-bay-${bay.id}-panel`)
     button.setAttribute('aria-expanded', String(this.expandedWorkbenchBay === bay.id))
     button.addEventListener('click', () => {
       const scrollTop = this.currentLevelUpScrollTop()
@@ -7334,6 +7336,9 @@ class VectorShooter {
   ) {
     const detail = document.createElement('div')
     detail.className = 'workbench-bay-detail'
+    detail.id = `workbench-bay-${bay.id}-panel`
+    detail.setAttribute('role', 'region')
+    detail.setAttribute('aria-labelledby', `workbench-bay-${bay.id}-toggle`)
     const head = document.createElement('div')
     head.className = 'workbench-bay-detail-head'
     head.innerHTML = `<div><b>${this.escape(bay.label)}</b><span>${this.escape(bay.summary)}</span></div><em>${this.escape(bay.shortLabel.toUpperCase())} DATABASE</em>`
@@ -8073,7 +8078,9 @@ class VectorShooter {
     const unlocked = isMothershipDepartmentUnlocked(this.mothership, id)
     const button = document.createElement('button')
     button.type = 'button'
+    button.id = `mothership-department-${id}-toggle`
     button.className = `meta-department-toggle ${this.expandedMothershipDepartment === id ? 'active' : ''} ${unlocked ? '' : 'locked'}`.trim()
+    button.setAttribute('aria-controls', `mothership-department-${id}-panel`)
     button.setAttribute('aria-pressed', String(this.expandedMothershipDepartment === id))
     button.setAttribute('aria-expanded', String(this.expandedMothershipDepartment === id))
     button.addEventListener('click', () => {
@@ -8125,6 +8132,9 @@ class VectorShooter {
     const unlocked = isMothershipDepartmentUnlocked(this.mothership, id)
     const detail = document.createElement('article')
     detail.className = `meta-upgrade-detail ${unlocked ? '' : 'locked'}`.trim()
+    detail.id = `mothership-department-${id}-panel`
+    detail.setAttribute('role', 'region')
+    detail.setAttribute('aria-labelledby', `mothership-department-${id}-toggle`)
     const header = document.createElement('div')
     header.className = 'meta-upgrade-detail-head'
     header.innerHTML = `
