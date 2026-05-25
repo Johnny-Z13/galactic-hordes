@@ -403,6 +403,7 @@ interface PlayerState {
   dashX: number
   dashY: number
   dashSpeed: number
+  xpAbsorbPulse: number
   speed: number
   landedCd: number
 }
@@ -1065,6 +1066,7 @@ class VectorShooter {
       dashX: 0,
       dashY: -1,
       dashSpeed: 0,
+      xpAbsorbPulse: 0,
       speed: runBalance.player.baseSpeed,
       landedCd: 0
     }
@@ -1447,6 +1449,7 @@ class VectorShooter {
     this.player.dashCd -= dt
     this.player.dashTime -= dt
     this.player.invuln -= dt
+    this.player.xpAbsorbPulse = Math.max(0, this.player.xpAbsorbPulse - dt)
     this.player.shieldDelay -= dt
     this.player.landedCd -= dt
     this.toastTimer -= dt
@@ -3403,6 +3406,7 @@ class VectorShooter {
   private collect(p: Pickup) {
     this.audio.pickup(p.kind)
     if (p.kind === 'xp') {
+      this.player.xpAbsorbPulse = Math.max(this.player.xpAbsorbPulse, 0.34)
       this.stats.xp += p.value
       this.stats.score += p.value
       while (this.stats.xp >= this.stats.nextXp) {
@@ -6273,6 +6277,7 @@ class VectorShooter {
     const signature = starterSignatureFlags(this.build)
     const travelSpeed = len(this.player.vx, this.player.vy)
     const dashActive = this.player.dashTime > 0
+    const absorbPulse = this.player.xpAbsorbPulse
     const speedCap = this.player.speed
       + this.build.engine * powerupBalance.ship.maxSpeedPerEngineRank
       + this.build.nav * powerupBalance.ship.maxSpeedPerNavRank
@@ -6386,6 +6391,23 @@ class VectorShooter {
       ctx.lineTo(6, 4)
       ctx.stroke()
       ctx.globalAlpha = 1
+    }
+    if (absorbPulse > 0) {
+      ctx.save()
+      ctx.globalCompositeOperation = this.allowGlow() ? 'lighter' : 'source-over'
+      ctx.strokeStyle = '#fff27a'
+      ctx.shadowColor = '#fff27a'
+      ctx.shadowBlur = this.graphicsMode === 'LOW' ? 0 : 18 + absorbPulse * 18
+      ctx.lineWidth = 1.4 + absorbPulse * 2.2
+      ctx.globalAlpha = clamp(absorbPulse * 2.8, 0, 0.9)
+      ctx.beginPath()
+      ctx.arc(0, 0, 26 + absorbPulse * 34, 0, TAU)
+      ctx.stroke()
+      ctx.globalAlpha = clamp(absorbPulse * 1.8, 0, 0.52)
+      ctx.beginPath()
+      ctx.arc(15, 0, 7 + absorbPulse * 15, -0.95, 0.95)
+      ctx.stroke()
+      ctx.restore()
     }
     if (navGlow > 0) {
       ctx.strokeStyle = navGlow >= 6 ? '#fff27a' : '#70a8ff'
