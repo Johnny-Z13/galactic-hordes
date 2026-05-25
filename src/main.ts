@@ -403,7 +403,7 @@ interface PlayerState {
   dashX: number
   dashY: number
   dashSpeed: number
-  xpAbsorbPulse: number
+  pickupAbsorbPulse: number
   speed: number
   landedCd: number
 }
@@ -1066,7 +1066,7 @@ class VectorShooter {
       dashX: 0,
       dashY: -1,
       dashSpeed: 0,
-      xpAbsorbPulse: 0,
+      pickupAbsorbPulse: 0,
       speed: runBalance.player.baseSpeed,
       landedCd: 0
     }
@@ -1317,7 +1317,7 @@ class VectorShooter {
         const firstChoice = availableSectorChoices(this.sectorMap)[0]
         if (firstChoice) this.launchSectorNode(firstChoice.id)
       }
-      if (e.code === 'Enter' && this.state === 'gameover') this.restartFromGameOver()
+      if (e.code === 'Enter' && this.state === 'gameover') this.returnToTitleFromGameOver()
     })
     window.addEventListener('keyup', (e) => this.keys.delete(e.code))
     window.addEventListener('pointermove', (e) => {
@@ -1449,7 +1449,7 @@ class VectorShooter {
     this.player.dashCd -= dt
     this.player.dashTime -= dt
     this.player.invuln -= dt
-    this.player.xpAbsorbPulse = Math.max(0, this.player.xpAbsorbPulse - dt)
+    this.player.pickupAbsorbPulse = Math.max(0, this.player.pickupAbsorbPulse - dt)
     this.player.shieldDelay -= dt
     this.player.landedCd -= dt
     this.toastTimer -= dt
@@ -3405,8 +3405,8 @@ class VectorShooter {
 
   private collect(p: Pickup) {
     this.audio.pickup(p.kind)
+    this.player.pickupAbsorbPulse = Math.max(this.player.pickupAbsorbPulse, 0.34)
     if (p.kind === 'xp') {
-      this.player.xpAbsorbPulse = Math.max(this.player.xpAbsorbPulse, 0.34)
       this.stats.xp += p.value
       this.stats.score += p.value
       while (this.stats.xp >= this.stats.nextXp) {
@@ -6277,7 +6277,7 @@ class VectorShooter {
     const signature = starterSignatureFlags(this.build)
     const travelSpeed = len(this.player.vx, this.player.vy)
     const dashActive = this.player.dashTime > 0
-    const absorbPulse = this.player.xpAbsorbPulse
+    const absorbPulse = this.player.pickupAbsorbPulse
     const speedCap = this.player.speed
       + this.build.engine * powerupBalance.ship.maxSpeedPerEngineRank
       + this.build.nav * powerupBalance.ship.maxSpeedPerNavRank
@@ -6395,8 +6395,8 @@ class VectorShooter {
     if (absorbPulse > 0) {
       ctx.save()
       ctx.globalCompositeOperation = this.allowGlow() ? 'lighter' : 'source-over'
-      ctx.strokeStyle = '#fff27a'
-      ctx.shadowColor = '#fff27a'
+      ctx.strokeStyle = '#70a8ff'
+      ctx.shadowColor = '#57fff3'
       ctx.shadowBlur = this.graphicsMode === 'LOW' ? 0 : 18 + absorbPulse * 18
       ctx.lineWidth = 1.4 + absorbPulse * 2.2
       ctx.globalAlpha = clamp(absorbPulse * 2.8, 0, 0.9)
@@ -8942,10 +8942,9 @@ class VectorShooter {
     row.className = 'button-row'
     const continueButton = document.createElement('button')
     continueButton.className = 'vector-button'
-    continueButton.textContent = 'Return to Mothership'
+    continueButton.textContent = 'Return to Title'
     continueButton.addEventListener('click', () => {
-      this.saveScoreFromInput(input)
-      this.showMothership()
+      this.returnToTitleFromGameOver(input)
     })
     const scores = document.createElement('button')
     scores.className = 'vector-button secondary'
@@ -8990,10 +8989,9 @@ class VectorShooter {
     row.className = 'button-row'
     const retry = document.createElement('button')
     retry.className = 'vector-button'
-    retry.textContent = 'Run Again'
+    retry.textContent = 'Title Screen'
     retry.addEventListener('click', () => {
-      this.saveScoreFromInput(input)
-      this.restartFromGameOver()
+      this.returnToTitleFromGameOver(input)
     })
     const scores = document.createElement('button')
     scores.className = 'vector-button secondary'
@@ -9452,9 +9450,11 @@ class VectorShooter {
     this.showSectorMap()
   }
 
-  private restartFromGameOver() {
-    this.scoreSaved = true
-    this.start()
+  private returnToTitleFromGameOver(input?: HTMLInputElement) {
+    if (input) this.saveScoreFromInput(input)
+    this.debrief = null
+    this.reset()
+    this.showTitle()
   }
 
   private saveScoreFromInput(input: HTMLInputElement) {
