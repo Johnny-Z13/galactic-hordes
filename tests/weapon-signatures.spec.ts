@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { optionOrbProfile, pulseVolleyCount, starterSignatureFlags } from '../src/weapon-signatures'
+import { optionOrbProfile, pulseVolleyCount, rearGunProfile, starterSignatureFlags } from '../src/weapon-signatures'
 
 test('pulse cannon rank five earns its promised cadence double shot', () => {
   expect(pulseVolleyCount({ rapidRank: 4, fireSerial: 10, evolved: false })).toBe(1)
@@ -50,4 +50,11 @@ test('gravity halo evolves option orbs into a four satellite formation', () => {
   expect(profile.count).toBe(4)
   expect(profile.damageMultiplier).toBeGreaterThan(optionOrbProfile({ orbitRank: 6, fireSerial: 1, evolved: false }).damageMultiplier)
   expect(profile.pierce).toBeGreaterThan(0)
+})
+
+test('rear gun upgrade adds backward fire coverage and scales into twin barrels', () => {
+  expect(rearGunProfile(0)).toMatchObject({ shots: 0, spread: 0, damageMultiplier: 0 })
+  expect(rearGunProfile(1)).toMatchObject({ shots: 1, spread: 0 })
+  expect(rearGunProfile(3).shots).toBe(2)
+  expect(rearGunProfile(5).damageMultiplier).toBeGreaterThan(rearGunProfile(1).damageMultiplier)
 })

@@ -20,6 +20,7 @@ export interface WorkbenchUnlockEdge {
 
 export const workbenchUnlockEdges: readonly WorkbenchUnlockEdge[] = [
   { source: 'rapid', rank: 3, unlocks: ['chain'] },
+  { source: 'rapid', rank: 3, unlocks: ['rear'] },
   { source: 'rapid', rank: 5, unlocks: ['heat'] },
   { source: 'rapid', unlocks: ['rail'] },
   { source: 'split', rank: 3, unlocks: ['pierce'] },

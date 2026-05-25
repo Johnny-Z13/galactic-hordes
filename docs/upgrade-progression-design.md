@@ -43,6 +43,7 @@ The workbench should feel like choosing a build direction, not buying tiny line 
 | Pulse Cannon | 8 | 100 | base pulse, cooldown, damage, cooldown, double-pulse, speed, cooldown, evolution-ready | Static Idol | Choir Cannon: three-note burst volley |
 | Prism Barrel | 6 | 86 | side ray, control, side ray, damage, side ray, evolution-ready | Glass Reactor | Shatter Prism: wider fan and cracked damage rays |
 | Ghost Rounds | 5 | 80 | pierce, pierce, damage, pierce, double pierce | none | none |
+| Rear Gun | 5 | 68 | rear pulse, damage, twin barrels, speed, pierce | none | none |
 | Rail Lattice | 6 | 62 | rail shot, rail damage, faster rail cadence, pierce, faster cadence, evolution-ready | Dead Sun Coin | Solar Lance: heavier screen-splitting rail shots |
 | Echo Chamber | 5 | 70 | bullet lifetime, speed, lifetime, echo damage, evolution-ready | Black Box Saint | Resonance Wake: longer damaging trails |
 | Ion Moons | 6 | 72 | orbital, radius, orbital, damage, orbital, evolution-ready | Hungry Compass | Gravity Halo: orbitals pull enemies inward |
@@ -57,6 +58,7 @@ Starter branches should become visible before they are maxed, so the player can 
 - Pulse Cannon rank 2 adds pulse wake rings to shots; rank 5 makes every fifth shot double-pulse.
 - Choir Cannon upgrades that cadence into a three-note volley.
 - Prism Barrel rank 1 adds visible ray fins to the ship and projectiles.
+- Rear Gun rank 1 adds a backward pulse while firing; rank 3 splits it into twin rear barrels for safer retreats.
 - Drift Engine rank 2 adds navigation chevrons and stronger exhaust language.
 - Signal Magnet rank 1 adds a salvage-field ring around the ship.
 - Halo Battery rank 1 adds a second shield halo around the hull.
@@ -84,7 +86,7 @@ The first five rollable systems remain Pulse Cannon, Drift Engine, Signal Magnet
 
 | Requirement | Newly Visible Systems |
 |---|---|
-| Pulse Cannon rank 3 | Static Arc |
+| Pulse Cannon rank 3 | Static Arc, Rear Gun |
 | Pulse Cannon rank 5 | Heat Sink |
 | Max Pulse Cannon | Rail Lattice |
 | Prism Barrel rank 3 | Ghost Rounds |

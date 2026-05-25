@@ -15,8 +15,8 @@ export const workbenchBayDefinitions: readonly WorkbenchBayDefinition[] = [
     id: 'weapons',
     label: 'Weapons Bay',
     shortLabel: 'Weapons',
-    summary: 'Pulse, spread, chain, rail, orbit, and boss-hunter branches.',
-    upgradeIds: ['rapid', 'split', 'pierce', 'rail', 'echo', 'orbit', 'chain', 'rift']
+    summary: 'Pulse, spread, rear fire, chain, rail, orbit, and boss-hunter branches.',
+    upgradeIds: ['rapid', 'split', 'pierce', 'rear', 'rail', 'echo', 'orbit', 'chain', 'rift']
   },
   {
     id: 'maneuver',

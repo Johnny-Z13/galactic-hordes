@@ -6,6 +6,7 @@ export type UpgradeId =
   | 'rapid'
   | 'split'
   | 'pierce'
+  | 'rear'
   | 'mine'
   | 'chain'
   | 'rift'
@@ -90,12 +91,12 @@ export const powerupBalance = {
   },
   dash: {
     durationBase: 0.14,
-    durationPerEngineRank: 0.045,
-    durationPerPhaseRank: 0.012,
-    durationMax: 0.48,
+    durationPerEngineRank: 0.06,
+    durationPerPhaseRank: 0.02,
+    durationMax: 0.62,
     speedBase: 840,
-    speedPerEngineRank: 54,
-    speedPerPhaseRank: 28,
+    speedPerEngineRank: 72,
+    speedPerPhaseRank: 44,
     cooldownBase: 1.15,
     cooldownMin: 0.48,
     cooldownReductionPerEngineRank: 0.12,
@@ -103,7 +104,7 @@ export const powerupBalance = {
     invulnerabilityBase: 0.22,
     engineInvulnerabilityThreshold: 5,
     engineInvulnerabilityBonus: 0.08,
-    invulnerabilityPerPhaseRank: 0.09,
+    invulnerabilityPerPhaseRank: 0.12,
     ramForceBase: 260,
     ramForcePerPhaseRank: 70,
     ramDamageBase: 16,
@@ -198,6 +199,16 @@ export const powerupBalance = {
     gravityDamageMultiplier: 1.35,
     gravityPullRadiusBonus: 90,
     gravityPullForce: 28
+  },
+  rearGun: {
+    damageMultiplierBase: 0.38,
+    damageMultiplierPerRank: 0.07,
+    speedMultiplierBase: 0.9,
+    speedMultiplierPerRank: 0.03,
+    twinBarrelRank: 3,
+    twinBarrelSpread: 0.18,
+    pierceRank: 5,
+    lifeMultiplier: 0.82
   },
   upgradeApply: {
     engineSpeedPerRank: 18,
@@ -323,13 +334,14 @@ export const upgrades: Upgrade[] = [
   { id: 'rapid', name: 'Pulse Cannon', category: 'weapon', bucket: 'weapons', description: 'The main damage bucket: faster pulse rhythm, harder hits, and double-pulse pressure.', max: 8, rarity: 100, catalyst: 'staticIdol', evolutionName: 'Choir Cannon', evolutionDescription: 'Pulse fire becomes a three-note volley with a brighter synth chord.', levels: ['Base pulse stabilizer', '-8% fire cooldown', '+12% pulse damage', '-8% fire cooldown', 'Every fifth shot double-pulses', '+15% projectile speed', '-10% fire cooldown', 'Evolution-ready'] },
   { id: 'split', name: 'Prism Barrel', category: 'weapon', bucket: 'weapons', description: 'The screen-control bucket: more rays, a wider fan, and better crowd trimming.', max: 6, rarity: 86, catalyst: 'glassReactor', evolutionName: 'Shatter Prism', evolutionDescription: 'The fan gains two extra rays and cracks through nearby targets.', levels: ['+1 side ray', 'Tighter fan control', '+1 side ray', '+10% ray damage', '+1 side ray', 'Evolution-ready'] },
   { id: 'pierce', name: 'Ghost Rounds', category: 'weapon', bucket: 'weapons', description: 'The horde-cutting bucket: pulses travel through bodies instead of dying early.', max: 5, rarity: 80, levels: ['+1 pierce', '+1 pierce', '+10% pulse damage', '+1 pierce', '+2 pierce'] },
+  { id: 'rear', name: 'Rear Gun', category: 'weapon', bucket: 'weapons', description: 'The kiting bucket: a backward pulse covers retreats and grows into twin rear barrels.', max: 5, rarity: 68, levels: ['Rear pulse fires backward', '+12% rear pulse damage', 'Twin rear barrels', '+10% rear pulse speed', '+1 rear pierce'] },
   { id: 'rail', name: 'Rail Lattice', category: 'weapon', bucket: 'weapons', description: 'The elite-delete bucket: regular fire is interrupted by huge piercing lances.', max: 6, rarity: 62, catalyst: 'deadSunCoin', evolutionName: 'Solar Lance', evolutionDescription: 'Rail shots become screen-splitting sun lances with heavy pierce.', levels: ['Every 8th shot rails', '+15% rail damage', 'Every 7th shot rails', '+2 rail pierce', 'Every 6th shot rails', 'Evolution-ready'] },
   { id: 'echo', name: 'Echo Chamber', category: 'weapon', bucket: 'weapons', description: 'The projectile-quality bucket: longer life, more speed, and resonant wake damage.', max: 5, rarity: 70, catalyst: 'blackBoxSaint', evolutionName: 'Resonance Wake', evolutionDescription: 'Shots leave damaging vector trails after passing through enemies.', levels: ['+18% bullet lifetime', '+8% projectile speed', '+18% bullet lifetime', '+12% echo damage', 'Evolution-ready'] },
   { id: 'orbit', name: 'Option Orbs', category: 'weapon', bucket: 'weapons', description: 'The arcade option bucket: visible companion orbs rotate around the ship and add linked pulse fire.', max: 6, rarity: 72, catalyst: 'hungryCompass', evolutionName: 'Gravity Halo', evolutionDescription: 'Option orbs expand into a four-satellite halo that pulls enemies inward before cutting them apart.', levels: ['+1 option orb', 'Option fires every pulse', 'Second option orb online', '+1 option pierce', 'Third option orb online', 'Evolution-ready'] },
   { id: 'mine', name: 'Mine Wake', category: 'weapon', bucket: 'control', description: 'The dash-control bucket: movement leaves traps and turns escapes into damage.', max: 5, rarity: 55, catalyst: 'forbiddenMap', evolutionName: 'Comet Net', evolutionDescription: 'Dash mines link into explosive constellations.', levels: ['Dash drops 2 mines', '+20% mine damage', '+1 mine', 'Mines last longer', 'Evolution-ready'] },
   { id: 'chain', name: 'Static Arc', category: 'weapon', bucket: 'weapons', description: 'The chain-reaction bucket: pulse impacts jump through tight packs.', max: 5, rarity: 50, catalyst: 'saintCapacitor', evolutionName: 'Storm Liturgy', evolutionDescription: 'Chain lightning erupts from pulse impacts and surface pistol shots.', levels: ['+1 chain hop', '+10% arc damage', '+1 chain hop', '+1 chain hop', 'Evolution-ready'] },
   { id: 'rift', name: 'Rift Needle', category: 'weapon', bucket: 'weapons', description: 'The boss-hunter bucket: rare heavy needles punch through elite targets.', max: 5, rarity: 45, catalyst: 'mirrorSeed', evolutionName: 'Black Needle', evolutionDescription: 'Rare needles execute wounded elites and bosses.', levels: ['Every 11th shot fires a needle', '+18% needle damage', 'Every 9th shot fires a needle', '+2 needle pierce', 'Evolution-ready'] },
-  { id: 'engine', name: 'Drift Engine', category: 'system', bucket: 'navigation', description: 'The manual handling bucket: more speed, longer boost burns, sharper recovery, shorter dash cooldown.', max: 6, rarity: 95, levels: ['+18 move speed', '+0.04s boost duration', '-8% boost cooldown', '+0.04s boost duration', '+0.08s dash invulnerability', '+0.05s boost duration'] },
+  { id: 'engine', name: 'Drift Engine', category: 'system', bucket: 'navigation', description: 'The manual handling bucket: more speed, longer boost burns, sharper recovery, shorter dash cooldown.', max: 6, rarity: 95, levels: ['+18 move speed', '+0.06s boost duration', '-8% boost cooldown', '+0.06s boost duration', '+0.08s dash invulnerability', '+0.07s boost duration'] },
   { id: 'nav', name: 'Nav Ghost', category: 'system', bucket: 'navigation', description: 'The low-input autonomy bucket: base cruise gets faster, smarter, and better at holding intent.', max: 7, rarity: 82, levels: ['Vector Memory: stronger course hold and faster cruise', 'Course Bend: nudges have more authority', 'Planet Lock: USE locks onto the nearest planet beacon', 'Threat Weave: autopilot curves away from nearby enemies', 'Salvage Bias: idle cruise bends toward valuable drops', 'Overdrive Nav: faster cruise and sharper heading changes', 'Ghost Pilot: stronger autonomous steering when your thumb lifts'] },
   { id: 'magnet', name: 'Signal Magnet', category: 'system', bucket: 'economy', description: 'The collection bucket: fewer missed shards, richer routes, more numbers vacuumed in.', max: 6, rarity: 92, levels: [magnetRangeLevel(), magnetRangeLevel(), magnetRangeLevel(), magnetRangeLevel(), magnetRangeLevel(), magnetRangeLevel()] },
   { id: 'shield', name: 'Halo Battery', category: 'system', bucket: 'survival', description: 'The mistake-forgiveness bucket: a regenerating buffer before hull damage matters.', max: 5, rarity: 78, levels: ['+18 max shield', '+20% shield regen', '+18 max shield', '-12% recharge delay', '+28 max shield'] },
@@ -339,7 +351,7 @@ export const upgrades: Upgrade[] = [
   { id: 'luck', name: 'Luck Coil', category: 'system', bucket: 'economy', description: 'The jackpot bucket: rarer rolls, relic pressure, and better mystery outcomes.', max: 5, rarity: 54, levels: ['+10% rare roll pressure', '+8% evolution signal pressure', '+10% relic chance', '+8% rare roll pressure', 'Cache jackpots become more likely'] },
   { id: 'cargo', name: 'Cargo Spine', category: 'system', bucket: 'economy', description: 'The planet-profit bucket: surface salvage pays out more resources and score.', max: 4, rarity: 66, levels: ['+15% planet resources', '+1 core from first cache', '+15% planet resources', '+25% cache score'] },
   { id: 'heat', name: 'Heat Sink', category: 'system', bucket: 'control', description: 'The weapon-tempo bucket: high fire-rate builds stay fast and stable.', max: 4, rarity: 62, levels: ['-3% weapon cooldown', '+8% projectile speed', '-3% weapon cooldown', 'Rail and needle shots cool faster'] },
-  { id: 'phase', name: 'Phase Rudder', category: 'system', bucket: 'control', description: 'The panic-button bucket: longer safer dashes, brief ram damage, softer collisions, stronger escape shockwaves.', max: 4, rarity: 58, levels: ['+0.09s dash invulnerability', 'Dash ram shocks enemies', '+0.012s boost duration', 'Dash shockwave knocks enemies back harder'] },
+  { id: 'phase', name: 'Phase Rudder', category: 'system', bucket: 'control', description: 'The panic-button bucket: longer safer dashes, brief ram damage, softer collisions, stronger escape shockwaves.', max: 4, rarity: 58, levels: ['+0.12s dash invulnerability', 'Dash ram shocks enemies', '+0.02s boost duration', 'Dash shockwave knocks enemies back harder'] },
   { id: 'suitO2', name: 'Exo-Lung', category: 'system', bucket: 'spacesuit', description: 'The surface timer bucket: longer oxygen reserves for planet runs.', max: 5, rarity: 64, levels: ['+14s max O2', '+12s max O2', 'Low-O2 return starts later', '+14s max O2', '+18s max O2'] },
   { id: 'suitHealth', name: 'Skinweave Suit', category: 'system', bucket: 'spacesuit', description: 'The human survival bucket: more surface health and better field repairs.', max: 4, rarity: 66, levels: ['+18 max human health', '+15% surface repair', '+18 max human health', '+24 max human health'] },
   { id: 'suitBlaster', name: 'Field Blaster', category: 'weapon', bucket: 'spacesuit', description: 'The human weapon bucket: surface pistol shots hit harder and cycle faster.', max: 5, rarity: 58, levels: ['+4 surface gun damage', '-6% surface gun cooldown', '+4 surface gun damage', '+40 surface shot speed', '-8% surface gun cooldown'] }

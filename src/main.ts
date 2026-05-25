@@ -128,7 +128,7 @@ import {
   type WorkbenchUpgradeRow
 } from './workbench-rolls'
 import { workbenchBayDefinitions, workbenchBayForUpgrade, type WorkbenchBayDefinition, type WorkbenchBayId } from './workbench-bays'
-import { optionOrbProfile, pulseVolleyCount, starterSignatureFlags } from './weapon-signatures'
+import { optionOrbProfile, pulseVolleyCount, rearGunProfile, starterSignatureFlags } from './weapon-signatures'
 
 type GameState = 'title' | 'mothership' | 'collection' | 'powerups' | 'sectorMap' | 'station' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
@@ -960,6 +960,7 @@ class VectorShooter {
     rapid: 0,
     split: 0,
     pierce: 0,
+    rear: 0,
     mine: 0,
     chain: 0,
     rift: 0,
@@ -2152,6 +2153,40 @@ class VectorShooter {
     }
   }
 
+  private fireRearGun(damage: number, speed: number) {
+    const profile = rearGunProfile(this.build.rear)
+    if (profile.shots <= 0) return
+
+    const rearSpeed = speed * profile.speedMultiplier
+    for (let i = 0; i < profile.shots; i += 1) {
+      if (this.bullets.length > MAX_BULLETS) this.bullets.shift()
+      const offset = profile.shots === 1 ? 0 : (i - (profile.shots - 1) / 2) * profile.spread
+      const a = this.player.aimAngle + Math.PI + offset
+      const vx = Math.cos(a) * rearSpeed + this.player.vx * 0.1
+      const vy = Math.sin(a) * rearSpeed + this.player.vy * 0.1
+      const bulletSpeed = Math.hypot(vx, vy)
+      this.bullets.push({
+        x: this.player.x + Math.cos(a) * 21,
+        y: this.player.y + Math.sin(a) * 21,
+        vx,
+        vy,
+        life: spaceProjectileLifeForOffscreenTravel(
+          powerupBalance.weapon.pulseBaseLife * powerupBalance.rearGun.lifeMultiplier,
+          bulletSpeed,
+          this.width,
+          this.height,
+          this.spaceScale()
+        ),
+        damage: damage * profile.damageMultiplier,
+        radius: 3.2,
+        color: '#ff9d5c',
+        pierce: profile.pierce,
+        rail: false,
+        chain: 0
+      })
+    }
+  }
+
   private fire() {
     if (this.bullets.length > MAX_BULLETS) this.bullets.splice(0, this.bullets.length - MAX_BULLETS)
     const rapid = this.build.rapid
@@ -2260,6 +2295,7 @@ class VectorShooter {
       })
     }
     this.fireOptionOrbs(serial, damage, speed)
+    this.fireRearGun(damage, speed)
     this.audio.fire(this.weaponSoundKind(rail, needle, count), this.stats.level + rapid)
   }
 

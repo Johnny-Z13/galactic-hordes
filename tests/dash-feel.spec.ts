@@ -32,7 +32,7 @@ test('phase rudder enables controlled dash ramming', () => {
   const main = source()
   const phase = upgrades.find((upgrade) => upgrade.id === 'phase')
 
-  expect(phase?.levels).toEqual(expect.arrayContaining(['+0.09s dash invulnerability', 'Dash ram shocks enemies']))
+  expect(phase?.levels).toEqual(expect.arrayContaining(['+0.12s dash invulnerability', 'Dash ram shocks enemies']))
   expect(main).toContain('private tryDashRam(e: Enemy)')
   expect(main).toContain('this.player.dashTime <= 0 || this.build.phase <= 0')
   expect(main).toContain('if (this.tryDashRam(e)) continue')
@@ -42,8 +42,17 @@ test('dash upgrades advertise longer boost burns and visible wake effects', () =
   const engine = upgrades.find((upgrade) => upgrade.id === 'engine')
   const phase = upgrades.find((upgrade) => upgrade.id === 'phase')
 
-  expect(engine?.levels).toEqual(expect.arrayContaining(['+0.04s boost duration', '+0.05s boost duration']))
-  expect(phase?.levels).toEqual(expect.arrayContaining(['+0.012s boost duration', 'Dash shockwave knocks enemies back harder']))
+  expect(engine?.levels).toEqual(expect.arrayContaining(['+0.06s boost duration', '+0.07s boost duration']))
+  expect(phase?.levels).toEqual(expect.arrayContaining(['+0.02s boost duration', 'Dash shockwave knocks enemies back harder']))
+})
+
+test('dash upgrade path supports longer faster invulnerable escapes', () => {
+  expect(powerupBalance.dash.durationPerEngineRank).toBeGreaterThanOrEqual(0.055)
+  expect(powerupBalance.dash.durationPerPhaseRank).toBeGreaterThanOrEqual(0.02)
+  expect(powerupBalance.dash.durationMax).toBeGreaterThanOrEqual(0.62)
+  expect(powerupBalance.dash.speedPerEngineRank).toBeGreaterThanOrEqual(72)
+  expect(powerupBalance.dash.speedPerPhaseRank).toBeGreaterThanOrEqual(44)
+  expect(powerupBalance.dash.invulnerabilityPerPhaseRank).toBeGreaterThanOrEqual(0.12)
 })
 
 test('dash has dedicated wake and render VFX hooks', () => {

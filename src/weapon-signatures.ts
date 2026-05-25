@@ -1,3 +1,5 @@
+import { powerupBalance } from './powerup-balance'
+
 export type StarterSignatureId = 'rapid' | 'split' | 'engine' | 'magnet' | 'shield' | 'nav' | 'rail' | 'rift' | 'heat'
 
 export interface PulseVolleyInput {
@@ -16,6 +18,14 @@ export interface OptionOrbProfile {
   count: number
   fires: boolean
   damageMultiplier: number
+  pierce: number
+}
+
+export interface RearGunProfile {
+  shots: number
+  spread: number
+  damageMultiplier: number
+  speedMultiplier: number
   pierce: number
 }
 
@@ -47,6 +57,19 @@ export const optionOrbProfile = (input: OptionOrbProfileInput): OptionOrbProfile
     fires,
     damageMultiplier: 0.26 + rank * 0.05 + (input.evolved ? 0.18 : 0),
     pierce: (rank >= 4 ? 1 : 0) + (input.evolved ? 1 : 0)
+  }
+}
+
+export const rearGunProfile = (rearRank: number): RearGunProfile => {
+  const rank = Math.max(0, Math.floor(rearRank))
+  if (rank <= 0) return { shots: 0, spread: 0, damageMultiplier: 0, speedMultiplier: 0, pierce: 0 }
+  const shots = rank >= powerupBalance.rearGun.twinBarrelRank ? 2 : 1
+  return {
+    shots,
+    spread: shots > 1 ? powerupBalance.rearGun.twinBarrelSpread : 0,
+    damageMultiplier: powerupBalance.rearGun.damageMultiplierBase + rank * powerupBalance.rearGun.damageMultiplierPerRank,
+    speedMultiplier: powerupBalance.rearGun.speedMultiplierBase + rank * powerupBalance.rearGun.speedMultiplierPerRank,
+    pierce: rank >= powerupBalance.rearGun.pierceRank ? 1 : 0
   }
 }
 

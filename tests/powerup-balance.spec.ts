@@ -82,6 +82,15 @@ test('option orb workbench path is framed as a visible weapon grade branch', () 
   expect(powerupBalance.orbit.firstRankFireEvery).toBe(2)
 })
 
+test('rear gun is a weapon upgrade with named balance tuning', () => {
+  const rear = upgrades.find((upgrade) => upgrade.id === 'rear')
+
+  expect(rear).toMatchObject({ name: 'Rear Gun', category: 'weapon', bucket: 'weapons', max: 5 })
+  expect(rear?.levels).toEqual(expect.arrayContaining(['Rear pulse fires backward', 'Twin rear barrels']))
+  expect(powerupBalance.rearGun.damageMultiplierBase).toBeGreaterThan(0)
+  expect(powerupBalance.rearGun.twinBarrelRank).toBe(3)
+})
+
 test('workbench upgrade cards distinguish next rank from current manifest rank', () => {
   const main = mainSource()
 

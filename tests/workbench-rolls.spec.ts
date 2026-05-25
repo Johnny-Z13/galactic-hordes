@@ -42,6 +42,7 @@ test('starter systems unlock discovery branches before they are maxed', () => {
   const unlocked = workbenchUnlockedUpgradeIds(upgrades, build)
 
   expect(unlocked).toContain('chain')
+  expect(unlocked).toContain('rear')
   expect(unlocked).toContain('nav')
   expect(unlocked).toContain('luck')
   expect(unlocked).toContain('repair')
@@ -82,7 +83,8 @@ test('early planet pacing keeps the rollable system pool readable', () => {
   const rollable = workbenchRollableUpgrades(upgrades, build).map((upgrade) => upgrade.id)
 
   expect(rollable).toContain('chain')
-  expect(rollable.length).toBeLessThanOrEqual(6)
+  expect(rollable).toContain('rear')
+  expect(rollable.length).toBeLessThanOrEqual(7)
   expect(rollable).not.toContain('nav')
   expect(rollable).not.toContain('luck')
   expect(rollable).not.toContain('repair')
