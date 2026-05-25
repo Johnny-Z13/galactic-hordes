@@ -24,7 +24,7 @@ Useful presets:
 - `Economy Sweep`: reward and cache pressure.
 - `Late Pressure`: stress-style route and hazard pressure.
 
-The dashboard shows survival, route progress, final reach count, planet landings, economy, combat damage, balance flags, charts, and a seed-by-seed run table. Use `Export JSON` when you want to keep a report for comparison.
+The dashboard shows survival, route progress, final reach count, planet landings, zero-planet run rate, economy, combat damage, balance flags, charts, and a seed-by-seed run table. Use `Export JSON` when you want to keep a report for comparison.
 
 ## CLI
 
@@ -55,7 +55,7 @@ Use `npm run sim:sweep` before merging broad balance changes that affect route g
 
 ## Reading Results
 
-Use median survival, destroyed rate, route template variety, planet archetype variety, and resource averages as directional signals. Investigate balance flags before changing tuning values.
+Use median survival, destroyed rate, zero-planet run rate, route template variety, planet archetype variety, and resource averages as directional signals. Investigate balance flags before changing tuning values.
 
 For a single bad run, copy the seed from the table and rerun:
 

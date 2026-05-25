@@ -211,7 +211,7 @@ export function runSimPlaythrough(options: SimRunOptions): SimRunResult {
     nodesCleared += 1
     events.push({ t: seconds, kind: 'nodeCleared', templateId: selected.config.templateId, secondsInNode: space.nodeSeconds })
 
-    const hullLimit = options.difficulty === 'testEasy' ? 240 : options.difficulty === 'stress' ? 112 : 210
+    const hullLimit = options.difficulty === 'testEasy' ? 240 : options.difficulty === 'stress' ? 190 : 210
     if (damageTaken >= hullLimit) {
       outcome = 'destroyed'
       deathCause = planetVisits.damageTaken > space.damageTaken && planetVisits.damageTaken > 0 ? 'surface' : space.deathCause === 'none' ? 'attrition' : space.deathCause
@@ -229,7 +229,6 @@ export function runSimPlaythrough(options: SimRunOptions): SimRunResult {
 
   if (outcome === 'timeLimit' && deathCause === 'none') outcome = nodesCleared >= 1 ? 'extracted' : 'timeLimit'
   const runFlags: string[] = []
-  if (planetsLanded === 0 && options.policy === 'planetHunter') runFlags.push('planetHunter did not land on any planets')
   if (discoveries === 0 && planetsLanded > 0) runFlags.push('planet landings produced no discoveries')
   events.push({ t: seconds, kind: 'runEnded', outcome, deathCause })
 

@@ -279,8 +279,8 @@ const encounterBiasForTags = (hazards: SectorHazardTag[], waveOrder: SectorWaveO
 const asteroidConfigFor = (hazards: SectorHazardTag[], pace: SectorNodePace): SectorAsteroidHazardConfig | undefined => {
   if (!hazards.includes('asteroids')) return undefined
   return {
-    density: pace === 'boss' ? 2.1 : pace === 'intense' ? 1.8 : 1.25,
-    damageMultiplier: pace === 'boss' ? 1.15 : 1,
+    density: pace === 'boss' ? 1.92 : pace === 'intense' ? 1.62 : 1.18,
+    damageMultiplier: pace === 'boss' ? 1.08 : 1,
     drift: pace === 'boss' ? 'chaotic' : pace === 'intense' ? 'crosswind' : 'slow'
   }
 }
@@ -844,7 +844,7 @@ const sectorModifierCatalog: Record<SectorModifierId, SectorModifierDefinition> 
     readout: 'denser Asteroids-style hazard pockets',
     weight: 1.25,
     applies: (config) => config.hazards.includes('asteroids'),
-    effects: { reward: 1.08, encounterGap: 0.95, asteroidDensity: 1.2, asteroidDamage: 1.05, encounterBias: { meteorFront: 1.25, asteroidField: 1.3 } }
+    effects: { reward: 1.08, encounterGap: 0.97, asteroidDensity: 1.12, asteroidDamage: 1.03, encounterBias: { meteorFront: 1.16, asteroidField: 1.18 } }
   },
   signalDrought: {
     id: 'signalDrought',

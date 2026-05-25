@@ -5,6 +5,7 @@ export interface SimBalanceTarget {
   medianSurvivalMax: number
   destroyedRateMax: number
   averagePlanetsMin: number
+  zeroPlanetRunRateMax: number
   averageNodesMin: number
   routeTemplateVarietyMin: number
   planetArchetypeVarietyMin: number
@@ -16,6 +17,7 @@ export const simBalanceTargets: Record<SimPolicyId, SimBalanceTarget> = {
     medianSurvivalMax: 1200,
     destroyedRateMax: 0.65,
     averagePlanetsMin: 1.2,
+    zeroPlanetRunRateMax: 0.2,
     averageNodesMin: 1.5,
     routeTemplateVarietyMin: 4,
     planetArchetypeVarietyMin: 3
@@ -25,6 +27,7 @@ export const simBalanceTargets: Record<SimPolicyId, SimBalanceTarget> = {
     medianSurvivalMax: 1500,
     destroyedRateMax: 0.5,
     averagePlanetsMin: 0.8,
+    zeroPlanetRunRateMax: 0.45,
     averageNodesMin: 1.5,
     routeTemplateVarietyMin: 4,
     planetArchetypeVarietyMin: 2
@@ -34,6 +37,7 @@ export const simBalanceTargets: Record<SimPolicyId, SimBalanceTarget> = {
     medianSurvivalMax: 1200,
     destroyedRateMax: 0.7,
     averagePlanetsMin: 2.5,
+    zeroPlanetRunRateMax: 0.08,
     averageNodesMin: 1.2,
     routeTemplateVarietyMin: 4,
     planetArchetypeVarietyMin: 4
@@ -43,6 +47,7 @@ export const simBalanceTargets: Record<SimPolicyId, SimBalanceTarget> = {
     medianSurvivalMax: 1100,
     destroyedRateMax: 0.8,
     averagePlanetsMin: 1.8,
+    zeroPlanetRunRateMax: 0.2,
     averageNodesMin: 1,
     routeTemplateVarietyMin: 4,
     planetArchetypeVarietyMin: 3
@@ -52,6 +57,7 @@ export const simBalanceTargets: Record<SimPolicyId, SimBalanceTarget> = {
     medianSurvivalMax: 1200,
     destroyedRateMax: 0.7,
     averagePlanetsMin: 0.3,
+    zeroPlanetRunRateMax: 0.55,
     averageNodesMin: 2,
     routeTemplateVarietyMin: 4,
     planetArchetypeVarietyMin: 2
@@ -61,6 +67,7 @@ export const simBalanceTargets: Record<SimPolicyId, SimBalanceTarget> = {
     medianSurvivalMax: 900,
     destroyedRateMax: 0.95,
     averagePlanetsMin: 0.2,
+    zeroPlanetRunRateMax: 0.65,
     averageNodesMin: 0.8,
     routeTemplateVarietyMin: 3,
     planetArchetypeVarietyMin: 2

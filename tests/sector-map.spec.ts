@@ -166,6 +166,16 @@ test('planet and anomaly node configs can describe dense clusters and asteroid b
   expect(anomaly.config.hazardConfig.asteroids?.drift).toMatch(/slow|crosswind|chaotic/)
 })
 
+test('asteroid hazard tuning ramps without overwhelming the late route curve', () => {
+  const asteroidConfigs = Array.from({ length: 80 }, (_, seed) => createSectorMap(seed + 900))
+    .flatMap((candidate) => candidate.nodes)
+    .map((node) => node.config.hazardConfig.asteroids)
+    .filter((config): config is NonNullable<typeof config> => Boolean(config))
+
+  expect(Math.max(...asteroidConfigs.map((config) => config.density))).toBeLessThanOrEqual(2.3)
+  expect(Math.max(...asteroidConfigs.map((config) => config.damageMultiplier))).toBeLessThanOrEqual(1.12)
+})
+
 test('node configs change encounter cadence and bias asteroid or hunter events', () => {
   const map = createSectorMap(77)
   const asteroidNode = map.nodes.find((node) => node.config.hazards.includes('asteroids'))!

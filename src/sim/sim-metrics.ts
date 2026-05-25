@@ -45,6 +45,9 @@ function addTargetFlags(summary: Omit<SimBatchSummary, 'balanceFlags'>, flags: s
   if (summary.planets.averageLandings < target.averagePlanetsMin) {
     flags.push(`Average planet landings ${summary.planets.averageLandings.toFixed(1)} is below ${target.averagePlanetsMin.toFixed(1)} for ${summary.options.policy}.`)
   }
+  if (summary.planets.zeroLandingRate > target.zeroPlanetRunRateMax) {
+    flags.push(`Zero-planet run rate ${Math.round(summary.planets.zeroLandingRate * 100)}% is above ${Math.round(target.zeroPlanetRunRateMax * 100)}% for ${summary.options.policy}.`)
+  }
   if (summary.route.averageNodesCleared < target.averageNodesMin) {
     flags.push(`Average nodes cleared ${summary.route.averageNodesCleared.toFixed(1)} is below ${target.averageNodesMin.toFixed(1)} for ${summary.options.policy}.`)
   }
@@ -78,6 +81,7 @@ export function summarizeSimBatch(options: SimBatchOptions, runs: SimRunResult[]
     },
     planets: {
       averageLandings: average(runs.map((run) => run.planetsLanded)),
+      zeroLandingRate: runs.filter((run) => run.planetsLanded === 0).length / Math.max(1, runs.length),
       archetypeCounts,
       eventCounts: mergeCounts(runs.map((run) => run.coverage.surfaceEvents)),
       scenarioCounts: mergeCounts(runs.map((run) => run.coverage.surfaceScenarios))

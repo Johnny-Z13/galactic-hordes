@@ -87,6 +87,7 @@ export interface SimBatchSummary {
   }
   planets: {
     averageLandings: number
+    zeroLandingRate: number
     archetypeCounts: Record<string, number>
     eventCounts: Record<string, number>
     scenarioCounts: Record<string, number>

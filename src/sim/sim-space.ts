@@ -21,7 +21,7 @@ const pacePressure = {
 const difficultyPressure = {
   testEasy: 0.72,
   normal: 1,
-  stress: 1.42
+  stress: 1.34
 } as const satisfies Record<SimDifficulty, number>
 
 export function simulateSpaceNode(input: {

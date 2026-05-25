@@ -41,3 +41,22 @@ test('batch summary flags missing procedural variety', () => {
   expect(summary.balanceFlags.some((flag) => flag.includes('route template variety'))).toBe(true)
   expect(summary.balanceFlags.some((flag) => flag.includes('planet archetype variety'))).toBe(true)
 })
+
+test('planet hunter engagement is judged by batch rate, not one dry run', () => {
+  const options = { seed: 8100, runs: 80, policy: 'planetHunter' as const, maxSeconds: 1200, difficulty: 'normal' as const }
+  const runs = Array.from({ length: options.runs }, (_, index) => runSimPlaythrough({ ...options, seed: options.seed + index }))
+  const summary = summarizeSimBatch(options, runs)
+
+  expect(runs.some((run) => run.planetsLanded === 0)).toBe(true)
+  expect(summary.planets.averageLandings).toBeGreaterThan(4)
+  expect(summary.balanceFlags.some((flag) => flag.includes('did not land'))).toBe(false)
+})
+
+test('stress sweep stays brutal without crossing the destructive ceiling', () => {
+  const options = { seed: 8300, runs: 60, policy: 'stress' as const, maxSeconds: 1800, difficulty: 'stress' as const }
+  const runs = Array.from({ length: options.runs }, (_, index) => runSimPlaythrough({ ...options, seed: options.seed + index }))
+  const summary = summarizeSimBatch(options, runs)
+
+  expect(summary.survival.destroyedRate).toBeLessThanOrEqual(0.95)
+  expect(summary.balanceFlags.some((flag) => flag.includes('Destroyed rate'))).toBe(false)
+})

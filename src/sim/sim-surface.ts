@@ -16,7 +16,7 @@ export interface SimSurfaceVisitResult {
 const difficultySurfacePressure = {
   testEasy: 0.7,
   normal: 1,
-  stress: 1.36
+  stress: 1.28
 } as const satisfies Record<SimDifficulty, number>
 
 export function simulateSurfaceVisit(input: {

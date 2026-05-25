@@ -53,6 +53,7 @@ function renderSummary(summary: SimBatchSummary) {
     ${metricCard('Avg Nodes', summary.route.averageNodesCleared.toFixed(1))}
     ${metricCard('Final Reached', `${summary.route.finalReached}/${summary.options.runs}`)}
     ${metricCard('Avg Planets', summary.planets.averageLandings.toFixed(1))}
+    ${metricCard('Zero-Planet', `${Math.round(summary.planets.zeroLandingRate * 100)}%`)}
     ${metricCard('Avg Scrap', summary.economy.averageScrap.toFixed(0))}
     ${metricCard('Avg Damage', summary.combat.averageDamageTaken.toFixed(0))}
   `
