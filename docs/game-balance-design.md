@@ -87,7 +87,7 @@ Active balance mode: `normal` (Normal).
 | Multiplier | Value |
 | --- | ---: |
 | Enemy HP | 1 |
-| Enemy damage | 1 |
+| Enemy damage | 0.7 |
 | Enemy speed | 1 |
 | Enemy projectile speed | 1 |
 | Enemy attack cooldown | 1 |

@@ -33,7 +33,7 @@ export const gameBalanceProfiles: Record<GameBalanceMode, GameBalanceProfile> = 
   normal: {
     label: 'Normal',
     enemyHpMultiplier: 1,
-    enemyDamageMultiplier: 1,
+    enemyDamageMultiplier: 0.7,
     enemySpeedMultiplier: 1,
     enemyProjectileSpeedMultiplier: 1,
     enemyAttackCooldownMultiplier: 1,

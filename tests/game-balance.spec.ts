@@ -50,6 +50,15 @@ test('balanced space enemy definitions apply global difficulty without mutating 
   expect(spaceEnemyBalance.brute.hp).toBeGreaterThan(easy.hp)
 })
 
+test('normal ship enemy hit damage is softened by thirty percent', () => {
+  const chaser = balancedSpaceEnemyDefinition('chaser', gameBalanceProfiles.normal)
+  const shooter = balancedSpaceEnemyDefinition('shooter', gameBalanceProfiles.normal)
+
+  expect(gameBalanceProfiles.normal.enemyDamageMultiplier).toBe(0.7)
+  expect(chaser.contactDamage).toBeCloseTo(spaceEnemyBalance.chaser.contactDamage * 0.7)
+  expect(shooter.projectileDamage).toBeCloseTo((spaceEnemyBalance.shooter.projectileDamage ?? 0) * 0.7)
+})
+
 test('enemy attack cooldown ramps are balance data', () => {
   const shooter = balancedSpaceEnemyDefinition('shooter', gameBalanceProfiles.normal)
 
