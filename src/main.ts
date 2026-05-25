@@ -130,12 +130,12 @@ import {
 import { workbenchBayDefinitions, workbenchBayForUpgrade, type WorkbenchBayDefinition, type WorkbenchBayId } from './workbench-bays'
 import { optionOrbProfile, pulseVolleyCount, starterSignatureFlags } from './weapon-signatures'
 
-type GameState = 'title' | 'mothership' | 'sectorMap' | 'station' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
+type GameState = 'title' | 'mothership' | 'collection' | 'powerups' | 'sectorMap' | 'station' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
 type EnemyKind = SpaceEnemyKind
 type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
 type ArtifactKind = 'relic' | 'alien' | 'lore' | 'planet' | 'cache' | 'enemy'
-type MothershipConsoleView = 'workbench' | 'manifest' | 'collection'
+type MothershipConsoleView = 'workbench' | 'manifest'
 type MothershipCollectionFilter = 'all' | 'found' | 'locked' | ArtifactKind
 interface Vec {
   x: number
@@ -1002,6 +1002,8 @@ class VectorShooter {
     touchAction: document.createElement('button'),
     touchDash: document.createElement('button'),
     title: document.createElement('section'),
+    collection: document.createElement('section'),
+    powerups: document.createElement('section'),
     sectorMap: document.createElement('section'),
     station: document.createElement('section'),
     levelup: document.createElement('section'),
@@ -1274,7 +1276,7 @@ class VectorShooter {
 
   private makeScreens() {
     const wrap = document.createElement('div')
-    const screenList = [this.ui.title, this.ui.sectorMap, this.ui.station, this.ui.levelup, this.ui.planet, this.ui.gameover, this.ui.scores]
+    const screenList = [this.ui.title, this.ui.collection, this.ui.powerups, this.ui.sectorMap, this.ui.station, this.ui.levelup, this.ui.planet, this.ui.gameover, this.ui.scores]
     for (const s of screenList) {
       s.className = 'screen'
       wrap.append(s)
@@ -4878,6 +4880,12 @@ class VectorShooter {
     this.toast(`GRAPHICS ${mode}`)
   }
 
+  private cycleGraphicsMode() {
+    const modes: GraphicsMode[] = ['LOW', 'MED', 'GLOW']
+    const next = modes[(modes.indexOf(this.graphicsMode) + 1) % modes.length]
+    this.setGraphicsMode(next)
+  }
+
   private renderSurface(ctx: CanvasRenderingContext2D) {
     if (!this.surface) return
     const s = this.surface
@@ -7851,8 +7859,8 @@ class VectorShooter {
       button.append(this.collectionIcon(card.record, card.locked))
       button.addEventListener('click', () => {
         this.selectedCollectionId = card.record.id
-        const scrollTop = this.ui.title.querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
-        this.showMothership({ scrollTop })
+        const scrollTop = this.currentFrontScreenScrollTop('collection')
+        this.showCollection({ scrollTop })
       })
       grid.append(button)
     }
@@ -7928,8 +7936,8 @@ class VectorShooter {
     button.addEventListener('click', () => {
       this.mothershipCollectionFilter = filter
       this.selectedCollectionId = null
-      const scrollTop = this.ui.title.querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
-      this.showMothership({ scrollTop })
+      const scrollTop = this.currentFrontScreenScrollTop('collection')
+      this.showCollection({ scrollTop })
     })
     return button
   }
@@ -8115,27 +8123,52 @@ class VectorShooter {
     this.state = 'title'
     this.ui.title.innerHTML = ''
     this.ui.title.className = 'screen title-screen'
+    const recordCount = Object.keys(this.mothership.archive.records).length
+    const maxedDepartments = Object.values(this.mothership.departments).filter((tier) => tier > 0).length
     const panel = document.createElement('div')
     panel.className = 'title-panel'
-    const logo = document.createElement('img')
-    logo.className = 'title-mark'
-    logo.src = titleLogoMarkUrl
-    logo.alt = 'Galactic Hordes ship emblem'
+    const top = document.createElement('div')
+    top.className = 'front-menu-top'
+    const quit = document.createElement('button')
+    quit.className = 'front-menu-pill danger'
+    quit.type = 'button'
+    quit.textContent = 'Quit'
+    quit.addEventListener('click', () => this.toast('SIGNAL HELD'))
+    const cargo = document.createElement('div')
+    cargo.className = 'front-menu-cargo'
+    cargo.innerHTML = `<img src="${titleLogoMarkUrl}" alt=""><b>${this.mothership.resources.cores}</b>`
+    const options = document.createElement('button')
+    options.className = 'front-menu-pill'
+    options.type = 'button'
+    options.textContent = 'Options'
+    options.addEventListener('click', () => this.cycleGraphicsMode())
+    top.append(quit, cargo, options)
+
     const wordmark = document.createElement('h1')
     wordmark.className = 'title-wordmark'
     wordmark.innerHTML = '<span>GALACTIC</span><span>HORDES</span>'
+    const spacer = document.createElement('div')
+    spacer.className = 'front-menu-spacer'
     const row = document.createElement('div')
     row.className = 'title-actions'
     const start = document.createElement('button')
     start.className = 'vector-button start-button'
-    start.textContent = 'Mothership'
+    start.textContent = 'Start'
     start.addEventListener('click', () => this.showMothership())
+    const collection = document.createElement('button')
+    collection.className = 'vector-button secondary'
+    collection.textContent = 'Collection'
+    collection.addEventListener('click', () => this.showCollection())
+    const powerups = document.createElement('button')
+    powerups.className = 'vector-button'
+    powerups.textContent = 'Power Up'
+    powerups.addEventListener('click', () => this.showPowerUps())
     const scores = document.createElement('button')
     scores.className = 'vector-button secondary'
     scores.textContent = 'Scores'
     scores.addEventListener('click', () => this.showScores())
     const reset = document.createElement('button')
-    reset.className = 'vector-button secondary danger'
+    reset.className = 'vector-button secondary danger tiny'
     reset.textContent = 'Reset Progress'
     reset.addEventListener('click', () => {
       if (reset.dataset.confirm === 'true') {
@@ -8145,8 +8178,15 @@ class VectorShooter {
       reset.dataset.confirm = 'true'
       reset.textContent = 'Confirm Reset'
     })
-    row.append(start, scores, reset)
-    panel.append(logo, wordmark, row)
+    const footer = document.createElement('div')
+    footer.className = 'front-menu-footer'
+    footer.innerHTML = `
+      <span><b>${recordCount}</b> discoveries</span>
+      <span><b>${maxedDepartments}</b> systems</span>
+      <span><b>${this.highs[0]?.score ?? 0}</b> best</span>
+    `
+    row.append(start, collection, powerups, scores, reset)
+    panel.append(top, wordmark, spacer, row, footer)
     this.ui.title.append(panel)
     this.showOnly('title')
   }
@@ -8210,17 +8250,11 @@ class VectorShooter {
     const launchStack = document.createElement('div')
     launchStack.className = 'mothership-launch-stack'
     launchStack.append(shipBay)
-    if (firstCommand) {
-      launchStack.append(this.renderFirstMothershipBriefing())
-    } else {
-      launchStack.append(this.renderMothershipConsoleStack())
-    }
+    launchStack.append(this.renderMothershipRoutePreview())
+    if (firstCommand) launchStack.append(this.renderFirstMothershipBriefing())
     flight.append(launchStack)
 
-    const systemsHeader = document.createElement('div')
-    systemsHeader.className = 'mothership-section-title'
-    systemsHeader.innerHTML = '<h2>Command Systems</h2><span>Permanent mothership departments bought with recovered cargo</span>'
-    shell.append(header, flight, systemsHeader, this.renderMothershipMetaSystems())
+    shell.append(header, flight)
     this.ui.title.append(shell)
     this.showOnly('title')
     if (options.scrollTop !== undefined) {
@@ -8242,6 +8276,137 @@ class VectorShooter {
     return meter
   }
 
+  private renderMothershipRoutePreview() {
+    const preview = document.createElement('section')
+    preview.className = 'mothership-route-preview'
+    const choices = availableSectorChoices(this.sectorMap)
+    const current = currentSectorNode(this.sectorMap)
+    const lines = [
+      { x1: 8, y1: 52, x2: 28, y2: 24 },
+      { x1: 8, y1: 52, x2: 28, y2: 52 },
+      { x1: 8, y1: 52, x2: 28, y2: 78 },
+      { x1: 28, y1: 24, x2: 56, y2: 34 },
+      { x1: 28, y1: 52, x2: 56, y2: 52 },
+      { x1: 28, y1: 78, x2: 56, y2: 66 },
+      { x1: 56, y1: 52, x2: 88, y2: 52 }
+    ]
+    const nodeMarkup = [
+      { label: 'M', x: 8, y: 52, className: 'current', text: 'MOTHERSHIP' },
+      ...choices.slice(0, 3).map((node, index) => ({
+        label: this.sectorNodeGlyph(node.kind),
+        x: 28,
+        y: [24, 52, 78][index],
+        className: `available ${node.kind}`,
+        text: node.label
+      })),
+      { label: 'F', x: 88, y: 52, className: 'locked final', text: 'LAST STAND' }
+    ]
+    preview.innerHTML = `
+      <div class="mothership-route-head">
+        <b>SECTOR MAP</b>
+        <span>${this.escape(current.label)} // ${choices.length} jump routes armed</span>
+      </div>
+      <div class="mothership-route-map" aria-label="Sector route preview">
+        <svg class="mothership-route-lines" viewBox="0 0 100 100" aria-hidden="true">
+          ${lines.map((line, index) => `<line class="${index < 3 ? 'available' : ''}" x1="${line.x1}" y1="${line.y1}" x2="${line.x2}" y2="${line.y2}"></line>`).join('')}
+        </svg>
+        ${nodeMarkup.map((node) => `
+          <button class="mothership-route-node ${this.escape(node.className)}" style="left:${node.x}%;top:${node.y}%" type="button" ${node.className.includes('available') ? '' : 'disabled'}>
+            <span>${this.escape(node.label)}</span><em>${this.escape(node.text)}</em>
+          </button>
+        `).join('')}
+      </div>
+    `
+    preview.querySelectorAll<HTMLButtonElement>('.mothership-route-node.available').forEach((button, index) => {
+      const node = choices[index]
+      button.addEventListener('click', () => {
+        if (!node) return
+        this.toast(`${node.label}: ${node.description}`)
+      })
+    })
+    return preview
+  }
+
+  private currentFrontScreenScrollTop(screen: 'collection' | 'powerups') {
+    const root = screen === 'collection' ? this.ui.collection : this.ui.powerups
+    return root.querySelector<HTMLElement>('.front-subscreen')?.scrollTop ?? 0
+  }
+
+  private restoreFrontScreenScroll(screen: 'collection' | 'powerups', scrollTop?: number) {
+    if (scrollTop === undefined) return
+    const root = screen === 'collection' ? this.ui.collection : this.ui.powerups
+    const shell = root.querySelector<HTMLElement>('.front-subscreen')
+    if (!shell) return
+    const restore = () => {
+      shell.scrollTop = clamp(scrollTop, 0, Math.max(0, shell.scrollHeight - shell.clientHeight))
+    }
+    restore()
+    requestAnimationFrame(restore)
+  }
+
+  private showCollection(options: { scrollTop?: number } = {}) {
+    this.state = 'collection'
+    this.ui.collection.innerHTML = ''
+    this.ui.collection.className = 'screen collection-route-screen'
+    const shell = document.createElement('div')
+    shell.className = 'front-subscreen collection-subscreen'
+    const header = document.createElement('header')
+    header.className = 'front-subscreen-head'
+    header.innerHTML = `
+      <div><span>RELICS / COLLECTION</span><h1>ARCHIVE</h1></div>
+      <p>${Object.keys(this.mothership.archive.records).length} recovered records stored in mothership memory.</p>
+    `
+    const back = document.createElement('button')
+    back.className = 'vector-button secondary'
+    back.type = 'button'
+    back.textContent = 'Back'
+    back.addEventListener('click', () => this.showTitle())
+    header.append(back)
+    shell.append(header, this.renderCollectionScreen())
+    this.ui.collection.append(shell)
+    this.showOnly('collection')
+    this.restoreFrontScreenScroll('collection', options.scrollTop)
+  }
+
+  private showPowerUps(options: { scrollTop?: number } = {}) {
+    this.state = 'powerups'
+    this.ui.powerups.innerHTML = ''
+    this.ui.powerups.className = 'screen powerups-route-screen'
+    const shell = document.createElement('div')
+    shell.className = 'front-subscreen powerups-subscreen'
+    const header = document.createElement('header')
+    header.className = 'front-subscreen-head'
+    header.innerHTML = `
+      <div><span>POWER UP</span><h1>META SYSTEMS</h1></div>
+      <p>Spend recovered cargo on permanent mothership departments before launching.</p>
+    `
+    const resources = document.createElement('div')
+    resources.className = 'mothership-resources front-subscreen-resources'
+    resources.innerHTML = `
+      <span><b>Scrap</b>${this.mothership.resources.scrap}</span>
+      <span><b>Crystals</b>${this.mothership.resources.crystal}</span>
+      <span><b>Cores</b>${this.mothership.resources.cores}</span>
+    `
+    const back = document.createElement('button')
+    back.className = 'vector-button secondary'
+    back.type = 'button'
+    back.textContent = 'Back'
+    back.addEventListener('click', () => this.showTitle())
+    header.append(resources, back)
+    shell.append(header, this.renderMothershipMetaSystems())
+    this.ui.powerups.append(shell)
+    this.showOnly('powerups')
+    this.restoreFrontScreenScroll('powerups', options.scrollTop)
+  }
+
+  private refreshMetaPowerUps(scrollTop?: number) {
+    if (this.state === 'powerups') {
+      this.showPowerUps({ scrollTop })
+      return
+    }
+    this.showMothership({ scrollTop })
+  }
+
   private renderFirstMothershipBriefing() {
     const briefing = document.createElement('section')
     briefing.className = 'mothership-first-briefing'
@@ -8260,15 +8425,12 @@ class VectorShooter {
     tabs.className = 'mothership-console-tabs'
     tabs.append(
       this.mothershipConsoleTab('Workbench', 'workbench', `${this.pendingUpgrades} signals`),
-      this.mothershipConsoleTab('Build', 'manifest', 'systems'),
-      this.mothershipConsoleTab('Collection', 'collection', `${Object.keys(this.mothership.archive.records).length} records`)
+      this.mothershipConsoleTab('Build', 'manifest', 'systems')
     )
     const content = document.createElement('div')
     content.className = `mothership-console-content ${this.mothershipConsoleView}`
     if (this.mothershipConsoleView === 'manifest') {
       content.append(this.renderBuildManifest())
-    } else if (this.mothershipConsoleView === 'collection') {
-      content.append(this.renderCollectionScreen())
     } else {
       const panel = document.createElement('div')
       panel.className = 'mothership-console-panel'
@@ -8349,14 +8511,16 @@ class VectorShooter {
     button.setAttribute('aria-pressed', String(this.expandedMothershipDepartment === id))
     button.setAttribute('aria-expanded', String(this.expandedMothershipDepartment === id))
     button.addEventListener('click', () => {
-      const scrollTop = this.ui.title.querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
+      const scrollTop = this.state === 'powerups'
+        ? this.currentFrontScreenScrollTop('powerups')
+        : this.ui.title.querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
       if (this.expandedMothershipDepartment === id) {
         this.expandedMothershipDepartment = null
       } else {
         this.selectedMothershipDepartment = id
         this.expandedMothershipDepartment = id
       }
-      this.showMothership({ scrollTop })
+      this.refreshMetaPowerUps(scrollTop)
     })
     const meter = document.createElement('div')
     meter.className = 'station-tier-meter'
@@ -8442,7 +8606,9 @@ class VectorShooter {
   }
 
   private buyMothershipDepartment(id: MothershipDepartmentId) {
-    const scrollTop = this.ui.title.querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
+    const scrollTop = this.state === 'powerups'
+      ? this.currentFrontScreenScrollTop('powerups')
+      : this.ui.title.querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
     const result = purchaseMothershipTier(this.mothership, id)
     if (!result.ok) {
       this.toast(result.reason)
@@ -8451,7 +8617,7 @@ class VectorShooter {
     this.mothership = result.state
     this.saveMothership()
     this.toast(`${result.purchased.name.toUpperCase()} ONLINE`)
-    this.showMothership({ scrollTop })
+    this.refreshMetaPowerUps(scrollTop)
   }
 
   private showScores() {
@@ -9209,6 +9375,8 @@ class VectorShooter {
   private showOnly(which: GameState | null) {
     const screens: Partial<Record<GameState, HTMLElement>> = {
       title: this.ui.title,
+      collection: this.ui.collection,
+      powerups: this.ui.powerups,
       sectorMap: this.ui.sectorMap,
       station: this.ui.station,
       levelup: this.ui.levelup,

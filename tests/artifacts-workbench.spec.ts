@@ -7,13 +7,14 @@ import { collectionCatalog, collectionCatalogById, collectionIconAtlasColumns, c
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
 const styles = () => readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8')
 
-test('shipboard workbench keeps discoveries in the mothership collection', () => {
+test('shipboard workbench keeps discoveries in the front end collection', () => {
   const main = source()
 
   expect(main).not.toContain('type WorkbenchView')
   expect(main).not.toContain("artifactsTab.textContent = 'Artifacts'")
   expect(main).not.toContain('this.workbenchView')
-  expect(main).toContain("this.mothershipConsoleTab('Collection'")
+  expect(main).toContain("collection.textContent = 'Collection'")
+  expect(main).toContain('private showCollection(options: { scrollTop?: number } = {})')
 })
 
 test('shipboard workbench installs directly from bay detail', () => {
@@ -62,29 +63,34 @@ test('shipboard workbench preserves scroll position across installs', () => {
   expect(main).toContain('this.restoreLevelUpScroll(scrollTop)')
 })
 
-test('mothership command integrates workbench manifest and collection tabs', () => {
+test('front end integrates standalone collection and power up screens', () => {
   const main = source()
   const css = styles()
 
-  expect(main).toContain('private renderMothershipConsoleStack()')
-  expect(main).toContain("consolePanel.className = 'mothership-console-stack'")
-  expect(main).toContain("type MothershipConsoleView = 'workbench' | 'manifest' | 'collection'")
+  expect(main).toContain("type GameState = 'title' | 'mothership' | 'collection' | 'powerups'")
+  expect(main).toContain("collection.textContent = 'Collection'")
+  expect(main).toContain("powerups.textContent = 'Power Up'")
+  expect(main).toContain("this.ui.collection.className = 'screen collection-route-screen'")
+  expect(main).toContain("this.ui.powerups.className = 'screen powerups-route-screen'")
+  expect(main).toContain('shell.append(header, this.renderCollectionScreen())')
+  expect(main).toContain('shell.append(header, this.renderMothershipMetaSystems())')
+  expect(main).toContain("type MothershipConsoleView = 'workbench' | 'manifest'")
   expect(main).toContain("type MothershipCollectionFilter = 'all' | 'found' | 'locked' | ArtifactKind")
-  expect(main).toContain("this.mothershipConsoleTab('Collection'")
-  expect(main).toContain('this.renderCollectionScreen()')
   expect(main).toContain('this.collectionCards()')
   expect(main).toContain('collectionCatalog.length')
   expect(main).toContain("const MOTHERSHIP_STORAGE_KEY = 'galactic_hordes_mothership_v2'")
   expect(main).not.toContain('private showMothershipConsole')
   expect(css).toContain('font-family: "Rajdhani", "Oxanium"')
-  expect(css).toContain('.mothership-console-tab.active')
+  expect(css).toContain('.collection-route-screen')
+  expect(css).toContain('.powerups-route-screen')
+  expect(css).toContain('.front-subscreen-head')
   expect(css).toContain('.collection-controls')
   expect(css).toContain('.collection-filter-panel')
   expect(css).toContain('.collection-filter-chip.active')
   expect(css).toContain('clip-path: polygon(0 0, calc(100% - 16px) 0')
 })
 
-test('desktop mothership console and health meters stack below launch controls', () => {
+test('desktop mothership shows route map alongside launch controls', () => {
   const main = source()
   const css = styles()
 
@@ -92,21 +98,25 @@ test('desktop mothership console and health meters stack below launch controls',
   expect(main).toContain("status.className = 'mothership-launch-meters'")
   expect(main).toContain('shipBay.append(ship, launch, status)')
   expect(main).toContain('launchStack.append(shipBay)')
-  expect(main).toContain('if (firstCommand) {')
+  expect(main).toContain('launchStack.append(this.renderMothershipRoutePreview())')
   expect(main).toContain('this.renderFirstMothershipBriefing()')
   expect(main).toContain('flight.append(launchStack)')
+  expect(main).toContain('private renderMothershipRoutePreview()')
   expect(css).toContain('.mothership-launch-stack')
-  expect(css).toContain('grid-template-columns: minmax(0, 920px)')
+  expect(css).toContain('grid-template-areas:')
+  expect(css).toContain('.mothership-route-preview')
+  expect(css).toContain('.mothership-route-map')
   expect(css).toContain('.mothership-launch-meters')
-  expect(css).toContain('max-height: none')
   expect(css).toContain('.mothership-first-briefing')
 })
 
-test('first mothership visit still shows aspirational command systems', () => {
+test('first mothership visit keeps command systems out of the launch deck', () => {
   const main = source()
 
-  expect(main).toContain('shell.append(header, flight, systemsHeader, this.renderMothershipMetaSystems())')
-  expect(main).not.toContain('if (!firstCommand) shell.append(systemsHeader, this.renderMothershipMetaSystems())')
+  expect(main).toContain('shell.append(header, flight)')
+  expect(main).not.toContain('shell.append(header, flight, systemsHeader, this.renderMothershipMetaSystems())')
+  expect(main).toContain("powerups.textContent = 'Power Up'")
+  expect(main).toContain('private showPowerUps(options: { scrollTop?: number } = {})')
 })
 
 test('mothership permanent upgrades render as selected command departments', () => {
