@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { cameraTargetFor, spaceProjectileLifeScale, spaceViewportScale, screenToWorld, worldToScreen } from '../src/space-camera'
+import { cameraTargetFor, spaceProjectileLifeForOffscreenTravel, spaceProjectileLifeScale, spaceViewportScale, screenToWorld, worldToScreen } from '../src/space-camera'
 
 test('portrait mobile camera zooms out to show more world around the ship', () => {
   const scale = spaceViewportScale(390, 844)
@@ -28,4 +28,16 @@ test('projectile life scale keeps mobile compact but lets desktop use the wider 
   expect(spaceProjectileLifeScale(900, 700, spaceViewportScale(900, 700))).toBeGreaterThan(1)
   expect(spaceProjectileLifeScale(900, 700, spaceViewportScale(900, 700))).toBeLessThan(2)
   expect(spaceProjectileLifeScale(2560, 1440, spaceViewportScale(2560, 1440))).toBe(2)
+})
+
+test('starter projectiles live long enough to leave the visible playfield', () => {
+  const mobileScale = spaceViewportScale(390, 844)
+  const desktopScale = spaceViewportScale(1280, 720)
+  const baseLife = 0.62
+  const baseSpeed = 650
+
+  expect(spaceProjectileLifeForOffscreenTravel(baseLife, baseSpeed, 390, 844, mobileScale) * baseSpeed)
+    .toBeGreaterThan(Math.hypot(390 / mobileScale, 844 / mobileScale) / 2)
+  expect(spaceProjectileLifeForOffscreenTravel(baseLife, baseSpeed, 1280, 720, desktopScale) * baseSpeed)
+    .toBeGreaterThan(Math.hypot(1280 / desktopScale, 720 / desktopScale) / 2)
 })

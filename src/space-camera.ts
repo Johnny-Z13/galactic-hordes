@@ -11,6 +11,21 @@ export function spaceProjectileLifeScale(width: number, height: number, scale = 
   return Math.min(2, Math.max(1, visibleWorldWidth / 640))
 }
 
+export function spaceProjectileLifeForOffscreenTravel(
+  baseLife: number,
+  projectileSpeed: number,
+  width: number,
+  height: number,
+  scale = spaceViewportScale(width, height)
+) {
+  const visibleWorldWidth = width / scale
+  const visibleWorldHeight = height / scale
+  const halfDiagonal = Math.hypot(visibleWorldWidth, visibleWorldHeight) / 2
+  const offscreenPadding = 80
+  const offscreenLife = (halfDiagonal + offscreenPadding) / Math.max(1, projectileSpeed)
+  return Math.max(baseLife * spaceProjectileLifeScale(width, height, scale), offscreenLife)
+}
+
 export function cameraTargetFor(center: Vec, width: number, height: number, scale: number): Vec {
   return {
     x: center.x - width / (2 * scale),

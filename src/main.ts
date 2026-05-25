@@ -63,7 +63,7 @@ import { pressurePackSize, shouldRecycleEnemy } from './spawn-pressure'
 import {
   cameraTargetFor,
   screenToWorld as spaceScreenToWorld,
-  spaceProjectileLifeScale,
+  spaceProjectileLifeForOffscreenTravel,
   spaceViewportScale,
   worldToScreen as spaceWorldToScreen
 } from './space-camera'
@@ -2116,14 +2116,20 @@ class VectorShooter {
     }
   }
 
-  private fireOptionOrbs(serial: number, damage: number, speed: number, lifeScale: number) {
+  private fireOptionOrbs(serial: number, damage: number, speed: number) {
     const evolved = this.evolved.has('orbit')
     const profile = optionOrbProfile({ orbitRank: this.build.orbit, fireSerial: serial, evolved })
     if (!profile.fires || profile.count <= 0) return
 
     const radius = powerupBalance.orbit.radiusBase + this.build.orbit * powerupBalance.orbit.radiusPerRank
     const boltSpeed = speed * powerupBalance.orbit.boltSpeedMultiplier
-    const boltLife = powerupBalance.weapon.pulseBaseLife * powerupBalance.orbit.boltLifeMultiplier * lifeScale
+    const boltLife = spaceProjectileLifeForOffscreenTravel(
+      powerupBalance.weapon.pulseBaseLife * powerupBalance.orbit.boltLifeMultiplier,
+      boltSpeed,
+      this.width,
+      this.height,
+      this.spaceScale()
+    )
     const color = evolved ? '#fff27a' : '#8fff7d'
     for (let i = 0; i < profile.count; i += 1) {
       if (this.bullets.length > MAX_BULLETS) this.bullets.shift()
@@ -2191,20 +2197,33 @@ class VectorShooter {
     const volleys = pulseVolleyCount({ rapidRank: rapid, fireSerial: serial, evolved: choir })
     const cadenceDouble = volleys > 1 && !choir
     const pulseColor = storm ? '#8fff7d' : choir ? '#f6fffe' : cadenceDouble ? '#d7fff7' : this.build.heat >= 3 ? '#ff9d5c' : this.build.pierce >= 3 ? '#70a8ff' : '#57fff3'
-    const lifeScale = spaceProjectileLifeScale(this.width, this.height, this.spaceScale())
     this.fireSerial += 1
     for (let v = 0; v < volleys; v += 1) {
       for (let i = 0; i < count; i += 1) {
         const offset = (count === 1 ? 0 : (i - (count - 1) / 2) * spread) + (volleys === 1 ? 0 : (v - 0.5) * powerupBalance.weapon.volleyOffset)
         const a = this.player.aimAngle + offset
+        const bulletSpeed = Math.hypot(Math.cos(a) * speed + this.player.vx * 0.14, Math.sin(a) * speed + this.player.vy * 0.14)
+        const bulletLife = rail
+          ? spaceProjectileLifeForOffscreenTravel(
+            powerupBalance.weapon.railBaseLife + (solar ? powerupBalance.weapon.solarRailLifeBonus : 0),
+            bulletSpeed,
+            this.width,
+            this.height,
+            this.spaceScale()
+          )
+          : spaceProjectileLifeForOffscreenTravel(
+            powerupBalance.weapon.pulseBaseLife + this.build.echo * powerupBalance.weapon.echoLifePerRank + (resonance ? powerupBalance.weapon.resonanceLifeBonus : 0),
+            bulletSpeed,
+            this.width,
+            this.height,
+            this.spaceScale()
+          )
         this.bullets.push({
           x: this.player.x + Math.cos(a) * 22,
           y: this.player.y + Math.sin(a) * 22,
           vx: Math.cos(a) * speed + this.player.vx * 0.14,
           vy: Math.sin(a) * speed + this.player.vy * 0.14,
-          life: rail
-            ? (powerupBalance.weapon.railBaseLife + (solar ? powerupBalance.weapon.solarRailLifeBonus : 0)) * lifeScale
-            : (powerupBalance.weapon.pulseBaseLife + this.build.echo * powerupBalance.weapon.echoLifePerRank + (resonance ? powerupBalance.weapon.resonanceLifeBonus : 0)) * lifeScale,
+          life: bulletLife,
           damage: rail
             ? damage * (solar ? powerupBalance.weapon.solarRailDamageMultiplier : powerupBalance.weapon.railDamageMultiplier)
             : damage * (shatter && i !== Math.floor(count / 2) ? powerupBalance.weapon.shatterSideRayDamageMultiplier : 1),
@@ -2225,7 +2244,13 @@ class VectorShooter {
         y: this.player.y + Math.sin(a) * 24,
         vx: Math.cos(a) * (speed * powerupBalance.weapon.needleSpeedMultiplier),
         vy: Math.sin(a) * (speed * powerupBalance.weapon.needleSpeedMultiplier),
-        life: powerupBalance.weapon.needleLife * lifeScale,
+        life: spaceProjectileLifeForOffscreenTravel(
+          powerupBalance.weapon.needleLife,
+          speed * powerupBalance.weapon.needleSpeedMultiplier,
+          this.width,
+          this.height,
+          this.spaceScale()
+        ),
         damage: damage * (blackNeedle ? powerupBalance.weapon.blackNeedleDamageMultiplier : powerupBalance.weapon.needleDamageMultiplier),
         radius: blackNeedle ? powerupBalance.weapon.blackNeedleRadius : powerupBalance.weapon.needleRadius,
         color: blackNeedle ? '#ffffff' : '#b990ff',
@@ -2234,7 +2259,7 @@ class VectorShooter {
         chain: storm ? powerupBalance.weapon.stormNeedleChainBonus : 0
       })
     }
-    this.fireOptionOrbs(serial, damage, speed, lifeScale)
+    this.fireOptionOrbs(serial, damage, speed)
     this.audio.fire(this.weaponSoundKind(rail, needle, count), this.stats.level + rapid)
   }
 
