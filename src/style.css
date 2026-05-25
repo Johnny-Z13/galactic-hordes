@@ -302,38 +302,35 @@ canvas {
   padding: 0;
   overflow: hidden;
   background:
-    linear-gradient(rgba(87, 255, 243, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(87, 255, 243, 0.045) 1px, transparent 1px),
-    radial-gradient(circle at 18% 32%, rgba(143, 255, 125, 0.08), transparent 28%),
-    radial-gradient(circle at 78% 34%, rgba(255, 93, 115, 0.09), transparent 30%),
+    linear-gradient(rgba(87, 255, 243, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(87, 255, 243, 0.04) 1px, transparent 1px),
+    linear-gradient(120deg, rgba(87, 255, 243, 0.09), transparent 24%, rgba(255, 242, 122, 0.045) 58%, transparent 78%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.74)),
     #010408;
   background-size: 22px 22px, 22px 22px, auto, auto, auto;
 }
 
 .sector-map-panel {
-  width: min(1280px, 100%);
+  width: min(1360px, 100%);
   height: 100svh;
   margin: 0 auto;
-  padding: max(14px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+  padding: max(14px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 12px;
+  gap: 10px;
   overflow: hidden;
 }
 
 .sector-map-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.36fr);
+  align-items: end;
   gap: 12px;
-  border: 1px solid rgba(87, 255, 243, 0.25);
-  border-top-color: rgba(215, 255, 247, 0.5);
-  border-radius: 8px;
+  border-bottom: 1px solid rgba(87, 255, 243, 0.24);
   background:
-    linear-gradient(135deg, rgba(87, 255, 243, 0.1), transparent 28%),
-    linear-gradient(180deg, rgba(5, 18, 25, 0.9), rgba(1, 6, 10, 0.8));
-  padding: 14px;
-  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+    linear-gradient(90deg, rgba(87, 255, 243, 0.1), transparent 38%),
+    linear-gradient(180deg, rgba(5, 18, 25, 0.62), rgba(1, 6, 10, 0));
+  padding: 12px 0 13px;
 }
 
 .sector-map-title {
@@ -344,8 +341,10 @@ canvas {
 
 .sector-map-title span,
 .sector-map-current span {
-  color: rgba(255, 242, 122, 0.84);
+  color: rgba(255, 242, 122, 0.9);
   font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
 }
 
 .sector-map-title h1,
@@ -356,7 +355,7 @@ canvas {
 }
 
 .sector-map-title h1 {
-  font-size: clamp(34px, 5vw, 58px);
+  font-size: clamp(32px, 4.2vw, 54px);
 }
 
 .sector-map-title p,
@@ -370,18 +369,19 @@ canvas {
 .sector-map-status {
   display: grid;
   grid-template-columns: repeat(3, minmax(96px, 1fr));
-  gap: 8px;
-  align-content: stretch;
+  gap: 7px;
+  align-content: end;
 }
 
 .sector-map-status span {
   display: grid;
   align-content: center;
-  min-height: 54px;
-  border: 1px solid rgba(87, 255, 243, 0.24);
-  border-radius: 7px;
-  background: rgba(2, 12, 16, 0.64);
-  padding: 8px 10px;
+  min-height: 50px;
+  border-top: 1px solid rgba(87, 255, 243, 0.45);
+  background:
+    linear-gradient(90deg, rgba(87, 255, 243, 0.13), transparent),
+    rgba(1, 9, 14, 0.68);
+  padding: 8px 11px;
   color: rgba(215, 255, 247, 0.68);
   font-size: 10px;
 }
@@ -395,17 +395,19 @@ canvas {
 .sector-map-body {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 410px);
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 430px);
   gap: 12px;
 }
 
 .sector-map-graph,
 .sector-map-details {
   min-height: 0;
-  border: 1px solid rgba(87, 255, 243, 0.22);
+  border: 1px solid rgba(87, 255, 243, 0.26);
   border-radius: 8px;
-  background: linear-gradient(180deg, rgba(4, 12, 16, 0.76), rgba(0, 0, 0, 0.66));
-  box-shadow: inset 0 0 34px rgba(87, 255, 243, 0.06);
+  background: linear-gradient(180deg, rgba(4, 12, 16, 0.82), rgba(0, 0, 0, 0.72));
+  box-shadow:
+    inset 0 0 42px rgba(87, 255, 243, 0.07),
+    0 18px 46px rgba(0, 0, 0, 0.28);
 }
 
 .sector-map-graph {
@@ -413,18 +415,16 @@ canvas {
   overflow: hidden;
   min-height: 430px;
   background:
-    linear-gradient(rgba(87, 255, 243, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(87, 255, 243, 0.06) 1px, transparent 1px),
-    radial-gradient(circle at 8% 50%, rgba(87, 255, 243, 0.18), transparent 18%),
-    radial-gradient(circle at 92% 50%, rgba(255, 242, 122, 0.14), transparent 18%),
-    linear-gradient(180deg, rgba(4, 12, 16, 0.84), rgba(0, 0, 0, 0.7));
-  background-size: 38px 38px, 38px 38px, auto, auto, auto;
+    linear-gradient(rgba(87, 255, 243, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(87, 255, 243, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(87, 255, 243, 0.14), transparent 16%, transparent 84%, rgba(255, 242, 122, 0.1)),
+    linear-gradient(180deg, rgba(3, 15, 20, 0.9), rgba(0, 3, 7, 0.76));
+  background-size: 34px 34px, 34px 34px, auto, auto;
 }
 
 .sector-map-graph::before,
 .sector-map-graph::after {
   position: absolute;
-  top: 14px;
   z-index: 1;
   color: rgba(215, 255, 247, 0.48);
   font-size: 10px;
@@ -435,12 +435,38 @@ canvas {
 .sector-map-graph::before {
   content: "MOTHERSHIP";
   left: 16px;
+  top: 46px;
 }
 
 .sector-map-graph::after {
   content: "LAST STAND";
   right: 16px;
+  top: 46px;
   color: rgba(255, 242, 122, 0.62);
+}
+
+.sector-map-graph-header {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  right: 14px;
+  z-index: 4;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(215, 255, 247, 0.68);
+  font-size: 10px;
+  pointer-events: none;
+}
+
+.sector-map-graph-header span {
+  color: rgba(255, 242, 122, 0.84);
+  font-weight: 800;
+}
+
+.sector-map-graph-header b {
+  color: var(--cyan);
+  font-size: 11px;
 }
 
 .sector-map-lines {
@@ -452,13 +478,14 @@ canvas {
 }
 
 .sector-map-lines line {
-  stroke: rgba(215, 255, 247, 0.28);
-  stroke-width: 0.7;
+  stroke: rgba(215, 255, 247, 0.3);
+  stroke-width: 0.66;
+  stroke-linecap: round;
 }
 
 .sector-map-lines line.available {
-  stroke: rgba(255, 242, 122, 0.72);
-  stroke-width: 1.05;
+  stroke: rgba(255, 242, 122, 0.88);
+  stroke-width: 1.28;
 }
 
 .sector-map-lines line.completed {
@@ -467,85 +494,173 @@ canvas {
 
 .sector-node {
   position: absolute;
-  width: clamp(52px, 5.4vw, 74px);
-  min-height: clamp(48px, 4.8vw, 64px);
+  width: clamp(62px, 5.8vw, 82px);
+  min-height: clamp(68px, 6.3vw, 88px);
   transform: translate(-50%, -50%);
-  border: 2px solid rgba(215, 255, 247, 0.45);
-  border-radius: 8px;
-  background: rgba(5, 13, 18, 0.95);
+  border: 0;
+  background: transparent;
   color: rgba(215, 255, 247, 0.82);
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 0 18px rgba(87, 255, 243, 0.08);
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 1px;
-  padding: 5px;
+  gap: 3px;
+  padding: 0;
   line-height: 1;
-  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  z-index: 3;
+}
+
+.sector-node-core {
+  display: grid;
+  place-items: center;
+  width: clamp(42px, 4.4vw, 58px);
+  height: clamp(42px, 4.4vw, 58px);
+  border: 2px solid rgba(215, 255, 247, 0.52);
+  border-radius: 50%;
+  background:
+    linear-gradient(180deg, rgba(9, 31, 38, 0.96), rgba(1, 7, 11, 0.94));
+  box-shadow:
+    inset 0 0 18px rgba(87, 255, 243, 0.08),
+    0 0 18px rgba(87, 255, 243, 0.1);
 }
 
 .sector-node-glyph {
   color: #f6fffe;
-  font-size: clamp(16px, 2vw, 23px);
+  font-size: clamp(17px, 2vw, 24px);
 }
 
 .sector-node-label {
   width: 100%;
   color: rgba(215, 255, 247, 0.64);
-  font-size: clamp(6px, 0.72vw, 8px);
+  font-size: clamp(7px, 0.72vw, 9px);
   line-height: 1;
   text-transform: uppercase;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-shadow: 0 1px 0 #000;
 }
 
-.sector-node.hostile {
+.sector-node-state {
+  min-width: 32px;
+  border: 1px solid rgba(215, 255, 247, 0.18);
+  border-radius: 999px;
+  background: rgba(1, 8, 13, 0.8);
+  padding: 2px 5px;
+  color: rgba(215, 255, 247, 0.56);
+  font-size: 7px;
+  line-height: 1;
+}
+
+.sector-node.hostile .sector-node-core {
   border-color: rgba(255, 93, 115, 0.78);
 }
 
-.sector-node.planet {
+.sector-node.planet .sector-node-core {
   border-color: rgba(87, 255, 243, 0.78);
 }
 
-.sector-node.station {
+.sector-node.station .sector-node-core {
   border-color: rgba(143, 255, 125, 0.86);
 }
 
-.sector-node.anomaly {
+.sector-node.anomaly .sector-node-core {
   border-color: rgba(185, 144, 255, 0.84);
 }
 
-.sector-node.boss,
-.sector-node.final {
+.sector-node.boss .sector-node-core,
+.sector-node.final .sector-node-core {
   border-color: rgba(255, 242, 122, 0.9);
 }
 
 .sector-node.available {
   color: #01080a;
-  background: linear-gradient(180deg, rgba(255, 242, 122, 0.96), rgba(255, 179, 77, 0.86));
-  box-shadow: 0 0 24px rgba(255, 242, 122, 0.34);
+}
+
+.sector-node.available .sector-node-core {
+  border-color: rgba(255, 242, 122, 0.98);
+  background: linear-gradient(180deg, rgba(255, 242, 122, 0.98), rgba(255, 179, 77, 0.88));
+  box-shadow:
+    0 0 0 5px rgba(255, 242, 122, 0.08),
+    0 0 28px rgba(255, 242, 122, 0.42);
 }
 
 .sector-node.available .sector-node-glyph,
-.sector-node.available .sector-node-label {
+.sector-node.available .sector-node-label,
+.sector-node.available .sector-node-state {
   color: #061014;
 }
 
-.sector-node.current {
-  outline: 3px solid rgba(87, 255, 243, 0.32);
+.sector-node.available .sector-node-state {
+  border-color: rgba(255, 242, 122, 0.5);
+  background: rgba(255, 242, 122, 0.82);
 }
 
-.sector-node.completed {
-  background: rgba(143, 255, 125, 0.22);
+.sector-node.current {
+  outline: none;
+}
+
+.sector-node.current .sector-node-core {
+  border-color: rgba(143, 255, 125, 0.94);
+  background:
+    linear-gradient(180deg, rgba(143, 255, 125, 0.32), rgba(4, 22, 18, 0.96));
+  box-shadow:
+    0 0 0 7px rgba(143, 255, 125, 0.08),
+    0 0 24px rgba(143, 255, 125, 0.22);
+}
+
+.sector-node.completed .sector-node-core {
+  background: rgba(143, 255, 125, 0.2);
   color: #dfffe0;
 }
 
 .sector-node.locked {
-  opacity: 0.42;
+  opacity: 0.44;
   cursor: default;
+}
+
+.sector-map-legend {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 12px;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  pointer-events: none;
+}
+
+.sector-map-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(87, 255, 243, 0.18);
+  background: rgba(0, 6, 10, 0.62);
+  padding: 5px 7px;
+  color: rgba(215, 255, 247, 0.62);
+  font-size: 9px;
+}
+
+.legend-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 10px currentColor;
+}
+
+.legend-swatch.hostile {
+  background: var(--red);
+}
+
+.legend-swatch.anomaly {
+  background: var(--violet);
+}
+
+.legend-swatch.station {
+  background: var(--green);
 }
 
 .sector-map-details {
@@ -568,25 +683,30 @@ canvas {
   overflow-y: auto;
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 9px;
   scrollbar-color: rgba(87, 255, 243, 0.58) rgba(87, 255, 243, 0.08);
 }
 
 .sector-choice {
   display: grid;
-  gap: 4px;
+  gap: 8px;
   width: 100%;
-  min-height: 112px;
+  min-height: 132px;
   text-align: left;
   border: 1px solid rgba(87, 255, 243, 0.26);
-  border-radius: 8px;
+  border-radius: 6px;
   background:
-    linear-gradient(90deg, rgba(87, 255, 243, 0.08), transparent 44%),
+    linear-gradient(90deg, rgba(87, 255, 243, 0.12), transparent 34%),
     rgba(2, 12, 16, 0.78);
   color: #d7fff7;
   padding: 12px 13px;
   cursor: pointer;
   clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+}
+
+.sector-choice-head {
+  display: grid;
+  gap: 3px;
 }
 
 .sector-choice-kind,
@@ -596,10 +716,46 @@ canvas {
   font-style: normal;
 }
 
-.sector-choice b {
+.sector-choice-title {
   color: #f6fffe;
   font-size: 18px;
   line-height: 1;
+}
+
+.sector-choice-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.sector-choice-metrics span {
+  min-width: 0;
+  border-top: 1px solid rgba(87, 255, 243, 0.22);
+  background: rgba(0, 6, 10, 0.42);
+  padding: 6px 7px;
+}
+
+.sector-choice-metrics b,
+.sector-choice-metrics em {
+  display: block;
+  overflow-wrap: anywhere;
+  font-style: normal;
+  line-height: 1.05;
+}
+
+.sector-choice-metrics b {
+  color: #f6fffe;
+  font-size: 13px;
+}
+
+.sector-choice-metrics em {
+  margin-top: 3px;
+  color: rgba(215, 255, 247, 0.5);
+  font-size: 8px;
+}
+
+.sector-choice-readout {
+  display: none;
 }
 
 .sector-choice.station {
@@ -3696,7 +3852,8 @@ button.manifest-chip:disabled {
 }
 
 @media (max-width: 980px) {
-  .sector-map-screen {
+  .screen.sector-map-screen {
+    overflow-x: hidden;
     overflow-y: auto;
   }
 
@@ -3707,7 +3864,7 @@ button.manifest-chip:disabled {
   }
 
   .sector-map-top {
-    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .sector-map-body {
@@ -3752,7 +3909,8 @@ button.manifest-chip:disabled {
     display: grid;
   }
 
-  .sector-map-screen {
+  .screen.sector-map-screen {
+    overflow-x: hidden;
     overflow-y: auto;
   }
 
@@ -3764,7 +3922,11 @@ button.manifest-chip:disabled {
   }
 
   .sector-map-top {
-    padding: 12px;
+    padding: 10px 0 12px;
+  }
+
+  .sector-map-title h1 {
+    font-size: 36px;
   }
 
   .sector-map-status {
@@ -3786,7 +3948,7 @@ button.manifest-chip:disabled {
   }
 
   .sector-map-graph {
-    min-height: 320px;
+    min-height: 330px;
   }
 
   .sector-map-details {
@@ -3799,16 +3961,28 @@ button.manifest-chip:disabled {
   }
 
   .sector-choice {
-    min-height: 92px;
+    min-height: 136px;
   }
 
   .sector-node {
-    width: 42px;
-    min-height: 42px;
-    padding: 3px;
+    width: 46px;
+    min-height: 50px;
+  }
+
+  .sector-node-core {
+    width: 38px;
+    height: 38px;
   }
 
   .sector-node-label {
+    display: none;
+  }
+
+  .sector-node-state {
+    display: none;
+  }
+
+  .sector-map-legend {
     display: none;
   }
 

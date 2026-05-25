@@ -55,24 +55,31 @@ const sectorMapMarkup = (css: string) => `
           </div>
         </div>
         <div class="sector-map-body">
-          <div class="sector-map-graph">
+          <div class="sector-map-graph sector-map-starchart">
+            <div class="sector-map-graph-header"><span>LOCAL STARCHART</span><b>2 ROUTES OPEN</b></div>
             <svg class="sector-map-lines" viewBox="0 0 100 100">
               <line class="available" x1="8" y1="48" x2="25" y2="18"></line>
               <line class="available" x1="8" y1="48" x2="25" y2="38"></line>
               <line class="locked" x1="25" y1="18" x2="42" y2="38"></line>
             </svg>
             <button class="sector-node mothership completed current" style="left: 8%; top: 48%" type="button" disabled>
-              <span class="sector-node-glyph">M</span><span class="sector-node-label">MOTHERSHIP</span>
+              <span class="sector-node-core"><span class="sector-node-glyph">M</span></span><span class="sector-node-label">MOTHERSHIP</span><span class="sector-node-state">HERE</span>
             </button>
             <button class="sector-node hostile available" style="left: 25%; top: 18%" type="button">
-              <span class="sector-node-glyph">H</span><span class="sector-node-label">SAFE DRIFT</span>
+              <span class="sector-node-core"><span class="sector-node-glyph">H</span></span><span class="sector-node-label">SAFE DRIFT</span><span class="sector-node-state">OPEN</span>
             </button>
             <button class="sector-node planet available" style="left: 25%; top: 38%" type="button">
-              <span class="sector-node-glyph">P</span><span class="sector-node-label">PLANET CLUSTER</span>
+              <span class="sector-node-core"><span class="sector-node-glyph">P</span></span><span class="sector-node-label">PLANET CLUSTER</span><span class="sector-node-state">OPEN</span>
             </button>
             <button class="sector-node final locked" style="left: 92%; top: 48%" type="button" disabled>
-              <span class="sector-node-glyph">F</span><span class="sector-node-label">LAST STAND</span>
+              <span class="sector-node-core"><span class="sector-node-glyph">F</span></span><span class="sector-node-label">LAST STAND</span><span class="sector-node-state">LOCK</span>
             </button>
+            <div class="sector-map-legend">
+              <span><i class="legend-swatch planet"></i>Planet</span>
+              <span><i class="legend-swatch hostile"></i>Combat</span>
+              <span><i class="legend-swatch anomaly"></i>Hazard</span>
+              <span><i class="legend-swatch station"></i>Station</span>
+            </div>
           </div>
           <div class="sector-map-details">
             <div class="sector-map-current">
@@ -82,16 +89,16 @@ const sectorMapMarkup = (css: string) => `
             </div>
             <div class="sector-choice-list">
               <button class="sector-choice hostile" type="button">
-                <span class="sector-choice-kind">COMBAT</span>
-                <b>SAFE DRIFT 1-1</b>
+                <span class="sector-choice-head"><span class="sector-choice-kind">COMBAT</span><b class="sector-choice-title">SAFE DRIFT 1-1</b></span>
                 <small>Safe drift. Low pressure, modest rewards.</small>
-                <i>PLANETS 1-2 / WAVES 1 SCOUTS / HAZARDS CLEAR / PRESSURE x0.50</i>
+                <span class="sector-choice-metrics"><span><b>1-2</b><em>PLANETS</em></span><span><b>1</b><em>SCOUTS</em></span><span><b>x0.50</b><em>PRESSURE</em></span><span><b>CLEAR</b><em>HAZARDS</em></span></span>
+                <i class="sector-choice-readout">PLANETS 1-2 / WAVES 1 SCOUTS / HAZARDS CLEAR / PRESSURE x0.50</i>
               </button>
               <button class="sector-choice planet" type="button">
-                <span class="sector-choice-kind">PLANET</span>
-                <b>PLANET CLUSTER 1-2</b>
+                <span class="sector-choice-head"><span class="sector-choice-kind">PLANET</span><b class="sector-choice-title">PLANET CLUSTER 1-2</b></span>
                 <small>Planet route. More landings, moderate pressure.</small>
-                <i>PLANETS 3-6 / WAVES 2 SWARM / HAZARDS CLEAR / PRESSURE x0.88</i>
+                <span class="sector-choice-metrics"><span><b>3-6</b><em>PLANETS</em></span><span><b>2</b><em>SWARM</em></span><span><b>x0.88</b><em>PRESSURE</em></span><span><b>CLEAR</b><em>HAZARDS</em></span></span>
+                <i class="sector-choice-readout">PLANETS 3-6 / WAVES 2 SWARM / HAZARDS CLEAR / PRESSURE x0.88</i>
               </button>
               <details class="sector-debug-readout">
                 <summary>ROUTE DEBUG</summary>

@@ -22,6 +22,9 @@ test('sector map is a first class screen between mothership and expeditions', ()
 test('sector map choices expose wave and hazard readouts before launch', () => {
   const main = mainSource()
 
+  expect(main).toContain('sector-map-starchart')
+  expect(main).toContain('sector-map-legend')
+  expect(main).toContain('sector-choice-metrics')
   expect(main).toContain('choice.config.readout')
   expect(main).toContain('private sectorNodeConfigSummary(')
   expect(main).toContain('private sectorMapDebugReadout(')

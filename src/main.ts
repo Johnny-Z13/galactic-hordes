@@ -9030,8 +9030,13 @@ class VectorShooter {
 
     const body = document.createElement('div')
     body.className = 'sector-map-body'
+    const choices = availableSectorChoices(this.sectorMap)
     const graph = document.createElement('div')
-    graph.className = 'sector-map-graph'
+    graph.className = 'sector-map-graph sector-map-starchart'
+    const graphHeader = document.createElement('div')
+    graphHeader.className = 'sector-map-graph-header'
+    graphHeader.innerHTML = `<span>LOCAL STARCHART</span><b>${choices.length} ROUTES OPEN</b>`
+    graph.append(graphHeader)
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
     svg.classList.add('sector-map-lines')
     svg.setAttribute('viewBox', '0 0 100 100')
@@ -9050,9 +9055,10 @@ class VectorShooter {
       svg.append(line)
     }
     graph.append(svg)
-    const choices = availableSectorChoices(this.sectorMap)
     for (const node of this.sectorMap.nodes) {
       const pos = this.sectorNodePosition(node)
+      const isAvailable = choices.some((choice) => choice.id === node.id)
+      const stateLabel = node.completed ? 'DONE' : node.id === this.sectorMap.currentNodeId ? 'HERE' : isAvailable ? 'OPEN' : 'LOCK'
       const button = document.createElement('button')
       button.type = 'button'
       button.className = this.sectorNodeClass(node, choices)
@@ -9061,14 +9067,24 @@ class VectorShooter {
       button.dataset.label = node.label
       button.setAttribute('aria-label', `${this.sectorKindLabel(node.kind)}: ${node.label}`)
       button.innerHTML = `
-        <span class="sector-node-glyph">${this.sectorNodeGlyph(node.kind)}</span>
+        <span class="sector-node-core"><span class="sector-node-glyph">${this.sectorNodeGlyph(node.kind)}</span></span>
         <span class="sector-node-label">${this.escape(node.label.replace(/\s+\d+-\d+$/, ''))}</span>
+        <span class="sector-node-state">${stateLabel}</span>
       `
       button.title = `${node.label}: ${node.description}`
-      button.disabled = !choices.some((choice) => choice.id === node.id)
+      button.disabled = !isAvailable
       button.addEventListener('click', () => this.launchSectorNode(node.id))
       graph.append(button)
     }
+    const legend = document.createElement('div')
+    legend.className = 'sector-map-legend'
+    legend.innerHTML = `
+      <span><i class="legend-swatch planet"></i>Planet</span>
+      <span><i class="legend-swatch hostile"></i>Combat</span>
+      <span><i class="legend-swatch anomaly"></i>Hazard</span>
+      <span><i class="legend-swatch station"></i>Station</span>
+    `
+    graph.append(legend)
 
     const details = document.createElement('div')
     details.className = 'sector-map-details'
@@ -9080,14 +9096,24 @@ class VectorShooter {
     list.className = 'sector-choice-list'
     for (const choice of choices) {
       const profile = sectorNodeRunProfile(choice)
+      const hazards = this.sectorHazardsLabel(choice.config.hazards)
+      const planets = this.sectorPlanetLabel(choice.config.planets.countMin, choice.config.planets.countMax)
       const option = document.createElement('button')
       option.type = 'button'
       option.className = `sector-choice ${choice.kind}`
       option.innerHTML = `
-        <span class="sector-choice-kind">${this.escape(this.sectorKindLabel(choice.kind))}</span>
-        <b>${this.escape(choice.label)}</b>
+        <span class="sector-choice-head">
+          <span class="sector-choice-kind">${this.escape(this.sectorKindLabel(choice.kind))}</span>
+          <b class="sector-choice-title">${this.escape(choice.label)}</b>
+        </span>
         <small>${this.escape(choice.config.readout)}</small>
-        <i>${this.escape(this.sectorNodeConfigSummary(choice, profile))}</i>
+        <span class="sector-choice-metrics" aria-label="Route metrics">
+          <span><b>${planets}</b><em>PLANETS</em></span>
+          <span><b>${choice.config.waves.length}</b><em>${this.sectorWaveLabel(choice.config.waveOrder)}</em></span>
+          <span><b>x${profile.spawnMultiplier.toFixed(2)}</b><em>PRESSURE</em></span>
+          <span><b>${this.escape(hazards)}</b><em>HAZARDS</em></span>
+        </span>
+        <i class="sector-choice-readout">${this.escape(this.sectorNodeConfigSummary(choice, profile))}</i>
       `
       option.addEventListener('click', () => this.launchSectorNode(choice.id))
       list.append(option)
