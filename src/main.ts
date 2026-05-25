@@ -2316,11 +2316,11 @@ class VectorShooter {
       b.life -= dt
       b.x += b.vx * dt
       b.y += b.vy * dt
-      if (
-        b.life <= 0 ||
+      const bulletExpired = !b.hostile && b.life <= 0
+      const bulletOffscreen =
         Math.abs(b.x - this.player.x) > spaceEnemyBehavior.global.bulletDespawnDistance ||
         Math.abs(b.y - this.player.y) > spaceEnemyBehavior.global.bulletDespawnDistance
-      ) {
+      if (bulletExpired || bulletOffscreen) {
         this.bullets.splice(i, 1)
         continue
       }
