@@ -1039,6 +1039,7 @@ class VectorShooter {
     this.stats.highScore = this.highs[0]?.score ?? 0
     this.updateSpaceChunks()
     this.showTitle()
+    this.installHarnessIfRequested()
     requestAnimationFrame((t) => this.frame(t))
   }
 
@@ -4655,9 +4656,9 @@ class VectorShooter {
     this.burst(muzzleX, muzzleY, '#fff27a', 4, 90)
   }
 
-  private startTakeoff(options: { urgent?: boolean } = {}) {
+  private startTakeoff(options: { urgent?: boolean; skipWorkbench?: boolean } = {}) {
     if (!this.surface) return
-    if (this.pendingUpgrades > 0 && !options.urgent) {
+    if (this.pendingUpgrades > 0 && !options.urgent && !options.skipWorkbench) {
       this.takeoffAfterWorkbench = true
       this.openLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} banked mutation signal${this.pendingUpgrades === 1 ? '' : 's'} available. Spend before takeoff.`)
       return
@@ -7292,6 +7293,7 @@ class VectorShooter {
     actions.className = 'workbench-actions'
     const view = document.createElement('div')
     view.className = 'workbench-view manifest'
+    actions.append(...this.renderWorkbenchExitActions())
     if (this.mothership.departments.workbench >= 4 && this.pendingUpgrades > 0) {
       const recycle = document.createElement('button')
       recycle.className = 'workbench-command recycle'
@@ -7305,6 +7307,72 @@ class VectorShooter {
     panel.append(view)
     this.ui.levelup.append(panel)
     this.showOnly('levelup')
+  }
+
+  private renderWorkbenchExitActions() {
+    const buttons: HTMLButtonElement[] = []
+    const continueButton = document.createElement('button')
+    continueButton.type = 'button'
+    continueButton.className = 'workbench-command primary'
+    continueButton.textContent = this.workbenchContinueLabel()
+    continueButton.addEventListener('click', () => this.continueFromWorkbench())
+    buttons.push(continueButton)
+
+    const backButton = document.createElement('button')
+    backButton.type = 'button'
+    backButton.className = 'workbench-command secondary'
+    backButton.textContent = this.workbenchBackLabel()
+    backButton.addEventListener('click', () => this.backFromWorkbench())
+    buttons.push(backButton)
+    return buttons
+  }
+
+  private workbenchContinueLabel() {
+    if (this.takeoffAfterWorkbench) return 'Launch Now'
+    if (this.returnToSectorMapAfterWorkbench) return 'Route Map'
+    return 'Resume Flight'
+  }
+
+  private workbenchBackLabel() {
+    if (this.takeoffAfterWorkbench) return 'Back to Surface'
+    if (this.returnToSectorMapAfterWorkbench) return 'Back to Station'
+    return 'Back'
+  }
+
+  private continueFromWorkbench() {
+    if (this.workbenchInstalling) return
+    this.showOnly(null)
+    if (this.takeoffAfterWorkbench) {
+      this.takeoffAfterWorkbench = false
+      this.startTakeoff({ skipWorkbench: true })
+      return
+    }
+    if (this.returnToSectorMapAfterWorkbench) {
+      this.returnToSectorMapAfterWorkbench = false
+      this.leaveStationForSectorMap()
+      return
+    }
+    this.state = 'playing'
+    this.toast(this.pendingUpgrades > 0 ? `${this.pendingUpgrades} SIGNAL${this.pendingUpgrades === 1 ? '' : 'S'} HELD IN BUFFER` : 'WORKBENCH CLOSED')
+  }
+
+  private backFromWorkbench() {
+    if (this.workbenchInstalling) return
+    if (this.returnToSectorMapAfterWorkbench && this.stationDockReport) {
+      const report = this.stationDockReport
+      this.returnToSectorMapAfterWorkbench = false
+      this.showStationDock(report)
+      return
+    }
+    this.showOnly(null)
+    if (this.takeoffAfterWorkbench && this.surface) {
+      this.takeoffAfterWorkbench = false
+      this.state = 'surface'
+      this.toast('WORKBENCH CLOSED')
+      return
+    }
+    this.state = 'playing'
+    this.toast('WORKBENCH CLOSED')
   }
 
   private currentLevelUpScrollTop() {
@@ -9389,6 +9457,28 @@ class VectorShooter {
     }
   }
 
+  private installHarnessIfRequested() {
+    const params = new URLSearchParams(window.location.search)
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#\??/, ''))
+    const requested = params.get('harness') ?? hashParams.get('harness') ?? ''
+    if (!['1', 'true', 'yes'].includes(requested.toLowerCase())) return
+    window.__galacticHarness = {
+      snapshot: () => ({
+        state: this.state,
+        time: this.stats.time,
+        hull: this.player.hull,
+        maxHull: this.player.maxHull,
+        score: this.stats.score,
+        planets: this.stats.planets,
+        resources: { ...this.resources },
+        enemies: this.enemies.length,
+        pickups: this.pickups.length,
+        currentNode: currentSectorNode(this.sectorMap).config.templateId,
+        perf: { ...this.perf }
+      })
+    }
+  }
+
   private loadScores(): ScoreEntry[] {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') as ScoreEntry[]
@@ -9453,6 +9543,21 @@ class VectorShooter {
 declare global {
   interface Window {
     __vectorShooter?: VectorShooter
+    __galacticHarness?: {
+      snapshot: () => {
+        state: GameState
+        time: number
+        hull: number
+        maxHull: number
+        score: number
+        planets: number
+        resources: { scrap: number; crystal: number; cores: number }
+        enemies: number
+        pickups: number
+        currentNode: string
+        perf: PerfStats
+      }
+    }
   }
 }
 

@@ -2,6 +2,10 @@
 
 Galactic Hordes needs balance data to be easy to inspect, edit, test, and document. Combat tuning must not be scattered as anonymous numbers through the game loop.
 
+## Simulation Balance Lab
+
+The simulation lab provides batch-level balance signals for survival, route progress, economy, and procedural variety. Use [simulation balance targets](simulation-balance-targets.md) as broad tuning envelopes, then verify major changes in the browser when they affect combat feel, landing flow, or performance.
+
 ## Goals
 
 - Keep the active testing difficulty explicit.

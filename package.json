@@ -8,12 +8,18 @@
     "build": "tsc && vite build",
     "test": "playwright test",
     "test:responsive": "playwright test tests/responsive-ui.spec.ts",
+    "test:sim": "playwright test tests/sim-rng.spec.ts tests/sim-runner.spec.ts tests/sim-metrics.spec.ts tests/sim-targets.spec.ts tests/sim-space.spec.ts tests/sim-surface.spec.ts tests/sim-upgrades.spec.ts tests/sim-stations.spec.ts tests/playthrough-harness.spec.ts",
+    "test:sim:ci": "playwright test tests/sim-ci.spec.ts",
+    "sim": "node --import tsx src/sim/sim-cli.ts",
+    "sim:lab": "vite --host 127.0.0.1 --port 5177",
+    "sim:sweep": "npm run sim -- --runs=100 --policy=balanced --seed=5000 --maxSeconds=1800",
     "docs:balance": "node scripts/update-balance-docs.mjs",
     "hooks:install": "git config core.hooksPath .githooks",
     "preview": "vite preview"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
+    "tsx": "^4.20.0",
     "typescript": "^5.9.2",
     "vite": "^7.1.3"
   }

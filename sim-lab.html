@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Galactic Hordes Sim Lab</title>
+  </head>
+  <body>
+    <main class="sim-lab">
+      <header class="sim-header">
+        <div>
+          <p>Galactic Hordes</p>
+          <h1>Simulation Lab</h1>
+        </div>
+        <div class="header-actions">
+          <button id="export" class="secondary" type="button" disabled>Export JSON</button>
+          <button id="run" type="button">Run Playthroughs</button>
+        </div>
+      </header>
+
+      <section class="presets" aria-label="Simulation presets">
+        <button data-preset="quick10" type="button">Quick 10</button>
+        <button data-preset="balance50" type="button">Balance 50</button>
+        <button data-preset="planetVariety" type="button">Planet Variety</button>
+        <button data-preset="economySweep" type="button">Economy Sweep</button>
+        <button data-preset="latePressure" type="button">Late Pressure</button>
+      </section>
+
+      <section class="controls">
+        <label>Runs <input id="runs" type="number" min="1" max="500" value="10" /></label>
+        <label>Seed <input id="seed" type="number" value="1000" /></label>
+        <label>Max Seconds <input id="maxSeconds" type="number" min="60" max="3600" value="900" /></label>
+        <label>Policy
+          <select id="policy">
+            <option value="balanced">Balanced</option>
+            <option value="survival">Survival</option>
+            <option value="planetHunter">Planet Hunter</option>
+            <option value="greedyCache">Greedy Cache</option>
+            <option value="routeRusher">Route Rusher</option>
+            <option value="stress">Stress</option>
+          </select>
+        </label>
+        <label>Difficulty
+          <select id="difficulty">
+            <option value="normal">Normal</option>
+            <option value="testEasy">Test Easy</option>
+            <option value="stress">Stress</option>
+          </select>
+        </label>
+      </section>
+
+      <section id="progress" class="progress">Ready.</section>
+      <section id="summary" class="summary"></section>
+      <section id="flags" class="flags"></section>
+      <section id="charts" class="charts"></section>
+      <section id="runsTable" class="runs-table"></section>
+    </main>
+    <script type="module" src="/src/sim/sim-dashboard.ts"></script>
+  </body>
+</html>

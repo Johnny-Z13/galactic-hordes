@@ -131,6 +131,12 @@ Asteroid routes now include both meteor-front crossings and short asteroid-field
 
 Combat and difficulty tuning lives in `src/game-balance.ts`. Power-up, pickup, relic, surface suit, cache, and workbench tuning lives in `src/powerup-balance.ts`. Run-level values live in `src/run-balance.ts`, surface expedition tuning, planet alien catalog rows, planet boss catalog rows, and strange surface threat behaviors live in `src/surface-balance.ts`, and route-node tuning lives in `src/sector-map.ts`. Run `npm run docs:balance` after changing balance values, or install the local hook with `npm run hooks:install` so the generated balance docs update on commit.
 
+## Simulation Lab
+
+The extracted simulation lab runs deterministic playthrough batches for balance review and procedural coverage. Run `npm run sim:lab` for the dashboard or `npm run sim -- --runs=10 --policy=balanced --seed=1000` for a terminal summary.
+
+See [docs/simulation-playthrough-lab.md](docs/simulation-playthrough-lab.md) for presets, policies, and report interpretation.
+
 <!-- BALANCE-GENERATED:START -->
 ### Active Balance Snapshot
 

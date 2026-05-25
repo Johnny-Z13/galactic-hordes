@@ -63,6 +63,26 @@ test('shipboard workbench preserves scroll position across installs', () => {
   expect(main).toContain('this.restoreLevelUpScroll(scrollTop)')
 })
 
+test('shipboard workbench can be skipped without spending every signal', () => {
+  const main = source()
+  const css = styles()
+
+  expect(main).toContain('actions.append(...this.renderWorkbenchExitActions())')
+  expect(main).toContain('private workbenchContinueLabel()')
+  expect(main).toContain("if (this.takeoffAfterWorkbench) return 'Launch Now'")
+  expect(main).toContain("if (this.returnToSectorMapAfterWorkbench) return 'Route Map'")
+  expect(main).toContain("return 'Resume Flight'")
+  expect(main).toContain('private continueFromWorkbench()')
+  expect(main).toContain('this.startTakeoff({ skipWorkbench: true })')
+  expect(main).toContain('this.leaveStationForSectorMap()')
+  expect(main).toContain('private backFromWorkbench()')
+  expect(main).toContain("if (this.returnToSectorMapAfterWorkbench && this.stationDockReport)")
+  expect(main).toContain("this.state = 'surface'")
+  expect(main).toContain('pendingUpgrades = Math.max(0, this.pendingUpgrades - 1)')
+  expect(css).toContain('.workbench-command.primary')
+  expect(css).toContain('.workbench-command.secondary')
+})
+
 test('front end integrates standalone collection and power up screens', () => {
   const main = source()
   const css = styles()
