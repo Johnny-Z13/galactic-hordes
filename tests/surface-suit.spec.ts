@@ -40,3 +40,11 @@ test('surface touch controls hide the inactive safe button', () => {
   expect(main).not.toContain("'SAFE'")
   expect(main).not.toContain("textContent = 'SAFE'")
 })
+
+test('surface camera starts locked to the pilot on landing', () => {
+  const main = source()
+
+  expect(main).toContain('private initialSurfaceCamera(')
+  expect(main).toContain('camera: this.initialSurfaceCamera(pilot, world)')
+  expect(main).not.toContain('camera: { x: 0, y: 0 }')
+})

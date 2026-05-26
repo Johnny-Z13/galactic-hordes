@@ -3918,7 +3918,7 @@ class VectorShooter {
       height: world.height,
       pilot,
       ship,
-      camera: { x: 0, y: 0 },
+      camera: this.initialSurfaceCamera(pilot, world),
       resources,
       threats,
       bullets: [],
@@ -3931,6 +3931,13 @@ class VectorShooter {
       bossCacheCount: profile.bossCacheCount,
       o2Returning: false,
       message: this.surfaceEventMessage(event, first, scenario)
+    }
+  }
+
+  private initialSurfaceCamera(pilot: Vec, world: typeof surfaceRunBalance.world) {
+    return {
+      x: clamp(pilot.x - this.width / 2, 0, Math.max(0, world.width - this.width)),
+      y: clamp(pilot.y - this.height / 2, 0, Math.max(0, world.height - this.height))
     }
   }
 
