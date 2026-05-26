@@ -6,7 +6,8 @@ test('station names and contacts are deterministic per sector node', () => {
   const node = createSectorMap(42).nodes.find((candidate) => candidate.kind === 'station')!
 
   expect(stationNameForNode(node)).toBe(stationNameForNode(node))
-  expect(stationNameForNode(node)).toMatch(/^SPACE STATION [0-9]+$/)
+  expect(stationNameForNode(node)).not.toMatch(/^SPACE STATION [0-9]+$/)
+  expect(stationNameForNode(node)).toMatch(/^[A-Z][A-Z ]+$/)
   expect(stationContactForNode(node)).toEqual(stationContactForNode(node))
   expect(stationContactForNode(node).name.length).toBeGreaterThan(4)
 })

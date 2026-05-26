@@ -112,6 +112,34 @@ const sectorMapMarkup = (css: string) => `
   </div>
 `
 
+const gameOverMarkup = (css: string) => `
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <style>${css}</style>
+  <div id="app">
+    <div class="screen gameover-screen visible">
+      <div class="panel debrief-panel">
+        <h1 class="title">BLACK BOX RECOVERED</h1>
+        <p class="copy">The scout ship was lost. The mothership recovered partial cargo and all transmitted discoveries.</p>
+        <div class="debrief-grid">
+          <div><b>320</b><span>Scrap Recovered</span></div>
+          <div><b>24</b><span>Crystals Recovered</span></div>
+          <div><b>2</b><span>Cores Recovered</span></div>
+          <div><b>7</b><span>Discoveries Logged</span></div>
+          <div><b>150</b><span>Light Years</span></div>
+          <div><b>3</b><span>Stations Docked</span></div>
+        </div>
+        <p class="copy small">Lathe Relay // Umber Choir // Pale Glass Archive // Station 29</p>
+        <p class="copy small">Station route: Waystation 29 // Waystation 99 // Cinder Port</p>
+        <input class="name-entry" placeholder="ACE" />
+        <div class="button-row">
+          <button class="vector-button" type="button">Return to Title</button>
+          <button class="vector-button secondary" type="button">Scores</button>
+        </div>
+      </div>
+    </div>
+  </div>
+`
+
 const renderShell = async (browser: Browser, viewport: ViewportCase, hasTouch: boolean) => {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
@@ -154,6 +182,57 @@ test('desktop pointer layout keeps touch controls hidden', async ({ browser }) =
   const { context, page } = await renderShell(browser, { name: 'desktop', width: 1440, height: 900, isMobile: false }, false)
   await expect(page.locator('.touch-controls.visible')).toHaveCSS('display', 'none')
   await context.close()
+})
+
+test('game over black box fills mobile viewport without document scrolling', async ({ browser }) => {
+  for (const viewport of [
+    { name: 'iPhone portrait', width: 390, height: 844, isMobile: true },
+    { name: 'short phone landscape', width: 844, height: 390, isMobile: true }
+  ]) {
+    const { context, page } = await renderShell(browser, viewport, true)
+    await page.setContent(gameOverMarkup(styles()))
+
+    const metrics = await page.evaluate(() => {
+      const screen = document.querySelector('.gameover-screen')!
+      const panel = document.querySelector('.gameover-screen .panel')!
+      const actions = document.querySelector('.gameover-screen .button-row')!
+      const screenBox = screen.getBoundingClientRect()
+      const panelBox = panel.getBoundingClientRect()
+      const actionsBox = actions.getBoundingClientRect()
+      return {
+        bodyScrollHeight: document.documentElement.scrollHeight,
+        viewportHeight: window.innerHeight,
+        screen: {
+          x: screenBox.x,
+          y: screenBox.y,
+          width: screenBox.width,
+          height: screenBox.height
+        },
+        panel: {
+          x: panelBox.x,
+          y: panelBox.y,
+          width: panelBox.width,
+          height: panelBox.height
+        },
+        actionsBottom: actionsBox.bottom,
+        screenOverflowY: getComputedStyle(screen).overflowY,
+        panelOverflowY: getComputedStyle(panel).overflowY
+      }
+    })
+
+    expect(metrics.bodyScrollHeight, `${viewport.name} document height`).toBeLessThanOrEqual(metrics.viewportHeight)
+    expect(metrics.screen.width, `${viewport.name} screen width`).toBe(viewport.width)
+    expect(metrics.screen.height, `${viewport.name} screen height`).toBe(viewport.height)
+    expect(metrics.panel.x, `${viewport.name} panel x`).toBe(0)
+    expect(metrics.panel.y, `${viewport.name} panel y`).toBe(0)
+    expect(metrics.panel.width, `${viewport.name} panel width`).toBe(viewport.width)
+    expect(metrics.panel.height, `${viewport.name} panel height`).toBe(viewport.height)
+    expect(metrics.actionsBottom, `${viewport.name} actions bottom`).toBeLessThanOrEqual(viewport.height)
+    expect(metrics.screenOverflowY, `${viewport.name} screen overflow`).toBe('hidden')
+    expect(metrics.panelOverflowY, `${viewport.name} panel overflow`).toBe('hidden')
+
+    await context.close()
+  }
 })
 
 test('sector map route planner keeps graph and first route visible across app breakpoints', async ({ browser }) => {

@@ -58,6 +58,36 @@ const contacts: readonly StationContact[] = [
   { name: 'Pax Meridian', role: 'Old Map Broker' }
 ]
 
+const stationPrefixes = [
+  'LATHE',
+  'CINDER',
+  'PALE',
+  'UMBER',
+  'GLASS',
+  'ORCHID',
+  'HALO',
+  'VIOLET',
+  'EMBER',
+  'TIDE',
+  'MIRROR',
+  'NEON'
+] as const
+
+const stationSuffixes = [
+  'RELAY',
+  'FREEPORT',
+  'ANCHORAGE',
+  'CITADEL',
+  'LOCK',
+  'ARRAY',
+  'HAVEN',
+  'EXCHANGE',
+  'GATE',
+  'KEEP',
+  'DRIFT',
+  'BASTION'
+] as const
+
 const rumorByTemplate: Partial<Record<SectorNode['config']['templateId'], readonly string[]>> = {
   safeDrift: [
     'A quiet lane ahead is hiding an old repair cache.',
@@ -97,9 +127,10 @@ const rumorByTemplate: Partial<Record<SectorNode['config']['templateId'], readon
   ]
 }
 
-export const stationNameForNode = (node: SectorNode) => (
-  `SPACE STATION ${17 + (hashString(`${node.id}:${node.label}`, 27) % 83)}`
-)
+export const stationNameForNode = (node: SectorNode) => {
+  const key = `${node.id}:${node.label}`
+  return `${pick(stationPrefixes, key, 27)} ${pick(stationSuffixes, key, 83)}`
+}
 
 export const stationContactForNode = (node: SectorNode): StationContact => (
   pick(contacts, `${node.id}:${node.label}`, 61)

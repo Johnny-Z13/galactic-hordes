@@ -54,20 +54,23 @@ test('station docking advances the sector map instead of always ending the run',
   expect(main).toContain('Departure lane open. Choose the next jump.')
 })
 
-test('station docking opens a fiction menu with workbench and route actions', () => {
+test('station docking opens a master command menu with collapsible sections and route map', () => {
   const main = mainSource()
   const css = readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8')
 
-  expect(main).toContain('WELCOME TO ${this.escape(report.stationName)}')
+  expect(main).toContain('station-command-panel')
+  expect(main).toContain('station-command-section')
+  expect(main).toContain('private stationCommandSection(')
+  expect(main).toContain('private stationRouteMap(')
   expect(main).toContain('private stationNameForNode(')
   expect(main).toContain('private stationFictionForNode(')
   expect(main).toContain('Open Workbench')
-  expect(main).toContain('Cargo Manifest')
-  expect(main).toContain('Route Map')
+  expect(main).toContain('CARGO MANIFEST')
+  expect(main).toContain('ROUTE MAP')
   expect(main).toContain('private openStationWorkbench(')
   expect(main).toContain('private leaveStationForSectorMap(')
-  expect(css).toContain('.station-dock-panel')
-  expect(css).toContain('.station-dock-actions')
+  expect(css).toContain('.station-command-panel')
+  expect(css).toContain('.station-command-section')
 })
 
 test('sector stations offer run services but not permanent meta upgrades', () => {

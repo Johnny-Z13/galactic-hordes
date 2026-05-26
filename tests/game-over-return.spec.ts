@@ -8,6 +8,7 @@ test('game over and debrief actions return to the title screen', () => {
   const main = source()
 
   expect(main).toContain("if (e.code === 'Enter' && this.state === 'gameover') this.returnToTitleFromGameOver()")
+  expect(main).toContain("this.ui.gameover.className = 'screen gameover-screen'")
   expect(main).toContain('private returnToTitleFromGameOver(')
   expect(main).toContain("continueButton.textContent = 'Return to Title'")
   expect(main).toContain('this.returnToTitleFromGameOver(input)')
