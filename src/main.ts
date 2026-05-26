@@ -26,6 +26,7 @@ import {
 } from './game-balance'
 import { navigationCruiseScalar, navigationTrailProfile } from './navigation-cruise'
 import { selectPlanetBiome, type PlanetBiomeProfile } from './planet-biomes'
+import { planetNameFor } from './planet-names'
 import { pickupMagnetRange, pickupMagnetStrength } from './pickup-magnet'
 import { planetRadius } from './planet-sizing'
 import { nextXpThreshold, runBalance } from './run-balance'
@@ -61,6 +62,7 @@ import {
   type SectorWaveOrder
 } from './sector-map'
 import { pressurePackSize, shouldRecycleEnemy } from './spawn-pressure'
+import { buildStationVisitRecord, journeyDistanceLy, stationNameForNode as stationMemoryNameForNode, type StationVisitRecord } from './station-memory'
 import {
   cameraTargetFor,
   screenToWorld as spaceScreenToWorld,
@@ -359,6 +361,8 @@ interface DebriefReport {
   }
   discoveries: PersistentArchiveRecord[]
   skippedBeacons: number
+  stationVisits: StationVisitRecord[]
+  lightYears: number
 }
 
 interface ReturnBeacon {
@@ -373,6 +377,7 @@ interface ReturnBeacon {
 }
 
 interface StationDockReport {
+  nodeId: string
   stationName: string
   nodeLabel: string
   fiction: string
@@ -381,6 +386,9 @@ interface StationDockReport {
   workbenchSignals: number
   scrap: number
   crystal: number
+  contactName: string
+  contactRole: string
+  rumor: string
   routeStatus: string
 }
 
@@ -906,6 +914,7 @@ class VectorShooter {
   private sectorMap: SectorMap = createSectorMap()
   private sectorNodeProfile: SectorNodeRunProfile = sectorNodeRunProfile(currentSectorNode(this.sectorMap))
   private stationDockReport: StationDockReport | null = null
+  private stationVisits: StationVisitRecord[] = []
   private sectorNodeStartedAt = 0
   private firedSectorWaves = new Set<string>()
   private planetChoice: Planet | null = null
@@ -1201,12 +1210,6 @@ class VectorShooter {
   private generatePlanet(chunkX: number, chunkY: number, index: number, rng: () => number, existing: Planet[] = []): Planet {
     const archetype = this.pickSectorPlanetArchetype(chunkX, chunkY, index, rng)
     const biome = selectPlanetBiome(archetype, chunkX, chunkY, index)
-    const prefix = ['LUX', 'RED', 'SAINT', 'GREEN', 'NULL', 'IRON', 'GHOST', 'VOID', 'GLASS', 'STATIC', 'DUST', 'HALO']
-    const suffix = archetype === 'lore'
-      ? ['OSSUARY', 'PYRAMID', 'GRAVE', 'FOSSIL SEA', 'TOMB', 'SCRIPTURE', 'BONE ORCHARD', 'MEMORIAL']
-      : archetype === 'horde'
-        ? ['HORDE VAULT', 'MASS GRAVE', 'FEAST VAULT', 'WARREN', 'DREAD HOLD', 'TREASURE PIT']
-      : ['MORGUE', 'MERCY', 'CHOIR', 'CATHEDRAL', 'WELL', 'ENGINE', 'RELIQUARY', 'ORCHARD', 'VAULT', 'CRADLE', 'WAKE', 'BEACON']
     const color = {
       cache: '#57fff3',
       hostile: '#ff5d73',
@@ -1216,7 +1219,7 @@ class VectorShooter {
       lore: '#d7fff7',
       horde: '#ff61d8'
     }[archetype]
-    const name = `${prefix[Math.floor(rng() * prefix.length)]} ${suffix[Math.floor(rng() * suffix.length)]}`
+    const name = planetNameFor({ archetype, biomeId: biome.id, chunkX, chunkY, index })
     const margin = 420
     const radius = planetRadius(rng)
     let x = chunkX * CHUNK_SIZE + margin + rng() * (CHUNK_SIZE - margin * 2)
@@ -8888,6 +8891,13 @@ class VectorShooter {
     const before = { ...this.mothership.resources }
     const archiveRecords = this.currentRunArchiveRecords()
     const discoveries = Object.values(archiveRecords)
+    const nodesCleared = this.sectorMap.nodes.filter((node) => node.completed && node.kind !== 'mothership').length
+    const lightYears = journeyDistanceLy({
+      nodesCleared,
+      planetsVisited: this.stats.planets,
+      stationsDocked: this.stationVisits.length,
+      skippedStations: this.skippedReturnBeacons
+    })
     this.mothership = applyRunRecovery(this.mothership, {
       outcome,
       resources: this.resources,
@@ -8911,7 +8921,9 @@ class VectorShooter {
         recovered
       },
       discoveries,
-      skippedBeacons: this.skippedReturnBeacons
+      skippedBeacons: this.skippedReturnBeacons,
+      stationVisits: [...this.stationVisits],
+      lightYears
     }
     this.returnBeacon = null
     this.autoNavTargetBeacon = false
@@ -8954,12 +8966,19 @@ class VectorShooter {
       <div><b>${this.debrief.resources.recovered.crystal}</b><span>Crystals Recovered</span></div>
       <div><b>${this.debrief.resources.recovered.cores}</b><span>Cores Recovered</span></div>
       <div><b>${this.debrief.discoveries.length}</b><span>Discoveries Logged</span></div>
+      <div><b>${this.debrief.lightYears}</b><span>Light Years</span></div>
+      <div><b>${this.debrief.stationVisits.length}</b><span>Stations Docked</span></div>
     `
     const discoveries = document.createElement('p')
     discoveries.className = 'copy small'
     discoveries.textContent = this.debrief.discoveries.length
       ? this.debrief.discoveries.slice(0, 4).map((record) => record.title).join(' // ')
       : 'No new archive records.'
+    const stationRoute = document.createElement('p')
+    stationRoute.className = 'copy small'
+    stationRoute.textContent = this.debrief.stationVisits.length
+      ? `Station route: ${this.debrief.stationVisits.slice(0, 4).map((visit) => visit.stationName).join(' // ')}`
+      : 'No stations docked this expedition.'
     const bonus = document.createElement('p')
     bonus.className = 'copy small'
     bonus.textContent = this.debrief.skippedBeacons > 0 ? `Deep route bonus from ${this.debrief.skippedBeacons} skipped station${this.debrief.skippedBeacons === 1 ? '' : 's'}.` : ''
@@ -8995,7 +9014,7 @@ class VectorShooter {
       this.showScores()
     })
     row.append(continueButton, scores)
-    panel.append(h, copy, resources, discoveries, bonus, input, row)
+    panel.append(h, copy, resources, discoveries, stationRoute, bonus, input, row)
     this.ui.gameover.append(panel)
     this.showOnly('gameover')
   }
@@ -9097,7 +9116,8 @@ class VectorShooter {
     for (const node of this.sectorMap.nodes) {
       const pos = this.sectorNodePosition(node)
       const isAvailable = choices.some((choice) => choice.id === node.id)
-      const stateLabel = node.completed ? 'DONE' : node.id === this.sectorMap.currentNodeId ? 'HERE' : isAvailable ? 'OPEN' : 'LOCK'
+      const stationVisit = this.stationVisits.find((visit) => visit.nodeId === node.id)
+      const stateLabel = stationVisit ? 'DOCKED' : node.completed ? 'DONE' : node.id === this.sectorMap.currentNodeId ? 'HERE' : isAvailable ? 'OPEN' : 'LOCK'
       const button = document.createElement('button')
       button.type = 'button'
       button.className = this.sectorNodeClass(node, choices)
@@ -9110,7 +9130,7 @@ class VectorShooter {
         <span class="sector-node-label">${this.escape(node.label.replace(/\s+\d+-\d+$/, ''))}</span>
         <span class="sector-node-state">${stateLabel}</span>
       `
-      button.title = `${node.label}: ${node.description}`
+      button.title = stationVisit ? `${stationVisit.stationName}: ${stationVisit.contactName}, ${stationVisit.contactRole}` : `${node.label}: ${node.description}`
       button.disabled = !isAvailable
       button.addEventListener('click', () => this.launchSectorNode(node.id))
       graph.append(button)
@@ -9128,9 +9148,12 @@ class VectorShooter {
     const details = document.createElement('div')
     details.className = 'sector-map-details'
     const current = currentSectorNode(this.sectorMap)
+    const currentStationVisit = this.stationVisits.find((visit) => visit.nodeId === current.id)
     const heading = document.createElement('div')
     heading.className = 'sector-map-current'
-    heading.innerHTML = `<span>CURRENT NODE</span><h2>${this.escape(current.label)}</h2><p>${this.escape(current.description)}</p>`
+    heading.innerHTML = currentStationVisit
+      ? `<span>CURRENT NODE // DOCKED</span><h2>${this.escape(currentStationVisit.stationName)}</h2><p>${this.escape(`${currentStationVisit.contactName}, ${currentStationVisit.contactRole}: ${currentStationVisit.rumor}`)}</p>`
+      : `<span>CURRENT NODE</span><h2>${this.escape(current.label)}</h2><p>${this.escape(current.description)}</p>`
     const list = document.createElement('div')
     list.className = 'sector-choice-list'
     for (const choice of choices) {
@@ -9293,6 +9316,21 @@ class VectorShooter {
     this.toast(`${selected.label}: ${selected.kind === 'final' ? 'SURVIVE THE LAST STAND' : 'DOCK AT STATION TO CLEAR ROUTE'}`)
   }
 
+  private recordStationVisit(node: SectorNode, repaired: number, workbenchSignals: number, scrap: number, crystal: number) {
+    const existing = this.stationVisits.find((visit) => visit.nodeId === node.id)
+    if (existing) return existing
+    const visit = buildStationVisitRecord({
+      node,
+      dockedAtSeconds: this.stats.time,
+      repaired,
+      workbenchSignals,
+      scrap,
+      crystal
+    })
+    this.stationVisits.push(visit)
+    return visit
+  }
+
   private applySectorStationServices(node: SectorNode) {
     // Station services are run-only; permanent mothership meta upgrades remain game-over/mothership decisions.
     let repaired = 0
@@ -9317,22 +9355,26 @@ class VectorShooter {
       this.resources.crystal += crystal
     }
     this.audio.pickup('nav')
-    const stationName = this.stationNameForNode(node)
+    const visit = this.recordStationVisit(node, repaired, workbenchSignals, scrap, crystal)
     return {
-      stationName,
+      nodeId: node.id,
+      stationName: visit.stationName,
       nodeLabel: node.label,
-      fiction: this.stationFictionForNode(node, stationName, true),
+      fiction: this.stationFictionForNode(node, visit.stationName, true),
       serviceLine: `Station services are run-only. Hull +${repaired}, workbench ${workbenchSignals > 0 ? `+${workbenchSignals} signal` : 'signal already staged'}, scrap +${scrap}, crystal +${crystal}.`,
       repaired,
       workbenchSignals,
       scrap,
       crystal,
+      contactName: visit.contactName,
+      contactRole: visit.contactRole,
+      rumor: visit.rumor,
       routeStatus: 'Service berth clear. Route traffic control is holding your next jump.'
     }
   }
 
   private stationNameForNode(node: SectorNode) {
-    return `SPACE STATION ${17 + (hashString(`${node.id}:${node.label}`, 27) % 83)}`
+    return stationMemoryNameForNode(node)
   }
 
   private stationFictionForNode(node: SectorNode, stationName: string, serviceDock: boolean) {
@@ -9351,11 +9393,12 @@ class VectorShooter {
   }
 
   private routeStationDockReport(node: SectorNode): StationDockReport {
-    const stationName = this.stationNameForNode(node)
+    const visit = this.recordStationVisit(node, 0, 0, 0, 0)
     return {
-      stationName,
+      nodeId: node.id,
+      stationName: visit.stationName,
       nodeLabel: node.label,
-      fiction: this.stationFictionForNode(node, stationName, false),
+      fiction: this.stationFictionForNode(node, visit.stationName, false),
       serviceLine: this.pendingUpgrades > 0
         ? `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} banked in the station buffer.`
         : 'No mutation signals are waiting in the station buffer.',
@@ -9363,6 +9406,9 @@ class VectorShooter {
       workbenchSignals: 0,
       scrap: 0,
       crystal: 0,
+      contactName: visit.contactName,
+      contactRole: visit.contactRole,
+      rumor: visit.rumor,
       routeStatus: `${node.label} logged complete. Departure control is ready to hand you back to the sector map.`
     }
   }
@@ -9391,6 +9437,11 @@ class VectorShooter {
       </div>
       <p class="station-dock-copy">${this.escape(report.serviceLine)}</p>
       <p class="station-dock-copy">${this.escape(report.routeStatus)}</p>
+      <div class="station-contact-panel">
+        <b>${this.escape(report.contactName)}</b>
+        <span>${this.escape(report.contactRole)}</span>
+        <p>${this.escape(report.rumor)}</p>
+      </div>
     `
     const actions = document.createElement('div')
     actions.className = 'station-dock-actions'
@@ -9538,6 +9589,7 @@ class VectorShooter {
     this.surface = null
     this.returnBeacon = null
     this.stationDockReport = null
+    this.stationVisits = []
     this.nextReturnBeaconAt = 0
     this.skippedReturnBeacons = 0
     this.transitionTimer = 0

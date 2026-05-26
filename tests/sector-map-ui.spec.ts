@@ -99,3 +99,18 @@ test('dock action stays visible and pulses while a station is available', () => 
   expect(css).toContain('.touch-button.urgent')
   expect(css).toContain('@keyframes dock-action-pulse')
 })
+
+test('station visits persist as route memory and journey debrief context', () => {
+  const main = mainSource()
+
+  expect(main).toContain("from './station-memory'")
+  expect(main).toContain("from './planet-names'")
+  expect(main).toContain('private stationVisits: StationVisitRecord[] = []')
+  expect(main).toContain('private recordStationVisit(')
+  expect(main).toContain('station-contact-panel')
+  expect(main).toContain("stateLabel = stationVisit ? 'DOCKED'")
+  expect(main).toContain('stationVisits: [...this.stationVisits]')
+  expect(main).toContain('journeyDistanceLy({')
+  expect(main).toContain('Light Years')
+  expect(main).toContain('planetNameFor({')
+})
