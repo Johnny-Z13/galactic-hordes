@@ -19,10 +19,29 @@ test('gameplay events route to specialized audio cues', () => {
 
   expect(main).toContain('this.audio.fire(this.weaponSoundKind')
   expect(main).toContain("this.audio.fire('surface'")
+  expect(main).toContain('this.playBulletImpact(b.rail ? 1.3 : 1)')
+  expect(main).toContain('this.playBulletImpact(0.85)')
   expect(main).toContain('this.audio.install(this.installCueFor(choice), rare)')
   expect(main).toContain('this.audio.upgrade(this.installCueFor(choice),')
   expect(main).toContain('this.audio.planetSignal(planet.archetype)')
   expect(main).toContain('this.audio.boom(big ? ')
+})
+
+test('bullet impacts use an electric shield arc cue with cooldown', () => {
+  const main = source()
+  const impactCue = main.slice(main.indexOf('impact(power = 1)'), main.indexOf('pickup(kind: PickupSoundKind'))
+  const playBulletImpact = main.slice(main.indexOf('private playBulletImpact'), main.indexOf('private damageSpaceHazard'))
+
+  expect(impactCue).toContain("type: 'highpass'")
+  expect(impactCue).toContain('filter: 5200')
+  expect(impactCue).toContain('filter: 6400')
+  expect(impactCue).toContain("this.tone(spark, 0.038, 'square'")
+  expect(impactCue).toContain('setTimeout(() => this.tone(spark * 1.48')
+  expect(main).toContain('this.impact(1.2)')
+  expect(main).toContain('private bulletImpactCooldown = 0')
+  expect(main).toContain('this.bulletImpactCooldown -= dt')
+  expect(playBulletImpact).toContain('if (this.bulletImpactCooldown > 0) return')
+  expect(playBulletImpact).toContain('this.audio.impact(power)')
 })
 
 test('weapon pulse audio uses a slow flanger path', () => {

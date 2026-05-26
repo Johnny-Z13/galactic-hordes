@@ -9,6 +9,7 @@ import {
   spaceEnemyBalance,
   spaceEnemyKinds,
   spaceSpawnBalance,
+  spawnPressureMinutes,
   surfaceThreatBalance
 } from '../src/game-balance'
 
@@ -69,10 +70,22 @@ test('enemy attack cooldown ramps are balance data', () => {
 test('spawn and surface balance values are named and profile-scaled', () => {
   expect(spaceSpawnBalance.spawnCooldown.minSeconds).toBeGreaterThan(0)
   expect(spaceSpawnBalance.spawnCooldown.maxSeconds).toBeGreaterThan(1)
+  expect(spaceSpawnBalance.pressureRamp.fullStrengthSeconds).toBe(180)
   expect(spaceSpawnBalance.quietField.targetNearbyBase).toBeGreaterThan(0)
   expect(spaceSpawnBalance.quietField.targetNearbyMax).toBeGreaterThan(spaceSpawnBalance.quietField.targetNearbyBase)
   expect(surfaceThreatBalance.generic.baseHp).toBeGreaterThan(0)
   expect(surfaceThreatBalance.boss.contactDamage).toBeGreaterThan(surfaceThreatBalance.generic.contactDamage)
+})
+
+test('space spawn pressure ramps in slowly during the opening minutes', () => {
+  expect(spaceSpawnBalance.spawnCooldown.maxSeconds).toBe(1.35)
+  expect(spaceSpawnBalance.quietField.targetNearbyBase).toBe(3)
+  expect(spaceSpawnBalance.quietField.maxPackBase).toBe(1)
+  expect(spawnPressureMinutes(0)).toBe(0)
+  expect(spawnPressureMinutes(60)).toBeCloseTo(1 / 3)
+  expect(spawnPressureMinutes(120)).toBeCloseTo(4 / 3)
+  expect(spawnPressureMinutes(180)).toBeCloseTo(3)
+  expect(spawnPressureMinutes(300)).toBeCloseTo(5)
 })
 
 test('enemy picker can preview upcoming regular enemies before their normal gate', () => {

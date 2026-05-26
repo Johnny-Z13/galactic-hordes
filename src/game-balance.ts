@@ -112,8 +112,11 @@ export const spaceEnemyRunScaling = {
 } as const
 
 export const spaceSpawnBalance = {
+  pressureRamp: {
+    fullStrengthSeconds: 180
+  },
   spawnCooldown: {
-    maxSeconds: 1.15,
+    maxSeconds: 1.35,
     minSeconds: 0.2,
     pressureReductionPerMinute: 0.08,
     planetReduction: 0.018
@@ -132,13 +135,14 @@ export const spaceSpawnBalance = {
     reinforcementChance: 0.55
   },
   quietField: {
-    targetNearbyBase: 5,
+    reinforcementCooldownSeconds: 0.72,
+    targetNearbyBase: 3,
     targetNearbyPerMinute: 1.15,
-    targetNearbyMin: 5,
+    targetNearbyMin: 3,
     targetNearbyMax: 20,
-    maxPackBase: 2,
+    maxPackBase: 1,
     maxPackPerMinute: 0.4,
-    maxPackMin: 2,
+    maxPackMin: 1,
     maxPackMax: 7
   }
 } as const
@@ -235,6 +239,12 @@ export const spaceEnemyRunScale = (timeSeconds: number, planetsVisited: number) 
 )
 
 export const spaceEnemySpeedBonus = (timeSeconds: number) => timeSeconds * spaceEnemyRunScaling.speedPerSecond
+
+export const spawnPressureMinutes = (timeSeconds: number) => {
+  const minutes = Math.max(0, timeSeconds) / 60
+  const ramp = Math.max(1, spaceSpawnBalance.pressureRamp.fullStrengthSeconds)
+  return minutes * Math.min(1, Math.max(0, timeSeconds) / ramp)
+}
 
 export const scaledSpawnTimer = (seconds: number, profile: GameBalanceProfile = activeBalanceProfile) => seconds / profile.spawnRateMultiplier
 export const scaledBossTimer = (seconds: number, profile: GameBalanceProfile = activeBalanceProfile) => seconds / profile.bossRateMultiplier

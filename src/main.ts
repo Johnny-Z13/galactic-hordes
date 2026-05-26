@@ -21,6 +21,7 @@ import {
   spaceEnemyRunScale,
   spaceEnemySpeedBonus,
   spaceSpawnBalance,
+  spawnPressureMinutes,
   surfaceThreatBalance
 } from './game-balance'
 import { navigationCruiseScalar, navigationTrailProfile } from './navigation-cruise'
@@ -622,8 +623,17 @@ class AudioDirector {
   }
 
   hit() {
-    this.noise(0.055, 0.09, -12, { filter: 740, type: 'bandpass' })
-    this.tone(90, 0.09, 'sawtooth', 0.05, 0.012, -14, { bend: -22, filter: 900 })
+    this.impact(1.2)
+    this.tone(140, 0.065, 'triangle', 0.022, 0.01, -20, { bend: -34, filter: 820 })
+  }
+
+  impact(power = 1) {
+    const intensity = clamp(power, 0.65, 1.45)
+    const spark = 980 + Math.random() * 180
+    this.noise(0.032, 0.062 * intensity, -14, { filter: 3600 + spark, type: 'highpass' })
+    this.noise(0.052, 0.036 * intensity, -19, { filter: 1850 + spark * 0.35, type: 'bandpass' })
+    this.tone(spark, 0.038, 'square', 0.03 * intensity, 0.003, -15, { bend: 420, filter: 5200 })
+    setTimeout(() => this.tone(spark * 1.48, 0.032, 'triangle', 0.022 * intensity, 0.003, -17, { bend: -260, filter: 6400 }), 18)
   }
 
   pickup(kind: PickupSoundKind = 'xp') {
@@ -909,6 +919,8 @@ class VectorShooter {
   private nextReturnBeaconAt = 0
   private skippedReturnBeacons = 0
   private collisionFxCooldown = 0
+  private bulletImpactCooldown = 0
+  private quietFieldTimer = 0
   private pendingUpgrades = 0
   private takeoffAfterWorkbench = false
   private enemyId = 0
@@ -1436,6 +1448,10 @@ class VectorShooter {
       return
     }
     if (this.state !== 'playing') {
+      if (this.freezesGameplayCamera()) {
+        this.updateGameplayOverlay(dt)
+        return
+      }
       this.drawTitleDrift(dt)
       return
     }
@@ -1445,6 +1461,8 @@ class VectorShooter {
     this.bossTimer -= dt
     this.chestTimer -= dt
     this.collisionFxCooldown -= dt
+    this.bulletImpactCooldown -= dt
+    this.quietFieldTimer -= dt
     this.player.fireCd -= dt
     this.player.dashCd -= dt
     this.player.dashTime -= dt
@@ -1474,6 +1492,17 @@ class VectorShooter {
     this.updateCamera(dt)
     this.updateHud()
     if (this.player.hull <= 0) this.gameOver()
+  }
+
+  private freezesGameplayCamera() {
+    return this.state === 'levelup' || this.state === 'planet' || this.state === 'paused'
+  }
+
+  private updateGameplayOverlay(dt: number) {
+    this.toastTimer -= dt
+    if (this.toastTimer <= 0) this.ui.toast.classList.remove('visible')
+    this.updateParticles(dt)
+    this.updateHud()
   }
 
   private audioMood(): PlanetAudioMood {
@@ -2339,6 +2368,7 @@ class VectorShooter {
         if (Math.abs(hazard.x - b.x) > hazard.radius + b.radius || Math.abs(hazard.y - b.y) > hazard.radius + b.radius) continue
         const rr = hazard.radius + b.radius
         if ((hazard.x - b.x) ** 2 + (hazard.y - b.y) ** 2 < rr * rr) {
+          this.playBulletImpact(b.rail ? 1.25 : 0.9)
           this.damageSpaceHazard(hazard, b.damage, b.color)
           b.pierce -= 1
           hitAsteroid = true
@@ -2355,6 +2385,7 @@ class VectorShooter {
         if (Math.abs(e.x - b.x) > e.radius + b.radius || Math.abs(e.y - b.y) > e.radius + b.radius) continue
         const rr = e.radius + b.radius
         if ((e.x - b.x) ** 2 + (e.y - b.y) ** 2 < rr * rr) {
+          this.playBulletImpact(b.rail ? 1.3 : 1)
           this.damageEnemy(e, b.damage, b.rail ? '#fff27a' : '#57fff3')
           if (b.chain && b.chain > 0) this.spawnChainBolt(b, e)
           if (b.mine) this.burst(b.x, b.y, b.color, this.evolved.has('mine') ? 10 : 5, 120)
@@ -2366,6 +2397,12 @@ class VectorShooter {
         }
       }
     }
+  }
+
+  private playBulletImpact(power = 1) {
+    if (this.bulletImpactCooldown > 0) return
+    this.audio.impact(power)
+    this.bulletImpactCooldown = this.isHighLoad() ? 0.075 : 0.032
   }
 
   private damageSpaceHazard(hazard: SpaceHazardAsteroid, amount: number, color: string) {
@@ -2981,8 +3018,11 @@ class VectorShooter {
 
   private updateSpawning() {
     this.recycleDistantEnemies()
-    this.reinforceQuietField()
-    const pressure = this.stats.time / 60
+    if (this.quietFieldTimer <= 0) {
+      this.reinforceQuietField()
+      this.quietFieldTimer = spaceSpawnBalance.quietField.reinforcementCooldownSeconds
+    }
+    const pressure = spawnPressureMinutes(this.stats.time)
     const sectorPressure = this.sectorNodeProfile.spawnMultiplier
     if (this.spawnTimer <= 0) {
       const cooldown = spaceSpawnBalance.spawnCooldown
@@ -3183,7 +3223,7 @@ class VectorShooter {
   }
 
   private reinforceQuietField() {
-    const pressure = this.stats.time / 60
+    const pressure = spawnPressureMinutes(this.stats.time)
     const quiet = spaceSpawnBalance.quietField
     const nearby = this.countNearbyEnemies(ENEMY_PRESSURE_RADIUS)
     const targetNearbyEnemies = clamp(quiet.targetNearbyBase + Math.floor(pressure * quiet.targetNearbyPerMinute) + this.stats.planets, quiet.targetNearbyMin, quiet.targetNearbyMax)
@@ -4654,6 +4694,7 @@ class VectorShooter {
         const push = norm(threat.x - bullet.x, threat.y - bullet.y)
         threat.vx += push.x * 70
         threat.vy += push.y * 70
+        this.playBulletImpact(0.85)
         this.surfaceHitSpark(bullet.x, bullet.y, bullet.color)
         this.surface.bullets.splice(i, 1)
         break
@@ -9417,6 +9458,7 @@ class VectorShooter {
     this.player.angle = -Math.PI / 2
     this.player.aimAngle = -Math.PI / 2
     this.sectorNodeStartedAt = this.stats.time
+    this.quietFieldTimer = 0
     this.spawnTimer = node.kind === 'final' ? runBalance.timers.finalSectorSpawnSeconds : runBalance.timers.sectorSpawnSeconds
     this.bossTimer = this.sectorNodeProfile.bossRequired ? runBalance.timers.requiredBossSeconds : runBalance.timers.sectorBossSeconds
     this.chestTimer = node.kind === 'planet' ? runBalance.timers.planetNodeChestSeconds : runBalance.timers.startingChestSeconds
@@ -9499,6 +9541,9 @@ class VectorShooter {
     this.nextReturnBeaconAt = 0
     this.skippedReturnBeacons = 0
     this.transitionTimer = 0
+    this.collisionFxCooldown = 0
+    this.bulletImpactCooldown = 0
+    this.quietFieldTimer = 0
     this.pendingUpgrades = 0
     this.workbenchInstalling = false
     this.takeoffAfterWorkbench = false

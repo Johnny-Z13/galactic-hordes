@@ -331,6 +331,24 @@ test('workbench card selection does not shift card layout or shake the camera', 
   expect(applyEvolution).not.toContain('this.camera.shake')
 })
 
+test('workbench overlays freeze the gameplay camera instead of using title drift', () => {
+  const main = source()
+  const update = main.slice(main.indexOf('private update(dt: number)'), main.indexOf('private audioMood'))
+  const freezesGameplayCamera = main.slice(main.indexOf('private freezesGameplayCamera'), main.indexOf('private updateGameplayOverlay'))
+  const updateGameplayOverlay = main.slice(main.indexOf('private updateGameplayOverlay'), main.indexOf('private audioMood'))
+
+  expect(update).toContain('if (this.freezesGameplayCamera())')
+  expect(update).toContain('this.updateGameplayOverlay(dt)')
+  expect(update).toContain('this.drawTitleDrift(dt)')
+  expect(update.indexOf('this.updateGameplayOverlay(dt)')).toBeLessThan(update.indexOf('this.drawTitleDrift(dt)'))
+  expect(freezesGameplayCamera).toContain("this.state === 'levelup'")
+  expect(freezesGameplayCamera).toContain("this.state === 'planet'")
+  expect(freezesGameplayCamera).toContain("this.state === 'paused'")
+  expect(updateGameplayOverlay).not.toContain('this.camera.x')
+  expect(updateGameplayOverlay).not.toContain('this.camera.y')
+  expect(updateGameplayOverlay).not.toContain('this.stats.time += dt * 0.08')
+})
+
 test('workbench install refresh keeps the current bay set and scroll position', () => {
   const main = source()
   const applyChoice = main.slice(main.indexOf('private applyWorkbenchChoice'), main.indexOf('private applyUpgrade'))
