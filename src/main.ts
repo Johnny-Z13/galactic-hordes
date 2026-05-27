@@ -73,6 +73,8 @@ import {
 } from './space-camera'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
+import { norm, dist2, len, TAU } from './math-utils'
+import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
 import { advancedRewardEnemyKinds, spaceEnemyBehavior } from './space-enemy-behavior'
 import {
   alienBloomFormation,
@@ -426,7 +428,6 @@ interface PerfStats {
   fps: number
 }
 
-const TAU = Math.PI * 2
 const CHUNK_SIZE = 3600
 const CHUNK_LOAD_RADIUS = 1
 const CHUNK_KEEP_RADIUS = 3
@@ -448,16 +449,6 @@ const BOSS_CATALOG_ROWS = planetBossCatalogVariants.length
 const BOSS_CATALOG_FRAMES = 4
 const ALIEN_CATALOG_ROWS = planetAlienCatalogVariants.length
 const ALIEN_CATALOG_FRAMES = 4
-const dist2 = (a: Vec, b: Vec) => {
-  const dx = a.x - b.x
-  const dy = a.y - b.y
-  return dx * dx + dy * dy
-}
-const len = (x: number, y: number) => Math.hypot(x, y)
-const norm = (x: number, y: number): Vec => {
-  const l = len(x, y) || 1
-  return { x: x / l, y: y / l }
-}
 const angleLerp = (a: number, b: number, t: number) => {
   const diff = Math.atan2(Math.sin(b - a), Math.cos(b - a))
   return a + diff * t
@@ -920,6 +911,26 @@ class VectorShooter {
   private enemies: Enemy[] = []
   private enemyGrid = new Map<number, Enemy[]>()
   private nearbyEnemyScratch: Enemy[] = []
+  // Reused per-frame context for the extracted enemy-behaviors strategy table.
+  // playerX/playerY/time/hunger are refreshed once at the top of updateEnemies
+  // (mutable backing fields) to avoid per-enemy allocation; the rest are stable
+  // arrow delegates to the real private methods.
+  private enemyBehaviorCtx: EnemyBehaviorContext = {
+    playerX: 0,
+    playerY: 0,
+    time: 0,
+    hunger: 1,
+    spawnHostileBullet: (b) => { this.bullets.push({ ...b, pierce: 0, hostile: true }) },
+    burst: (x, y, color, count, speed) => this.burst(x, y, color, count, speed),
+    emitEnemyTrail: (e, color, intensity) => this.emitEnemyTrail(e, color, intensity),
+    fireHelixSpikes: (e, def, toP) => this.fireHelixSpikes(e, def, toP),
+    firePrismFan: (e, def, toP) => this.firePrismFan(e, def, toP),
+    fireSiphonVortex: (e, def) => this.fireSiphonVortex(e, def),
+    fireDreadnoughtBroadside: (e, def, toP) => this.fireDreadnoughtBroadside(e, def, toP),
+    fireCathedralLattice: (e, def, toP) => this.fireCathedralLattice(e, def, toP),
+    damagePlayer: (amount) => this.damagePlayer(amount),
+    killEnemy: (e, reward) => this.killEnemy(e, reward)
+  }
   private pickups: Pickup[] = []
   private particles: Particle[] = []
   private shockwaves: Shockwave[] = []
@@ -2467,6 +2478,11 @@ class VectorShooter {
   private updateEnemies(dt: number) {
     const hunger = this.relics.has('hungryCompass') ? 1.08 : 1
     const behavior = spaceEnemyBehavior
+    const ctx = this.enemyBehaviorCtx as { -readonly [K in 'playerX' | 'playerY' | 'time' | 'hunger']: number }
+    ctx.playerX = this.player.x
+    ctx.playerY = this.player.y
+    ctx.time = this.stats.time
+    ctx.hunger = hunger
     for (let i = this.enemies.length - 1; i >= 0; i -= 1) {
       const e = this.enemies[i]
       const enemyBalance = balancedSpaceEnemyDefinition(e.kind)
@@ -2474,214 +2490,10 @@ class VectorShooter {
       e.cd -= dt
       e.flash -= dt
       const toP = norm(this.player.x - e.x, this.player.y - e.y)
-      if (e.kind === 'chaser' || e.kind === 'splinter') {
-        const pursuit = e.kind === 'chaser' ? behavior.chaser.pursuit : behavior.splinter.pursuit
-        e.vx += toP.x * e.speed * pursuit * hunger * dt
-        e.vy += toP.y * e.speed * pursuit * hunger * dt
-      } else if (e.kind === 'brute') {
-        e.vx += toP.x * e.speed * behavior.brute.pursuit * hunger * dt
-        e.vy += toP.y * e.speed * behavior.brute.pursuit * hunger * dt
-      } else if (e.kind === 'shooter') {
-        const tuned = behavior.shooter
-        const d = Math.sqrt(dist2(e, this.player))
-        const side = { x: -toP.y, y: toP.x }
-        const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
-        e.vx += (toP.x * rangePull * e.speed + side.x * e.speed * tuned.strafe) * dt
-        e.vy += (toP.y * rangePull * e.speed + side.y * e.speed * tuned.strafe) * dt
-        if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) {
-          e.cd = enemyAttackCooldown(enemyBalance, this.stats.time)
-          const spread = this.stats.time > tuned.spreadUnlockSeconds ? tuned.spreadRadians : 0
-          for (let shot = spread ? -1 : 0; shot <= (spread ? 1 : 0); shot += 1) {
-            const a = Math.atan2(toP.y, toP.x) + shot * spread
-            this.bullets.push({
-              x: e.x + Math.cos(a) * e.radius,
-              y: e.y + Math.sin(a) * e.radius,
-              vx: Math.cos(a) * (enemyBalance.projectileSpeed ?? 0),
-              vy: Math.sin(a) * (enemyBalance.projectileSpeed ?? 0),
-              life: tuned.projectileLife,
-              damage: enemyBalance.projectileDamage ?? 0,
-              radius: tuned.projectileRadius,
-              color: '#ff61d8',
-              pierce: 0,
-              hostile: true
-            })
-          }
-          this.burst(e.x, e.y, '#ff61d8', 5, 100)
-        }
-      } else if (e.kind === 'razor') {
-        const tuned = behavior.razor
-        const sideSign = e.id % 2 === 0 ? 1 : -1
-        const side = { x: -toP.y * sideSign, y: toP.x * sideSign }
-        e.vx += (side.x * e.speed * tuned.strafe + toP.x * e.speed * tuned.pursuit) * dt
-        e.vy += (side.y * e.speed * tuned.strafe + toP.y * e.speed * tuned.pursuit) * dt
-        if (e.cd <= 0) {
-          e.cd = enemyBalance.attackCooldownSeconds ?? 0
-          e.vx += side.x * tuned.dashSideImpulse + toP.x * tuned.dashForwardImpulse
-          e.vy += side.y * tuned.dashSideImpulse + toP.y * tuned.dashForwardImpulse
-          this.emitEnemyTrail(e, '#57fff3', tuned.trailIntensity)
-        }
-      } else if (e.kind === 'skimmer') {
-        const tuned = behavior.skimmer
-        const d = Math.sqrt(dist2(e, this.player))
-        const sideSign = e.id % 2 === 0 ? 1 : -1
-        const side = { x: -toP.y * sideSign, y: toP.x * sideSign }
-        const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
-        const wave = Math.sin(e.phase * tuned.waveFrequency) * e.speed * tuned.waveScale
-        e.vx += (toP.x * rangePull * e.speed + side.x * e.speed * tuned.strafe + side.x * wave) * dt
-        e.vy += (toP.y * rangePull * e.speed + side.y * e.speed * tuned.strafe + side.y * wave) * dt
-        if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) {
-          e.cd = enemyAttackCooldown(enemyBalance, this.stats.time)
-          const baseAngle = Math.atan2(toP.y, toP.x)
-          for (let shot = -1; shot <= 1; shot += 1) {
-            const a = baseAngle + shot * tuned.spreadRadians
-            this.bullets.push({
-              x: e.x + Math.cos(a) * e.radius,
-              y: e.y + Math.sin(a) * e.radius,
-              vx: Math.cos(a) * (enemyBalance.projectileSpeed ?? 0),
-              vy: Math.sin(a) * (enemyBalance.projectileSpeed ?? 0),
-              life: tuned.projectileLife,
-              damage: enemyBalance.projectileDamage ?? 0,
-              radius: tuned.projectileRadius,
-              color: '#ffe66d',
-              pierce: 0,
-              hostile: true
-            })
-          }
-          this.burst(e.x, e.y, '#ffe66d', 6, 120)
-        }
-      } else if (e.kind === 'shard') {
-        const tuned = behavior.shard
-        const sideSign = Math.sin(e.phase * tuned.cornerFrequency + e.id) >= 0 ? 1 : -1
-        const side = { x: -toP.y * sideSign, y: toP.x * sideSign }
-        const corner = Math.sign(Math.sin(e.phase * tuned.cornerFrequency * 0.5 + e.id)) || 1
-        e.vx += (toP.x * e.speed * tuned.pursuit + side.x * e.speed * tuned.strafe) * dt
-        e.vy += (toP.y * e.speed * tuned.pursuit + side.y * e.speed * tuned.strafe) * dt
-        e.vx += side.x * tuned.cornerForce * corner * dt
-        e.vy += side.y * tuned.cornerForce * corner * dt
-        if (e.cd <= 0) {
-          e.cd = enemyBalance.attackCooldownSeconds ?? 0
-          e.vx += toP.x * tuned.dashForwardImpulse + side.x * tuned.dashSideImpulse
-          e.vy += toP.y * tuned.dashForwardImpulse + side.y * tuned.dashSideImpulse
-          this.emitEnemyTrail(e, '#a6ff4d', tuned.trailIntensity)
-        }
-      } else if (e.kind === 'helix') {
-        const tuned = behavior.helix
-        const d = Math.sqrt(dist2(e, this.player))
-        const side = { x: -toP.y, y: toP.x }
-        const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
-        const corkscrew = Math.sin(e.phase * tuned.corkscrewFrequency + e.id) * e.speed * tuned.corkscrewScale
-        e.vx += (toP.x * rangePull * e.speed + side.x * corkscrew) * dt
-        e.vy += (toP.y * rangePull * e.speed + side.y * corkscrew) * dt
-        if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) this.fireHelixSpikes(e, enemyBalance, toP)
-      } else if (e.kind === 'prism') {
-        const tuned = behavior.prism
-        const d = Math.sqrt(dist2(e, this.player))
-        const side = { x: -toP.y, y: toP.x }
-        const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
-        const orbit = Math.sin(e.phase * tuned.orbitFrequency + e.id * 0.7) * e.speed * tuned.orbitScale
-        e.vx += (toP.x * rangePull * e.speed + side.x * orbit) * dt
-        e.vy += (toP.y * rangePull * e.speed + side.y * orbit) * dt
-        if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) this.firePrismFan(e, enemyBalance, toP)
-      } else if (e.kind === 'bulwark') {
-        const tuned = behavior.bulwark
-        const d = Math.sqrt(dist2(e, this.player))
-        const side = { x: -toP.y, y: toP.x }
-        const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
-        const drift = Math.sin(e.phase * tuned.driftFrequency + e.id) * e.speed * tuned.driftScale
-        e.vx += (toP.x * rangePull * e.speed + side.x * drift) * dt
-        e.vy += (toP.y * rangePull * e.speed + side.y * drift) * dt
-        if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) {
-          e.cd = enemyBalance.attackCooldownSeconds ?? 0
-          for (let k = 0; k < tuned.shotCount; k += 1) {
-            const a = (k / tuned.shotCount) * TAU + e.phase * tuned.spinScale
-            this.bullets.push({
-              x: e.x + Math.cos(a) * e.radius,
-              y: e.y + Math.sin(a) * e.radius,
-              vx: Math.cos(a) * (enemyBalance.projectileSpeed ?? 0),
-              vy: Math.sin(a) * (enemyBalance.projectileSpeed ?? 0),
-              life: tuned.projectileLife,
-              damage: enemyBalance.projectileDamage ?? 0,
-              radius: tuned.projectileRadius,
-              color: '#f46cff',
-              pierce: 0,
-              hostile: true
-            })
-          }
-          this.burst(e.x, e.y, '#f46cff', 10, 150)
-        }
-      } else if (e.kind === 'siphon') {
-        const tuned = behavior.siphon
-        const d = Math.sqrt(dist2(e, this.player))
-        const sideSign = e.id % 2 === 0 ? 1 : -1
-        const side = { x: -toP.y * sideSign, y: toP.x * sideSign }
-        const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
-        const swirl = Math.sin(e.phase * tuned.swirlFrequency) * e.speed * tuned.swirlScale
-        e.vx += (toP.x * rangePull * e.speed + side.x * (e.speed * tuned.strafe + swirl)) * dt
-        e.vy += (toP.y * rangePull * e.speed + side.y * (e.speed * tuned.strafe + swirl)) * dt
-        if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) this.fireSiphonVortex(e, enemyBalance)
-      } else if (e.kind === 'dreadnought') {
-        const tuned = behavior.dreadnought
-        const d = Math.sqrt(dist2(e, this.player))
-        const side = { x: -toP.y, y: toP.x }
-        const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
-        const broadsideDrift = Math.sin(e.phase * tuned.driftFrequency + e.id) * e.speed * tuned.driftScale
-        e.vx += (toP.x * rangePull * e.speed + side.x * broadsideDrift) * dt
-        e.vy += (toP.y * rangePull * e.speed + side.y * broadsideDrift) * dt
-        if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) this.fireDreadnoughtBroadside(e, enemyBalance, toP)
-      } else if (e.kind === 'cathedral') {
-        const tuned = behavior.cathedral
-        const d = Math.sqrt(dist2(e, this.player))
-        const side = { x: -toP.y, y: toP.x }
-        const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
-        const orbit = Math.sin(e.phase * tuned.orbitFrequency) * e.speed * tuned.orbitScale
-        e.vx += (toP.x * rangePull * e.speed + side.x * orbit) * dt
-        e.vy += (toP.y * rangePull * e.speed + side.y * orbit) * dt
-        if (e.cd <= 0 && d < (enemyBalance.attackRange ?? 0)) this.fireCathedralLattice(e, enemyBalance, toP)
-      } else if (e.kind === 'lancer') {
-        const tuned = behavior.lancer
-        const d = Math.sqrt(dist2(e, this.player))
-        if (e.cd <= 0 && d < tuned.chargeRange) {
-          const chargeSpeed = tuned.chargeSpeedBase + this.stats.time * tuned.chargeSpeedPerSecond
-          e.vx = toP.x * chargeSpeed
-          e.vy = toP.y * chargeSpeed
-          e.cd = enemyBalance.attackCooldownSeconds ?? 0
-          this.burst(e.x, e.y, '#fff27a', 8, 120)
-        } else {
-          e.vx += Math.sin(e.phase * tuned.wobbleXFrequency) * tuned.wobbleForce * dt
-          e.vy += Math.cos(e.phase * tuned.wobbleYFrequency) * tuned.wobbleForce * dt
-        }
-      } else if (e.kind === 'mine') {
-        const tuned = behavior.mine
-        e.vx += Math.sin(e.phase * tuned.wobbleXFrequency) * tuned.wobbleForce * dt
-        e.vy += Math.cos(e.phase * tuned.wobbleYFrequency) * tuned.wobbleForce * dt
-        if (Math.sqrt(dist2(e, this.player)) < tuned.triggerRadius) {
-          this.damagePlayer(enemyBalance.contactDamage)
-          this.killEnemy(e, false)
-          continue
-        }
-      } else if (e.kind === 'warden') {
-        const tuned = behavior.warden
-        const d = Math.sqrt(dist2(e, this.player))
-        e.vx += toP.x * (d > tuned.desiredDistance ? tuned.approachForce : tuned.retreatForce) * dt
-        e.vy += toP.y * (d > tuned.desiredDistance ? tuned.approachForce : tuned.retreatForce) * dt
-        if (e.cd <= 0) {
-          e.cd = enemyBalance.attackCooldownSeconds ?? 0
-          for (let k = 0; k < tuned.shotCount; k += 1) {
-            const a = (k / tuned.shotCount) * TAU + e.phase
-            this.bullets.push({
-              x: e.x + Math.cos(a) * e.radius,
-              y: e.y + Math.sin(a) * e.radius,
-              vx: Math.cos(a) * (enemyBalance.projectileSpeed ?? 0),
-              vy: Math.sin(a) * (enemyBalance.projectileSpeed ?? 0),
-              life: tuned.projectileLife,
-              damage: enemyBalance.projectileDamage ?? 0,
-              radius: tuned.projectileRadius,
-              color: '#ff5d73',
-              pierce: 0,
-              hostile: true
-            })
-          }
-        }
+      const behaviorFn = enemyBehaviors[e.kind]
+      if (behaviorFn) {
+        const result = behaviorFn(e, this.enemyBehaviorCtx, dt, enemyBalance)
+        if (result === 'consumed') continue
       }
       const max = enemyBalance.maxSpeed ?? (e.kind === 'brute' ? e.speed * behavior.brute.maxSpeedMultiplier : e.speed)
       const s = len(e.vx, e.vy)
@@ -9718,6 +9530,7 @@ class VectorShooter {
     window.debugPlayerPosition = () => this.debugPlayerPosition()
     window.debugNearestEnemyDistance = () => this.debugNearestEnemyDistance()
     window.debugStepEnemies = (dt) => this.debugStepEnemies(dt)
+    window.debugEnemyCount = () => this.debugEnemyCount()
   }
 
   private debugSpawnSingleEnemy(kind: EnemyKind, dx: number, dy: number) {
@@ -9735,6 +9548,8 @@ class VectorShooter {
   }
 
   private debugStepEnemies(dt: number) { this.updateEnemies(dt); this.rebuildEnemyGrid() }
+
+  private debugEnemyCount() { return this.enemies.length }
 
   private loadScores(): ScoreEntry[] {
     try {
@@ -9819,6 +9634,7 @@ declare global {
     debugPlayerPosition?: () => { x: number; y: number }
     debugNearestEnemyDistance?: () => number
     debugStepEnemies?: (dt: number) => void
+    debugEnemyCount?: () => number
   }
 }
 
