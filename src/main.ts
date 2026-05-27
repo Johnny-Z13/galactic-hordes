@@ -9753,7 +9753,28 @@ class VectorShooter {
         perf: { ...this.perf }
       })
     }
+    const w = window as unknown as Record<string, unknown>
+    w.debugSpawnSingleEnemy = (kind: EnemyKind, dx: number, dy: number) => this.debugSpawnSingleEnemy(kind, dx, dy)
+    w.debugPlayerPosition = () => this.debugPlayerPosition()
+    w.debugNearestEnemyDistance = () => this.debugNearestEnemyDistance()
+    w.debugStepEnemies = (dt: number) => this.debugStepEnemies(dt)
   }
+
+  private debugSpawnSingleEnemy(kind: EnemyKind, dx: number, dy: number) {
+    this.enemies.length = 0
+    this.spawnEnemyAt(kind, this.player.x + dx, this.player.y + dy)
+    this.rebuildEnemyGrid()
+  }
+
+  private debugPlayerPosition() { return { x: this.player.x, y: this.player.y } }
+
+  private debugNearestEnemyDistance() {
+    let best = Infinity
+    for (const e of this.enemies) best = Math.min(best, Math.sqrt(dist2(e, this.player)))
+    return best
+  }
+
+  private debugStepEnemies(dt: number) { this.updateEnemies(dt); this.rebuildEnemyGrid() }
 
   private loadScores(): ScoreEntry[] {
     try {
