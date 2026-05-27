@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test'
 
+// REQUIRES: `npm run dev` (Vite on 127.0.0.1:5176) running before this test.
+// This is the only spec that drives the live game over the dev server; the other
+// specs are self-contained. Port is fixed by vite.config.ts.
 const HARNESS_URL = 'http://127.0.0.1:5176/?harness=1'
 const READY_TIMEOUT = 10_000
 

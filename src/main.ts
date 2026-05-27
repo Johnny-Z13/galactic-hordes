@@ -9753,15 +9753,14 @@ class VectorShooter {
         perf: { ...this.perf }
       })
     }
-    const w = window as unknown as Record<string, unknown>
-    w.debugSpawnSingleEnemy = (kind: EnemyKind, dx: number, dy: number) => this.debugSpawnSingleEnemy(kind, dx, dy)
-    w.debugPlayerPosition = () => this.debugPlayerPosition()
-    w.debugNearestEnemyDistance = () => this.debugNearestEnemyDistance()
-    w.debugStepEnemies = (dt: number) => this.debugStepEnemies(dt)
+    window.debugSpawnSingleEnemy = (kind, dx, dy) => this.debugSpawnSingleEnemy(kind, dx, dy)
+    window.debugPlayerPosition = () => this.debugPlayerPosition()
+    window.debugNearestEnemyDistance = () => this.debugNearestEnemyDistance()
+    window.debugStepEnemies = (dt) => this.debugStepEnemies(dt)
   }
 
   private debugSpawnSingleEnemy(kind: EnemyKind, dx: number, dy: number) {
-    this.enemies.length = 0
+    this.enemies.length = 0 // clear without side-effects (no killEnemy fx) — debug only
     this.spawnEnemyAt(kind, this.player.x + dx, this.player.y + dy)
     this.rebuildEnemyGrid()
   }
@@ -9855,6 +9854,10 @@ declare global {
         perf: PerfStats
       }
     }
+    debugSpawnSingleEnemy?: (kind: EnemyKind, dx: number, dy: number) => void
+    debugPlayerPosition?: () => { x: number; y: number }
+    debugNearestEnemyDistance?: () => number
+    debugStepEnemies?: (dt: number) => void
   }
 }
 
