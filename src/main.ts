@@ -72,6 +72,7 @@ import {
   worldToScreen as spaceWorldToScreen
 } from './space-camera'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
+import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { advancedRewardEnemyKinds, spaceEnemyBehavior } from './space-enemy-behavior'
 import {
   alienBloomFormation,
@@ -136,50 +137,10 @@ import { optionOrbProfile, pulseVolleyCount, rearGunProfile, starterSignatureFla
 
 type GameState = 'title' | 'mothership' | 'collection' | 'powerups' | 'sectorMap' | 'station' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
-type EnemyKind = SpaceEnemyKind
 type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
 type ArtifactKind = 'relic' | 'alien' | 'lore' | 'planet' | 'cache' | 'enemy'
 type MothershipConsoleView = 'workbench' | 'manifest'
 type MothershipCollectionFilter = 'all' | 'found' | 'locked' | ArtifactKind
-interface Vec {
-  x: number
-  y: number
-}
-
-interface Bullet {
-  x: number
-  y: number
-  vx: number
-  vy: number
-  life: number
-  damage: number
-  radius: number
-  color: string
-  pierce: number
-  rail?: boolean
-  hostile?: boolean
-  chain?: number
-  mine?: boolean
-  option?: boolean
-}
-
-interface Enemy {
-  id: number
-  kind: EnemyKind
-  x: number
-  y: number
-  vx: number
-  vy: number
-  hp: number
-  maxHp: number
-  radius: number
-  speed: number
-  value: number
-  phase: number
-  cd: number
-  color: string
-  flash: number
-}
 
 interface Pickup {
   kind: PickupKind
