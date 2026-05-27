@@ -17,6 +17,7 @@ import { norm, dist2, TAU } from './math-utils'
 export interface EnemyBehaviorContext {
   readonly playerX: number
   readonly playerY: number
+  readonly playerPos: Vec
   readonly time: number
   readonly hunger: number
   spawnHostileBullet(b: { x: number; y: number; vx: number; vy: number; life: number; damage: number; radius: number; color: string }): void
@@ -60,7 +61,7 @@ export const enemyBehaviors: Partial<Record<EnemyKind, EnemyBehaviorFn>> = {
   shooter: (e, ctx, dt, def) => {
     const toP = norm(ctx.playerX - e.x, ctx.playerY - e.y)
     const tuned = behavior.shooter
-    const d = Math.sqrt(dist2(e, { x: ctx.playerX, y: ctx.playerY }))
+    const d = Math.sqrt(dist2(e, ctx.playerPos))
     const side = { x: -toP.y, y: toP.x }
     const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
     e.vx += (toP.x * rangePull * e.speed + side.x * e.speed * tuned.strafe) * dt
@@ -103,7 +104,7 @@ export const enemyBehaviors: Partial<Record<EnemyKind, EnemyBehaviorFn>> = {
   skimmer: (e, ctx, dt, def) => {
     const toP = norm(ctx.playerX - e.x, ctx.playerY - e.y)
     const tuned = behavior.skimmer
-    const d = Math.sqrt(dist2(e, { x: ctx.playerX, y: ctx.playerY }))
+    const d = Math.sqrt(dist2(e, ctx.playerPos))
     const sideSign = e.id % 2 === 0 ? 1 : -1
     const side = { x: -toP.y * sideSign, y: toP.x * sideSign }
     const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
@@ -151,7 +152,7 @@ export const enemyBehaviors: Partial<Record<EnemyKind, EnemyBehaviorFn>> = {
   helix: (e, ctx, dt, def) => {
     const toP = norm(ctx.playerX - e.x, ctx.playerY - e.y)
     const tuned = behavior.helix
-    const d = Math.sqrt(dist2(e, { x: ctx.playerX, y: ctx.playerY }))
+    const d = Math.sqrt(dist2(e, ctx.playerPos))
     const side = { x: -toP.y, y: toP.x }
     const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
     const corkscrew = Math.sin(e.phase * tuned.corkscrewFrequency + e.id) * e.speed * tuned.corkscrewScale
@@ -163,7 +164,7 @@ export const enemyBehaviors: Partial<Record<EnemyKind, EnemyBehaviorFn>> = {
   prism: (e, ctx, dt, def) => {
     const toP = norm(ctx.playerX - e.x, ctx.playerY - e.y)
     const tuned = behavior.prism
-    const d = Math.sqrt(dist2(e, { x: ctx.playerX, y: ctx.playerY }))
+    const d = Math.sqrt(dist2(e, ctx.playerPos))
     const side = { x: -toP.y, y: toP.x }
     const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
     const orbit = Math.sin(e.phase * tuned.orbitFrequency + e.id * 0.7) * e.speed * tuned.orbitScale
@@ -175,7 +176,7 @@ export const enemyBehaviors: Partial<Record<EnemyKind, EnemyBehaviorFn>> = {
   bulwark: (e, ctx, dt, def) => {
     const toP = norm(ctx.playerX - e.x, ctx.playerY - e.y)
     const tuned = behavior.bulwark
-    const d = Math.sqrt(dist2(e, { x: ctx.playerX, y: ctx.playerY }))
+    const d = Math.sqrt(dist2(e, ctx.playerPos))
     const side = { x: -toP.y, y: toP.x }
     const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
     const drift = Math.sin(e.phase * tuned.driftFrequency + e.id) * e.speed * tuned.driftScale
@@ -203,7 +204,7 @@ export const enemyBehaviors: Partial<Record<EnemyKind, EnemyBehaviorFn>> = {
   siphon: (e, ctx, dt, def) => {
     const toP = norm(ctx.playerX - e.x, ctx.playerY - e.y)
     const tuned = behavior.siphon
-    const d = Math.sqrt(dist2(e, { x: ctx.playerX, y: ctx.playerY }))
+    const d = Math.sqrt(dist2(e, ctx.playerPos))
     const sideSign = e.id % 2 === 0 ? 1 : -1
     const side = { x: -toP.y * sideSign, y: toP.x * sideSign }
     const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
@@ -216,7 +217,7 @@ export const enemyBehaviors: Partial<Record<EnemyKind, EnemyBehaviorFn>> = {
   dreadnought: (e, ctx, dt, def) => {
     const toP = norm(ctx.playerX - e.x, ctx.playerY - e.y)
     const tuned = behavior.dreadnought
-    const d = Math.sqrt(dist2(e, { x: ctx.playerX, y: ctx.playerY }))
+    const d = Math.sqrt(dist2(e, ctx.playerPos))
     const side = { x: -toP.y, y: toP.x }
     const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
     const broadsideDrift = Math.sin(e.phase * tuned.driftFrequency + e.id) * e.speed * tuned.driftScale
@@ -228,7 +229,7 @@ export const enemyBehaviors: Partial<Record<EnemyKind, EnemyBehaviorFn>> = {
   cathedral: (e, ctx, dt, def) => {
     const toP = norm(ctx.playerX - e.x, ctx.playerY - e.y)
     const tuned = behavior.cathedral
-    const d = Math.sqrt(dist2(e, { x: ctx.playerX, y: ctx.playerY }))
+    const d = Math.sqrt(dist2(e, ctx.playerPos))
     const side = { x: -toP.y, y: toP.x }
     const rangePull = d > tuned.farDistance ? tuned.farPull : d < tuned.nearDistance ? tuned.nearPull : tuned.holdPull
     const orbit = Math.sin(e.phase * tuned.orbitFrequency) * e.speed * tuned.orbitScale
@@ -240,7 +241,7 @@ export const enemyBehaviors: Partial<Record<EnemyKind, EnemyBehaviorFn>> = {
   lancer: (e, ctx, dt, def) => {
     const toP = norm(ctx.playerX - e.x, ctx.playerY - e.y)
     const tuned = behavior.lancer
-    const d = Math.sqrt(dist2(e, { x: ctx.playerX, y: ctx.playerY }))
+    const d = Math.sqrt(dist2(e, ctx.playerPos))
     if (e.cd <= 0 && d < tuned.chargeRange) {
       const chargeSpeed = tuned.chargeSpeedBase + ctx.time * tuned.chargeSpeedPerSecond
       e.vx = toP.x * chargeSpeed
@@ -257,7 +258,7 @@ export const enemyBehaviors: Partial<Record<EnemyKind, EnemyBehaviorFn>> = {
     const tuned = behavior.mine
     e.vx += Math.sin(e.phase * tuned.wobbleXFrequency) * tuned.wobbleForce * dt
     e.vy += Math.cos(e.phase * tuned.wobbleYFrequency) * tuned.wobbleForce * dt
-    if (Math.sqrt(dist2(e, { x: ctx.playerX, y: ctx.playerY })) < tuned.triggerRadius) {
+    if (Math.sqrt(dist2(e, ctx.playerPos)) < tuned.triggerRadius) {
       ctx.damagePlayer(def.contactDamage)
       ctx.killEnemy(e, false)
       return 'consumed'
@@ -267,7 +268,7 @@ export const enemyBehaviors: Partial<Record<EnemyKind, EnemyBehaviorFn>> = {
   warden: (e, ctx, dt, def) => {
     const toP = norm(ctx.playerX - e.x, ctx.playerY - e.y)
     const tuned = behavior.warden
-    const d = Math.sqrt(dist2(e, { x: ctx.playerX, y: ctx.playerY }))
+    const d = Math.sqrt(dist2(e, ctx.playerPos))
     e.vx += toP.x * (d > tuned.desiredDistance ? tuned.approachForce : tuned.retreatForce) * dt
     e.vy += toP.y * (d > tuned.desiredDistance ? tuned.approachForce : tuned.retreatForce) * dt
     if (e.cd <= 0) {

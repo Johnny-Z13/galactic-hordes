@@ -918,6 +918,7 @@ class VectorShooter {
   private enemyBehaviorCtx: EnemyBehaviorContext = {
     playerX: 0,
     playerY: 0,
+    playerPos: { x: 0, y: 0 },
     time: 0,
     hunger: 1,
     spawnHostileBullet: (b) => { this.bullets.push({ ...b, pierce: 0, hostile: true }) },
@@ -2483,6 +2484,8 @@ class VectorShooter {
     ctx.playerY = this.player.y
     ctx.time = this.stats.time
     ctx.hunger = hunger
+    this.enemyBehaviorCtx.playerPos.x = this.player.x
+    this.enemyBehaviorCtx.playerPos.y = this.player.y
     for (let i = this.enemies.length - 1; i >= 0; i -= 1) {
       const e = this.enemies[i]
       const enemyBalance = balancedSpaceEnemyDefinition(e.kind)
