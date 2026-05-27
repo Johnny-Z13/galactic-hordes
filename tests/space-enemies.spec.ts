@@ -85,13 +85,13 @@ test('space enemy sprite atlas has one row per new enemy and four frames', () =>
 })
 
 test('high-load renderer batches every sprite enemy kind', () => {
-  const source = readFileSync('src/main.ts', 'utf8')
+  const source = readFileSync('src/render/enemies.ts', 'utf8')
 
   for (const kind of spriteEnemyKinds) {
-    expect(source).toContain(`strokeEnemyBatch(ctx, '${kind}'`)
+    expect(source).toContain(`strokeEnemyBatch(view, '${kind}'`)
   }
 
-  expect(source).toContain('this.renderPrioritySpriteEnemies(ctx)')
+  expect(source).toContain('renderPrioritySpriteEnemies(view)')
 })
 
 test('giant boss enemies have dedicated attack routines', () => {

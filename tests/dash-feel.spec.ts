@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import { powerupBalance, upgrades } from '../src/powerup-balance'
 
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+const playerRender = () => readFileSync(resolve(process.cwd(), 'src/render/player.ts'), 'utf8')
 
 test('dash uses a short active burst instead of a one frame nudge', () => {
   const main = source()
@@ -57,10 +58,11 @@ test('dash upgrade path supports longer faster invulnerable escapes', () => {
 
 test('dash has dedicated wake and render VFX hooks', () => {
   const main = source()
+  const render = playerRender()
 
   expect(main).toContain('private emitDashWake(')
   expect(main).toContain('this.emitDashWake(d, 1.35)')
   expect(main).toContain('this.emitDashWake({ x: this.player.dashX, y: this.player.dashY }')
-  expect(main).toContain('const dashActive = this.player.dashTime > 0')
-  expect(main).toContain('dashActive ?')
+  expect(render).toContain('const dashActive = view.player.dashTime > 0')
+  expect(render).toContain('dashActive ?')
 })
