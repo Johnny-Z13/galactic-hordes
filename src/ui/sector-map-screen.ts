@@ -123,6 +123,7 @@ export function showSectorMap(self: VectorShooter, message: string) {
         <span class="sector-choice-metrics" aria-label="Route metrics">
           <span><b>${planets}</b><em>PLANETS</em></span>
           <span><b>${choice.config.waves.length}</b><em>${sectorWaveLabel(choice.config.waveOrder)}</em></span>
+          <span><b>${sectorFirstWaveLabel(choice)}</b><em>CONTACT</em></span>
           <span><b>x${profile.spawnMultiplier.toFixed(2)}</b><em>PRESSURE</em></span>
           <span><b>${self['escape'](hazards)}</b><em>HAZARDS</em></span>
         </span>
@@ -205,10 +206,16 @@ function sectorNodeConfigSummary(node: SectorNode, profile: SectorNodeRunProfile
   return [
     `PLANETS ${sectorPlanetLabel(node.config.planets.countMin, node.config.planets.countMax)}`,
     `WAVES ${node.config.waves.length} ${sectorWaveLabel(node.config.waveOrder)}`,
+    `FIRST ${sectorFirstWaveLabel(node)}`,
     `HAZARDS ${sectorHazardsLabel(node.config.hazards)}`,
     `PRESSURE x${profile.spawnMultiplier.toFixed(2)}`,
     modifierSummary
   ].filter(Boolean).join(' / ')
+}
+
+function sectorFirstWaveLabel(node: SectorNode) {
+  const firstWave = node.config.waves[0]
+  return firstWave ? `${firstWave.atSeconds}s` : '--'
 }
 
 function sectorMapDebugReadout(self: VectorShooter) {
