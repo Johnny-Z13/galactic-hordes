@@ -148,7 +148,7 @@ import {
   type WorkbenchUpgradeRow
 } from './workbench-rolls'
 import { workbenchBayDefinitions, workbenchBayForUpgrade, type WorkbenchBayDefinition, type WorkbenchBayId } from './workbench-bays'
-import { optionOrbProfile, pulseVolleyCount, rearGunProfile, starterSignatureFlags } from './weapon-signatures'
+import { optionOrbProfile, pulseVolleyCount, rearGunProfile, starterSignatureFlags, weaponHudReadout } from './weapon-signatures'
 import {
   renderLevelUp as uiRenderLevelUp,
   currentLevelUpScrollTop as uiCurrentLevelUpScrollTop,
@@ -744,6 +744,7 @@ export class VectorShooter {
     wave: document.createElement('span'),
     high: document.createElement('span'),
     resources: document.createElement('span'),
+    weapon: document.createElement('span'),
     hullFill: document.createElement('div'),
     xpFill: document.createElement('div'),
     toast: document.createElement('div'),
@@ -834,10 +835,11 @@ export class VectorShooter {
     const left = document.createElement('div')
     left.className = 'hud-cluster hud-cluster-left'
     left.append(this.chip('TIME', this.ui.time), this.chip('SCORE', this.ui.score))
+    const weapon = this.chip('WEAPON', this.ui.weapon, 'weapon wide')
     this.ui.toast.className = 'toast'
     this.ui.perf.className = 'perf'
     hud.append(top, this.ui.toast, this.makeTouchControls())
-    top.append(meters, left)
+    top.append(meters, left, weapon)
     return hud
   }
 
@@ -6269,6 +6271,11 @@ export class VectorShooter {
     this.ui.time.textContent = formatTime(this.stats.time)
     this.ui.wave.textContent = this.stats.kills.toString()
     this.ui.high.textContent = Math.max(this.stats.highScore, this.stats.score).toString()
+    const weaponReadout = weaponHudReadout({
+      build: this.build,
+      evolved: this.evolved
+    })
+    this.ui.weapon.textContent = weaponReadout.text
     const beaconText = this.returnBeacon
       ? ` // STATION ${Math.floor(Math.sqrt(dist2(this.returnBeacon, this.player)))}`
       : ''

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { optionOrbProfile, pulseVolleyCount, rearGunProfile, starterSignatureFlags } from '../src/weapon-signatures'
+import { optionOrbProfile, pulseVolleyCount, rearGunProfile, starterSignatureFlags, weaponHudReadout } from '../src/weapon-signatures'
 
 test('pulse cannon rank five earns its promised cadence double shot', () => {
   expect(pulseVolleyCount({ rapidRank: 4, fireSerial: 10, evolved: false })).toBe(1)
@@ -57,4 +57,33 @@ test('rear gun upgrade adds backward fire coverage and scales into twin barrels'
   expect(rearGunProfile(1)).toMatchObject({ shots: 1, spread: 0 })
   expect(rearGunProfile(3).shots).toBe(2)
   expect(rearGunProfile(5).damageMultiplier).toBeGreaterThan(rearGunProfile(1).damageMultiplier)
+})
+
+test('weapon hud readout starts as the base pulse cannon', () => {
+  expect(weaponHudReadout({ build: {}, evolved: new Set() })).toEqual({
+    name: 'Pulse Cannon',
+    tags: ['BASE'],
+    text: 'Pulse Cannon // BASE'
+  })
+})
+
+test('weapon hud readout names the strongest visible branch and limits tags', () => {
+  const readout = weaponHudReadout({
+    build: { rapid: 5, split: 3, rail: 2, chain: 1, orbit: 1 },
+    evolved: new Set()
+  })
+
+  expect(readout.name).toBe('Rail Lattice')
+  expect(readout.tags).toEqual(['VOLLEY', 'FAN', 'ARC'])
+  expect(readout.text).toBe('Rail Lattice // VOLLEY FAN ARC')
+})
+
+test('weapon hud readout gives evolved weapons naming priority', () => {
+  const readout = weaponHudReadout({
+    build: { rapid: 8, split: 6, rail: 6, rift: 5 },
+    evolved: new Set(['rapid', 'rail'])
+  })
+
+  expect(readout.name).toBe('Choir Cannon')
+  expect(readout.tags).toEqual(['EVOLVED', 'VOLLEY', 'RAIL'])
 })
