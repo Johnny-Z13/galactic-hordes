@@ -77,7 +77,7 @@ import {
   spaceViewportScale,
   worldToScreen as spaceWorldToScreen
 } from './space-camera'
-import { fireOptionOrbs as fireOptionOrbWeapons, fireRearGun as fireRearGunWeapons, optionOrbAngle, optionOrbWorldPosition } from './space-player-weapons'
+import { fireOptionOrbs as fireOptionOrbWeapons, fireRearGun as fireRearGunWeapons, optionOrbAngle, optionOrbWorldPosition, spawnChainBolt as spawnChainBoltWeapon } from './space-player-weapons'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { clamp, norm, dist2, hash32, len, rngFrom, TAU } from './math-utils'
@@ -2030,7 +2030,17 @@ export class VectorShooter {
         if ((e.x - b.x) ** 2 + (e.y - b.y) ** 2 < rr * rr) {
           this.playBulletImpact(b.rail ? 1.3 : 1)
           this.damageEnemy(e, b.damage, b.rail ? '#fff27a' : '#57fff3')
-          if (b.chain && b.chain > 0) this.spawnChainBolt(b, e)
+          if (b.chain && b.chain > 0) {
+            spawnChainBoltWeapon({
+              bullets: this.bullets,
+              enemies: this.enemies,
+              source: b,
+              hit: e,
+              chainRank: this.build.chain,
+              evolvedChain: this.evolved.has('chain'),
+              maxBullets: MAX_BULLETS
+            })
+          }
           if (b.mine) this.burst(b.x, b.y, b.color, this.evolved.has('mine') ? 10 : 5, 120)
           b.pierce -= 1
           if (b.pierce < 0) {
@@ -2077,35 +2087,6 @@ export class VectorShooter {
         damageMultiplier: hazard.damageMultiplier
       })
     }
-  }
-
-  private spawnChainBolt(source: Bullet, hit: Enemy) {
-    if (this.bullets.length > MAX_BULLETS - 4) return
-    let best: Enemy | null = null
-    let bestD = (powerupBalance.chain.rangeBase + this.build.chain * powerupBalance.chain.rangePerRank) ** 2
-    for (const enemy of this.enemies) {
-      if (enemy === hit || enemy.hp <= 0) continue
-      const d = (enemy.x - hit.x) ** 2 + (enemy.y - hit.y) ** 2
-      if (d < bestD) {
-        bestD = d
-        best = enemy
-      }
-    }
-    if (!best) return
-    const aim = norm(best.x - hit.x, best.y - hit.y)
-    this.bullets.push({
-      x: hit.x,
-      y: hit.y,
-      vx: aim.x * 960,
-      vy: aim.y * 960,
-      life: 0.16,
-      damage: source.damage * (this.evolved.has('chain') ? 0.58 : 0.42),
-      radius: 4,
-      color: '#fff27a',
-      pierce: 0,
-      rail: true,
-      chain: source.chain ? source.chain - 1 : 0
-    })
   }
 
   private rebuildEnemyGrid() {

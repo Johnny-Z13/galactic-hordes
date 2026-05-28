@@ -1,4 +1,4 @@
-import type { Bullet } from './main-types'
+import type { Bullet, Enemy } from './main-types'
 import { powerupBalance } from './powerup-balance'
 import { spaceProjectileLifeForOffscreenTravel } from './space-camera'
 import { optionOrbProfile, rearGunProfile } from './weapon-signatures'
@@ -36,6 +36,16 @@ export interface RearGunFireInput extends WeaponViewportInput {
   rearRank: number
   damage: number
   speed: number
+  maxBullets: number
+}
+
+export interface ChainBoltInput {
+  bullets: Bullet[]
+  enemies: Enemy[]
+  source: Bullet
+  hit: Enemy
+  chainRank: number
+  evolvedChain: boolean
   maxBullets: number
 }
 
@@ -119,4 +129,36 @@ export function fireRearGun(input: RearGunFireInput) {
       chain: 0
     })
   }
+}
+
+export function spawnChainBolt(input: ChainBoltInput) {
+  if (input.bullets.length > input.maxBullets - 4) return
+  let best: Enemy | null = null
+  let bestD = (powerupBalance.chain.rangeBase + input.chainRank * powerupBalance.chain.rangePerRank) ** 2
+  for (const enemy of input.enemies) {
+    if (enemy === input.hit || enemy.hp <= 0) continue
+    const d = (enemy.x - input.hit.x) ** 2 + (enemy.y - input.hit.y) ** 2
+    if (d < bestD) {
+      bestD = d
+      best = enemy
+    }
+  }
+  if (!best) return
+  const dx = best.x - input.hit.x
+  const dy = best.y - input.hit.y
+  const length = Math.hypot(dx, dy) || 1
+  const aim = { x: dx / length, y: dy / length }
+  input.bullets.push({
+    x: input.hit.x,
+    y: input.hit.y,
+    vx: aim.x * 960,
+    vy: aim.y * 960,
+    life: 0.16,
+    damage: input.source.damage * (input.evolvedChain ? 0.58 : 0.42),
+    radius: 4,
+    color: '#fff27a',
+    pierce: 0,
+    rail: true,
+    chain: input.source.chain ? input.source.chain - 1 : 0
+  })
 }
