@@ -5,6 +5,8 @@ test('introHookConfig has the expected tuning keys and sane defaults', () => {
   expect(introHookConfig.waypoint.durationSeconds).toBeGreaterThan(0)
   expect(introHookConfig.popup.lifeSeconds).toBeGreaterThan(0)
   expect(introHookConfig.popup.riseSpeed).toBeGreaterThan(0)
+  expect(introHookConfig.popup.cap).toBeGreaterThan(0)
+  expect(introHookConfig.popup.color).toMatch(/^#[0-9a-fA-F]{6}$/)
   expect(introHookConfig.hitFlash.durationSeconds).toBeGreaterThan(0)
   expect(introHookConfig.hitFlash.dashRamDurationSeconds).toBeGreaterThan(introHookConfig.hitFlash.durationSeconds)
   expect(introHookConfig.hitFlash.color).toMatch(/^#[0-9a-fA-F]{6}$/)

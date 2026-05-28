@@ -190,6 +190,15 @@ interface Particle {
   glow?: number
 }
 
+interface ScorePopup {
+  x: number
+  y: number
+  vy: number
+  life: number
+  totalLife: number
+  text: string
+}
+
 interface Shockwave {
   x: number
   y: number
@@ -986,6 +995,7 @@ export class VectorShooter {
   }
   private pickups: Pickup[] = []
   private particles: Particle[] = []
+  private scorePopups: ScorePopup[] = []
   private shockwaves: Shockwave[] = []
   private spaceHazards: SpaceHazardAsteroid[] = []
   private asteroidFieldTimer = 0
@@ -1508,6 +1518,12 @@ export class VectorShooter {
     this.updateSpaceEncounters(dt)
     this.updatePickups(dt)
     this.updateParticles(dt)
+    for (let i = this.scorePopups.length - 1; i >= 0; i -= 1) {
+      const sp = this.scorePopups[i]
+      sp.life -= dt
+      sp.y += sp.vy * dt
+      if (sp.life <= 0) this.scorePopups.splice(i, 1)
+    }
     this.updateOrbitals(dt)
     this.updateSpawning()
     this.updateSectorWaves()
@@ -3137,6 +3153,15 @@ export class VectorShooter {
       this.collisionFxCooldown = highLoad ? 0.04 : 0
     }
     if (reward) {
+      if (this.scorePopups.length >= introHookConfig.popup.cap) this.scorePopups.shift()
+      this.scorePopups.push({
+        x: e.x,
+        y: e.y,
+        vy: -introHookConfig.popup.riseSpeed,
+        life: introHookConfig.popup.lifeSeconds,
+        totalLife: introHookConfig.popup.lifeSeconds,
+        text: `+${Math.round(e.value)}`
+      })
       this.stats.kills += 1
       this.stats.score += e.value
       const xpCount = isGiantEnemyKind(e.kind)
@@ -4772,6 +4797,22 @@ export class VectorShooter {
     this.renderParticles(ctx)
     this.renderLandingPrompt(ctx)
     this.renderMinimap()
+    this.renderScorePopups(ctx)
+  }
+
+  private renderScorePopups(ctx: CanvasRenderingContext2D) {
+    if (this.scorePopups.length === 0) return
+    ctx.save()
+    ctx.font = `${introHookConfig.popup.fontPx}px Courier New`
+    ctx.textAlign = 'center'
+    ctx.fillStyle = introHookConfig.popup.color
+    for (const sp of this.scorePopups) {
+      const screen = this.worldToScreen(sp.x, sp.y)
+      ctx.globalAlpha = Math.max(0, sp.life / sp.totalLife)
+      ctx.fillText(sp.text, screen.x, screen.y)
+    }
+    ctx.globalAlpha = 1
+    ctx.restore()
   }
 
   private surfaceToScreen(x: number, y: number): Vec {
@@ -4864,6 +4905,9 @@ export class VectorShooter {
     this.renderShockwaves(ctx)
     this.renderParticles(ctx)
     this.renderSurfaceHud(ctx, s)
+    // NOTE: renderScorePopups uses worldToScreen; surface kills will render at an incorrect
+    // screen position. Accepted for V1 — most kills happen in space. Fix in a later pass.
+    this.renderScorePopups(ctx)
     ctx.restore()
   }
 

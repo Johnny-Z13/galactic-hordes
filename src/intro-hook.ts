@@ -5,7 +5,7 @@ export const introHookConfig = {
     fontPx: 14,
     color: '#fff27a'
   },
-  popup: { lifeSeconds: 0.6, riseSpeed: 40, fontPx: 13 },
+  popup: { lifeSeconds: 0.6, riseSpeed: 40, fontPx: 13, cap: 60, color: '#fff27a' },
   hitFlash: { durationSeconds: 0.08, dashRamDurationSeconds: 0.12, color: '#ff5d73' },
   hitstop: { durationSeconds: 0.04, giantKindsOnly: true },
   magnetGlint: { frameInterval: 4, particleSpeed: 30 },
