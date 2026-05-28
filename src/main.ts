@@ -107,6 +107,7 @@ import { renderSurfaceShip as drawSurfaceShip } from './surface/render-ship'
 import { renderSurfaceThreats } from './surface/render-threats'
 import { renderSurfaceWorld as drawSurfaceWorld } from './surface/render-world'
 import { alienGiftOfferCopy, createBadAlienGiftThreats } from './surface/alien-gifts'
+import { createSurfaceCacheArtifact, resolveSurfaceCacheReward, surfaceCacheAmbushChance } from './surface/cache-rewards'
 import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurfaceBulletsAndThreatDamage } from './surface/bullet-combat'
 import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction, surfaceTakeoffRequest, surfaceTransitionProgress } from './surface/lifecycle'
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
@@ -3024,29 +3025,27 @@ export class VectorShooter {
 
   private resolvePlanetCache(resource: SurfaceResource) {
     if (!this.surface) return
-    this.recordArtifact({
-      id: 'cache:surface',
-      kind: 'cache',
-      title: 'Surface Cache',
-      detail: `${this.surface.event.toUpperCase()} cache cracked open.`,
-      source: this.surface.planet.name,
-      color: this.artifactColor('cache', `${this.surface.planet.id}:${resource.x}:${resource.y}`),
-      icon: hashString(`${this.surface.planet.id}:${resource.x}:${resource.y}`, 67) % 16
-    })
-    const luck = this.build.luck * powerupBalance.planetCache.luckRelicChancePerRank + this.build.survey * powerupBalance.planetCache.surveyRelicChancePerRank
-    const cargoBonus = 1 + this.build.cargo * powerupBalance.upgradeApply.cargoResourceBonusPerRank
-    this.stats.score += Math.floor(
-      (powerupBalance.planetCache.scoreBase + this.stats.level * powerupBalance.planetCache.scorePerLevel)
-      * (1 + this.build.cargo * powerupBalance.upgradeApply.cargoCacheScoreBonusPerRank)
-    )
-    this.resources.scrap += Math.ceil(rand(powerupBalance.planetCache.scrapMin, powerupBalance.planetCache.scrapMax) * cargoBonus)
-    this.resources.crystal += Math.ceil(rand(powerupBalance.planetCache.crystalMin, powerupBalance.planetCache.crystalMax) * cargoBonus)
-    this.resources.cores += powerupBalance.planetCache.coresBase + (this.build.cargo >= powerupBalance.upgradeApply.cargoCoreBonusThreshold ? powerupBalance.upgradeApply.cargoCoreBonus : 0)
+    const artifactColor = this.artifactColor('cache', `${this.surface.planet.id}:${resource.x}:${resource.y}`)
+    this.recordArtifact(createSurfaceCacheArtifact({
+      event: this.surface.event,
+      planet: this.surface.planet,
+      resource,
+      color: artifactColor
+    }))
     const missingRelics = relics.filter((relic) => !this.relics.has(relic.id))
-    const relicChance = powerupBalance.planetCache.relicChanceBase + luck
-    const extraSignalChance = powerupBalance.planetCache.extraSignalChanceBase + luck
-    if (missingRelics.length && Math.random() < relicChance) {
-      const relic = missingRelics[Math.floor(Math.random() * missingRelics.length)]
+    const reward = resolveSurfaceCacheReward({
+      level: this.stats.level,
+      build: this.build,
+      missingRelicCount: missingRelics.length,
+      random: Math.random,
+      randomRange: rand
+    })
+    this.stats.score += reward.score
+    this.resources.scrap += reward.scrap
+    this.resources.crystal += reward.crystal
+    this.resources.cores += reward.cores
+    if (reward.relicIndex !== null) {
+      const relic = missingRelics[reward.relicIndex]
       this.acquireRelic(relic)
       this.surface.message = `${relic.name.toUpperCase()} RECOVERED. GET BACK TO THE SHIP.`
     } else {
@@ -3055,16 +3054,11 @@ export class VectorShooter {
         ? 'MUTATION CACHE SECURED. GET BACK TO THE SHIP.'
         : 'SIGNAL BUFFER FULL. CACHE CONVERTED TO CARGO.'
     }
-    if (Math.random() < extraSignalChance) {
+    if (reward.extraSignal) {
       this.bankSurfaceUpgrade('BONUS MUTATION SIGNAL FOUND IN CACHE')
     }
     const cacheMessage = this.surface.message
-    const ambushChance = Math.max(
-      powerupBalance.planetCache.ambushChanceMin,
-      powerupBalance.planetCache.ambushChanceBase
-        - this.build.survey * powerupBalance.planetCache.ambushChanceReductionPerSurveyRank
-        + (this.relics.has('staticIdol') ? powerupBalance.planetCache.staticIdolAmbushChancePenalty : 0)
-    )
+    const ambushChance = surfaceCacheAmbushChance({ surveyRank: this.build.survey, hasStaticIdol: this.relics.has('staticIdol') })
     if (Math.random() < ambushChance) {
       const keepouts = this.surfaceThreatKeepouts(this.surface.pilot, this.surface.ship)
       const ambush = surfaceRunBalance.cacheAmbush
