@@ -97,6 +97,7 @@ import { renderPickups as drawPickups } from './render/pickups'
 import { renderParticles as drawParticles, renderParticlesSimple as drawParticlesSimple } from './render/particles'
 import { renderShockwaves as drawShockwaves } from './render/shockwaves'
 import { renderOrbitals as drawOrbitals } from './render/orbitals'
+import { renderBullets as drawBullets, renderBulletsSimple as drawBulletsSimple } from './render/bullets'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
 import { advancedRewardEnemyKinds, spaceEnemyBehavior } from './space-enemy-behavior'
 import {
@@ -5769,90 +5770,28 @@ export class VectorShooter {
     }
     const scale = this.spaceScale()
     const signature = starterSignatureFlags(this.build)
-    for (const b of this.bullets) {
-      const p = this.worldToScreen(b.x, b.y)
-      if (p.x < -80 || p.x > this.width + 80 || p.y < -80 || p.y > this.height + 80) continue
-      ctx.save()
-      ctx.strokeStyle = b.color
-      ctx.shadowColor = b.color
-      ctx.shadowBlur = this.allowGlow() ? (b.rail ? 18 : b.option ? 16 : 10) : 0
-      ctx.lineWidth = b.rail ? 3 : b.option ? 2.4 : 2
-      ctx.beginPath()
-      if (b.mine) {
-        const radius = b.radius * scale
-        ctx.arc(p.x, p.y, radius, 0, TAU)
-        ctx.moveTo(p.x - radius, p.y)
-        ctx.lineTo(p.x + radius, p.y)
-      } else {
-        const tail = norm(b.vx, b.vy)
-        if (signature.pulseWake && !b.hostile) {
-          ctx.globalAlpha = b.rail ? 0.35 : 0.28
-          ctx.beginPath()
-          ctx.arc(p.x - tail.x * 5 * scale, p.y - tail.y * 5 * scale, (b.radius + 5) * scale, 0, TAU)
-          ctx.stroke()
-          ctx.globalAlpha = 1
-          ctx.beginPath()
-        }
-        if (signature.prismFins && !b.rail && !b.hostile) {
-          const side = { x: -tail.y, y: tail.x }
-          ctx.globalAlpha = 0.44
-          ctx.moveTo(p.x - tail.x * 8 * scale + side.x * 5 * scale, p.y - tail.y * 8 * scale + side.y * 5 * scale)
-          ctx.lineTo(p.x + tail.x * 3 * scale, p.y + tail.y * 3 * scale)
-          ctx.moveTo(p.x - tail.x * 8 * scale - side.x * 5 * scale, p.y - tail.y * 8 * scale - side.y * 5 * scale)
-          ctx.lineTo(p.x + tail.x * 3 * scale, p.y + tail.y * 3 * scale)
-          ctx.globalAlpha = 1
-        }
-        if (b.option && !b.hostile) {
-          ctx.globalAlpha = 0.62
-          ctx.arc(p.x - tail.x * 3 * scale, p.y - tail.y * 3 * scale, (b.radius + 3.5) * scale, 0, TAU)
-          ctx.moveTo(p.x - tail.x * 8 * scale - tail.y * 4 * scale, p.y - tail.y * 8 * scale + tail.x * 4 * scale)
-          ctx.lineTo(p.x + tail.x * 4 * scale, p.y + tail.y * 4 * scale)
-          ctx.moveTo(p.x - tail.x * 8 * scale + tail.y * 4 * scale, p.y - tail.y * 8 * scale - tail.x * 4 * scale)
-          ctx.lineTo(p.x + tail.x * 4 * scale, p.y + tail.y * 4 * scale)
-          ctx.globalAlpha = 1
-        }
-        ctx.moveTo(p.x - tail.x * (b.rail ? 26 : 12) * scale, p.y - tail.y * (b.rail ? 26 : 12) * scale)
-        ctx.lineTo(p.x + tail.x * (b.rail ? 16 : 7) * scale, p.y + tail.y * (b.rail ? 16 : 7) * scale)
-      }
-      ctx.stroke()
-      ctx.restore()
-    }
+    drawBullets({
+      ctx,
+      bullets: this.bullets,
+      width: this.width,
+      height: this.height,
+      glow: this.allowGlow(),
+      scale,
+      signature,
+      worldToScreen: (x, y) => this.worldToScreen(x, y)
+    })
   }
 
   private renderBulletsSimple(ctx: CanvasRenderingContext2D) {
     const scale = this.spaceScale()
-    ctx.save()
-    ctx.shadowBlur = 0
-    ctx.lineWidth = 2
-    ctx.strokeStyle = 'rgba(215,255,247,0.82)'
-    ctx.beginPath()
-    for (const b of this.bullets) {
-      const { x, y } = this.worldToScreen(b.x, b.y)
-      if (x < -80 || x > this.width + 80 || y < -80 || y > this.height + 80) continue
-      const mag = Math.hypot(b.vx, b.vy) || 1
-      const tx = b.vx / mag
-      const ty = b.vy / mag
-      const rear = (b.rail ? 24 : 11) * scale
-      const nose = (b.rail ? 15 : 7) * scale
-      ctx.moveTo(x - tx * rear, y - ty * rear)
-      ctx.lineTo(x + tx * nose, y + ty * nose)
-    }
-    ctx.stroke()
-    ctx.strokeStyle = 'rgba(255,242,122,0.86)'
-    ctx.lineWidth = 3
-    ctx.beginPath()
-    for (const b of this.bullets) {
-      if (!b.rail) continue
-      const { x, y } = this.worldToScreen(b.x, b.y)
-      if (x < -80 || x > this.width + 80 || y < -80 || y > this.height + 80) continue
-      const mag = Math.hypot(b.vx, b.vy) || 1
-      const tx = b.vx / mag
-      const ty = b.vy / mag
-      ctx.moveTo(x - tx * 28 * scale, y - ty * 28 * scale)
-      ctx.lineTo(x + tx * 18 * scale, y + ty * 18 * scale)
-    }
-    ctx.stroke()
-    ctx.restore()
+    drawBulletsSimple({
+      ctx,
+      bullets: this.bullets,
+      width: this.width,
+      height: this.height,
+      scale,
+      worldToScreen: (x, y) => this.worldToScreen(x, y)
+    })
   }
 
   private renderEnemies(ctx: CanvasRenderingContext2D) {
