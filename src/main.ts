@@ -475,7 +475,10 @@ interface PerfStats {
 const CHUNK_SIZE = 3600
 const CHUNK_LOAD_RADIUS = 1
 const CHUNK_KEEP_RADIUS = 3
-const STORAGE_KEY = 'vector_shooter_high_scores'
+const SCORE_STORAGE_KEY = 'galactic_hordes_high_scores_v1'
+const LEGACY_SCORE_STORAGE_KEYS = ['vector_shooter_high_scores']
+const GRAPHICS_STORAGE_KEY = 'galactic_hordes_graphics_v1'
+const LEGACY_GRAPHICS_STORAGE_KEYS = ['vector_shooter_graphics']
 const MOTHERSHIP_STORAGE_KEY = 'galactic_hordes_mothership_v2'
 const GRID_CELL = 180
 const GRID_STRIDE = 1000
@@ -489,6 +492,12 @@ const ENEMY_PRESSURE_RADIUS = 1250
 
 export const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
 const rand = (min: number, max: number) => min + Math.random() * (max - min)
+
+const localStorageWithFallback = (primaryKey: string, legacyKeys: string[]) => (
+  localStorage.getItem(primaryKey) ?? legacyKeys.map((key) => localStorage.getItem(key)).find((value) => value !== null) ?? null
+)
+
+const savedGraphicsMode = (): GraphicsMode => (localStorageWithFallback(GRAPHICS_STORAGE_KEY, LEGACY_GRAPHICS_STORAGE_KEYS) as GraphicsMode | null) || 'LOW'
 const ALIEN_CATALOG_ROWS = planetAlienCatalogVariants.length
 const ALIEN_CATALOG_FRAMES = 4
 const angleLerp = (a: number, b: number, t: number) => {
@@ -569,7 +578,7 @@ export class VectorShooter {
       }
     }
   }
-  private graphicsMode: GraphicsMode = (localStorage.getItem('vector_shooter_graphics') as GraphicsMode) || 'LOW'
+  private graphicsMode: GraphicsMode = savedGraphicsMode()
   private perf: PerfStats = { updateMs: 0, renderMs: 0, frameMs: 16.7, fps: 60 }
   private keys = new Set<string>()
   private pressed = new Set<string>()
@@ -4595,7 +4604,7 @@ export class VectorShooter {
 
   private setGraphicsMode(mode: GraphicsMode) {
     this.graphicsMode = mode
-    localStorage.setItem('vector_shooter_graphics', mode)
+    localStorage.setItem(GRAPHICS_STORAGE_KEY, mode)
     this.resize()
     this.toast(`GRAPHICS ${mode}`)
   }
@@ -6569,7 +6578,7 @@ export class VectorShooter {
 
   private loadScores(): ScoreEntry[] {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') as ScoreEntry[]
+      return JSON.parse(localStorageWithFallback(SCORE_STORAGE_KEY, LEGACY_SCORE_STORAGE_KEYS) || '[]') as ScoreEntry[]
     } catch {
       return []
     }
@@ -6587,7 +6596,10 @@ export class VectorShooter {
     const keys = Object.keys(localStorage)
     for (const key of keys) {
       if (
-        key === STORAGE_KEY
+        key === SCORE_STORAGE_KEY
+        || LEGACY_SCORE_STORAGE_KEYS.includes(key)
+        || key === GRAPHICS_STORAGE_KEY
+        || LEGACY_GRAPHICS_STORAGE_KEYS.includes(key)
         || key === MOTHERSHIP_STORAGE_KEY
         || key.startsWith('galactic_hordes_')
       ) {
@@ -6620,7 +6632,7 @@ export class VectorShooter {
       date: new Date().toISOString()
     }
     this.highs = [...this.highs, entry].sort((a, b) => b.score - a.score).slice(0, 10)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.highs))
+    localStorage.setItem(SCORE_STORAGE_KEY, JSON.stringify(this.highs))
   }
 
   private escape(value: string) {
