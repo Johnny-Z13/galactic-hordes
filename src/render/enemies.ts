@@ -2,6 +2,7 @@ import type { Vec, Enemy, EnemyKind } from '../main-types'
 import { TAU } from '../math-utils'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spriteEnemyKinds } from '../space-enemies'
 import { damageFeedbackConfig } from '../combat/damage-feedback'
+import { enemyHealthReadout } from './enemy-health-readout'
 
 export interface EnemiesView {
   ctx: CanvasRenderingContext2D
@@ -23,6 +24,7 @@ export function renderEnemies(view: EnemiesView): void {
   if (highLoad) {
     renderHordeEnemies(view)
     renderPrioritySpriteEnemies(view)
+    renderEnemyHealthReadouts(view)
     return
   }
   for (const e of view.enemies) {
@@ -108,6 +110,7 @@ export function renderEnemies(view: EnemiesView): void {
     }
     ctx.restore()
   }
+  renderEnemyHealthReadouts(view)
 }
 
 function renderSpaceSpriteEnemy(view: EnemiesView, e: Enemy, p: Vec): void {
@@ -171,6 +174,42 @@ function renderPrioritySpriteEnemies(view: EnemiesView): void {
     if (p.x < -margin || p.x > view.width + margin || p.y < -margin || p.y > view.height + margin) continue
     renderSpaceSpriteEnemy(view, e, p)
   }
+}
+
+function renderEnemyHealthReadouts(view: EnemiesView): void {
+  const ctx = view.ctx
+  ctx.save()
+  ctx.shadowBlur = 0
+  for (const e of view.enemies) {
+    const readout = enemyHealthReadout({
+      enemy: e,
+      highLoad: view.isHighLoad,
+      scale: view.scale
+    })
+    if (!readout) continue
+    const p = view.worldToScreen(e.x, e.y)
+    if (p.x < -110 || p.x > view.width + 110 || p.y < -110 || p.y > view.height + 110) continue
+    const x = p.x - readout.width / 2
+    const y = p.y + readout.yOffset
+    const fillWidth = Math.max(0, (readout.width - 2) * readout.fillRatio)
+    ctx.save()
+    ctx.globalAlpha = readout.alpha
+    ctx.fillStyle = readout.trackColor
+    ctx.strokeStyle = readout.strokeColor
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.roundRect(x, y, readout.width, readout.height, readout.height / 2)
+    ctx.fill()
+    ctx.stroke()
+    if (fillWidth > 0) {
+      ctx.fillStyle = readout.fillColor
+      ctx.beginPath()
+      ctx.roundRect(x + 1, y + 1, fillWidth, Math.max(1, readout.height - 2), Math.max(1, (readout.height - 2) / 2))
+      ctx.fill()
+    }
+    ctx.restore()
+  }
+  ctx.restore()
 }
 
 function renderHordeEnemies(view: EnemiesView): void {
