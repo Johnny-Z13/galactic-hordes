@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test'
-import { introWaypointLabelAnchor } from '../src/ui/intro-waypoint'
+import * as introWaypoint from '../src/ui/intro-waypoint'
 
 test('intro waypoint label anchor stays inside narrow mobile viewport edges', () => {
-  const left = introWaypointLabelAnchor({
+  const left = introWaypoint.introWaypointLabelAnchor({
     width: 390,
     height: 844,
     targetScreen: { x: -220, y: 520 },
@@ -10,7 +10,7 @@ test('intro waypoint label anchor stays inside narrow mobile viewport edges', ()
     label: 'LAND HERE',
     sublabel: 'MERCY FOSSIL SEA'
   })
-  const right = introWaypointLabelAnchor({
+  const right = introWaypoint.introWaypointLabelAnchor({
     width: 390,
     height: 844,
     targetScreen: { x: 720, y: 520 },
@@ -26,7 +26,7 @@ test('intro waypoint label anchor stays inside narrow mobile viewport edges', ()
 })
 
 test('intro waypoint label anchor keeps bottom-edge desktop labels inside the viewport', () => {
-  const anchor = introWaypointLabelAnchor({
+  const anchor = introWaypoint.introWaypointLabelAnchor({
     width: 1280,
     height: 720,
     targetScreen: { x: 318, y: 940 },
@@ -38,4 +38,32 @@ test('intro waypoint label anchor keeps bottom-edge desktop labels inside the vi
   expect(anchor.textX).toBeGreaterThanOrEqual(anchor.maxTextWidth / 2 + 12)
   expect(anchor.textBottom).toBeLessThanOrEqual(720 - 18)
   expect(anchor.textY).toBeLessThan(anchor.arrowY)
+})
+
+test('intro waypoint offscreen top label stays below the desktop hud reserve', () => {
+  const anchor = introWaypoint.introWaypointLabelAnchor({
+    width: 1280,
+    height: 720,
+    targetScreen: { x: 810, y: -180 },
+    fontPx: 14,
+    label: 'LAND HERE',
+    sublabel: 'MERCY'
+  })
+
+  expect(anchor.textY).toBeGreaterThanOrEqual(92)
+  expect(anchor.textBottom).toBeLessThanOrEqual(720 - 18)
+})
+
+test('intro waypoint onscreen label stays below the desktop hud reserve', () => {
+  const anchor = introWaypoint.introWaypointOnscreenLabelAnchor({
+    width: 1280,
+    height: 720,
+    targetScreen: { x: 810, y: 54 },
+    fontPx: 14,
+    label: 'LAND HERE',
+    sublabel: 'MERCY'
+  })
+
+  expect(anchor.textY).toBeGreaterThanOrEqual(92)
+  expect(anchor.textBottom).toBeLessThanOrEqual(720 - 18)
 })

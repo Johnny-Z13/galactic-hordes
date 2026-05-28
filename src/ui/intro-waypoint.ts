@@ -37,13 +37,26 @@ export function introWaypointLabelAnchor(input: IntroWaypointLabelAnchorInput) {
   const lineGap = input.fontPx + 2
   const descent = Math.max(4, input.fontPx * 0.3)
   const bottomLimit = input.height - 18
-  const minTextY = input.fontPx + 8
+  const minTextY = input.width < 560 ? 96 : 92
   const maxTextY = bottomLimit - lineGap - descent
   const preferredTextY = sin > 0.45
     ? arrowY - 22 - lineGap
     : arrowY + 22
   const textY = Math.max(minTextY, Math.min(maxTextY, preferredTextY))
   return { arrowX, arrowY, textX, textY, textBottom: textY + lineGap + descent, angle, maxTextWidth }
+}
+
+export function introWaypointOnscreenLabelAnchor(input: IntroWaypointLabelAnchorInput) {
+  const longest = Math.max(input.label.length, input.sublabel.length)
+  const maxTextWidth = Math.min(input.width - 16, Math.max(96, longest * input.fontPx * 0.68))
+  const textX = Math.max(maxTextWidth / 2 + 8, Math.min(input.width - maxTextWidth / 2 - 8, input.targetScreen.x))
+  const lineGap = input.fontPx + 2
+  const descent = Math.max(4, input.fontPx * 0.3)
+  const topReserve = input.width < 560 ? 96 : 92
+  const maxTextY = input.height - 18 - lineGap - descent
+  const preferredTextY = input.targetScreen.y - 28
+  const textY = Math.max(topReserve, Math.min(maxTextY, preferredTextY))
+  return { textX, textY, textBottom: textY + lineGap + descent, maxTextWidth }
 }
 
 export function renderIntroArrow(view: IntroWaypointView): void {
@@ -59,9 +72,16 @@ export function renderIntroArrow(view: IntroWaypointView): void {
   ctx.shadowColor = introHookConfig.waypoint.color
   ctx.shadowBlur = 8
   if (onScreen) {
-    // Small label near the planet.
-    ctx.fillText('LAND HERE', targetScreen.x, targetScreen.y - 28)
-    ctx.fillText(planetName, targetScreen.x, targetScreen.y - 14)
+    const anchor = introWaypointOnscreenLabelAnchor({
+      width,
+      height,
+      targetScreen,
+      fontPx: introHookConfig.waypoint.fontPx,
+      label: 'LAND HERE',
+      sublabel: planetName
+    })
+    ctx.fillText('LAND HERE', anchor.textX, anchor.textY, anchor.maxTextWidth)
+    ctx.fillText(planetName, anchor.textX, anchor.textY + introHookConfig.waypoint.fontPx + 2, anchor.maxTextWidth)
   } else {
     const anchor = introWaypointLabelAnchor({
       width,
