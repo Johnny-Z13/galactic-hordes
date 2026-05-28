@@ -93,6 +93,7 @@ import { renderPlayer as drawPlayer } from './render/player'
 import { renderEnemies as drawEnemies } from './render/enemies'
 import { renderSpawnEntryPings as drawSpawnEntryPings } from './render/spawn-entry-pings'
 import { renderImpactPulses as drawImpactPulses } from './render/impact-pulses'
+import { renderPickups as drawPickups } from './render/pickups'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
 import { advancedRewardEnemyKinds, spaceEnemyBehavior } from './space-enemy-behavior'
 import {
@@ -5892,66 +5893,17 @@ export class VectorShooter {
   }
 
   private renderPickups(ctx: CanvasRenderingContext2D) {
-    const highLoad = this.isHighLoad()
-    const scale = this.spaceScale()
-    for (const p of this.pickups) {
-      const s = this.worldToScreen(p.x, p.y)
-      if (s.x < -60 || s.x > this.width + 60 || s.y < -60 || s.y > this.height + 60) continue
-      ctx.save()
-      ctx.translate(s.x, s.y)
-      ctx.strokeStyle = p.color
-      ctx.fillStyle = p.color
-      ctx.shadowColor = p.color
-      ctx.shadowBlur = highLoad ? 0 : this.allowGlow() ? 18 : 10
-      ctx.lineWidth = 2
-      const pulse = 1 + Math.sin(this.stats.time * 5 + p.value) * 0.08
-      const r = p.radius * pulse * scale
-      const outerGlow = p.kind === 'xp' ? r + pickupBalance.xp.radius : r + pickupBalance.defaultRadius
-      ctx.globalAlpha = 0.28
-      ctx.beginPath()
-      ctx.arc(0, 0, outerGlow, 0, TAU)
-      ctx.stroke()
-      ctx.globalAlpha = 0.95
-      ctx.beginPath()
-      if (p.kind === 'xp') {
-        ctx.arc(0, 0, Math.max(4, r * 0.55), 0, TAU)
-        ctx.fill()
-        ctx.globalAlpha = 1
-        ctx.beginPath()
-        ctx.moveTo(-r - 3, 0)
-        ctx.lineTo(r + 3, 0)
-        ctx.moveTo(0, -r - 3)
-        ctx.lineTo(0, r + 3)
-      } else if (p.kind === 'chest') {
-        ctx.roundRect(-r, -r * 0.72, r * 2, r * 1.44, 4)
-        ctx.moveTo(-r, -r * 0.18)
-        ctx.lineTo(r, -r * 0.18)
-        ctx.moveTo(0, -r * 0.72)
-        ctx.lineTo(0, r * 0.72)
-      } else if (p.kind === 'repair') {
-        ctx.arc(0, 0, r, 0, TAU)
-        ctx.moveTo(-r * 0.58, 0)
-        ctx.lineTo(r * 0.58, 0)
-        ctx.moveTo(0, -r * 0.58)
-        ctx.lineTo(0, r * 0.58)
-      } else if (p.kind === 'magnet') {
-        ctx.arc(0, 0, r, Math.PI * 0.18, Math.PI * 0.82)
-        ctx.moveTo(-r * 0.82, r * 0.18)
-        ctx.lineTo(-r * 0.82, r * 0.76)
-        ctx.moveTo(r * 0.82, r * 0.18)
-        ctx.lineTo(r * 0.82, r * 0.76)
-      } else {
-        ctx.arc(0, 0, r, 0, TAU)
-      }
-      ctx.stroke()
-      if (p.kind === 'xp') {
-        ctx.globalAlpha = 0.42
-        ctx.beginPath()
-        ctx.arc(0, 0, r + pickupBalance.xp.outerHalo, 0, TAU)
-        ctx.stroke()
-      }
-      ctx.restore()
-    }
+    drawPickups({
+      ctx,
+      pickups: this.pickups,
+      width: this.width,
+      height: this.height,
+      highLoad: this.isHighLoad(),
+      glow: this.allowGlow(),
+      scale: this.spaceScale(),
+      time: this.stats.time,
+      worldToScreen: (x, y) => this.worldToScreen(x, y)
+    })
   }
 
   private renderParticles(ctx: CanvasRenderingContext2D) {

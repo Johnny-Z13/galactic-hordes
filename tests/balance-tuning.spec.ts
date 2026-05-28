@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import { pickupBalance, powerupBalance } from '../src/powerup-balance'
 
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+const pickupRenderSource = () => readFileSync(resolve(process.cwd(), 'src/render/pickups.ts'), 'utf8')
 
 test('starter ship fire cadence and bullet speed begin slower', () => {
   const main = source()
@@ -18,6 +19,7 @@ test('starter ship fire cadence and bullet speed begin slower', () => {
 
 test('xp pickups are thirty percent smaller including merged drops and halos', () => {
   const main = source()
+  const pickups = pickupRenderSource()
 
   expect(pickupBalance.xp.radius).toBe(5.6)
   expect(pickupBalance.xp.mergeRadiusStep).toBe(0.45)
@@ -25,4 +27,8 @@ test('xp pickups are thirty percent smaller including merged drops and halos', (
   expect(pickupBalance.xp.outerHalo).toBe(9.8)
   expect(main).toContain("kind === 'xp' ? pickupBalance.xp.radius : pickupBalance.defaultRadius")
   expect(main).toContain('pickup.radius + pickupBalance.xp.mergeRadiusStep')
+  expect(main).toContain("from './render/pickups'")
+  expect(pickups).toContain('export function renderPickups')
+  expect(pickups).toContain("pickup.kind === 'xp' ? r + pickupBalance.xp.radius : r + pickupBalance.defaultRadius")
+  expect(pickups).toContain('r + pickupBalance.xp.outerHalo')
 })
