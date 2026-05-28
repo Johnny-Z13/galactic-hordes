@@ -51,9 +51,15 @@ test('title screen rendering lives in a focused ui module', () => {
   expect(title).toContain('export function showTitle(self: VectorShooter)')
   expect(title).toContain("self['state'] = 'title'")
   expect(title).toContain("quit.textContent = 'Quit'")
-  expect(title).toContain("start.textContent = 'Start'")
+  expect(title).toContain("start.textContent = 'Launch Expedition'")
   expect(title).toContain("self['showMothership']()")
   expect(title).toContain("self['showOnly']('title')")
+})
+
+test('title launch action has a full-width primary row', () => {
+  const css = readFileSync('src/style.css', 'utf8')
+
+  expect(css).toContain('"start start start"')
 })
 
 test('screen shell construction lives in a focused ui module', () => {

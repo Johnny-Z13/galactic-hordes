@@ -35,7 +35,7 @@ export function showTitle(self: VectorShooter) {
   row.className = 'title-actions'
   const start = document.createElement('button')
   start.className = 'vector-button start-button'
-  start.textContent = 'Start'
+  start.textContent = 'Launch Expedition'
   start.addEventListener('click', () => self['showMothership']())
   const collection = document.createElement('button')
   collection.className = 'vector-button secondary'

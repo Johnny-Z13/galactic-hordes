@@ -142,6 +142,36 @@ const gameOverMarkup = (css: string) => `
   </div>
 `
 
+const titleMarkup = (css: string) => `
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <style>${css}</style>
+  <div id="app">
+    <div class="screen title-screen visible">
+      <div class="title-panel">
+        <div class="front-menu-top">
+          <button class="front-menu-pill danger" type="button">Quit</button>
+          <div class="front-menu-cargo"><span></span><b>0</b></div>
+          <button class="front-menu-pill" type="button">Options</button>
+        </div>
+        <h1 class="title-wordmark"><span>GALACTIC</span><span>HORDES</span></h1>
+        <div class="front-menu-spacer"></div>
+        <div class="title-actions">
+          <button class="vector-button start-button" type="button">Launch Expedition</button>
+          <button class="vector-button secondary" type="button">Collection</button>
+          <button class="vector-button" type="button">Power Up</button>
+          <button class="vector-button secondary" type="button">Scores</button>
+          <button class="vector-button secondary danger tiny" type="button">Reset Progress</button>
+        </div>
+        <div class="front-menu-footer">
+          <span><b>0</b> discoveries</span>
+          <span><b>0</b> systems</span>
+          <span><b>0</b> best</span>
+        </div>
+      </div>
+    </div>
+  </div>
+`
+
 const renderShell = async (browser: Browser, viewport: ViewportCase, hasTouch: boolean) => {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
@@ -184,6 +214,31 @@ test('desktop pointer layout keeps touch controls hidden', async ({ browser }) =
   const { context, page } = await renderShell(browser, { name: 'desktop', width: 1440, height: 900, isMobile: false }, false)
   await expect(page.locator('.touch-controls.visible')).toHaveCSS('display', 'none')
   await context.close()
+})
+
+test('title launch action stays readable across app breakpoints', async ({ browser }) => {
+  for (const viewport of [
+    ...touchViewports,
+    { name: 'desktop', width: 1440, height: 900, isMobile: false }
+  ]) {
+    const { context, page } = await renderShell(browser, viewport, viewport.isMobile)
+    await page.setContent(titleMarkup(styles()))
+
+    const buttonBox = await page.locator('.start-button').boundingBox()
+    const metrics = await page.locator('.start-button').evaluate((button) => ({
+      clientWidth: button.clientWidth,
+      scrollWidth: button.scrollWidth,
+      text: button.textContent?.trim()
+    }))
+
+    expect(buttonBox, `${viewport.name} launch action should render`).not.toBeNull()
+    expect(metrics.text).toBe('Launch Expedition')
+    expect(buttonBox!.x, `${viewport.name} launch action left edge`).toBeGreaterThanOrEqual(0)
+    expect(buttonBox!.x + buttonBox!.width, `${viewport.name} launch action right edge`).toBeLessThanOrEqual(viewport.width)
+    expect(metrics.scrollWidth, `${viewport.name} launch copy should fit`).toBeLessThanOrEqual(metrics.clientWidth)
+
+    await context.close()
+  }
 })
 
 test('game over black box fills mobile viewport without document scrolling', async ({ browser }) => {
