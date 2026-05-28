@@ -135,6 +135,12 @@ test('station docking opens a master command menu with collapsible sections and 
   expect(css).toContain('.station-command-section')
 })
 
+test('route metric grid adapts to first contact timing without forcing desktop wrap', () => {
+  const css = readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8')
+
+  expect(css).toContain('grid-template-columns: repeat(auto-fit, minmax(64px, 1fr))')
+})
+
 test('sector stations offer run services but not permanent meta upgrades', () => {
   const main = mainSource()
   const methodStart = main.indexOf('private applySectorStationServices(')
