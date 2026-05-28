@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import type { VectorShooter, WorkbenchChoice } from '../src/main'
+import type { VectorShooter } from '../src/main'
 import { evolutions, upgrades } from '../src/powerup-balance'
 import { choiceWeaponPreview } from '../src/ui/workbench'
 

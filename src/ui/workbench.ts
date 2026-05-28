@@ -1,7 +1,9 @@
-import type { VectorShooter, WorkbenchChoice, AudioUpgradeCue } from '../main'
+import type { AudioUpgradeCue } from '../audio/audio-director'
+import type { VectorShooter } from '../main'
 import { evolutions, relics, upgrades, workbenchBalance, type Upgrade, type UpgradeId } from '../powerup-balance'
 import { workbenchUnlockEdges, workbenchUpgradeRows, type WorkbenchUpgradeRow } from '../workbench-rolls'
 import { workbenchBayDefinitions, workbenchBayForUpgrade, type WorkbenchBayDefinition } from '../workbench-bays'
+import type { WorkbenchChoice } from '../workbench-choices'
 import { weaponHudReadout } from '../weapon-signatures'
 
 export const workbenchTopOfferCap = 5

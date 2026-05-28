@@ -39,6 +39,7 @@ import { planetRadius } from './planet-sizing'
 import { runBalance } from './run-balance'
 import { scoreEntryFromRun, type ScoreEntry } from './score-history'
 import { advanceScorePopups, appendScorePopup, createInstallPopup, createScorePopup, createSignalPopup, type ScorePopupModel } from './score-popups'
+import type { WorkbenchChoice } from './workbench-choices'
 import {
   evolutions,
   limitBreakChoices,
@@ -440,12 +441,6 @@ interface DerelictSignal {
   phase: number
   life: number
 }
-
-export type WorkbenchChoice =
-  | { kind: 'upgrade'; upgrade: Upgrade }
-  | { kind: 'evolution'; evolution: Evolution }
-  | { kind: 'limit'; id: LimitId; name: string; description: string }
-  | { kind: 'relic'; relic: Relic }
 
 interface PerfStats {
   updateMs: number
