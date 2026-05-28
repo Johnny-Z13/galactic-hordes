@@ -17,10 +17,35 @@ test('run objective readout keeps the current route objective visible during fli
   })
 })
 
+test('run objective readout carries route decision intel during ordinary flight', () => {
+  expect(runObjectiveReadout({
+    state: 'playing',
+    routeObjective: 'Recover, scout, and reach the next route branch.',
+    routeIntel: {
+      directive: 'RECOVER',
+      reward: 'SALVAGE',
+      risk: 'LOW RISK'
+    },
+    elapsed: 42,
+    nextReturnBeaconAt: 90,
+    returnBeaconDistance: null,
+    surfaceEvent: null,
+    pendingUpgrades: 0
+  })).toEqual({
+    label: 'ROUTE',
+    text: 'RECOVER // SALVAGE // LOW RISK // STATION 48s'
+  })
+})
+
 test('run objective readout prioritizes dock distance once a station beacon is active', () => {
   expect(runObjectiveReadout({
     state: 'playing',
     routeObjective: 'Clear a hunter patrol lane and cash in combat rewards.',
+    routeIntel: {
+      directive: 'FIGHT',
+      reward: 'SIGNAL',
+      risk: 'HIGH RISK'
+    },
     elapsed: 125,
     nextReturnBeaconAt: 90,
     returnBeaconDistance: 734,
@@ -123,9 +148,12 @@ test('hud wires route objective readout through a dedicated chip', () => {
   expect(main).toContain('objective: document.createElement')
   expect(hud).toContain("import { currentHudObjectiveReadout } from './hud-objective'")
   expect(hudObjective).toContain("import { runObjectiveReadout } from '../run-objective-readout'")
+  expect(hudObjective).toContain("import { currentSectorNode, sectorNodeDecisionIntel } from '../sector-map'")
   expect(hud).toContain("const objective = chip('ROUTE', self['ui'].objective, 'objective wide')")
   expect(hud).toContain('const objectiveReadout = currentHudObjectiveReadout(self)')
   expect(hudObjective).toContain('runObjectiveReadout({')
+  expect(hudObjective).toContain('const currentNode = currentSectorNode(self[\'sectorMap\'])')
+  expect(hudObjective).toContain('routeIntel: sectorNodeDecisionIntel(currentNode)')
   expect(hudObjective).toContain('waveWarning: self[\'state\'] === \'playing\' ? nextSpaceWaveWarning({')
   expect(hudObjective).toContain("pendingUpgrades: self['pendingUpgrades']")
   expect(hud).toContain("self['ui'].objective.parentElement?.querySelector('.hud-label')")

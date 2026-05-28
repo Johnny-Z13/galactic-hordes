@@ -7,6 +7,11 @@ const STATION_DECISION_SECONDS = 30
 export interface RunObjectiveReadoutInput {
   state: RunObjectiveState
   routeObjective: string
+  routeIntel?: {
+    directive: string
+    reward: string
+    risk: string
+  }
   elapsed: number
   nextReturnBeaconAt: number
   returnBeaconDistance: number | null
@@ -56,8 +61,13 @@ export function runObjectiveReadout(input: RunObjectiveReadoutInput): RunObjecti
   }
   return {
     label: 'ROUTE',
-    text: `${input.routeObjective} // STATION ${secondsUntilStation}s`
+    text: `${routeText(input)} // STATION ${secondsUntilStation}s`
   }
+}
+
+function routeText(input: RunObjectiveReadoutInput) {
+  if (!input.routeIntel) return input.routeObjective
+  return `${input.routeIntel.directive} // ${input.routeIntel.reward} // ${input.routeIntel.risk}`
 }
 
 function signalReadyText(count: number) {
