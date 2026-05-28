@@ -1179,7 +1179,7 @@ const sectorNodeDirective = (node: SectorNode) => {
   if (node.kind === 'station') return 'SERVICE'
   if (node.kind === 'boss') return 'BOSS GATE'
   if (node.kind === 'final') return 'LAST STAND'
-  if (node.config.templateId === 'safeDrift') return 'RECOVER'
+  if (node.config.templateId === 'safeDrift') return 'SCOUTS'
   if (node.config.templateId === 'planetCluster') return 'LANDINGS'
   if (node.config.templateId === 'asteroidBelt') return 'NAV TEST'
   if (node.config.templateId === 'hunterLane') return 'FIGHT'
@@ -1190,6 +1190,7 @@ const sectorNodeDirective = (node: SectorNode) => {
 
 const sectorNodeRewardRead = (node: SectorNode, profile: SectorNodeRunProfile) => {
   if (node.kind === 'station') return 'REPAIR / WORKBENCH'
+  if (node.config.templateId === 'safeDrift') return 'SIGNAL'
   if (profile.rewardShape.id === 'relicTrace') return 'RELIC TRACE'
   if (profile.rewardShape.id === 'signalBloom' || node.config.rewards.upgradeSignalBonusChance >= 0.08) return 'SIGNAL'
   if (node.config.planets.countMin >= 2 || node.config.templateId === 'planetCluster') return 'PLANETS'

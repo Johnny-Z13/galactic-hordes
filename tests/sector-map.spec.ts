@@ -160,8 +160,8 @@ test('sector decision intel translates route configs into quick reward and risk 
   const station = sampledNodes.find((node) => node.kind === 'station')!
 
   expect(sectorNodeDecisionIntel(safe)).toMatchObject({
-    directive: 'RECOVER',
-    reward: expect.stringMatching(/SALVAGE|SIGNAL|CACHE|REPAIR/),
+    directive: 'SCOUTS',
+    reward: expect.stringMatching(/SIGNAL|RELIC TRACE|CACHE|REPAIR/),
     risk: 'LOW RISK'
   })
   expect(sectorNodeDecisionIntel(planet)).toMatchObject({
