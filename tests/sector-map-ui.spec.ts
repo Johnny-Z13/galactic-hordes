@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const mainSource = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+const debriefSource = () => readFileSync(resolve(process.cwd(), 'src/ui/debrief.ts'), 'utf8')
 
 test('sector map is a first class screen between mothership and expeditions', () => {
   const main = mainSource()
@@ -114,6 +115,6 @@ test('station visits persist as route memory and journey debrief context', () =>
   expect(main).toContain("stateLabel = stationVisit ? 'DOCKED'")
   expect(main).toContain('stationVisits: [...this.stationVisits]')
   expect(main).toContain('journeyDistanceLy({')
-  expect(main).toContain('Light Years')
+  expect(debriefSource()).toContain('Light Years')
   expect(main).toContain('planetNameFor({')
 })

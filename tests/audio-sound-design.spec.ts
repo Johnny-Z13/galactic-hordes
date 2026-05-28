@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+const workbenchSource = () => readFileSync(resolve(process.cwd(), 'src/ui/workbench.ts'), 'utf8')
 
 test('audio director has distinct planet ambience and weapon cue profiles', () => {
   const main = source()
@@ -21,8 +22,8 @@ test('gameplay events route to specialized audio cues', () => {
   expect(main).toContain("this.audio.fire('surface'")
   expect(main).toContain('this.playBulletImpact(b.rail ? 1.3 : 1)')
   expect(main).toContain('this.playBulletImpact(0.85)')
-  expect(main).toContain('this.audio.install(this.installCueFor(choice), rare)')
-  expect(main).toContain('this.audio.upgrade(this.installCueFor(choice),')
+  expect(workbenchSource()).toContain("self['audio'].install(installCueFor(self, choice), rare)")
+  expect(main).toContain('this.audio.upgrade(uiInstallCueFor(this, choice),')
   expect(main).toContain('this.audio.planetSignal(planet.archetype)')
   expect(main).toContain('this.audio.boom(big ? ')
 })

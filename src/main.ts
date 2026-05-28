@@ -139,13 +139,27 @@ import {
 } from './workbench-rolls'
 import { workbenchBayDefinitions, workbenchBayForUpgrade, type WorkbenchBayDefinition, type WorkbenchBayId } from './workbench-bays'
 import { optionOrbProfile, pulseVolleyCount, rearGunProfile, starterSignatureFlags } from './weapon-signatures'
+import {
+  renderLevelUp as uiRenderLevelUp,
+  currentLevelUpScrollTop as uiCurrentLevelUpScrollTop,
+  restoreLevelUpScroll as uiRestoreLevelUpScroll,
+  canApplyWorkbenchChoice as uiCanApplyWorkbenchChoice,
+  renderManifestSummary as uiRenderManifestSummary,
+  renderManifestRelicLine as uiRenderManifestRelicLine,
+  workbenchExtraUnlockedIds as uiWorkbenchExtraUnlockedIds,
+  installCueFor as uiInstallCueFor
+} from './ui/workbench'
+import { renderCollectionScreen as uiRenderCollectionScreen } from './ui/collection'
+import { showMothership as uiShowMothership, renderMothershipMetaSystems as uiRenderMothershipMetaSystems } from './ui/mothership-console'
+import { renderDebrief as uiRenderDebrief } from './ui/debrief'
+import type { StateHandlers } from './game-states'
 
-type GameState = 'title' | 'mothership' | 'collection' | 'powerups' | 'sectorMap' | 'station' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
+export type GameState = 'title' | 'mothership' | 'collection' | 'powerups' | 'sectorMap' | 'station' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
 type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
-type ArtifactKind = 'relic' | 'alien' | 'lore' | 'planet' | 'cache' | 'enemy'
-type MothershipConsoleView = 'workbench' | 'manifest'
-type MothershipCollectionFilter = 'all' | 'found' | 'locked' | ArtifactKind
+export type ArtifactKind = 'relic' | 'alien' | 'lore' | 'planet' | 'cache' | 'enemy'
+export type MothershipConsoleView = 'workbench' | 'manifest'
+export type MothershipCollectionFilter = 'all' | 'found' | 'locked' | ArtifactKind
 
 interface Pickup {
   kind: PickupKind
@@ -307,7 +321,7 @@ interface SurfaceRun {
   message: string
 }
 
-interface ArtifactRecord {
+export interface ArtifactRecord {
   id: string
   kind: ArtifactKind
   title: string
@@ -409,7 +423,7 @@ interface DerelictSignal {
   life: number
 }
 
-type WorkbenchChoice =
+export type WorkbenchChoice =
   | { kind: 'upgrade'; upgrade: Upgrade }
   | { kind: 'evolution'; evolution: Evolution }
   | { kind: 'limit'; id: LimitId; name: string; description: string }
@@ -446,7 +460,7 @@ const MAX_PICKUPS = 220
 const ENEMY_RECYCLE_RADIUS = 2200
 const ENEMY_PRESSURE_RADIUS = 1250
 
-const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
+export const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
 const rand = (min: number, max: number) => min + Math.random() * (max - min)
 const BOSS_CATALOG_ROWS = planetBossCatalogVariants.length
 const BOSS_CATALOG_FRAMES = 4
@@ -461,7 +475,7 @@ const hash32 = (x: number, y: number, salt = 0) => {
   h = Math.imul(h ^ (h >>> 13), 1274126177)
   return (h ^ (h >>> 16)) >>> 0
 }
-const hashString = (value: string, salt = 0) => {
+export const hashString = (value: string, salt = 0) => {
   let h = 2166136261 ^ salt
   for (let i = 0; i < value.length; i += 1) {
     h ^= value.charCodeAt(i)
@@ -478,7 +492,7 @@ const rngFrom = (seed: number) => {
     return ((r ^ (r >>> 14)) >>> 0) / 4294967296
   }
 }
-const formatTime = (seconds: number) => {
+export const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60)
   const s = Math.floor(seconds % 60)
   return `${m}:${s.toString().padStart(2, '0')}`
@@ -486,7 +500,7 @@ const formatTime = (seconds: number) => {
 
 type PlanetAudioMood = Planet['archetype'] | 'deepSpace' | 'title'
 type WeaponSoundKind = 'pulse' | 'prism' | 'rail' | 'needle' | 'surface'
-type AudioUpgradeCue = UpgradeBucket | 'evolution' | 'relic' | 'limit'
+export type AudioUpgradeCue = UpgradeBucket | 'evolution' | 'relic' | 'limit'
 type ExplosionSoundKind = 'small' | 'heavy' | 'surface' | 'gameover'
 type PickupSoundKind = PickupKind | SurfaceResourceKind | 'gift' | 'nav'
 
@@ -819,7 +833,7 @@ class AudioDirector {
   }
 }
 
-class VectorShooter {
+export class VectorShooter {
   private app = document.querySelector<HTMLDivElement>('#app')!
   private canvas: HTMLCanvasElement
   private mini: HTMLCanvasElement
@@ -831,6 +845,40 @@ class VectorShooter {
   private last = performance.now()
   private state: GameState = 'title'
   private previousState: GameState = 'title'
+  private readonly stateHandlers: StateHandlers = {
+    landing: {
+      update: (dt) => this.updateLanding(dt),
+      render: (ctx) => {
+        const t = clamp(this.transitionTimer / this.transitionDuration, 0, 1)
+        if (t < 0.58) this.renderSpaceScene(ctx)
+        else this.renderSurface(ctx)
+        this.renderTransitionOverlay(ctx, t, 'LANDING')
+      }
+    },
+    surface: {
+      update: (dt) => this.updateSurface(dt),
+      render: (ctx) => {
+        this.mini.style.display = 'none'
+        this.renderSurface(ctx)
+      }
+    },
+    takeoff: {
+      update: (dt) => this.updateTakeoff(dt),
+      render: (ctx) => {
+        const t = clamp(this.transitionTimer / this.transitionDuration, 0, 1)
+        if (t < 0.5) this.renderSurface(ctx)
+        else this.renderSpaceScene(ctx)
+        this.renderTransitionOverlay(ctx, t, 'TAKEOFF')
+      }
+    },
+    dying: {
+      update: (dt) => this.updateDying(dt),
+      render: (ctx) => {
+        this.renderSpaceScene(ctx)
+        this.renderDeathOverlay(ctx)
+      }
+    }
+  }
   private graphicsMode: GraphicsMode = (localStorage.getItem('vector_shooter_graphics') as GraphicsMode) || 'LOW'
   private perf: PerfStats = { updateMs: 0, renderMs: 0, frameMs: 16.7, fps: 60 }
   private keys = new Set<string>()
@@ -1405,10 +1453,6 @@ class VectorShooter {
   private update(dt: number) {
     const intensity = this.state === 'surface' ? 0.18 : clamp(this.stats.time / 360 + this.enemies.length / 120, 0, 1)
     this.audio.update(dt, intensity, this.audioMood())
-    if (this.state === 'landing') {
-      this.updateLanding(dt)
-      return
-    }
     if ((this.state === 'alien' || this.state === 'lore') && this.surface) {
       this.stats.time += dt * 0.08
       this.toastTimer -= dt
@@ -1417,16 +1461,9 @@ class VectorShooter {
       this.updateHud()
       return
     }
-    if (this.state === 'surface') {
-      this.updateSurface(dt)
-      return
-    }
-    if (this.state === 'takeoff') {
-      this.updateTakeoff(dt)
-      return
-    }
-    if (this.state === 'dying') {
-      this.updateDying(dt)
+    const handler = this.stateHandlers[this.state]
+    if (handler?.update) {
+      handler.update(dt)
       return
     }
     if (this.state !== 'playing') {
@@ -1437,7 +1474,10 @@ class VectorShooter {
       this.drawTitleDrift(dt)
       return
     }
+    this.updatePlaying(dt)
+  }
 
+  private updatePlaying(dt: number) {
     this.stats.time += dt
     this.spawnTimer -= dt
     this.bossTimer -= dt
@@ -3331,7 +3371,7 @@ class VectorShooter {
       ? firstOpportunityUpgrade(upgrades, this.build, 'suitO2')
       : null
     if (discoverySuit && choices.length < count) choices.push({ kind: 'upgrade', upgrade: discoverySuit })
-    const available = workbenchRollableUpgrades(upgrades, this.build, this.workbenchExtraUnlockedIds())
+    const available = workbenchRollableUpgrades(upgrades, this.build, uiWorkbenchExtraUnlockedIds(this))
       .filter((u) => !choices.some((choice) => choice.kind === 'upgrade' && choice.upgrade.id === u.id))
     while (choices.length < count && available.length) {
       const selected = this.weightedUpgrade(available, rare)
@@ -3392,7 +3432,7 @@ class VectorShooter {
       return
     }
     const rare = choice.kind !== 'upgrade' || choice.upgrade.rarity < workbenchBalance.rareInstallRarityThreshold
-    this.audio.upgrade(this.installCueFor(choice), rare)
+    this.audio.upgrade(uiInstallCueFor(this, choice), rare)
     if (choice.kind === 'upgrade') this.applyUpgrade(choice.upgrade)
     else if (choice.kind === 'evolution') this.applyEvolution(choice.evolution)
     else if (choice.kind === 'relic') this.acquireRelic(choice.relic, 'WORKBENCH RELIC INSTALLED')
@@ -4706,28 +4746,9 @@ class VectorShooter {
       this.renderSurface(ctx)
       return
     }
-    if (this.state === 'surface') {
-      this.mini.style.display = 'none'
-      this.renderSurface(ctx)
-      return
-    }
-    if (this.state === 'landing') {
-      const t = clamp(this.transitionTimer / this.transitionDuration, 0, 1)
-      if (t < 0.58) this.renderSpaceScene(ctx)
-      else this.renderSurface(ctx)
-      this.renderTransitionOverlay(ctx, t, 'LANDING')
-      return
-    }
-    if (this.state === 'takeoff') {
-      const t = clamp(this.transitionTimer / this.transitionDuration, 0, 1)
-      if (t < 0.5) this.renderSurface(ctx)
-      else this.renderSpaceScene(ctx)
-      this.renderTransitionOverlay(ctx, t, 'TAKEOFF')
-      return
-    }
-    if (this.state === 'dying') {
-      this.renderSpaceScene(ctx)
-      this.renderDeathOverlay(ctx)
+    const handler = this.stateHandlers[this.state]
+    if (handler?.render) {
+      handler.render(ctx)
       return
     }
     this.renderSpaceScene(ctx)
@@ -6440,781 +6461,31 @@ class VectorShooter {
   }
 
   private renderLevelUp(title: string, copy: string) {
-    this.levelUpTitle = title
-    this.levelUpCopy = copy
-    this.ui.levelup.innerHTML = ''
-    const panel = document.createElement('div')
-    panel.className = 'panel workbench-panel'
-    const h = document.createElement('h1')
-    h.className = 'title'
-    h.textContent = title
-    const p = document.createElement('p')
-    p.className = 'copy'
-    p.textContent = copy
-    const actions = document.createElement('div')
-    actions.className = 'workbench-actions'
-    const view = document.createElement('div')
-    view.className = 'workbench-view manifest'
-    actions.append(...this.renderWorkbenchExitActions())
-    if (this.mothership.departments.workbench >= 4 && this.pendingUpgrades > 0) {
-      const recycle = document.createElement('button')
-      recycle.className = 'workbench-command recycle'
-      recycle.textContent = 'Recycle Signal'
-      recycle.addEventListener('click', () => this.recycleWorkbenchSignal())
-      actions.append(recycle)
-    }
-    view.append(this.renderWorkbenchInstallSurface())
-    panel.append(h, p)
-    if (actions.children.length) panel.append(actions)
-    panel.append(view)
-    this.ui.levelup.append(panel)
-    this.showOnly('levelup')
-  }
-
-  private renderWorkbenchExitActions() {
-    const buttons: HTMLButtonElement[] = []
-    const continueButton = document.createElement('button')
-    continueButton.type = 'button'
-    continueButton.className = 'workbench-command primary'
-    continueButton.textContent = this.workbenchContinueLabel()
-    continueButton.addEventListener('click', () => this.continueFromWorkbench())
-    buttons.push(continueButton)
-
-    const backButton = document.createElement('button')
-    backButton.type = 'button'
-    backButton.className = 'workbench-command secondary'
-    backButton.textContent = this.workbenchBackLabel()
-    backButton.addEventListener('click', () => this.backFromWorkbench())
-    buttons.push(backButton)
-    return buttons
-  }
-
-  private workbenchContinueLabel() {
-    if (this.takeoffAfterWorkbench) return 'Launch Now'
-    if (this.returnToSectorMapAfterWorkbench) return 'Route Map'
-    return 'Resume Flight'
-  }
-
-  private workbenchBackLabel() {
-    if (this.takeoffAfterWorkbench) return 'Back to Surface'
-    if (this.returnToSectorMapAfterWorkbench) return 'Back to Station'
-    return 'Back'
-  }
-
-  private continueFromWorkbench() {
-    if (this.workbenchInstalling) return
-    this.showOnly(null)
-    if (this.takeoffAfterWorkbench) {
-      this.takeoffAfterWorkbench = false
-      this.startTakeoff({ skipWorkbench: true })
-      return
-    }
-    if (this.returnToSectorMapAfterWorkbench) {
-      this.returnToSectorMapAfterWorkbench = false
-      this.leaveStationForSectorMap()
-      return
-    }
-    this.state = 'playing'
-    this.toast(this.pendingUpgrades > 0 ? `${this.pendingUpgrades} SIGNAL${this.pendingUpgrades === 1 ? '' : 'S'} HELD IN BUFFER` : 'WORKBENCH CLOSED')
-  }
-
-  private backFromWorkbench() {
-    if (this.workbenchInstalling) return
-    if (this.returnToSectorMapAfterWorkbench && this.stationDockReport) {
-      const report = this.stationDockReport
-      this.returnToSectorMapAfterWorkbench = false
-      this.showStationDock(report)
-      return
-    }
-    this.showOnly(null)
-    if (this.takeoffAfterWorkbench && this.surface) {
-      this.takeoffAfterWorkbench = false
-      this.state = 'surface'
-      this.toast('WORKBENCH CLOSED')
-      return
-    }
-    this.state = 'playing'
-    this.toast('WORKBENCH CLOSED')
+    uiRenderLevelUp(this, title, copy)
   }
 
   private currentLevelUpScrollTop() {
-    const panel = this.ui.levelup.querySelector<HTMLElement>('.workbench-panel')
-    const view = this.ui.levelup.querySelector<HTMLElement>('.workbench-view')
-    return Math.max(panel?.scrollTop ?? 0, view?.scrollTop ?? 0)
+    return uiCurrentLevelUpScrollTop(this)
   }
 
   private restoreLevelUpScroll(scrollTop: number) {
-    const restore = () => {
-      const panel = this.ui.levelup.querySelector<HTMLElement>('.workbench-panel')
-      const view = this.ui.levelup.querySelector<HTMLElement>('.workbench-view')
-      if (panel) panel.scrollTop = scrollTop
-      if (view) view.scrollTop = scrollTop
-    }
-    restore()
-    window.requestAnimationFrame(restore)
-  }
-
-  private recycleWorkbenchSignal() {
-    if (this.workbenchInstalling || this.pendingUpgrades <= 0 || this.mothership.departments.workbench < 4) return
-    const scrap = workbenchBalance.recycleScrapBase + Math.floor(this.stats.level * workbenchBalance.recycleScrapPerLevel)
-    const crystal = workbenchBalance.recycleCrystalBase + Math.floor(this.stats.planets * workbenchBalance.recycleCrystalPerPlanet)
-    this.resources.scrap += scrap
-    this.resources.crystal += crystal
-    this.pendingUpgrades = Math.max(0, this.pendingUpgrades - 1)
-    this.toast(`SIGNAL RECYCLED: +${scrap} SCRAP +${crystal} CRYSTALS`)
-    if (this.pendingUpgrades > 0) {
-      this.refreshLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
-      return
-    }
-    this.showOnly(null)
-    if (this.takeoffAfterWorkbench) {
-      this.takeoffAfterWorkbench = false
-      this.startTakeoff()
-    } else if (this.returnToSectorMapAfterWorkbench) {
-      this.returnToSectorMapAfterWorkbench = false
-      this.showSectorMap('Station service recycled. Choose the next jump.')
-    } else {
-      this.state = 'playing'
-    }
-  }
-
-  private beginWorkbenchInstall(choice: WorkbenchChoice, button: HTMLButtonElement) {
-    if (this.workbenchInstalling) return
-    if (!this.canApplyWorkbenchChoice(choice)) {
-      button.disabled = true
-      button.classList.add('invalid')
-      this.toast('SYSTEM ALREADY MAXED')
-      this.refreshLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
-      return
-    }
-    this.workbenchInstalling = true
-    const rare = choice.kind !== 'upgrade' || choice.upgrade.rarity < workbenchBalance.rareInstallRarityThreshold
-    this.audio.install(this.installCueFor(choice), rare)
-    const color = choice.kind === 'evolution' || choice.kind === 'relic' ? '#fff27a' : choice.kind === 'limit' ? '#70a8ff' : this.upgradeFxColor(choice.upgrade)
-    button.style.setProperty('--install-color', color)
-    const anchor = this.surface?.ship ?? this.player
-    this.burst(anchor.x, anchor.y, color, rare ? 28 : 18, rare ? 260 : 190)
-    button.classList.add('selected')
-    for (const el of Array.from(this.ui.levelup.querySelectorAll<HTMLButtonElement>('.workbench-install-choice'))) el.disabled = true
-    window.setTimeout(
-      () => this.applyWorkbenchChoice(choice),
-      (rare ? workbenchBalance.rareInstallDelaySeconds : workbenchBalance.installDelaySeconds) * 1000
-    )
-  }
-
-  private installCueFor(choice: WorkbenchChoice): AudioUpgradeCue {
-    if (choice.kind === 'upgrade') return choice.upgrade.bucket
-    return choice.kind
+    uiRestoreLevelUpScroll(this, scrollTop)
   }
 
   private canApplyWorkbenchChoice(choice: WorkbenchChoice) {
-    if (choice.kind === 'upgrade') return this.pendingUpgrades > 0 && this.build[choice.upgrade.id] < choice.upgrade.max && this.isWorkbenchUpgradeUnlocked(choice.upgrade.id) && !this.workbenchBayBalanceGate(choice.upgrade)
-    if (choice.kind === 'evolution') {
-      const upgrade = upgrades.find((candidate) => candidate.id === choice.evolution.weapon)
-      return !!upgrade && this.build[choice.evolution.weapon] >= upgrade.max && this.relics.has(choice.evolution.relic) && !this.evolved.has(choice.evolution.weapon)
-    }
-    if (choice.kind === 'relic') return !this.relics.has(choice.relic.id)
-    return true
-  }
-
-  private choiceTitle(choice: WorkbenchChoice) {
-    if (choice.kind === 'upgrade') return choice.upgrade.name
-    if (choice.kind === 'evolution') return choice.evolution.name
-    if (choice.kind === 'relic') return choice.relic.name
-    return choice.name
-  }
-
-  private workbenchChoiceRoute(choice: WorkbenchChoice, currentLevel: number) {
-    if (choice.kind === 'upgrade') return `INSTALL RANK ${Math.min(currentLevel + 1, choice.upgrade.max)}/${choice.upgrade.max}`
-    if (choice.kind === 'evolution') return 'EVOLUTION READY'
-    if (choice.kind === 'relic') return 'RELIC SIGNAL'
-    return 'LIMIT BREAK'
-  }
-
-  private choiceDetail(choice: WorkbenchChoice) {
-    if (choice.kind === 'upgrade') return this.upgradeLevelDetail(choice.upgrade, this.build[choice.upgrade.id] + 1)
-    if (choice.kind === 'evolution') return choice.evolution.description
-    if (choice.kind === 'relic') return choice.relic.description + (choice.relic.downside ? ` Risk: ${choice.relic.downside}` : '')
-    return choice.description
-  }
-
-  private choiceKindLabel(choice: WorkbenchChoice) {
-    if (choice.kind === 'upgrade') return `${this.build[choice.upgrade.id]}/${choice.upgrade.max}`
-    if (choice.kind === 'evolution') return 'EVOLVE'
-    if (choice.kind === 'relic') return 'RELIC'
-    return 'LIMIT'
-  }
-
-  private choiceCategoryLabel(choice: WorkbenchChoice) {
-    if (choice.kind === 'upgrade') return this.bucketLabel(choice.upgrade.bucket)
-    if (choice.kind === 'evolution') return 'EVOLUTION'
-    if (choice.kind === 'relic') return 'RELIC'
-    return 'LIMIT BREAK'
-  }
-
-  private isWorkbenchUpgradeUnlocked(id: UpgradeId) {
-    const rows = workbenchUpgradeRows(upgrades, this.build, [], this.workbenchExtraUnlockedIds())
-    return rows.some((row) => row.upgrade.id === id && row.status !== 'locked')
-  }
-
-  private workbenchBayOwnedRanks(bay: WorkbenchBayDefinition) {
-    return bay.upgradeIds.reduce((sum, id) => {
-      const upgrade = upgrades.find((candidate) => candidate.id === id)
-      return sum + Math.min(this.build[id], upgrade?.max ?? this.build[id])
-    }, 0)
-  }
-
-  private workbenchBayHasUpgradeableSystem(bay: WorkbenchBayDefinition) {
-    return bay.upgradeIds.some((id) => {
-      const upgrade = upgrades.find((candidate) => candidate.id === id)
-      return !!upgrade && this.isWorkbenchUpgradeUnlocked(id) && this.build[id] < upgrade.max
-    })
-  }
-
-  private workbenchBayBalanceGate(upgrade: Upgrade) {
-    const bay = workbenchBayForUpgrade(upgrade)
-    if (bay.id === 'spacesuit') return ''
-    const activeBays = workbenchBayDefinitions.filter((candidate) => candidate.id !== 'spacesuit' && this.workbenchBayHasUpgradeableSystem(candidate))
-    if (activeBays.length < 2) return ''
-    const lowestRanks = Math.min(...activeBays.map((candidate) => this.workbenchBayOwnedRanks(candidate)))
-    const bayRanks = this.workbenchBayOwnedRanks(bay)
-    const maxLead = 2
-    if (bayRanks <= lowestRanks + maxLead) return ''
-    const catchupTarget = lowestRanks + 1
-    return `SYNC LOCK // upgrade another bay to ${catchupTarget}+ ranks`
+    return uiCanApplyWorkbenchChoice(this, choice)
   }
 
   private renderManifestSummary() {
-    const summary = document.createElement('div')
-    summary.className = 'manifest-summary'
-    const ownedCount = upgrades.filter((upgrade) => this.build[upgrade.id] > 0).length
-    const maxedCount = upgrades.filter((upgrade) => this.build[upgrade.id] >= upgrade.max).length
-    const limitCount = Object.values(this.limitBreaks).reduce((sum, value) => sum + value, 0)
-    summary.innerHTML = `
-      <div><b>${ownedCount}/${upgrades.length}</b><span>systems</span></div>
-      <div><b>${maxedCount}</b><span>maxed</span></div>
-      <div><b>${this.relics.size}/${relics.length}</b><span>relics</span></div>
-      <div><b>${this.evolved.size}/${evolutions.length}</b><span>evolved</span></div>
-      <div><b>${limitCount}</b><span>limits</span></div>
-    `
-    return summary
+    return uiRenderManifestSummary(this)
   }
 
   private renderManifestRelicLine() {
-    const relicLine = document.createElement('div')
-    relicLine.className = 'manifest-relics'
-    relicLine.textContent = this.relics.size > 0
-      ? Array.from(this.relics).map((id) => relics.find((relic) => relic.id === id)?.name ?? id).join(' // ')
-      : 'No relics installed yet.'
-    return relicLine
-  }
-
-  private workbenchExtraUnlockedIds(): UpgradeId[] {
-    return this.discoverySuitOffer ? ['suitO2'] : []
-  }
-
-  private workbenchSectionLabel(label: string) {
-    const el = document.createElement('div')
-    el.className = 'workbench-section-label'
-    el.innerHTML = `<b>${this.escape(label)}</b><span></span>`
-    return el
-  }
-
-  private renderWorkbenchChoiceChip(choice: WorkbenchChoice) {
-    const chip = document.createElement('button')
-    chip.type = 'button'
-    const level = choice.kind === 'upgrade' ? this.build[choice.upgrade.id] : 0
-    const kindClass = choice.kind === 'upgrade' ? choice.upgrade.bucket : choice.kind
-    chip.className = `manifest-chip available workbench-install-choice ${kindClass}`
-    chip.addEventListener('click', () => this.beginWorkbenchInstall(choice, chip))
-    chip.innerHTML = `
-      <i class="manifest-chip-node">${this.escape(this.choiceKindLabel(choice))}</i>
-      <div class="manifest-chip-head">
-        <strong>${this.escape(this.choiceTitle(choice))}</strong>
-        <b>${this.escape(this.workbenchChoiceRoute(choice, level))}</b>
-      </div>
-      <span>${this.escape(this.choiceDetail(choice))}</span>
-      <em>${this.escape(this.choiceCategoryLabel(choice))}</em>
-    `
-    return chip
-  }
-
-  private maxedUnlockText(upgrade: Upgrade) {
-    const unlocked = workbenchUnlockEdges
-      .filter((edge) => edge.source === upgrade.id)
-      .flatMap((edge) => edge.unlocks)
-      .map((id) => upgrades.find((candidate) => candidate.id === id)?.name ?? id)
-    if (unlocked.length) return `UNLOCKED: ${unlocked.join(' // ')}`
-    return this.upgradeLevelDetail(upgrade, upgrade.max)
-  }
-
-  private renderWorkbenchUpgradeChip(upgrade: Upgrade) {
-    const chip = document.createElement('button')
-    chip.type = 'button'
-    const next = Math.min(this.build[upgrade.id] + 1, upgrade.max)
-    chip.className = `manifest-chip available workbench-install-choice offer-ready ${upgrade.bucket}`
-    chip.addEventListener('click', () => this.beginWorkbenchInstall({ kind: 'upgrade', upgrade }, chip))
-    chip.innerHTML = `
-      <i class="manifest-chip-node">UP</i>
-      <div class="manifest-chip-head">
-        <strong>${this.escape(upgrade.name)}</strong>
-        <b>${this.build[upgrade.id]}/${upgrade.max}</b>
-      </div>
-      <span>${this.escape(`INSTALL RANK ${next}/${upgrade.max} // ${this.upgradeLevelDetail(upgrade, next)}`)}</span>
-      <em>${this.bucketLabel(upgrade.bucket)}</em>
-    `
-    return chip
-  }
-
-  private renderWorkbenchContextChip(upgrade: Upgrade, status: 'MAXED' | 'LOCKED' | 'STANDBY', detail: string, extraClass = '') {
-    const level = this.build[upgrade.id]
-    const chip = document.createElement('div')
-    chip.className = `manifest-chip ${level > 0 ? 'owned' : 'unowned'} status-${status.toLowerCase()} ${status === 'LOCKED' ? 'locked future' : ''} ${status === 'MAXED' ? 'maxed' : ''} ${extraClass} ${upgrade.bucket}`
-    chip.innerHTML = `
-      <i class="manifest-chip-node">${this.escape(status)}</i>
-      <div class="manifest-chip-head">
-        <strong>${this.escape(upgrade.name)}</strong>
-        <b>${level}/${upgrade.max}</b>
-      </div>
-      <span>${this.escape(`${status} // ${detail}`)}</span>
-      <em>${this.bucketLabel(upgrade.bucket)}</em>
-    `
-    return chip
-  }
-
-  private renderWorkbenchBayToggle(
-    bay: WorkbenchBayDefinition,
-    rows: Array<WorkbenchUpgradeRow<Upgrade>>,
-    offeredUpgradeChoices: Map<UpgradeId, WorkbenchChoice>
-  ) {
-    const bayRows = rows.filter((row) => bay.upgradeIds.includes(row.upgrade.id))
-    const totalRanks = bayRows.reduce((sum, row) => sum + row.upgrade.max, 0)
-    const ownedRanks = bayRows.reduce((sum, row) => sum + Math.min(this.build[row.upgrade.id], row.upgrade.max), 0)
-    const maxedCount = bayRows.filter((row) => row.status === 'maxed').length
-    const lockedCount = bayRows.filter((row) => row.status === 'locked').length
-    const upgradeableCount = bayRows.filter((row) => row.status === 'standby' && !this.workbenchBayBalanceGate(row.upgrade)).length
-    const nextRow = bayRows.find((row) => row.status === 'standby' && !this.workbenchBayBalanceGate(row.upgrade))
-      ?? bayRows.find((row) => row.status === 'standby')
-      ?? bayRows.find((row) => row.status === 'locked')
-      ?? bayRows[0]
-    const progress = totalRanks > 0 ? ownedRanks / totalRanks : 0
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.id = `workbench-bay-${bay.id}-toggle`
-    button.className = `workbench-bay-toggle ${this.expandedWorkbenchBay === bay.id ? 'active' : ''} ${upgradeableCount > 0 ? 'has-offer' : ''} ${lockedCount === bayRows.length ? 'locked' : ''}`.trim()
-    button.setAttribute('aria-controls', `workbench-bay-${bay.id}-panel`)
-    button.setAttribute('aria-expanded', String(this.expandedWorkbenchBay === bay.id))
-    button.addEventListener('click', () => {
-      const scrollTop = this.currentLevelUpScrollTop()
-      if (this.expandedWorkbenchBay === bay.id) {
-        this.expandedWorkbenchBay = null
-      } else {
-        this.selectedWorkbenchBay = bay.id
-        this.expandedWorkbenchBay = bay.id
-      }
-      this.renderLevelUp(this.levelUpTitle, this.levelUpCopy)
-      this.restoreLevelUpScroll(scrollTop)
-    })
-    const nextStatus = nextRow
-      ? offeredUpgradeChoices.has(nextRow.upgrade.id)
-        ? `Upgrade ready: ${nextRow.upgrade.name}`
-        : nextRow.status === 'locked'
-          ? `Locked: ${nextRow.upgrade.name}`
-          : nextRow.status === 'maxed'
-            ? 'Bay complete'
-            : `Next: ${nextRow.upgrade.name}`
-      : 'Bay complete'
-    button.innerHTML = `
-      <i class="workbench-bay-code">${this.escape(bay.shortLabel.slice(0, 3).toUpperCase())}</i>
-      <div class="workbench-bay-copy">
-        <div class="workbench-bay-topline">
-          <strong>${this.escape(bay.label)}</strong>
-          <b>${ownedRanks}/${totalRanks}</b>
-        </div>
-        <span>${this.escape(nextStatus)}</span>
-        <div class="workbench-bay-meter"><i style="width: ${Math.round(progress * 100)}%"></i></div>
-        <em>${maxedCount}/${bayRows.length} maxed${lockedCount > 0 ? ` // ${lockedCount} locked` : ''}${upgradeableCount > 0 ? ` // ${upgradeableCount} ready` : ''}</em>
-      </div>
-    `
-    return button
-  }
-
-  private renderWorkbenchBayEntry(
-    bay: WorkbenchBayDefinition,
-    rows: Array<WorkbenchUpgradeRow<Upgrade>>,
-    offeredUpgradeChoices: Map<UpgradeId, WorkbenchChoice>
-  ) {
-    const entry = document.createElement('div')
-    entry.className = `workbench-bay-entry ${this.expandedWorkbenchBay === bay.id ? 'expanded' : ''}`
-    entry.append(this.renderWorkbenchBayToggle(bay, rows, offeredUpgradeChoices))
-    if (this.expandedWorkbenchBay === bay.id) entry.append(this.renderWorkbenchBayDetail(bay, rows, offeredUpgradeChoices))
-    return entry
-  }
-
-  private renderWorkbenchBayDetail(
-    bay: WorkbenchBayDefinition,
-    rows: Array<WorkbenchUpgradeRow<Upgrade>>,
-    offeredUpgradeChoices: Map<UpgradeId, WorkbenchChoice>
-  ) {
-    const detail = document.createElement('div')
-    detail.className = 'workbench-bay-detail'
-    detail.id = `workbench-bay-${bay.id}-panel`
-    detail.setAttribute('role', 'region')
-    detail.setAttribute('aria-labelledby', `workbench-bay-${bay.id}-toggle`)
-    const head = document.createElement('div')
-    head.className = 'workbench-bay-detail-head'
-    head.innerHTML = `<div><b>${this.escape(bay.label)}</b><span>${this.escape(bay.summary)}</span></div><em>${this.escape(bay.shortLabel.toUpperCase())} DATABASE</em>`
-    const grid = document.createElement('div')
-    grid.className = 'manifest-grid workbench-bay-grid'
-    for (const row of rows.filter((candidate) => bay.upgradeIds.includes(candidate.upgrade.id))) {
-      if (row.status === 'maxed') {
-        grid.append(this.renderWorkbenchContextChip(row.upgrade, 'MAXED', this.maxedUnlockText(row.upgrade)))
-      } else if (row.status === 'locked') {
-        grid.append(this.renderWorkbenchContextChip(row.upgrade, 'LOCKED', row.requirement ?? 'Future workbench unlock', 'future'))
-      } else if (!this.workbenchBayBalanceGate(row.upgrade)) {
-        grid.append(this.renderWorkbenchUpgradeChip(row.upgrade))
-      } else {
-        grid.append(this.renderWorkbenchContextChip(row.upgrade, 'STANDBY', this.workbenchBayBalanceGate(row.upgrade), 'standby'))
-      }
-    }
-    detail.append(head, grid)
-    return detail
-  }
-
-  private renderWorkbenchInstallSurface() {
-    const wrap = document.createElement('div')
-    wrap.className = 'build-manifest workbench'
-    const title = document.createElement('div')
-    title.className = 'manifest-title'
-    title.innerHTML = '<b>SHIP WORKBENCH</b><span>open a bay // spend signals on unlocked systems</span>'
-    const offeredUpgradeChoices = new Map<UpgradeId, WorkbenchChoice>()
-    if (!workbenchBayDefinitions.some((bay) => bay.id === this.selectedWorkbenchBay)) this.selectedWorkbenchBay = 'weapons'
-    if (this.expandedWorkbenchBay && !workbenchBayDefinitions.some((bay) => bay.id === this.expandedWorkbenchBay)) this.expandedWorkbenchBay = null
-
-    const rows = workbenchUpgradeRows(upgrades, this.build, [], this.workbenchExtraUnlockedIds())
-
-    const bayShell = document.createElement('div')
-    bayShell.className = 'workbench-bay-shell'
-    const bayList = document.createElement('div')
-    bayList.className = 'workbench-bay-list'
-    for (const bay of workbenchBayDefinitions) bayList.append(this.renderWorkbenchBayEntry(bay, rows, offeredUpgradeChoices))
-    bayShell.append(bayList)
-
-    wrap.append(
-      title,
-      this.renderManifestSummary(),
-      this.workbenchSectionLabel('SYSTEM BAYS'),
-      bayShell
-    )
-
-    wrap.append(this.renderManifestRelicLine())
-    return wrap
-  }
-
-  private renderBuildManifest() {
-    const wrap = document.createElement('div')
-    wrap.className = 'build-manifest overview'
-    const title = document.createElement('div')
-    title.className = 'manifest-title'
-    title.innerHTML = '<b>BUILD MANIFEST</b><span>locked systems, owned ranks, and evolution routes</span>'
-    const chips = document.createElement('div')
-    chips.className = 'manifest-grid'
-    for (const upgrade of upgrades) {
-      const level = this.build[upgrade.id]
-      const maxed = level >= upgrade.max
-      const evolved = this.evolved.has(upgrade.id)
-      const catalyst = upgrade.catalyst ? relics.find((relic) => relic.id === upgrade.catalyst) : null
-      const ready = maxed && catalyst && this.relics.has(catalyst.id) && !evolved
-      const chip = document.createElement('div')
-      chip.className = `manifest-chip ${level > 0 ? 'owned' : 'locked'} ${maxed ? 'maxed' : ''} ${ready ? 'ready' : ''} ${evolved ? 'evolved' : ''} ${upgrade.bucket}`
-      const route = evolved ? 'EVOLVED' : ready ? 'EVOLUTION READY' : catalyst ? `CATALYST: ${catalyst.name}` : upgrade.category === 'weapon' ? 'WEAPON SYSTEM' : 'SHIP SYSTEM'
-      const currentEffect = level > 0 ? ` // ${this.upgradeLevelDetail(upgrade, level)}` : ''
-      chip.innerHTML = `
-        <div class="manifest-chip-head">
-          <strong>${this.escape(upgrade.name)}</strong>
-          <b>${level}/${upgrade.max}</b>
-        </div>
-        <span>${this.escape(route + currentEffect)}</span>
-        <em>${this.bucketLabel(upgrade.bucket)}</em>
-      `
-      chips.append(chip)
-    }
-    wrap.append(title, this.renderManifestSummary(), chips, this.renderManifestRelicLine())
-    return wrap
-  }
-
-  private renderArtifactsCollection(source: 'run' | 'mothership' = 'run') {
-    const wrap = document.createElement('div')
-    wrap.className = 'artifact-collection'
-    const title = document.createElement('div')
-    title.className = 'manifest-title'
-    title.innerHTML = '<b>ARTEFACT ARCHIVE</b><span>relics, contacts, ruins, caches, and planet firsts</span>'
-    const summary = document.createElement('div')
-    summary.className = 'manifest-summary artifact-summary'
-    const unlocked = source === 'run'
-      ? Array.from(this.artifacts.values())
-      : Object.values(this.mothership.archive.records).map((record) => this.normalizeArchiveRecord(record))
-    const counts: Record<ArtifactKind, number> = { relic: 0, alien: 0, lore: 0, planet: 0, cache: 0, enemy: 0 }
-    for (const artifact of unlocked) counts[artifact.kind] += 1
-    summary.innerHTML = `
-      <div><b>${counts.relic}/${relics.length}</b><span>relics</span></div>
-      <div><b>${counts.alien}</b><span>contacts</span></div>
-      <div><b>${counts.lore}</b><span>ruins</span></div>
-      <div><b>${counts.planet}</b><span>planets</span></div>
-      <div><b>${counts.enemy}</b><span>enemies</span></div>
-    `
-    const grid = document.createElement('div')
-    grid.className = 'artifact-grid'
-    for (const card of orderArtifactArchiveCards(this.artifactCards(source))) grid.append(this.artifactCard(card.record, card.locked))
-    wrap.append(title, summary, grid)
-    return wrap
-  }
-
-  private artifactCards(source: 'run' | 'mothership' = 'run') {
-    const cards: Array<{ record: ArtifactRecord; locked: boolean }> = []
-    const archive = source === 'run'
-      ? this.artifacts
-      : new Map(Object.values(this.mothership.archive.records).map((record) => {
-        const normalized = this.normalizeArchiveRecord(record)
-        return [normalized.id, normalized]
-      }))
-    for (const relic of relics) {
-      const id = `relic:${relic.id}`
-      const found = archive.get(id)
-      cards.push({
-        locked: !found,
-        record: found ?? {
-          id,
-          kind: 'relic',
-          title: 'Unknown Relic',
-          detail: source === 'run' ? 'Signature not recovered this run.' : 'Signature not recovered by any expedition.',
-          source: 'Relic signal',
-          color: '#fff27a',
-          icon: hashString(relic.id, 41) % 16,
-          count: 0
-        }
-      })
-    }
-    for (const artifact of archive.values()) {
-      if (artifact.kind !== 'relic') cards.push({ record: artifact, locked: false })
-    }
-    return cards
-  }
-
-  private normalizeArchiveRecord(record: PersistentArchiveRecord): ArtifactRecord {
-    return {
-      id: record.id,
-      kind: record.kind,
-      title: record.title,
-      detail: record.detail ?? 'Signal detail unavailable.',
-      source: record.source ?? 'Mothership archive',
-      color: record.color ?? this.artifactColor(record.kind, record.id),
-      icon: record.icon ?? hashString(record.id, 29) % 16,
-      count: record.count ?? 1
-    }
-  }
-
-  private artifactCard(record: ArtifactRecord, locked: boolean) {
-    const card = document.createElement('div')
-    card.className = `artifact-card ${record.kind} ${locked ? 'locked' : 'found'}`
-    const meta = document.createElement('div')
-    meta.className = 'artifact-meta'
-    const count = record.count > 1 ? ` x${record.count}` : ''
-    meta.innerHTML = `<strong>${this.escape(record.title)}${count}</strong><span>${this.escape(record.detail)}</span><em>${this.escape(record.source)}</em>`
-    card.append(this.artifactIcon(record, locked), meta)
-    return card
-  }
-
-  private artifactIcon(record: ArtifactRecord, locked = false) {
-    const icon = document.createElement('div')
-    icon.className = `artifact-icon ${record.kind} shape-${record.icon % 12} ${locked ? 'locked' : ''}`
-    icon.style.setProperty('--artifact-color', locked ? 'rgba(215, 255, 247, 0.28)' : record.color)
-    icon.style.setProperty('--artifact-spin', `${(record.icon % 8) * 45}deg`)
-    for (let i = 0; i < 4; i += 1) {
-      const mark = document.createElement('span')
-      mark.className = `artifact-mark m${i + 1}`
-      icon.append(mark)
-    }
-    return icon
+    return uiRenderManifestRelicLine(this)
   }
 
   private renderCollectionScreen() {
-    const wrap = document.createElement('div')
-    wrap.className = 'collection-screen'
-    const allRecords = this.collectionCards()
-    const foundCount = allRecords.filter((card) => !card.locked).length
-    const records = this.filteredCollectionCards(allRecords)
-    const firstFound = records.find((card) => !card.locked) ?? records[0]
-    if (!this.selectedCollectionId || !records.some((card) => card.record.id === this.selectedCollectionId)) {
-      this.selectedCollectionId = firstFound?.record.id ?? null
-    }
-    const selected = records.find((card) => card.record.id === this.selectedCollectionId) ?? firstFound
-
-    const head = document.createElement('div')
-    head.className = 'collection-head'
-    head.innerHTML = `
-      <b>Collection</b>
-      <span>Collected: <strong>${foundCount}</strong> of <strong>${collectionCatalog.length}</strong></span>
-    `
-
-    const controls = document.createElement('div')
-    controls.className = 'collection-controls'
-    const foundPanel = document.createElement('div')
-    foundPanel.className = 'collection-control'
-    foundPanel.innerHTML = `<span>Collected:</span><b>${foundCount} / ${collectionCatalog.length}</b>`
-    const familyCounts = new Set(allRecords.filter((card) => !card.locked).map((card) => card.record.kind)).size
-    const familyPanel = document.createElement('div')
-    familyPanel.className = 'collection-control'
-    familyPanel.innerHTML = `<span>Families:</span><b>${familyCounts} / 6</b>`
-    const filterPanel = document.createElement('div')
-    filterPanel.className = 'collection-filter-panel'
-    filterPanel.append(this.collectionFilterButton('all'), this.collectionFilterButton('found'), this.collectionFilterButton('locked'))
-    filterPanel.append(
-      this.collectionFilterButton('relic'),
-      this.collectionFilterButton('enemy'),
-      this.collectionFilterButton('alien'),
-      this.collectionFilterButton('lore'),
-      this.collectionFilterButton('planet'),
-      this.collectionFilterButton('cache')
-    )
-    controls.append(foundPanel, familyPanel, filterPanel)
-
-    const grid = document.createElement('div')
-    grid.className = 'collection-icon-grid'
-    for (const card of records) {
-      const button = document.createElement('button')
-      button.className = `collection-tile ${card.record.kind} ${card.locked ? 'locked' : 'found'} ${selected?.record.id === card.record.id ? 'selected' : ''}`
-      button.type = 'button'
-      button.setAttribute('aria-label', card.locked ? `Unknown ${card.record.kind}` : card.record.title)
-      button.append(this.collectionIcon(card.record, card.locked))
-      button.addEventListener('click', () => {
-        this.selectedCollectionId = card.record.id
-        const scrollTop = this.currentFrontScreenScrollTop('collection')
-        this.showCollection({ scrollTop })
-      })
-      grid.append(button)
-    }
-
-    const detail = document.createElement('div')
-    detail.className = `collection-detail ${selected?.locked ? 'locked' : 'found'}`
-    if (selected) {
-      const count = selected.record.count > 1 ? ` x${selected.record.count}` : ''
-      const detailIcon = document.createElement('div')
-      detailIcon.className = 'collection-detail-icon'
-      detailIcon.append(this.collectionIcon(selected.record, selected.locked))
-      const meta = document.createElement('div')
-      meta.className = 'collection-detail-meta'
-      meta.innerHTML = `
-        <small>${this.collectionKindLabel(selected.record.kind)} / ${selected.locked ? 'LOCKED' : 'DISCOVERED'}</small>
-        <b>${this.escape(selected.record.title)}${count}</b>
-        <span>${this.escape(selected.record.detail)}</span>
-        <em>${this.escape(selected.record.source)}</em>
-      `
-      detail.append(detailIcon, meta)
-    } else {
-      detail.innerHTML = '<b>Archive Empty</b><span>No discoveries have reached the mothership archive yet.</span><em>Land on planets to recover signals.</em>'
-    }
-
-    wrap.append(head, controls, grid, detail)
-    return wrap
-  }
-
-  private collectionCards() {
-    const archive = new Map(Object.values(this.mothership.archive.records).map((record) => {
-      const normalized = this.normalizeArchiveRecord(record)
-      return [normalized.id, normalized]
-    }))
-    const cards = collectionCatalog.map((entry) => {
-      const found = archive.get(entry.id)
-      return {
-        locked: !found,
-        record: found
-          ? {
-              ...found,
-              kind: entry.kind,
-              color: entry.color,
-              icon: entry.icon
-            }
-          : {
-              id: entry.id,
-              kind: entry.kind,
-              title: 'Unknown Discovery',
-              detail: 'Signal not yet recovered.',
-              source: 'Locked collection entry',
-              color: 'rgba(215, 255, 247, 0.28)',
-              icon: entry.icon,
-              count: 0
-            }
-      }
-    })
-    return orderArtifactArchiveCards(cards)
-  }
-
-  private filteredCollectionCards(cards: Array<{ record: ArtifactRecord; locked: boolean }>) {
-    if (this.mothershipCollectionFilter === 'found') return cards.filter((card) => !card.locked)
-    if (this.mothershipCollectionFilter === 'locked') return cards.filter((card) => card.locked)
-    if (this.mothershipCollectionFilter !== 'all') return cards.filter((card) => card.record.kind === this.mothershipCollectionFilter)
-    return cards
-  }
-
-  private collectionFilterButton(filter: MothershipCollectionFilter) {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className = `collection-filter-chip ${this.mothershipCollectionFilter === filter ? 'active' : ''}`
-    button.textContent = this.collectionFilterLabel(filter)
-    button.setAttribute('aria-pressed', String(this.mothershipCollectionFilter === filter))
-    button.addEventListener('click', () => {
-      this.mothershipCollectionFilter = filter
-      this.selectedCollectionId = null
-      const scrollTop = this.currentFrontScreenScrollTop('collection')
-      this.showCollection({ scrollTop })
-    })
-    return button
-  }
-
-  private collectionFilterLabel(filter: MothershipCollectionFilter = this.mothershipCollectionFilter) {
-    return {
-      all: 'ALL',
-      found: 'FOUND',
-      locked: 'LOCKED',
-      relic: 'RELICS',
-      enemy: 'ENEMIES',
-      alien: 'ALIENS',
-      lore: 'LORE',
-      planet: 'PLANETS',
-      cache: 'CACHES'
-    }[filter]
-  }
-
-  private collectionKindLabel(kind: ArtifactKind) {
-    return {
-      relic: 'RELIC',
-      enemy: 'ENEMY',
-      alien: 'ALIEN',
-      lore: 'LORE',
-      planet: 'PLANET',
-      cache: 'CACHE'
-    }[kind]
-  }
-
-  private collectionIcon(record: ArtifactRecord, locked = false) {
-    const icon = document.createElement('span')
-    if (locked) {
-      icon.className = `collection-icon ${record.kind} locked`
-      icon.textContent = '?'
-      return icon
-    }
-    const iconCount = collectionIconAtlasColumns * collectionIconAtlasRows
-    const index = Math.floor(clamp(Math.abs(record.icon), 0, iconCount - 1))
-    const col = index % collectionIconAtlasColumns
-    const row = Math.floor(index / collectionIconAtlasColumns)
-    const x = collectionIconAtlasColumns <= 1 ? 0 : (col / (collectionIconAtlasColumns - 1)) * 100
-    const y = collectionIconAtlasRows <= 1 ? 0 : (row / (collectionIconAtlasRows - 1)) * 100
-    icon.className = `collection-icon ${record.kind} ${locked ? 'locked' : ''}`
-    icon.style.backgroundImage = `url("${collectionIconAtlasUrl}")`
-    icon.style.backgroundSize = `${collectionIconAtlasColumns * 100}% ${collectionIconAtlasRows * 100}%`
-    icon.style.backgroundPosition = `${x}% ${y}%`
-    return icon
+    return uiRenderCollectionScreen(this)
   }
 
   private recordArtifact(record: Omit<ArtifactRecord, 'count'>) {
@@ -7422,139 +6693,7 @@ class VectorShooter {
   }
 
   private showMothership(options: { scrollTop?: number } = {}) {
-    this.state = 'mothership'
-    this.ui.title.innerHTML = ''
-    this.ui.title.className = 'screen mothership-screen'
-    const archiveRecordCount = Object.keys(this.mothership.archive.records).length
-    const firstCommand = !this.debrief
-      && archiveRecordCount === 0
-      && this.mothership.resources.scrap === 0
-      && this.mothership.resources.crystal === 0
-      && this.mothership.resources.cores === 0
-    const shell = document.createElement('div')
-    shell.className = `mothership-command ${firstCommand ? 'first-command' : ''}`
-    const header = document.createElement('header')
-    header.className = 'mothership-command-top'
-    const intro = document.createElement('div')
-    intro.className = 'mothership-command-title'
-    intro.innerHTML = firstCommand
-      ? '<span>COMMAND DECK</span><h1>MOTHERSHIP</h1><p>First scout is hot. Find a signal world, crack one cache, and bring something impossible home.</p>'
-      : '<span>COMMAND DECK</span><h1>MOTHERSHIP</h1><p>Scout systems docked. Spend recovered cargo, review the ship, then launch the next expedition.</p>'
-    if (this.debrief) {
-      const lastRun = document.createElement('p')
-      lastRun.className = 'mothership-last-report'
-      lastRun.textContent = `${this.debrief.title} // ${this.debrief.discoveries.length} discoveries // Scrap ${this.debrief.resources.recovered.scrap} // Crystals ${this.debrief.resources.recovered.crystal} // Cores ${this.debrief.resources.recovered.cores}`
-      intro.append(lastRun)
-    }
-    const resources = document.createElement('div')
-    resources.className = 'mothership-resources'
-    resources.innerHTML = `
-      <span><b>Scrap</b>${this.mothership.resources.scrap}</span>
-      <span><b>Crystals</b>${this.mothership.resources.crystal}</span>
-      <span><b>Cores</b>${this.mothership.resources.cores}</span>
-    `
-    header.append(intro, resources)
-
-    const flight = document.createElement('section')
-    flight.className = 'mothership-flight'
-    const status = document.createElement('div')
-    status.className = 'mothership-launch-meters'
-    const hullPct = clamp(Math.max(0, this.player.hull) / Math.max(1, this.player.maxHull), 0, 1)
-    const xpPct = clamp(this.stats.xp / Math.max(1, this.stats.nextXp), 0, 1)
-    status.append(
-      this.mothershipMeter('Hull Integrity', `${Math.round(hullPct * 100)}%`, hullPct, 'health'),
-      this.mothershipMeter('Mutation XP', `LV ${this.stats.level} // ${Math.floor(this.stats.xp)}/${this.stats.nextXp}`, xpPct, 'xp'),
-      this.mothershipMeter('Archive Signal', `${archiveRecordCount} records`, clamp(archiveRecordCount / 18, 0, 1), 'archive')
-    )
-    const shipBay = document.createElement('div')
-    shipBay.className = 'mothership-ship-bay'
-    const ship = document.createElement('img')
-    ship.src = titleLogoMarkUrl
-    ship.alt = 'Scout ship docked nose north'
-    ship.className = 'mothership-ship-art'
-    const launch = document.createElement('button')
-    launch.className = 'vector-button start-button mothership-launch'
-    launch.textContent = 'Launch Expedition'
-    launch.addEventListener('click', () => this.start())
-    shipBay.append(ship, launch, status)
-    const launchStack = document.createElement('div')
-    launchStack.className = 'mothership-launch-stack'
-    launchStack.append(shipBay)
-    launchStack.append(this.renderMothershipRoutePreview())
-    if (firstCommand) launchStack.append(this.renderFirstMothershipBriefing())
-    flight.append(launchStack)
-
-    shell.append(header, flight)
-    this.ui.title.append(shell)
-    this.showOnly('title')
-    if (options.scrollTop !== undefined) {
-      const restoreScroll = () => {
-        shell.scrollTop = clamp(options.scrollTop ?? 0, 0, Math.max(0, shell.scrollHeight - shell.clientHeight))
-      }
-      restoreScroll()
-      requestAnimationFrame(restoreScroll)
-    }
-  }
-
-  private mothershipMeter(label: string, value: string, pct: number, tone: string) {
-    const meter = document.createElement('div')
-    meter.className = `mothership-meter ${tone}`
-    meter.innerHTML = `
-      <div><span>${this.escape(label)}</span><b>${this.escape(value)}</b></div>
-      <i><em style="width:${clamp(pct, 0, 1) * 100}%"></em></i>
-    `
-    return meter
-  }
-
-  private renderMothershipRoutePreview() {
-    const preview = document.createElement('section')
-    preview.className = 'mothership-route-preview'
-    const choices = availableSectorChoices(this.sectorMap)
-    const current = currentSectorNode(this.sectorMap)
-    const lines = [
-      { x1: 8, y1: 52, x2: 28, y2: 24 },
-      { x1: 8, y1: 52, x2: 28, y2: 52 },
-      { x1: 8, y1: 52, x2: 28, y2: 78 },
-      { x1: 28, y1: 24, x2: 56, y2: 34 },
-      { x1: 28, y1: 52, x2: 56, y2: 52 },
-      { x1: 28, y1: 78, x2: 56, y2: 66 },
-      { x1: 56, y1: 52, x2: 88, y2: 52 }
-    ]
-    const nodeMarkup = [
-      { label: 'M', x: 8, y: 52, className: 'current', text: 'MOTHERSHIP' },
-      ...choices.slice(0, 3).map((node, index) => ({
-        label: this.sectorNodeGlyph(node.kind),
-        x: 28,
-        y: [24, 52, 78][index],
-        className: `available ${node.kind}`,
-        text: node.label
-      })),
-      { label: 'F', x: 88, y: 52, className: 'locked final', text: 'LAST STAND' }
-    ]
-    preview.innerHTML = `
-      <div class="mothership-route-head">
-        <b>SECTOR MAP</b>
-        <span>${this.escape(current.label)} // ${choices.length} jump routes armed</span>
-      </div>
-      <div class="mothership-route-map" aria-label="Sector route preview">
-        <svg class="mothership-route-lines" viewBox="0 0 100 100" aria-hidden="true">
-          ${lines.map((line, index) => `<line class="${index < 3 ? 'available' : ''}" x1="${line.x1}" y1="${line.y1}" x2="${line.x2}" y2="${line.y2}"></line>`).join('')}
-        </svg>
-        ${nodeMarkup.map((node) => `
-          <button class="mothership-route-node ${this.escape(node.className)}" style="left:${node.x}%;top:${node.y}%" type="button" ${node.className.includes('available') ? '' : 'disabled'}>
-            <span>${this.escape(node.label)}</span><em>${this.escape(node.text)}</em>
-          </button>
-        `).join('')}
-      </div>
-    `
-    preview.querySelectorAll<HTMLButtonElement>('.mothership-route-node.available').forEach((button, index) => {
-      const node = choices[index]
-      button.addEventListener('click', () => {
-        if (!node) return
-        this.toast(`${node.label}: ${node.description}`)
-      })
-    })
-    return preview
+    uiShowMothership(this, options)
   }
 
   private currentFrontScreenScrollTop(screen: 'collection' | 'powerups') {
@@ -7623,231 +6762,10 @@ class VectorShooter {
     back.textContent = 'Back'
     back.addEventListener('click', () => this.showTitle())
     header.append(resources, back)
-    shell.append(header, this.renderMothershipMetaSystems())
+    shell.append(header, uiRenderMothershipMetaSystems(this))
     this.ui.powerups.append(shell)
     this.showOnly('powerups')
     this.restoreFrontScreenScroll('powerups', options.scrollTop)
-  }
-
-  private refreshMetaPowerUps(scrollTop?: number) {
-    if (this.state === 'powerups') {
-      this.showPowerUps({ scrollTop })
-      return
-    }
-    this.showMothership({ scrollTop })
-  }
-
-  private renderFirstMothershipBriefing() {
-    const briefing = document.createElement('section')
-    briefing.className = 'mothership-first-briefing'
-    briefing.innerHTML = `
-      <div><b>First Directive</b><span>Land on a bright planet signal.</span></div>
-      <div><b>Surface Order</b><span>Collect cache signals before O2 collapses.</span></div>
-      <div><b>Return Prize</b><span>Bring back records to wake the ship systems.</span></div>
-    `
-    return briefing
-  }
-
-  private renderMothershipConsoleStack() {
-    const consolePanel = document.createElement('div')
-    consolePanel.className = 'mothership-console-stack'
-    const tabs = document.createElement('div')
-    tabs.className = 'mothership-console-tabs'
-    tabs.append(
-      this.mothershipConsoleTab('Workbench', 'workbench', `${this.pendingUpgrades} signals`),
-      this.mothershipConsoleTab('Build', 'manifest', 'systems')
-    )
-    const content = document.createElement('div')
-    content.className = `mothership-console-content ${this.mothershipConsoleView}`
-    if (this.mothershipConsoleView === 'manifest') {
-      content.append(this.renderBuildManifest())
-    } else {
-      const panel = document.createElement('div')
-      panel.className = 'mothership-console-panel'
-      panel.innerHTML = `
-        <b>Workbench Bay</b>
-        <span>${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} banked</span>
-        <p>Mutation choices install during expeditions. Review current systems or inspect the permanent collection before launch.</p>
-      `
-      content.append(panel)
-    }
-    consolePanel.append(tabs, content)
-    return consolePanel
-  }
-
-  private mothershipConsoleTab(label: string, view: MothershipConsoleView, meta: string) {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className = `mothership-console-tab ${this.mothershipConsoleView === view ? 'active' : ''}`
-    button.setAttribute('aria-label', `${label}: ${meta}`)
-    button.setAttribute('aria-pressed', String(this.mothershipConsoleView === view))
-    button.innerHTML = `<span>${this.escape(label)}</span><b>${this.escape(meta)}</b>`
-    button.addEventListener('click', () => {
-      if (this.mothershipConsoleView === view) return
-      this.mothershipConsoleView = view
-      const scrollTop = this.ui.title.querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
-      this.showMothership({ scrollTop })
-    })
-    return button
-  }
-
-  private mothershipStation(title: string, copy: string, actionLabel: string, action: () => void) {
-    const card = document.createElement('div')
-    card.className = 'station-card'
-    const h = document.createElement('h2')
-    h.textContent = title
-    const p = document.createElement('p')
-    p.textContent = copy
-    const button = document.createElement('button')
-    button.className = 'vector-button'
-    button.textContent = actionLabel
-    button.addEventListener('click', action)
-    card.append(h, p, button)
-    return card
-  }
-
-  private lockedStation(title: string, copy: string) {
-    const card = document.createElement('div')
-    card.className = 'station-card locked'
-    card.innerHTML = `<h2>${this.escape(title)}</h2><p>${this.escape(copy)}</p><span>OFFLINE</span>`
-    return card
-  }
-
-  private renderMothershipMetaSystems() {
-    const departments: MothershipDepartmentId[] = ['scanner', 'workbench', 'archive', 'shipyard', 'signalCore', 'hangarCrew']
-    if (!departments.includes(this.selectedMothershipDepartment)) this.selectedMothershipDepartment = 'scanner'
-    if (this.expandedMothershipDepartment && !departments.includes(this.expandedMothershipDepartment)) this.expandedMothershipDepartment = null
-    const window = document.createElement('section')
-    window.className = 'permanent-upgrades-window meta-upgrade-window'
-    const rail = document.createElement('div')
-    rail.className = 'meta-upgrade-rail'
-    for (const id of departments) rail.append(this.metaDepartmentEntry(id))
-    window.append(rail)
-    return window
-  }
-
-  private metaDepartmentToggle(id: MothershipDepartmentId) {
-    const definition = mothershipDepartments[id]
-    const tier = this.mothership.departments[id]
-    const maxTier = definition.tiers.length
-    const tierPct = clamp(tier / Math.max(1, maxTier), 0, 1)
-    const next = definition.tiers[tier]
-    const unlocked = isMothershipDepartmentUnlocked(this.mothership, id)
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.id = `mothership-department-${id}-toggle`
-    button.className = `meta-department-toggle ${this.expandedMothershipDepartment === id ? 'active' : ''} ${unlocked ? '' : 'locked'}`.trim()
-    button.setAttribute('aria-controls', `mothership-department-${id}-panel`)
-    button.setAttribute('aria-pressed', String(this.expandedMothershipDepartment === id))
-    button.setAttribute('aria-expanded', String(this.expandedMothershipDepartment === id))
-    button.addEventListener('click', () => {
-      const scrollTop = this.state === 'powerups'
-        ? this.currentFrontScreenScrollTop('powerups')
-        : this.ui.title.querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
-      if (this.expandedMothershipDepartment === id) {
-        this.expandedMothershipDepartment = null
-      } else {
-        this.selectedMothershipDepartment = id
-        this.expandedMothershipDepartment = id
-      }
-      this.refreshMetaPowerUps(scrollTop)
-    })
-    const meter = document.createElement('div')
-    meter.className = 'station-tier-meter'
-    meter.setAttribute('aria-label', `${definition.name} tier ${tier} of ${maxTier}`)
-    const fill = document.createElement('i')
-    fill.className = 'station-tier-fill'
-    fill.style.width = `${tierPct * 100}%`
-    meter.append(fill)
-    const status = unlocked ? next ? `Next: ${next.name}` : 'Fully online' : `Locked: ${mothershipDepartmentUnlockText(id)}`
-    button.innerHTML = `
-      <i class="meta-department-code">${this.escape(definition.name.split(' ').map((part) => part[0] ?? '').join('').slice(0, 3).toUpperCase())}</i>
-      <div class="meta-department-copy">
-        <div class="meta-department-topline">
-          <strong>${this.escape(definition.name)}</strong>
-          <b>${tier}/${maxTier}</b>
-        </div>
-        <span>${this.escape(status)}</span>
-      </div>
-    `
-    button.append(meter)
-    return button
-  }
-
-  private metaDepartmentEntry(id: MothershipDepartmentId) {
-    const entry = document.createElement('div')
-    entry.className = `meta-department-entry ${this.expandedMothershipDepartment === id ? 'expanded' : ''}`
-    entry.append(this.metaDepartmentToggle(id))
-    if (this.expandedMothershipDepartment === id) entry.append(this.metaDepartmentDetail(id))
-    return entry
-  }
-
-  private metaDepartmentDetail(id: MothershipDepartmentId) {
-    const definition = mothershipDepartments[id]
-    const tier = this.mothership.departments[id]
-    const maxTier = definition.tiers.length
-    const tierPct = clamp(tier / Math.max(1, maxTier), 0, 1)
-    const next = definition.tiers[tier]
-    const unlocked = isMothershipDepartmentUnlocked(this.mothership, id)
-    const detail = document.createElement('article')
-    detail.className = `meta-upgrade-detail ${unlocked ? '' : 'locked'}`.trim()
-    detail.id = `mothership-department-${id}-panel`
-    detail.setAttribute('role', 'region')
-    detail.setAttribute('aria-labelledby', `mothership-department-${id}-toggle`)
-    const header = document.createElement('div')
-    header.className = 'meta-upgrade-detail-head'
-    header.innerHTML = `
-      <div>
-        <b>${this.escape(definition.name)}</b>
-        <span>${this.escape(unlocked ? definition.description : `Locked system. Unlock by completing ${mothershipDepartmentUnlockText(id)}.`)}</span>
-      </div>
-      <em>Tier ${tier}/${maxTier}</em>
-    `
-    const meter = document.createElement('div')
-    meter.className = 'station-tier-meter meta-detail-meter'
-    meter.setAttribute('aria-label', `${definition.name} tier ${tier} of ${maxTier}`)
-    const fill = document.createElement('i')
-    fill.className = 'station-tier-fill'
-    fill.style.width = `${tierPct * 100}%`
-    meter.append(fill)
-    const ladder = document.createElement('div')
-    ladder.className = 'meta-tier-ladder'
-    definition.tiers.forEach((candidate, index) => {
-      const row = document.createElement('div')
-      const state = index < tier ? 'complete' : index === tier && unlocked ? 'current' : 'locked'
-      row.className = `meta-tier-row ${state}`
-      const cost = index < tier
-        ? 'INSTALLED'
-        : `Scrap ${candidate.cost.scrap} // Crystals ${candidate.cost.crystal} // Cores ${candidate.cost.cores}`
-      row.innerHTML = `
-        <b>${index + 1}. ${this.escape(candidate.name)}</b>
-        <span>${this.escape(candidate.description)}</span>
-        <em>${this.escape(cost)}</em>
-      `
-      ladder.append(row)
-    })
-    const button = document.createElement('button')
-    button.className = 'vector-button secondary'
-    button.textContent = unlocked ? next ? 'Authorize Upgrade' : 'Fully Online' : 'Locked'
-    button.disabled = !next || !unlocked
-    button.addEventListener('click', () => this.buyMothershipDepartment(id))
-    detail.append(header, meter, ladder, button)
-    return detail
-  }
-
-  private buyMothershipDepartment(id: MothershipDepartmentId) {
-    const scrollTop = this.state === 'powerups'
-      ? this.currentFrontScreenScrollTop('powerups')
-      : this.ui.title.querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
-    const result = purchaseMothershipTier(this.mothership, id)
-    if (!result.ok) {
-      this.toast(result.reason)
-      return
-    }
-    this.mothership = result.state
-    this.saveMothership()
-    this.toast(`${result.purchased.name.toUpperCase()} ONLINE`)
-    this.refreshMetaPowerUps(scrollTop)
   }
 
   private showScores() {
@@ -7984,121 +6902,7 @@ class VectorShooter {
   }
 
   private renderDebrief() {
-    if (!this.debrief) return
-    this.ui.gameover.innerHTML = ''
-    const panel = document.createElement('div')
-    panel.className = 'panel debrief-panel'
-    const h = document.createElement('h1')
-    h.className = 'title'
-    h.textContent = this.debrief.title
-    const copy = document.createElement('p')
-    copy.className = 'copy'
-    copy.textContent = this.debrief.copy
-    const resources = document.createElement('div')
-    resources.className = 'debrief-grid'
-    resources.innerHTML = `
-      <div><b>${this.debrief.resources.recovered.scrap}</b><span>Scrap Recovered</span></div>
-      <div><b>${this.debrief.resources.recovered.crystal}</b><span>Crystals Recovered</span></div>
-      <div><b>${this.debrief.resources.recovered.cores}</b><span>Cores Recovered</span></div>
-      <div><b>${this.debrief.discoveries.length}</b><span>Discoveries Logged</span></div>
-      <div><b>${this.debrief.lightYears}</b><span>Light Years</span></div>
-      <div><b>${this.debrief.stationVisits.length}</b><span>Stations Docked</span></div>
-    `
-    const discoveries = document.createElement('p')
-    discoveries.className = 'copy small'
-    discoveries.textContent = this.debrief.discoveries.length
-      ? this.debrief.discoveries.slice(0, 4).map((record) => record.title).join(' // ')
-      : 'No new archive records.'
-    const stationRoute = document.createElement('p')
-    stationRoute.className = 'copy small'
-    stationRoute.textContent = this.debrief.stationVisits.length
-      ? `Station route: ${this.debrief.stationVisits.slice(0, 4).map((visit) => visit.stationName).join(' // ')}`
-      : 'No stations docked this expedition.'
-    const bonus = document.createElement('p')
-    bonus.className = 'copy small'
-    bonus.textContent = this.debrief.skippedBeacons > 0 ? `Deep route bonus from ${this.debrief.skippedBeacons} skipped station${this.debrief.skippedBeacons === 1 ? '' : 's'}.` : ''
-    const input = document.createElement('input')
-    input.className = 'name-entry'
-    input.maxLength = 12
-    input.placeholder = 'ACE'
-    input.autocapitalize = 'characters'
-    input.autocomplete = 'name'
-    input.inputMode = 'text'
-    input.value = this.scoreName === 'ACE' ? '' : this.scoreName
-    input.addEventListener('input', () => {
-      this.scoreName = input.value.toUpperCase().replace(/[^A-Z0-9 _-]/g, '').slice(0, 12)
-      input.value = this.scoreName
-    })
-    input.addEventListener('focus', () => input.select())
-    input.addEventListener('blur', () => {
-      if (!this.scoreName.trim()) this.scoreName = 'ACE'
-    })
-    const row = document.createElement('div')
-    row.className = 'button-row'
-    const continueButton = document.createElement('button')
-    continueButton.className = 'vector-button'
-    continueButton.textContent = 'Return to Title'
-    continueButton.addEventListener('click', () => {
-      this.returnToTitleFromGameOver(input)
-    })
-    const scores = document.createElement('button')
-    scores.className = 'vector-button secondary'
-    scores.textContent = 'Scores'
-    scores.addEventListener('click', () => {
-      this.saveScoreFromInput(input)
-      this.showScores()
-    })
-    row.append(continueButton, scores)
-    panel.append(h, copy, resources, discoveries, stationRoute, bonus, input, row)
-    this.ui.gameover.append(panel)
-    this.showOnly('gameover')
-  }
-
-  private renderGameOver() {
-    this.ui.gameover.innerHTML = ''
-    const panel = document.createElement('div')
-    panel.className = 'panel'
-    const h = document.createElement('h1')
-    h.className = 'title'
-    h.textContent = 'SIGNAL LOST'
-    const copy = document.createElement('p')
-    copy.className = 'copy'
-    copy.textContent = `Score ${Math.floor(this.stats.score)}. Survived ${formatTime(this.stats.time)}. Level ${this.stats.level}. Kills ${this.stats.kills}. Planets landed ${this.stats.planets}.`
-    const input = document.createElement('input')
-    input.className = 'name-entry'
-    input.maxLength = 12
-    input.placeholder = 'ACE'
-    input.autocapitalize = 'characters'
-    input.autocomplete = 'name'
-    input.inputMode = 'text'
-    input.value = this.scoreName === 'ACE' ? '' : this.scoreName
-    input.addEventListener('input', () => {
-      this.scoreName = input.value.toUpperCase().replace(/[^A-Z0-9 _-]/g, '').slice(0, 12)
-      input.value = this.scoreName
-    })
-    input.addEventListener('focus', () => input.select())
-    input.addEventListener('blur', () => {
-      if (!this.scoreName.trim()) this.scoreName = 'ACE'
-    })
-    const row = document.createElement('div')
-    row.className = 'button-row'
-    const retry = document.createElement('button')
-    retry.className = 'vector-button'
-    retry.textContent = 'Title Screen'
-    retry.addEventListener('click', () => {
-      this.returnToTitleFromGameOver(input)
-    })
-    const scores = document.createElement('button')
-    scores.className = 'vector-button secondary'
-    scores.textContent = 'Scores'
-    scores.addEventListener('click', () => {
-      this.saveScoreFromInput(input)
-      this.showScores()
-    })
-    row.append(retry, scores)
-    panel.append(h, copy, input, document.createElement('br'), document.createElement('br'), row)
-    this.ui.gameover.append(panel)
-    this.showOnly('gameover')
+    uiRenderDebrief(this)
   }
 
   private showSectorMap(message = 'Choose the next jump. Route progress resets on death; mothership upgrades persist.') {
