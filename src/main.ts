@@ -115,6 +115,7 @@ import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction,
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
 import { createSurfaceResourceNodes, surfaceEventMessage } from './surface/run-setup'
 import { surfaceGunCooldown, surfaceGunDamage, surfaceGunSpeed, surfaceLowOxygenRatio, surfaceMaxHealth, surfaceMaxOxygen } from './surface/suit-stats'
+import { safeSurfaceThreatPoint, surfaceThreatKeepouts } from './surface/threat-placement'
 import { spawnSurfaceSplitterChildren, updateSurfaceThreatMotion } from './surface/threat-behavior'
 import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, updateSurfaceWaveDirector, type SurfaceWaveState, type SurfaceWaveTelegraph } from './surface/wave-director'
 import { renderPlayer as drawPlayer } from './render/player'
@@ -143,7 +144,7 @@ import {
   type SpaceEncounterKind
 } from './space-encounters'
 import { nextSpaceWaveWarning, spaceWaveId } from './space-wave-director'
-import { surfacePilotMuzzleOffset, surfacePilotSpawnKeepout } from './surface-pilot'
+import { surfacePilotMuzzleOffset } from './surface-pilot'
 import {
   planetAlienCatalogVariants,
   planetBossCatalogVariants,
@@ -155,7 +156,6 @@ import {
   type SurfaceThreatBehavior
 } from './surface-balance'
 import { planSurfaceEncounter, rollPlanetArchetype, type PlanetArchetype, type SurfaceEventKind, type SurfaceScenarioKind } from './surface-encounters'
-import { surfaceThreatSpawnPoint } from './surface-spawn'
 import { dashVector, touchActionLabel } from './mobile-controls'
 import {
   defaultMothershipState,
@@ -2971,15 +2971,11 @@ export class VectorShooter {
   }
 
   private surfaceThreatKeepouts(pilot: Vec, ship: Vec) {
-    return [
-      { x: pilot.x, y: pilot.y, radius: surfacePilotSpawnKeepout() },
-      { x: ship.x, y: ship.y, radius: surfaceRunBalance.threatPlacement.shipKeepoutRadius }
-    ]
+    return surfaceThreatKeepouts(pilot, ship)
   }
 
   private safeSurfaceThreatPoint(candidate: Vec, keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>, clearance: number = surfaceRunBalance.threatPlacement.safeDefaultClearance, fallbackAngle = 0) {
-    const world = surfaceRunBalance.world
-    return surfaceThreatSpawnPoint(candidate, keepouts, { minX: world.threatMinX, maxX: world.threatMaxX, minY: world.threatMinY, maxY: world.threatMaxY }, clearance, fallbackAngle)
+    return safeSurfaceThreatPoint(candidate, keepouts, clearance, fallbackAngle)
   }
 
   private createGenericSurfaceThreat(planet: Planet, event: SurfaceEventKind, i: number, total: number, keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>): SurfaceThreat {
