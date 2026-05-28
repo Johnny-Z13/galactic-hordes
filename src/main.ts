@@ -168,6 +168,7 @@ import { showTitle as uiShowTitle } from './ui/title-screen'
 import { makeHud as uiMakeHud, updateHud as uiUpdateHud } from './ui/hud'
 import { makeScreens as uiMakeScreens, showOnly as uiShowOnly } from './ui/screens'
 import { renderPlanet as uiRenderPlanet } from './ui/planet-screen'
+import { showStationDock as uiShowStationDock } from './ui/station-dock'
 import { renderIntroArrow } from './ui/intro-waypoint'
 import {
   introHookConfig,
@@ -396,7 +397,7 @@ interface ReturnBeacon {
   assistTriggered: boolean
 }
 
-interface StationDockReport {
+export interface StationDockReport {
   nodeId: string
   stationName: string
   nodeLabel: string
@@ -6918,115 +6919,7 @@ export class VectorShooter {
   }
 
   private showStationDock(report: StationDockReport) {
-    this.stationDockReport = report
-    this.state = 'station'
-    this.ui.station.innerHTML = ''
-    this.ui.station.className = 'screen station-dock-screen'
-    const panel = document.createElement('div')
-    panel.className = 'station-command-panel'
-    const signalCopy = this.pendingUpgrades > 0
-      ? `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} banked`
-      : 'No mutation signals banked'
-    panel.innerHTML = `
-      <div class="station-command-header">
-        <span>STATION COMMAND</span>
-        <h1>${this.escape(report.stationName)}</h1>
-        <p>${this.escape(report.fiction)}</p>
-      </div>
-      <div class="station-command-status">
-        <div><b>${this.escape(report.nodeLabel)}</b><span>route berth</span></div>
-        <div><b>${Math.max(0, report.repaired)}</b><span>hull repaired</span></div>
-        <div><b>${this.resources.scrap}</b><span>scrap manifest</span></div>
-        <div><b>${signalCopy}</b><span>workbench buffer</span></div>
-      </div>
-    `
-    const sections = document.createElement('div')
-    sections.className = 'station-command-sections'
-    const serviceList = document.createElement('div')
-    serviceList.className = 'station-service-list'
-    for (const service of report.services) {
-      const chip = document.createElement('span')
-      chip.textContent = this.stationServiceLabel(service)
-      serviceList.append(chip)
-    }
-    const serviceCopy = document.createElement('p')
-    serviceCopy.textContent = report.serviceLine
-    const serviceActions = document.createElement('div')
-    serviceActions.className = 'station-command-actions'
-    const workbench = document.createElement('button')
-    workbench.type = 'button'
-    workbench.className = 'station-command-button primary'
-    workbench.textContent = 'Open Workbench'
-    workbench.disabled = this.pendingUpgrades <= 0
-    workbench.addEventListener('click', () => this.openStationWorkbench())
-    serviceActions.append(workbench)
-    const contact = document.createElement('div')
-    contact.className = 'station-contact-panel'
-    contact.innerHTML = `
-      <b>${this.escape(report.contactName)}</b>
-      <span>${this.escape(report.contactRole)}</span>
-      <p>${this.escape(report.rumor)}</p>
-    `
-    const cargo = document.createElement('div')
-    cargo.className = 'station-cargo-grid'
-    cargo.innerHTML = `
-      <div><b>${this.resources.scrap}</b><span>SCRAP</span></div>
-      <div><b>${this.resources.crystal}</b><span>CRYSTALS</span></div>
-      <div><b>${this.resources.cores}</b><span>CORES</span></div>
-      <div><b>${this.pendingUpgrades}</b><span>SIGNALS</span></div>
-    `
-    const routeStatus = document.createElement('p')
-    routeStatus.textContent = report.routeStatus
-    const routeActions = document.createElement('div')
-    routeActions.className = 'station-command-actions'
-    const route = document.createElement('button')
-    route.type = 'button'
-    route.className = 'station-command-button'
-    route.textContent = 'Route Map'
-    route.addEventListener('click', () => this.leaveStationForSectorMap())
-    routeActions.append(route)
-    sections.append(
-      this.stationCommandSection('SERVICES', 'repair / trade / workbench', [serviceList, serviceCopy, serviceActions], true),
-      this.stationCommandSection('CONTACT', report.contactRole.toUpperCase(), [contact], false),
-      this.stationCommandSection('CARGO MANIFEST', `${this.resources.scrap} scrap / ${this.resources.crystal} crystal`, [cargo], false),
-      this.stationCommandSection('ROUTE MAP', 'departure lane ready', [this.stationRouteMap(report), routeStatus, routeActions], false)
-    )
-    panel.append(sections)
-    this.ui.station.append(panel)
-    this.showOnly('station')
-  }
-
-  private stationCommandSection(title: string, status: string, children: HTMLElement[], open: boolean) {
-    const section = document.createElement('details')
-    section.className = 'station-command-section'
-    section.open = open
-    const summary = document.createElement('summary')
-    summary.innerHTML = `<span>${this.escape(title)}</span><b>${this.escape(status)}</b>`
-    section.append(summary, ...children)
-    return section
-  }
-
-  private stationRouteMap(report: StationDockReport) {
-    const map = document.createElement('div')
-    map.className = 'station-route-map'
-    for (const node of this.sectorMap.nodes) {
-      const marker = document.createElement('span')
-      marker.className = `station-route-node ${node.id === report.nodeId ? 'current' : node.completed ? 'complete' : availableSectorChoices(this.sectorMap).some((choice) => choice.id === node.id) ? 'available' : 'locked'}`
-      marker.textContent = this.sectorNodeGlyph(node.kind)
-      marker.title = node.id === report.nodeId ? report.stationName : node.label
-      map.append(marker)
-    }
-    return map
-  }
-
-  private stationServiceLabel(service: SectorStationService) {
-    const labels: Record<SectorStationService, string> = {
-      repair: 'Hull Repair',
-      workbench: 'Workbench',
-      trade: 'Trade',
-      scan: 'Route Scan'
-    }
-    return labels[service]
+    uiShowStationDock(this, report)
   }
 
   private openStationWorkbench() {

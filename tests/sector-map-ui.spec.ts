@@ -4,6 +4,14 @@ import { resolve } from 'node:path'
 
 const mainSource = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
 const debriefSource = () => readFileSync(resolve(process.cwd(), 'src/ui/debrief.ts'), 'utf8')
+const optionalSource = (path: string) => {
+  try {
+    return readFileSync(resolve(process.cwd(), path), 'utf8')
+  } catch {
+    return ''
+  }
+}
+const stationDockSource = () => optionalSource('src/ui/station-dock.ts')
 
 test('sector map is a first class screen between mothership and expeditions', () => {
   const main = mainSource()
@@ -57,17 +65,27 @@ test('station docking advances the sector map instead of always ending the run',
 
 test('station docking opens a master command menu with collapsible sections and route map', () => {
   const main = mainSource()
+  const stationDock = stationDockSource()
   const css = readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8')
 
-  expect(main).toContain('station-command-panel')
-  expect(main).toContain('station-command-section')
-  expect(main).toContain('private stationCommandSection(')
-  expect(main).toContain('private stationRouteMap(')
+  expect(main).toContain("import { showStationDock as uiShowStationDock } from './ui/station-dock'")
+  expect(main).toContain('private showStationDock(report: StationDockReport) {')
+  expect(main).toContain('uiShowStationDock(this, report)')
+  expect(main).not.toContain("panel.className = 'station-command-panel'")
+  expect(main).not.toContain('private stationCommandSection(')
+  expect(main).not.toContain('private stationRouteMap(')
+  expect(stationDock).toContain('export function showStationDock(self: VectorShooter, report: StationDockReport)')
+  expect(stationDock).toContain("panel.className = 'station-command-panel'")
+  expect(stationDock).toContain('function stationCommandSection(')
+  expect(stationDock).toContain('function stationRouteMap(')
+  expect(stationDock).toContain("workbench.addEventListener('click', () => self['openStationWorkbench']())")
+  expect(stationDock).toContain("route.addEventListener('click', () => self['leaveStationForSectorMap']())")
+  expect(stationDock).toContain('station-command-section')
   expect(main).toContain('private stationNameForNode(')
   expect(main).toContain('private stationFictionForNode(')
-  expect(main).toContain('Open Workbench')
-  expect(main).toContain('CARGO MANIFEST')
-  expect(main).toContain('ROUTE MAP')
+  expect(stationDock).toContain('Open Workbench')
+  expect(stationDock).toContain('CARGO MANIFEST')
+  expect(stationDock).toContain('ROUTE MAP')
   expect(main).toContain('private openStationWorkbench(')
   expect(main).toContain('private leaveStationForSectorMap(')
   expect(css).toContain('.station-command-panel')
@@ -106,12 +124,13 @@ test('dock action stays visible and pulses while a station is available', () => 
 
 test('station visits persist as route memory and journey debrief context', () => {
   const main = mainSource()
+  const stationDock = stationDockSource()
 
   expect(main).toContain("from './station-memory'")
   expect(main).toContain("from './planet-names'")
   expect(main).toContain('private stationVisits: StationVisitRecord[] = []')
   expect(main).toContain('private recordStationVisit(')
-  expect(main).toContain('station-contact-panel')
+  expect(stationDock).toContain('station-contact-panel')
   expect(main).toContain("stateLabel = stationVisit ? 'DOCKED'")
   expect(main).toContain('stationVisits: [...this.stationVisits]')
   expect(main).toContain('journeyDistanceLy({')

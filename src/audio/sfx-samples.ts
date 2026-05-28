@@ -1,6 +1,3 @@
-// button1 source was not re-exported as MP3; reuse button2 for that slot while
-// the swish sample carries the softer navigation accent.
-import sfxUiButton1Url from '../assets/sound-effects/UI_device_button2.mp3?url'
 import sfxUiButton2Url from '../assets/sound-effects/UI_device_button2.mp3?url'
 import sfxUiButton3Url from '../assets/sound-effects/UI_device_button3.mp3?url'
 import sfxUiButton4Url from '../assets/sound-effects/UI_device_button4.mp3?url'
@@ -12,7 +9,6 @@ import sfxAlienshipScan4Url from '../assets/sound-effects/Alienship Scanning 4.m
 import sfxAlienshipScanLowUrl from '../assets/sound-effects/AlienshipScanningLOW3.mp3?url'
 
 export const uiButtonSampleNames = [
-  'ui-button-1',
   'ui-button-2',
   'ui-button-3',
   'ui-button-4',
@@ -22,7 +18,6 @@ export const uiButtonSampleNames = [
 
 export const uiButtonNavigationSampleNames = [
   'ui-nav-swish',
-  'ui-button-1',
   'ui-button-2',
   'ui-button-3'
 ] as const
@@ -38,7 +33,6 @@ export const uiButtonDangerSampleNames = [
 
 export const sfxSamples = {
   'ui-nav-swish': sfxUiNavSwishUrl,
-  'ui-button-1': sfxUiButton1Url,
   'ui-button-2': sfxUiButton2Url,
   'ui-button-3': sfxUiButton3Url,
   'ui-button-4': sfxUiButton4Url,
