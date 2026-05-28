@@ -13,6 +13,7 @@ import {
 } from '../src/powerup-balance'
 
 const mainSource = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+const workbenchSource = () => readFileSync(resolve(process.cwd(), 'src/ui/workbench.ts'), 'utf8')
 
 test('upgrade and relic definitions live in the powerup balance source', () => {
   expect(upgrades.length).toBeGreaterThan(20)
@@ -94,10 +95,12 @@ test('rear gun is a weapon upgrade with named balance tuning', () => {
 test('workbench upgrade cards distinguish next rank from current manifest rank', () => {
   const main = mainSource()
 
+  const workbench = workbenchSource()
+
   expect(main).toContain('INSTALL RANK ${level}/${choice.upgrade.max}')
   expect(main).toContain('upgradeLevelDetail(upgrade, level)')
-  expect(main).toContain('workbenchRollableUpgrades(upgrades, this.build, this.workbenchExtraUnlockedIds())')
-  expect(main).toContain('renderWorkbenchBayDetail')
-  expect(main).toContain('renderWorkbenchUpgradeChip')
+  expect(main).toContain('workbenchRollableUpgrades(upgrades, this.build, uiWorkbenchExtraUnlockedIds(this))')
+  expect(workbench).toContain('renderWorkbenchBayDetail')
+  expect(workbench).toContain('renderWorkbenchUpgradeChip')
   expect(main).not.toContain('fourthChoiceChance')
 })

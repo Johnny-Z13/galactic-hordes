@@ -139,6 +139,16 @@ import {
 } from './workbench-rolls'
 import { workbenchBayDefinitions, workbenchBayForUpgrade, type WorkbenchBayDefinition, type WorkbenchBayId } from './workbench-bays'
 import { optionOrbProfile, pulseVolleyCount, rearGunProfile, starterSignatureFlags } from './weapon-signatures'
+import {
+  renderLevelUp as uiRenderLevelUp,
+  currentLevelUpScrollTop as uiCurrentLevelUpScrollTop,
+  restoreLevelUpScroll as uiRestoreLevelUpScroll,
+  canApplyWorkbenchChoice as uiCanApplyWorkbenchChoice,
+  renderManifestSummary as uiRenderManifestSummary,
+  renderManifestRelicLine as uiRenderManifestRelicLine,
+  workbenchExtraUnlockedIds as uiWorkbenchExtraUnlockedIds,
+  installCueFor as uiInstallCueFor
+} from './ui/workbench'
 
 type GameState = 'title' | 'mothership' | 'collection' | 'powerups' | 'sectorMap' | 'station' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
@@ -409,7 +419,7 @@ interface DerelictSignal {
   life: number
 }
 
-type WorkbenchChoice =
+export type WorkbenchChoice =
   | { kind: 'upgrade'; upgrade: Upgrade }
   | { kind: 'evolution'; evolution: Evolution }
   | { kind: 'limit'; id: LimitId; name: string; description: string }
@@ -486,7 +496,7 @@ const formatTime = (seconds: number) => {
 
 type PlanetAudioMood = Planet['archetype'] | 'deepSpace' | 'title'
 type WeaponSoundKind = 'pulse' | 'prism' | 'rail' | 'needle' | 'surface'
-type AudioUpgradeCue = UpgradeBucket | 'evolution' | 'relic' | 'limit'
+export type AudioUpgradeCue = UpgradeBucket | 'evolution' | 'relic' | 'limit'
 type ExplosionSoundKind = 'small' | 'heavy' | 'surface' | 'gameover'
 type PickupSoundKind = PickupKind | SurfaceResourceKind | 'gift' | 'nav'
 
@@ -819,7 +829,7 @@ class AudioDirector {
   }
 }
 
-class VectorShooter {
+export class VectorShooter {
   private app = document.querySelector<HTMLDivElement>('#app')!
   private canvas: HTMLCanvasElement
   private mini: HTMLCanvasElement
@@ -3331,7 +3341,7 @@ class VectorShooter {
       ? firstOpportunityUpgrade(upgrades, this.build, 'suitO2')
       : null
     if (discoverySuit && choices.length < count) choices.push({ kind: 'upgrade', upgrade: discoverySuit })
-    const available = workbenchRollableUpgrades(upgrades, this.build, this.workbenchExtraUnlockedIds())
+    const available = workbenchRollableUpgrades(upgrades, this.build, uiWorkbenchExtraUnlockedIds(this))
       .filter((u) => !choices.some((choice) => choice.kind === 'upgrade' && choice.upgrade.id === u.id))
     while (choices.length < count && available.length) {
       const selected = this.weightedUpgrade(available, rare)
@@ -3392,7 +3402,7 @@ class VectorShooter {
       return
     }
     const rare = choice.kind !== 'upgrade' || choice.upgrade.rarity < workbenchBalance.rareInstallRarityThreshold
-    this.audio.upgrade(this.installCueFor(choice), rare)
+    this.audio.upgrade(uiInstallCueFor(this, choice), rare)
     if (choice.kind === 'upgrade') this.applyUpgrade(choice.upgrade)
     else if (choice.kind === 'evolution') this.applyEvolution(choice.evolution)
     else if (choice.kind === 'relic') this.acquireRelic(choice.relic, 'WORKBENCH RELIC INSTALLED')
@@ -6440,475 +6450,27 @@ class VectorShooter {
   }
 
   private renderLevelUp(title: string, copy: string) {
-    this.levelUpTitle = title
-    this.levelUpCopy = copy
-    this.ui.levelup.innerHTML = ''
-    const panel = document.createElement('div')
-    panel.className = 'panel workbench-panel'
-    const h = document.createElement('h1')
-    h.className = 'title'
-    h.textContent = title
-    const p = document.createElement('p')
-    p.className = 'copy'
-    p.textContent = copy
-    const actions = document.createElement('div')
-    actions.className = 'workbench-actions'
-    const view = document.createElement('div')
-    view.className = 'workbench-view manifest'
-    actions.append(...this.renderWorkbenchExitActions())
-    if (this.mothership.departments.workbench >= 4 && this.pendingUpgrades > 0) {
-      const recycle = document.createElement('button')
-      recycle.className = 'workbench-command recycle'
-      recycle.textContent = 'Recycle Signal'
-      recycle.addEventListener('click', () => this.recycleWorkbenchSignal())
-      actions.append(recycle)
-    }
-    view.append(this.renderWorkbenchInstallSurface())
-    panel.append(h, p)
-    if (actions.children.length) panel.append(actions)
-    panel.append(view)
-    this.ui.levelup.append(panel)
-    this.showOnly('levelup')
-  }
-
-  private renderWorkbenchExitActions() {
-    const buttons: HTMLButtonElement[] = []
-    const continueButton = document.createElement('button')
-    continueButton.type = 'button'
-    continueButton.className = 'workbench-command primary'
-    continueButton.textContent = this.workbenchContinueLabel()
-    continueButton.addEventListener('click', () => this.continueFromWorkbench())
-    buttons.push(continueButton)
-
-    const backButton = document.createElement('button')
-    backButton.type = 'button'
-    backButton.className = 'workbench-command secondary'
-    backButton.textContent = this.workbenchBackLabel()
-    backButton.addEventListener('click', () => this.backFromWorkbench())
-    buttons.push(backButton)
-    return buttons
-  }
-
-  private workbenchContinueLabel() {
-    if (this.takeoffAfterWorkbench) return 'Launch Now'
-    if (this.returnToSectorMapAfterWorkbench) return 'Route Map'
-    return 'Resume Flight'
-  }
-
-  private workbenchBackLabel() {
-    if (this.takeoffAfterWorkbench) return 'Back to Surface'
-    if (this.returnToSectorMapAfterWorkbench) return 'Back to Station'
-    return 'Back'
-  }
-
-  private continueFromWorkbench() {
-    if (this.workbenchInstalling) return
-    this.showOnly(null)
-    if (this.takeoffAfterWorkbench) {
-      this.takeoffAfterWorkbench = false
-      this.startTakeoff({ skipWorkbench: true })
-      return
-    }
-    if (this.returnToSectorMapAfterWorkbench) {
-      this.returnToSectorMapAfterWorkbench = false
-      this.leaveStationForSectorMap()
-      return
-    }
-    this.state = 'playing'
-    this.toast(this.pendingUpgrades > 0 ? `${this.pendingUpgrades} SIGNAL${this.pendingUpgrades === 1 ? '' : 'S'} HELD IN BUFFER` : 'WORKBENCH CLOSED')
-  }
-
-  private backFromWorkbench() {
-    if (this.workbenchInstalling) return
-    if (this.returnToSectorMapAfterWorkbench && this.stationDockReport) {
-      const report = this.stationDockReport
-      this.returnToSectorMapAfterWorkbench = false
-      this.showStationDock(report)
-      return
-    }
-    this.showOnly(null)
-    if (this.takeoffAfterWorkbench && this.surface) {
-      this.takeoffAfterWorkbench = false
-      this.state = 'surface'
-      this.toast('WORKBENCH CLOSED')
-      return
-    }
-    this.state = 'playing'
-    this.toast('WORKBENCH CLOSED')
+    uiRenderLevelUp(this, title, copy)
   }
 
   private currentLevelUpScrollTop() {
-    const panel = this.ui.levelup.querySelector<HTMLElement>('.workbench-panel')
-    const view = this.ui.levelup.querySelector<HTMLElement>('.workbench-view')
-    return Math.max(panel?.scrollTop ?? 0, view?.scrollTop ?? 0)
+    return uiCurrentLevelUpScrollTop(this)
   }
 
   private restoreLevelUpScroll(scrollTop: number) {
-    const restore = () => {
-      const panel = this.ui.levelup.querySelector<HTMLElement>('.workbench-panel')
-      const view = this.ui.levelup.querySelector<HTMLElement>('.workbench-view')
-      if (panel) panel.scrollTop = scrollTop
-      if (view) view.scrollTop = scrollTop
-    }
-    restore()
-    window.requestAnimationFrame(restore)
-  }
-
-  private recycleWorkbenchSignal() {
-    if (this.workbenchInstalling || this.pendingUpgrades <= 0 || this.mothership.departments.workbench < 4) return
-    const scrap = workbenchBalance.recycleScrapBase + Math.floor(this.stats.level * workbenchBalance.recycleScrapPerLevel)
-    const crystal = workbenchBalance.recycleCrystalBase + Math.floor(this.stats.planets * workbenchBalance.recycleCrystalPerPlanet)
-    this.resources.scrap += scrap
-    this.resources.crystal += crystal
-    this.pendingUpgrades = Math.max(0, this.pendingUpgrades - 1)
-    this.toast(`SIGNAL RECYCLED: +${scrap} SCRAP +${crystal} CRYSTALS`)
-    if (this.pendingUpgrades > 0) {
-      this.refreshLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
-      return
-    }
-    this.showOnly(null)
-    if (this.takeoffAfterWorkbench) {
-      this.takeoffAfterWorkbench = false
-      this.startTakeoff()
-    } else if (this.returnToSectorMapAfterWorkbench) {
-      this.returnToSectorMapAfterWorkbench = false
-      this.showSectorMap('Station service recycled. Choose the next jump.')
-    } else {
-      this.state = 'playing'
-    }
-  }
-
-  private beginWorkbenchInstall(choice: WorkbenchChoice, button: HTMLButtonElement) {
-    if (this.workbenchInstalling) return
-    if (!this.canApplyWorkbenchChoice(choice)) {
-      button.disabled = true
-      button.classList.add('invalid')
-      this.toast('SYSTEM ALREADY MAXED')
-      this.refreshLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
-      return
-    }
-    this.workbenchInstalling = true
-    const rare = choice.kind !== 'upgrade' || choice.upgrade.rarity < workbenchBalance.rareInstallRarityThreshold
-    this.audio.install(this.installCueFor(choice), rare)
-    const color = choice.kind === 'evolution' || choice.kind === 'relic' ? '#fff27a' : choice.kind === 'limit' ? '#70a8ff' : this.upgradeFxColor(choice.upgrade)
-    button.style.setProperty('--install-color', color)
-    const anchor = this.surface?.ship ?? this.player
-    this.burst(anchor.x, anchor.y, color, rare ? 28 : 18, rare ? 260 : 190)
-    button.classList.add('selected')
-    for (const el of Array.from(this.ui.levelup.querySelectorAll<HTMLButtonElement>('.workbench-install-choice'))) el.disabled = true
-    window.setTimeout(
-      () => this.applyWorkbenchChoice(choice),
-      (rare ? workbenchBalance.rareInstallDelaySeconds : workbenchBalance.installDelaySeconds) * 1000
-    )
-  }
-
-  private installCueFor(choice: WorkbenchChoice): AudioUpgradeCue {
-    if (choice.kind === 'upgrade') return choice.upgrade.bucket
-    return choice.kind
+    uiRestoreLevelUpScroll(this, scrollTop)
   }
 
   private canApplyWorkbenchChoice(choice: WorkbenchChoice) {
-    if (choice.kind === 'upgrade') return this.pendingUpgrades > 0 && this.build[choice.upgrade.id] < choice.upgrade.max && this.isWorkbenchUpgradeUnlocked(choice.upgrade.id) && !this.workbenchBayBalanceGate(choice.upgrade)
-    if (choice.kind === 'evolution') {
-      const upgrade = upgrades.find((candidate) => candidate.id === choice.evolution.weapon)
-      return !!upgrade && this.build[choice.evolution.weapon] >= upgrade.max && this.relics.has(choice.evolution.relic) && !this.evolved.has(choice.evolution.weapon)
-    }
-    if (choice.kind === 'relic') return !this.relics.has(choice.relic.id)
-    return true
-  }
-
-  private choiceTitle(choice: WorkbenchChoice) {
-    if (choice.kind === 'upgrade') return choice.upgrade.name
-    if (choice.kind === 'evolution') return choice.evolution.name
-    if (choice.kind === 'relic') return choice.relic.name
-    return choice.name
-  }
-
-  private workbenchChoiceRoute(choice: WorkbenchChoice, currentLevel: number) {
-    if (choice.kind === 'upgrade') return `INSTALL RANK ${Math.min(currentLevel + 1, choice.upgrade.max)}/${choice.upgrade.max}`
-    if (choice.kind === 'evolution') return 'EVOLUTION READY'
-    if (choice.kind === 'relic') return 'RELIC SIGNAL'
-    return 'LIMIT BREAK'
-  }
-
-  private choiceDetail(choice: WorkbenchChoice) {
-    if (choice.kind === 'upgrade') return this.upgradeLevelDetail(choice.upgrade, this.build[choice.upgrade.id] + 1)
-    if (choice.kind === 'evolution') return choice.evolution.description
-    if (choice.kind === 'relic') return choice.relic.description + (choice.relic.downside ? ` Risk: ${choice.relic.downside}` : '')
-    return choice.description
-  }
-
-  private choiceKindLabel(choice: WorkbenchChoice) {
-    if (choice.kind === 'upgrade') return `${this.build[choice.upgrade.id]}/${choice.upgrade.max}`
-    if (choice.kind === 'evolution') return 'EVOLVE'
-    if (choice.kind === 'relic') return 'RELIC'
-    return 'LIMIT'
-  }
-
-  private choiceCategoryLabel(choice: WorkbenchChoice) {
-    if (choice.kind === 'upgrade') return this.bucketLabel(choice.upgrade.bucket)
-    if (choice.kind === 'evolution') return 'EVOLUTION'
-    if (choice.kind === 'relic') return 'RELIC'
-    return 'LIMIT BREAK'
-  }
-
-  private isWorkbenchUpgradeUnlocked(id: UpgradeId) {
-    const rows = workbenchUpgradeRows(upgrades, this.build, [], this.workbenchExtraUnlockedIds())
-    return rows.some((row) => row.upgrade.id === id && row.status !== 'locked')
-  }
-
-  private workbenchBayOwnedRanks(bay: WorkbenchBayDefinition) {
-    return bay.upgradeIds.reduce((sum, id) => {
-      const upgrade = upgrades.find((candidate) => candidate.id === id)
-      return sum + Math.min(this.build[id], upgrade?.max ?? this.build[id])
-    }, 0)
-  }
-
-  private workbenchBayHasUpgradeableSystem(bay: WorkbenchBayDefinition) {
-    return bay.upgradeIds.some((id) => {
-      const upgrade = upgrades.find((candidate) => candidate.id === id)
-      return !!upgrade && this.isWorkbenchUpgradeUnlocked(id) && this.build[id] < upgrade.max
-    })
-  }
-
-  private workbenchBayBalanceGate(upgrade: Upgrade) {
-    const bay = workbenchBayForUpgrade(upgrade)
-    if (bay.id === 'spacesuit') return ''
-    const activeBays = workbenchBayDefinitions.filter((candidate) => candidate.id !== 'spacesuit' && this.workbenchBayHasUpgradeableSystem(candidate))
-    if (activeBays.length < 2) return ''
-    const lowestRanks = Math.min(...activeBays.map((candidate) => this.workbenchBayOwnedRanks(candidate)))
-    const bayRanks = this.workbenchBayOwnedRanks(bay)
-    const maxLead = 2
-    if (bayRanks <= lowestRanks + maxLead) return ''
-    const catchupTarget = lowestRanks + 1
-    return `SYNC LOCK // upgrade another bay to ${catchupTarget}+ ranks`
+    return uiCanApplyWorkbenchChoice(this, choice)
   }
 
   private renderManifestSummary() {
-    const summary = document.createElement('div')
-    summary.className = 'manifest-summary'
-    const ownedCount = upgrades.filter((upgrade) => this.build[upgrade.id] > 0).length
-    const maxedCount = upgrades.filter((upgrade) => this.build[upgrade.id] >= upgrade.max).length
-    const limitCount = Object.values(this.limitBreaks).reduce((sum, value) => sum + value, 0)
-    summary.innerHTML = `
-      <div><b>${ownedCount}/${upgrades.length}</b><span>systems</span></div>
-      <div><b>${maxedCount}</b><span>maxed</span></div>
-      <div><b>${this.relics.size}/${relics.length}</b><span>relics</span></div>
-      <div><b>${this.evolved.size}/${evolutions.length}</b><span>evolved</span></div>
-      <div><b>${limitCount}</b><span>limits</span></div>
-    `
-    return summary
+    return uiRenderManifestSummary(this)
   }
 
   private renderManifestRelicLine() {
-    const relicLine = document.createElement('div')
-    relicLine.className = 'manifest-relics'
-    relicLine.textContent = this.relics.size > 0
-      ? Array.from(this.relics).map((id) => relics.find((relic) => relic.id === id)?.name ?? id).join(' // ')
-      : 'No relics installed yet.'
-    return relicLine
-  }
-
-  private workbenchExtraUnlockedIds(): UpgradeId[] {
-    return this.discoverySuitOffer ? ['suitO2'] : []
-  }
-
-  private workbenchSectionLabel(label: string) {
-    const el = document.createElement('div')
-    el.className = 'workbench-section-label'
-    el.innerHTML = `<b>${this.escape(label)}</b><span></span>`
-    return el
-  }
-
-  private renderWorkbenchChoiceChip(choice: WorkbenchChoice) {
-    const chip = document.createElement('button')
-    chip.type = 'button'
-    const level = choice.kind === 'upgrade' ? this.build[choice.upgrade.id] : 0
-    const kindClass = choice.kind === 'upgrade' ? choice.upgrade.bucket : choice.kind
-    chip.className = `manifest-chip available workbench-install-choice ${kindClass}`
-    chip.addEventListener('click', () => this.beginWorkbenchInstall(choice, chip))
-    chip.innerHTML = `
-      <i class="manifest-chip-node">${this.escape(this.choiceKindLabel(choice))}</i>
-      <div class="manifest-chip-head">
-        <strong>${this.escape(this.choiceTitle(choice))}</strong>
-        <b>${this.escape(this.workbenchChoiceRoute(choice, level))}</b>
-      </div>
-      <span>${this.escape(this.choiceDetail(choice))}</span>
-      <em>${this.escape(this.choiceCategoryLabel(choice))}</em>
-    `
-    return chip
-  }
-
-  private maxedUnlockText(upgrade: Upgrade) {
-    const unlocked = workbenchUnlockEdges
-      .filter((edge) => edge.source === upgrade.id)
-      .flatMap((edge) => edge.unlocks)
-      .map((id) => upgrades.find((candidate) => candidate.id === id)?.name ?? id)
-    if (unlocked.length) return `UNLOCKED: ${unlocked.join(' // ')}`
-    return this.upgradeLevelDetail(upgrade, upgrade.max)
-  }
-
-  private renderWorkbenchUpgradeChip(upgrade: Upgrade) {
-    const chip = document.createElement('button')
-    chip.type = 'button'
-    const next = Math.min(this.build[upgrade.id] + 1, upgrade.max)
-    chip.className = `manifest-chip available workbench-install-choice offer-ready ${upgrade.bucket}`
-    chip.addEventListener('click', () => this.beginWorkbenchInstall({ kind: 'upgrade', upgrade }, chip))
-    chip.innerHTML = `
-      <i class="manifest-chip-node">UP</i>
-      <div class="manifest-chip-head">
-        <strong>${this.escape(upgrade.name)}</strong>
-        <b>${this.build[upgrade.id]}/${upgrade.max}</b>
-      </div>
-      <span>${this.escape(`INSTALL RANK ${next}/${upgrade.max} // ${this.upgradeLevelDetail(upgrade, next)}`)}</span>
-      <em>${this.bucketLabel(upgrade.bucket)}</em>
-    `
-    return chip
-  }
-
-  private renderWorkbenchContextChip(upgrade: Upgrade, status: 'MAXED' | 'LOCKED' | 'STANDBY', detail: string, extraClass = '') {
-    const level = this.build[upgrade.id]
-    const chip = document.createElement('div')
-    chip.className = `manifest-chip ${level > 0 ? 'owned' : 'unowned'} status-${status.toLowerCase()} ${status === 'LOCKED' ? 'locked future' : ''} ${status === 'MAXED' ? 'maxed' : ''} ${extraClass} ${upgrade.bucket}`
-    chip.innerHTML = `
-      <i class="manifest-chip-node">${this.escape(status)}</i>
-      <div class="manifest-chip-head">
-        <strong>${this.escape(upgrade.name)}</strong>
-        <b>${level}/${upgrade.max}</b>
-      </div>
-      <span>${this.escape(`${status} // ${detail}`)}</span>
-      <em>${this.bucketLabel(upgrade.bucket)}</em>
-    `
-    return chip
-  }
-
-  private renderWorkbenchBayToggle(
-    bay: WorkbenchBayDefinition,
-    rows: Array<WorkbenchUpgradeRow<Upgrade>>,
-    offeredUpgradeChoices: Map<UpgradeId, WorkbenchChoice>
-  ) {
-    const bayRows = rows.filter((row) => bay.upgradeIds.includes(row.upgrade.id))
-    const totalRanks = bayRows.reduce((sum, row) => sum + row.upgrade.max, 0)
-    const ownedRanks = bayRows.reduce((sum, row) => sum + Math.min(this.build[row.upgrade.id], row.upgrade.max), 0)
-    const maxedCount = bayRows.filter((row) => row.status === 'maxed').length
-    const lockedCount = bayRows.filter((row) => row.status === 'locked').length
-    const upgradeableCount = bayRows.filter((row) => row.status === 'standby' && !this.workbenchBayBalanceGate(row.upgrade)).length
-    const nextRow = bayRows.find((row) => row.status === 'standby' && !this.workbenchBayBalanceGate(row.upgrade))
-      ?? bayRows.find((row) => row.status === 'standby')
-      ?? bayRows.find((row) => row.status === 'locked')
-      ?? bayRows[0]
-    const progress = totalRanks > 0 ? ownedRanks / totalRanks : 0
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.id = `workbench-bay-${bay.id}-toggle`
-    button.className = `workbench-bay-toggle ${this.expandedWorkbenchBay === bay.id ? 'active' : ''} ${upgradeableCount > 0 ? 'has-offer' : ''} ${lockedCount === bayRows.length ? 'locked' : ''}`.trim()
-    button.setAttribute('aria-controls', `workbench-bay-${bay.id}-panel`)
-    button.setAttribute('aria-expanded', String(this.expandedWorkbenchBay === bay.id))
-    button.addEventListener('click', () => {
-      const scrollTop = this.currentLevelUpScrollTop()
-      if (this.expandedWorkbenchBay === bay.id) {
-        this.expandedWorkbenchBay = null
-      } else {
-        this.selectedWorkbenchBay = bay.id
-        this.expandedWorkbenchBay = bay.id
-      }
-      this.renderLevelUp(this.levelUpTitle, this.levelUpCopy)
-      this.restoreLevelUpScroll(scrollTop)
-    })
-    const nextStatus = nextRow
-      ? offeredUpgradeChoices.has(nextRow.upgrade.id)
-        ? `Upgrade ready: ${nextRow.upgrade.name}`
-        : nextRow.status === 'locked'
-          ? `Locked: ${nextRow.upgrade.name}`
-          : nextRow.status === 'maxed'
-            ? 'Bay complete'
-            : `Next: ${nextRow.upgrade.name}`
-      : 'Bay complete'
-    button.innerHTML = `
-      <i class="workbench-bay-code">${this.escape(bay.shortLabel.slice(0, 3).toUpperCase())}</i>
-      <div class="workbench-bay-copy">
-        <div class="workbench-bay-topline">
-          <strong>${this.escape(bay.label)}</strong>
-          <b>${ownedRanks}/${totalRanks}</b>
-        </div>
-        <span>${this.escape(nextStatus)}</span>
-        <div class="workbench-bay-meter"><i style="width: ${Math.round(progress * 100)}%"></i></div>
-        <em>${maxedCount}/${bayRows.length} maxed${lockedCount > 0 ? ` // ${lockedCount} locked` : ''}${upgradeableCount > 0 ? ` // ${upgradeableCount} ready` : ''}</em>
-      </div>
-    `
-    return button
-  }
-
-  private renderWorkbenchBayEntry(
-    bay: WorkbenchBayDefinition,
-    rows: Array<WorkbenchUpgradeRow<Upgrade>>,
-    offeredUpgradeChoices: Map<UpgradeId, WorkbenchChoice>
-  ) {
-    const entry = document.createElement('div')
-    entry.className = `workbench-bay-entry ${this.expandedWorkbenchBay === bay.id ? 'expanded' : ''}`
-    entry.append(this.renderWorkbenchBayToggle(bay, rows, offeredUpgradeChoices))
-    if (this.expandedWorkbenchBay === bay.id) entry.append(this.renderWorkbenchBayDetail(bay, rows, offeredUpgradeChoices))
-    return entry
-  }
-
-  private renderWorkbenchBayDetail(
-    bay: WorkbenchBayDefinition,
-    rows: Array<WorkbenchUpgradeRow<Upgrade>>,
-    offeredUpgradeChoices: Map<UpgradeId, WorkbenchChoice>
-  ) {
-    const detail = document.createElement('div')
-    detail.className = 'workbench-bay-detail'
-    detail.id = `workbench-bay-${bay.id}-panel`
-    detail.setAttribute('role', 'region')
-    detail.setAttribute('aria-labelledby', `workbench-bay-${bay.id}-toggle`)
-    const head = document.createElement('div')
-    head.className = 'workbench-bay-detail-head'
-    head.innerHTML = `<div><b>${this.escape(bay.label)}</b><span>${this.escape(bay.summary)}</span></div><em>${this.escape(bay.shortLabel.toUpperCase())} DATABASE</em>`
-    const grid = document.createElement('div')
-    grid.className = 'manifest-grid workbench-bay-grid'
-    for (const row of rows.filter((candidate) => bay.upgradeIds.includes(candidate.upgrade.id))) {
-      if (row.status === 'maxed') {
-        grid.append(this.renderWorkbenchContextChip(row.upgrade, 'MAXED', this.maxedUnlockText(row.upgrade)))
-      } else if (row.status === 'locked') {
-        grid.append(this.renderWorkbenchContextChip(row.upgrade, 'LOCKED', row.requirement ?? 'Future workbench unlock', 'future'))
-      } else if (!this.workbenchBayBalanceGate(row.upgrade)) {
-        grid.append(this.renderWorkbenchUpgradeChip(row.upgrade))
-      } else {
-        grid.append(this.renderWorkbenchContextChip(row.upgrade, 'STANDBY', this.workbenchBayBalanceGate(row.upgrade), 'standby'))
-      }
-    }
-    detail.append(head, grid)
-    return detail
-  }
-
-  private renderWorkbenchInstallSurface() {
-    const wrap = document.createElement('div')
-    wrap.className = 'build-manifest workbench'
-    const title = document.createElement('div')
-    title.className = 'manifest-title'
-    title.innerHTML = '<b>SHIP WORKBENCH</b><span>open a bay // spend signals on unlocked systems</span>'
-    const offeredUpgradeChoices = new Map<UpgradeId, WorkbenchChoice>()
-    if (!workbenchBayDefinitions.some((bay) => bay.id === this.selectedWorkbenchBay)) this.selectedWorkbenchBay = 'weapons'
-    if (this.expandedWorkbenchBay && !workbenchBayDefinitions.some((bay) => bay.id === this.expandedWorkbenchBay)) this.expandedWorkbenchBay = null
-
-    const rows = workbenchUpgradeRows(upgrades, this.build, [], this.workbenchExtraUnlockedIds())
-
-    const bayShell = document.createElement('div')
-    bayShell.className = 'workbench-bay-shell'
-    const bayList = document.createElement('div')
-    bayList.className = 'workbench-bay-list'
-    for (const bay of workbenchBayDefinitions) bayList.append(this.renderWorkbenchBayEntry(bay, rows, offeredUpgradeChoices))
-    bayShell.append(bayList)
-
-    wrap.append(
-      title,
-      this.renderManifestSummary(),
-      this.workbenchSectionLabel('SYSTEM BAYS'),
-      bayShell
-    )
-
-    wrap.append(this.renderManifestRelicLine())
-    return wrap
+    return uiRenderManifestRelicLine(this)
   }
 
   private renderBuildManifest() {
