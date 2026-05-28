@@ -116,16 +116,18 @@ test('run objective readout switches to surface objective while on foot', () => 
 
 test('hud wires route objective readout through a dedicated chip', () => {
   const hud = readFileSync('src/ui/hud.ts', 'utf8')
+  const hudObjective = readFileSync('src/ui/hud-objective.ts', 'utf8')
   const main = readFileSync('src/main.ts', 'utf8')
   const css = readFileSync('src/style.css', 'utf8')
 
   expect(main).toContain('objective: document.createElement')
-  expect(hud).toContain("import { runObjectiveReadout } from '../run-objective-readout'")
-  expect(hud).toContain("import { nextSpaceWaveWarning } from '../space-wave-director'")
+  expect(hud).toContain("import { currentHudObjectiveReadout } from './hud-objective'")
+  expect(hudObjective).toContain("import { runObjectiveReadout } from '../run-objective-readout'")
   expect(hud).toContain("const objective = chip('ROUTE', self['ui'].objective, 'objective wide')")
-  expect(hud).toContain('const objectiveReadout = runObjectiveReadout({')
-  expect(hud).toContain('waveWarning: self[\'state\'] === \'playing\' ? nextSpaceWaveWarning({')
-  expect(hud).toContain("pendingUpgrades: self['pendingUpgrades']")
+  expect(hud).toContain('const objectiveReadout = currentHudObjectiveReadout(self)')
+  expect(hudObjective).toContain('runObjectiveReadout({')
+  expect(hudObjective).toContain('waveWarning: self[\'state\'] === \'playing\' ? nextSpaceWaveWarning({')
+  expect(hudObjective).toContain("pendingUpgrades: self['pendingUpgrades']")
   expect(hud).toContain("self['ui'].objective.parentElement?.querySelector('.hud-label')")
   expect(hud).toContain("classList.toggle('signal-ready', objectiveReadout.label === 'SIGNAL')")
   expect(hud).toContain("classList.toggle('threat-inbound', objectiveReadout.label === 'WAVE')")
