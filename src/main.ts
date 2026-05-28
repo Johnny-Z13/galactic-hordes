@@ -94,6 +94,7 @@ import { renderEnemies as drawEnemies } from './render/enemies'
 import { renderSpawnEntryPings as drawSpawnEntryPings } from './render/spawn-entry-pings'
 import { renderImpactPulses as drawImpactPulses } from './render/impact-pulses'
 import { renderPickups as drawPickups } from './render/pickups'
+import { renderParticles as drawParticles, renderParticlesSimple as drawParticlesSimple } from './render/particles'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
 import { advancedRewardEnemyKinds, spaceEnemyBehavior } from './space-enemy-behavior'
 import {
@@ -5913,70 +5914,34 @@ export class VectorShooter {
       return
     }
     const surfaceMode = this.surface && (this.state === 'surface' || this.state === 'takeoff' || (this.state === 'landing' && this.transitionTimer / this.transitionDuration > 0.58))
-    ctx.save()
-    ctx.globalCompositeOperation = this.allowGlow() ? 'lighter' : 'source-over'
-    const visibleBudget = highLoad ? 160 : MAX_PARTICLES
-    let drawn = 0
-    for (const p of this.particles) {
-      const s = this.effectToScreen(p.x, p.y)
-      if (s.x < -80 || s.x > this.width + 80 || s.y < -80 || s.y > this.height + 80) continue
-      if (drawn++ > visibleBudget) break
-      ctx.save()
-      ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1)
-      ctx.strokeStyle = p.color
-      ctx.shadowColor = p.color
-      ctx.shadowBlur = this.allowGlow() ? p.glow ?? 10 : 0
-      ctx.lineWidth = p.sides ? 1.5 : clamp(p.size, 1, 3)
-      ctx.translate(s.x, s.y)
-      ctx.rotate(p.angle ?? 0)
-      if (!surfaceMode) ctx.scale(this.spaceScale(), this.spaceScale())
-      ctx.beginPath()
-      if (p.sides && p.sides > 2) {
-        for (let i = 0; i < p.sides; i += 1) {
-          const a = (i / p.sides) * TAU
-          const r = p.size * (i % 2 ? 0.55 : 1)
-          const x = Math.cos(a) * r
-          const y = Math.sin(a) * r
-          if (i === 0) ctx.moveTo(x, y)
-          else ctx.lineTo(x, y)
-        }
-        ctx.closePath()
-      } else {
-        const length = p.length ?? Math.hypot(p.vx, p.vy) * 0.04
-        ctx.moveTo(0, 0)
-        ctx.lineTo(-length, 0)
-      }
-      ctx.stroke()
-      ctx.restore()
-    }
-    ctx.restore()
+    drawParticles({
+      ctx,
+      particles: this.particles,
+      width: this.width,
+      height: this.height,
+      glow: this.allowGlow(),
+      surfaceMode: Boolean(surfaceMode),
+      scale: this.spaceScale(),
+      visibleBudget: MAX_PARTICLES,
+      effectToScreen: (x, y) => this.effectToScreen(x, y)
+    })
   }
 
   private renderParticlesSimple(ctx: CanvasRenderingContext2D) {
     const surfaceMode = this.surface && (this.state === 'surface' || this.state === 'takeoff' || (this.state === 'landing' && this.transitionTimer / this.transitionDuration > 0.58))
     const camX = surfaceMode ? this.surface!.camera.x : this.camera.x
     const camY = surfaceMode ? this.surface!.camera.y : this.camera.y
-    ctx.save()
-    ctx.globalCompositeOperation = 'source-over'
-    ctx.globalAlpha = 0.78
-    ctx.strokeStyle = 'rgba(215,255,247,0.76)'
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    let drawn = 0
-    for (const p of this.particles) {
-      const screen = surfaceMode ? { x: p.x - camX, y: p.y - camY } : this.worldToScreen(p.x, p.y)
-      const x = screen.x
-      const y = screen.y
-      if (x < -80 || x > this.width + 80 || y < -80 || y > this.height + 80) continue
-      if (drawn++ > 140) break
-      const alpha = clamp(p.life / p.maxLife, 0, 1)
-      const length = Math.max(3, (p.length ?? Math.hypot(p.vx, p.vy) * 0.035) * alpha * (surfaceMode ? 1 : this.spaceScale()))
-      const mag = Math.hypot(p.vx, p.vy) || 1
-      ctx.moveTo(x, y)
-      ctx.lineTo(x - (p.vx / mag) * length, y - (p.vy / mag) * length)
-    }
-    ctx.stroke()
-    ctx.restore()
+    drawParticlesSimple({
+      ctx,
+      particles: this.particles,
+      width: this.width,
+      height: this.height,
+      surfaceMode: Boolean(surfaceMode),
+      scale: this.spaceScale(),
+      cameraX: camX,
+      cameraY: camY,
+      worldToScreen: (x, y) => this.worldToScreen(x, y)
+    })
   }
 
   private renderShockwaves(ctx: CanvasRenderingContext2D) {
