@@ -751,6 +751,7 @@ export class VectorShooter {
     wave: document.createElement('span'),
     high: document.createElement('span'),
     resources: document.createElement('span'),
+    objective: document.createElement('span'),
     weapon: document.createElement('span'),
     hullFill: document.createElement('div'),
     shieldFill: document.createElement('div'),

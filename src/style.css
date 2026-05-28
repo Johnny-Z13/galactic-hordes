@@ -277,9 +277,25 @@ canvas {
   max-width: min(280px, 32vw);
 }
 
+.hud-chip.objective {
+  min-width: 260px;
+  max-width: min(420px, 34vw);
+}
+
+.hud-chip.objective .hud-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .hud-chip.weapon .hud-value {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+@media (max-width: 920px) {
+  .hud-chip.objective {
+    display: none;
+  }
 }
 
 .hud-label {

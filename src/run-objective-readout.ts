@@ -1,0 +1,45 @@
+type RunObjectiveState = 'playing' | 'surface' | string
+type SurfaceObjectiveKind = 'jackpot' | 'swarm' | 'relic' | 'repair' | 'volatile' | 'standard' | 'horde' | 'cache' | null
+
+export interface RunObjectiveReadoutInput {
+  state: RunObjectiveState
+  routeObjective: string
+  elapsed: number
+  nextReturnBeaconAt: number
+  returnBeaconDistance: number | null
+  surfaceEvent: SurfaceObjectiveKind
+}
+
+export interface RunObjectiveReadout {
+  label: string
+  text: string
+}
+
+export function runObjectiveReadout(input: RunObjectiveReadoutInput): RunObjectiveReadout {
+  if (input.state === 'surface') {
+    return {
+      label: 'SURFACE',
+      text: surfaceObjectiveText(input.surfaceEvent)
+    }
+  }
+  if (input.returnBeaconDistance !== null) {
+    return {
+      label: 'DOCK',
+      text: `Station signal ${Math.max(0, Math.floor(input.returnBeaconDistance))}m`
+    }
+  }
+  const secondsUntilStation = Math.max(0, Math.ceil(input.nextReturnBeaconAt - input.elapsed))
+  return {
+    label: 'ROUTE',
+    text: `${input.routeObjective} // STATION ${secondsUntilStation}s`
+  }
+}
+
+function surfaceObjectiveText(event: SurfaceObjectiveKind) {
+  if (event === 'cache') return 'Collect cache signals, then return to ship'
+  if (event === 'relic') return 'Recover relic signal, then return to ship'
+  if (event === 'repair') return 'Secure repairs, then return to ship'
+  if (event === 'horde' || event === 'swarm') return 'Survive the landing zone, then return to ship'
+  if (event === 'volatile') return 'Salvage unstable resources, then return to ship'
+  return 'Collect surface resources, then return to ship'
+}

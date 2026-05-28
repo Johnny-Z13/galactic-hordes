@@ -1,5 +1,7 @@
 import { clamp, formatTime, type VectorShooter } from '../main'
 import { dist2 } from '../math-utils'
+import { runObjectiveReadout } from '../run-objective-readout'
+import { currentSectorNode } from '../sector-map'
 import { weaponHudReadout } from '../weapon-signatures'
 import { vitalCriticalClass } from './vital-meter'
 
@@ -17,11 +19,12 @@ export function makeHud(self: VectorShooter) {
   const left = document.createElement('div')
   left.className = 'hud-cluster hud-cluster-left'
   left.append(chip('TIME', self['ui'].time), chip('SCORE', self['ui'].score))
+  const objective = chip('ROUTE', self['ui'].objective, 'objective wide')
   const weapon = chip('WEAPON', self['ui'].weapon, 'weapon wide')
   self['ui'].toast.className = 'toast'
   self['ui'].perf.className = 'perf'
   hud.append(top, self['ui'].toast, self['makeTouchControls']())
-  top.append(meters, left, weapon)
+  top.append(meters, left, objective, weapon)
   return hud
 }
 
@@ -35,6 +38,20 @@ export function updateHud(self: VectorShooter) {
     evolved: self['evolved']
   })
   self['ui'].weapon.textContent = weaponReadout.text
+  const returnBeaconDistance = self['returnBeacon']
+    ? Math.sqrt(dist2(self['returnBeacon'], self['player']))
+    : null
+  const objectiveReadout = runObjectiveReadout({
+    state: self['state'],
+    routeObjective: currentSectorNode(self['sectorMap']).config.objective,
+    elapsed: self['stats'].time,
+    nextReturnBeaconAt: self['nextReturnBeaconAt'],
+    returnBeaconDistance,
+    surfaceEvent: self['surface']?.event ?? null
+  })
+  const objectiveLabel = self['ui'].objective.parentElement?.querySelector('.hud-label')
+  if (objectiveLabel) objectiveLabel.textContent = objectiveReadout.label
+  self['ui'].objective.textContent = objectiveReadout.text
   const beaconText = self['returnBeacon']
     ? ` // STATION ${Math.floor(Math.sqrt(dist2(self['returnBeacon'], self['player'])))}`
     : ''
