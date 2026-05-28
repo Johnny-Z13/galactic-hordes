@@ -12,10 +12,16 @@
 > | 2. Enemy AI → `enemy-behaviors.ts` (+ `main-types.ts`) | ✅ done | `48e6780`, `0ab1a60`, `d7d1e61` |
 > | 3. Scene rendering → `render/` (surface-biomes, player, enemies) | ✅ done | `dba6f97`, `44852c5`, `0daddec` |
 > | 4. UI screens → `src/ui/` (workbench, collection, mothership-console, debrief) | ✅ done | `830a1e7`, `ed0c25f`, `8c32824`, `282ee88` |
-> | 5. State-dispatch map → `game-states.ts` | ⬜ **NOT STARTED — resume here** | — |
-> | 6. Phase 0 verification gate + `phase-0-complete` tag | ⬜ not started | — |
+> | 5. State-dispatch map → `game-states.ts` (update + render only; audioMood left as-is) | ✅ done | `cdfd4c9` |
+> | 6. Phase 0 verification gate + `phase-0-complete` tag | ✅ done | tag `phase-0-complete` |
 >
-> **Baseline grew 213 → 218** (Tasks 1–2 added enemy-behavior characterization tests). Current state: `tsc` clean, **218 tests passing**, balance sim flags none. `main.ts` ~9,840 → ~7,290 lines.
+> **PHASE 0 COMPLETE.** `tsc` clean, **218 tests passing**, balance sim matches the pre-refactor baseline exactly (survival avg 10:28, destroyed 35%, no flags) — behavior provably unchanged.
+>
+> **Line count: 9,840 → 7,697 (~22%), short of the ~40–50% aspiration.** All five defined tasks landed; the target assumed more extractable surface than existed. Residual bulk is real work the plan never scoped — **follow-on candidates for a Phase 0.5 / Phase 2:**
+> - Space-scene renderers → `src/render/space-scene.ts`: `renderPlanets` (~93), `renderReturnBeacon` (~95), `renderDerelictSignals` (~70), `renderSectorLandmarks` (~93).
+> - Sector-map / station UI → `src/ui/sector-map.ts`: `showSectorMap` (~128), `showStationDock` (~79), `sectorNode*` helpers.
+> - Misc: `weaponProfiles` data table (~154), `getInput`/`bind` input plumbing, `createSurfaceRun` (~92).
+> These follow the same mixin + bracket-access pattern (see Task 4) and the same source-introspection-test retargeting.
 >
 > **Task 4 deviated from the written approach** (mixin + bracket-access instead of view+callbacks) — see the Task 4 section for the rationale, the gotchas (source-text tests, non-contiguous clusters, CRLF), and the mechanics that also apply to Task 5.
 
