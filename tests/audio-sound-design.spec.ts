@@ -34,7 +34,7 @@ test('main wires audio through focused modules', () => {
 test('gameplay events route to specialized audio cues', () => {
   const main = source()
 
-  expect(main).toContain('this.audio.fire(this.weaponSoundKind')
+  expect(main).toContain('this.audio.fire(weaponSoundKindFor({')
   expect(main).toContain("this.audio.fire('surface'")
   expect(main).toContain('this.playBulletImpact(b.rail ? 1.3 : 1)')
   expect(main).toContain('this.playBulletImpact(0.85)')

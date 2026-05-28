@@ -114,6 +114,6 @@ test('enemy.flash is stamped by damage with the configured hitFlash duration', a
     g.damageEnemy(e, 1, '#fff')
     return { flashAfter: e.flash }
   })
-  // introHookConfig.hitFlash.durationSeconds = 0.08
+  // damageFeedbackConfig.hitFlash.durationSeconds = 0.08
   expect(result.flashAfter).toBeCloseTo(0.08, 2)
 })

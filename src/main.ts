@@ -1,6 +1,8 @@
 import './style.css'
-import { AudioDirector, type PlanetAudioMood, type WeaponSoundKind } from './audio/audio-director'
+import { AudioDirector, type PlanetAudioMood } from './audio/audio-director'
 import { sfxSamples } from './audio/sfx-samples'
+import { damageFeedbackConfig, hitFlashColor } from './combat/damage-feedback'
+import { weaponSoundKindFor } from './combat/weapon-sound'
 import collectionIconAtlasUrl from './assets/collection-icon-atlas.png'
 import glassMiteOracleSheetUrl from './assets/glass-mite-oracle-sheet-alpha.png'
 import planetAlienCatalogUrl from './assets/planet-alien-catalog-alpha.png'
@@ -156,7 +158,6 @@ import { showMothership as uiShowMothership, renderMothershipMetaSystems as uiRe
 import { renderDebrief as uiRenderDebrief } from './ui/debrief'
 import { renderIntroArrow } from './ui/intro-waypoint'
 import {
-  hitFlashColor,
   introHookConfig,
   introSafeDriftSpawnMultiplier,
   introSafeDriftStartingSpawns,
@@ -2100,14 +2101,12 @@ export class VectorShooter {
     }
     this.fireOptionOrbs(serial, damage, speed)
     this.fireRearGun(damage, speed)
-    this.audio.fire(this.weaponSoundKind(rail, needle, count), this.stats.level + rapid)
-  }
-
-  private weaponSoundKind(rail: boolean, needle: boolean, count: number): WeaponSoundKind {
-    if (needle) return 'needle'
-    if (rail) return 'rail'
-    if (count > 1 || this.build.split > 0) return 'prism'
-    return 'pulse'
+    this.audio.fire(weaponSoundKindFor({
+      rail,
+      needle,
+      count,
+      splitRank: this.build.split
+    }), this.stats.level + rapid)
   }
 
   private updateBullets(dt: number) {
@@ -2375,7 +2374,7 @@ export class VectorShooter {
       + this.build.phase * powerupBalance.dash.ramDamagePerPhaseRank
       + this.build.engine * powerupBalance.dash.ramDamagePerEngineRank
     e.hp -= damage
-    e.flash = Math.max(e.flash, introHookConfig.hitFlash.dashRamDurationSeconds)
+    e.flash = Math.max(e.flash, damageFeedbackConfig.hitFlash.dashRamDurationSeconds)
     e.vx += this.player.dashX * force
     e.vy += this.player.dashY * force
     this.burst(e.x, e.y, '#b990ff', 5 + this.build.phase, 130 + this.build.phase * 20)
@@ -2876,7 +2875,7 @@ export class VectorShooter {
 
   private damageEnemy(e: Enemy, amount: number, color: string) {
     e.hp -= amount
-    e.flash = introHookConfig.hitFlash.durationSeconds
+    e.flash = damageFeedbackConfig.hitFlash.durationSeconds
     if (!this.isHighLoad() && this.particles.length < MAX_PARTICLES && Math.random() < 0.2) {
       this.particles.push({ x: e.x, y: e.y, vx: rand(-80, 80), vy: rand(-80, 80), life: 0.22, maxLife: 0.22, color, size: 2, glow: 10 })
     }
@@ -4882,7 +4881,7 @@ export class VectorShooter {
     if (threat.hit > 0) {
       ctx.globalCompositeOperation = 'screen'
       ctx.globalAlpha = 0.16
-      ctx.fillStyle = introHookConfig.hitFlash.color
+      ctx.fillStyle = damageFeedbackConfig.hitFlash.color
       ctx.beginPath()
       ctx.arc(p.x, p.y - 14 + bob, threat.radius + 14, 0, TAU)
       ctx.fill()
