@@ -151,6 +151,22 @@ canvas {
   box-shadow: 0 0 14px rgba(143, 255, 125, 0.58);
 }
 
+.hud-meter-fill.health.critical {
+  background: linear-gradient(90deg, #ff5d73, #fff27a 62%, #ff5d73);
+  box-shadow: 0 0 18px rgba(255, 93, 115, 0.78);
+  animation: critical-health-pulse 720ms ease-in-out infinite alternate;
+}
+
+@keyframes critical-health-pulse {
+  from {
+    filter: brightness(0.92);
+  }
+
+  to {
+    filter: brightness(1.32);
+  }
+}
+
 .hud-meter-fill.xp {
   background: linear-gradient(90deg, var(--green), var(--cyan));
   box-shadow: 0 0 14px rgba(87, 255, 243, 0.5);

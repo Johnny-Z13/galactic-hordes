@@ -3,7 +3,7 @@ import { AudioDirector, type PlanetAudioMood } from './audio/audio-director'
 import { sfxSamples } from './audio/sfx-samples'
 import { damageFeedbackConfig } from './combat/damage-feedback'
 import { advanceImpactPulses, createImpactPulse, type ImpactPulse } from './combat/impact-feedback'
-import { advancePlayerDamageFlash, createPlayerDamageFlash, type PlayerDamageFlash } from './combat/player-damage-feedback'
+import { advancePlayerDamageFlash, createPlayerDamageFlash, vitalCriticalClass, type PlayerDamageFlash } from './combat/player-damage-feedback'
 import { weaponSoundKindFor } from './combat/weapon-sound'
 import collectionIconAtlasUrl from './assets/collection-icon-atlas.png'
 import glassMiteOracleSheetUrl from './assets/glass-mite-oracle-sheet-alpha.png'
@@ -6335,7 +6335,9 @@ export class VectorShooter {
       this.ui.xpLabel.textContent = 'O2'
       this.ui.hull.textContent = `${Math.ceil(this.surface.pilot.health)}/${this.surface.pilot.maxHealth}`
       this.ui.level.textContent = `${Math.ceil(this.surface.pilot.oxygen)}s`
-      this.ui.hullFill.style.width = `${clamp((this.surface.pilot.health / this.surface.pilot.maxHealth) * 100, 0, 100)}%`
+      const healthRatio = this.surface.pilot.health / this.surface.pilot.maxHealth
+      this.ui.hullFill.style.width = `${clamp(healthRatio * 100, 0, 100)}%`
+      this.ui.hullFill.classList.toggle('critical', vitalCriticalClass(healthRatio) === 'critical')
       this.ui.xpFill.style.width = `${clamp((this.surface.pilot.oxygen / this.surface.pilot.maxOxygen) * 100, 0, 100)}%`
     } else {
       this.ui.hullLabel.textContent = 'HULL'
@@ -6343,7 +6345,9 @@ export class VectorShooter {
       this.ui.level.textContent = `LV ${this.stats.level}`
       const shield = this.player.maxShield > 0 ? ` +${Math.floor(this.player.shield)}` : ''
       this.ui.hull.textContent = `${Math.ceil(Math.max(0, this.player.hull))}/${this.player.maxHull}${shield}`
-      this.ui.hullFill.style.width = `${clamp((Math.max(0, this.player.hull) / this.player.maxHull) * 100, 0, 100)}%`
+      const hullRatio = Math.max(0, this.player.hull) / this.player.maxHull
+      this.ui.hullFill.style.width = `${clamp(hullRatio * 100, 0, 100)}%`
+      this.ui.hullFill.classList.toggle('critical', vitalCriticalClass(hullRatio) === 'critical')
       this.ui.xpFill.style.width = `${clamp((this.stats.xp / this.stats.nextXp) * 100, 0, 100)}%`
     }
     this.updateTouchHud()
