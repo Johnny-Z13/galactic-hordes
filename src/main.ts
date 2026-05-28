@@ -6201,7 +6201,7 @@ export class VectorShooter {
     this.prepareSectorNode(selected)
     this.state = 'playing'
     this.showOnly(null)
-    this.toast(`${selected.label}: ${selected.kind === 'final' ? 'SURVIVE THE LAST STAND' : 'DOCK AT STATION TO CLEAR ROUTE'}`)
+    this.toast(`${selected.label}: ${selected.config.objective}`)
   }
 
   private recordStationVisit(node: SectorNode, repaired: number, workbenchSignals: number, scrap: number, crystal: number) {

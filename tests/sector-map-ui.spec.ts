@@ -86,6 +86,13 @@ test('station docking advances the sector map instead of always ending the run',
   expect(main).toContain('Departure lane open. Choose the next jump.')
 })
 
+test('route launch toast uses authored node objective copy', () => {
+  const main = mainSource()
+
+  expect(main).toContain('selected.config.objective')
+  expect(main).not.toContain('DOCK AT STATION TO CLEAR ROUTE')
+})
+
 test('station docking opens a master command menu with collapsible sections and route map', () => {
   const main = mainSource()
   const stationDock = stationDockSource()
