@@ -1473,8 +1473,7 @@ canvas {
   text-shadow: 0 0 20px rgba(87, 255, 243, 0.54);
 }
 
-.mothership-command-title p,
-.mothership-last-report {
+.mothership-command-title p {
   margin: 0;
   max-width: 620px;
   color: rgba(215, 255, 247, 0.76);
@@ -1482,8 +1481,44 @@ canvas {
   font-size: 13px;
 }
 
-.mothership-last-report {
+.mothership-last-report-card {
+  display: grid;
+  gap: 5px;
+  max-width: 680px;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(143, 255, 125, 0.22);
+  background: rgba(10, 28, 21, 0.54);
+}
+
+.mothership-last-report-card span {
   color: rgba(143, 255, 125, 0.82);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.mothership-last-report-card b {
+  color: var(--yellow);
+  font-size: 15px;
+  font-family: 'Orbitron', sans-serif;
+  text-transform: uppercase;
+}
+
+.mothership-last-report-highlights {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding-left: 16px;
+  color: rgba(215, 255, 247, 0.78);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.mothership-last-report-card em {
+  color: rgba(215, 255, 247, 0.62);
+  font-size: 10px;
+  font-style: normal;
+  text-transform: uppercase;
 }
 
 .mothership-resources {
@@ -5137,8 +5172,12 @@ button.manifest-chip:disabled {
   }
 
   .mothership-command-title p,
-  .mothership-last-report {
+  .mothership-last-report-highlights {
     font-size: 12px;
+  }
+
+  .mothership-last-report-card {
+    padding: 9px 10px;
   }
 
   .mothership-resources {

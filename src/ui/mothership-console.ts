@@ -63,12 +63,7 @@ export function showMothership(self: VectorShooter, options: { scrollTop?: numbe
   intro.innerHTML = firstCommand
     ? '<span>COMMAND DECK</span><h1>MOTHERSHIP</h1><p>First scout is hot. Find a signal world, crack one cache, and bring something impossible home.</p>'
     : '<span>COMMAND DECK</span><h1>MOTHERSHIP</h1><p>Scout systems docked. Spend recovered cargo, review the ship, then launch the next expedition.</p>'
-  if (self['debrief']) {
-    const lastRun = document.createElement('p')
-    lastRun.className = 'mothership-last-report'
-    lastRun.textContent = `${self['debrief'].title} // ${self['debrief'].discoveries.length} discoveries // Scrap ${self['debrief'].resources.recovered.scrap} // Crystals ${self['debrief'].resources.recovered.crystal} // Cores ${self['debrief'].resources.recovered.cores}`
-    intro.append(lastRun)
-  }
+  if (self['debrief']) intro.append(renderMothershipLastReport(self))
   const resources = document.createElement('div')
   resources.className = 'mothership-resources'
   resources.innerHTML = `
@@ -119,6 +114,26 @@ export function showMothership(self: VectorShooter, options: { scrollTop?: numbe
   }
 }
 
+export function renderMothershipLastReport(self: VectorShooter) {
+  const report = document.createElement('section')
+  report.className = 'mothership-last-report-card'
+  if (!self['debrief']) return report
+  const eyebrow = document.createElement('span')
+  eyebrow.textContent = self['debrief'].title
+  const title = document.createElement('b')
+  title.textContent = self['debrief'].journeyTitle
+  const highlights = document.createElement('ul')
+  highlights.className = 'mothership-last-report-highlights'
+  for (const highlight of self['debrief'].highlights.slice(0, 2)) {
+    const item = document.createElement('li')
+    item.textContent = highlight
+    highlights.append(item)
+  }
+  const cargo = document.createElement('em')
+  cargo.textContent = `Scrap ${self['debrief'].resources.recovered.scrap} // Crystals ${self['debrief'].resources.recovered.crystal} // Cores ${self['debrief'].resources.recovered.cores}`
+  report.append(eyebrow, title, highlights, cargo)
+  return report
+}
 export function mothershipMeter(self: VectorShooter, label: string, value: string, pct: number, tone: string) {
   const meter = document.createElement('div')
   meter.className = `mothership-meter ${tone}`

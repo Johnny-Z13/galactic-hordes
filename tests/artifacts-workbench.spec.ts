@@ -199,6 +199,18 @@ test('desktop mothership shows route map alongside launch controls', () => {
   expect(css).toContain('.mothership-first-briefing')
 })
 
+test('mothership last report preserves the expedition story after debrief', () => {
+  const mothership = mothershipSource()
+  const css = styles()
+
+  expect(mothership).toContain('renderMothershipLastReport(self)')
+  expect(mothership).toContain("title.textContent = self['debrief'].journeyTitle")
+  expect(mothership).toContain("for (const highlight of self['debrief'].highlights.slice(0, 2))")
+  expect(mothership).toContain("cargo.textContent = `Scrap ${self['debrief'].resources.recovered.scrap}")
+  expect(css).toContain('.mothership-last-report-card')
+  expect(css).toContain('.mothership-last-report-highlights')
+})
+
 test('first mothership visit keeps command systems out of the launch deck', () => {
   const main = source()
   const front = frontSubscreensSource()
