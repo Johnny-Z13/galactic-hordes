@@ -1,4 +1,4 @@
-import type { Bullet, Enemy } from './main-types'
+import type { Bullet, Enemy, Vec } from './main-types'
 import { clamp, norm } from './math-utils'
 import { powerupBalance, type UpgradeId } from './powerup-balance'
 import { spaceProjectileLifeForOffscreenTravel } from './space-camera'
@@ -37,6 +37,16 @@ export interface RearGunFireInput extends WeaponViewportInput {
   rearRank: number
   damage: number
   speed: number
+  maxBullets: number
+}
+
+export interface MineWakeInput {
+  bullets: Bullet[]
+  player: WeaponPlayerState
+  direction: Vec
+  mineRank: number
+  evolvedMine: boolean
+  limitMight: number
   maxBullets: number
 }
 
@@ -102,6 +112,35 @@ export interface PrimaryWeaponFireResult {
   rapid: number
   fireSerial: number
   nextFireSerial: number
+}
+
+export function deployMineWake(input: MineWakeInput) {
+  const level = input.mineRank
+  if (level <= 0) return
+
+  const count = Math.min(
+    powerupBalance.mineWake.maxMines,
+    powerupBalance.mineWake.baseMines
+      + Math.ceil(level / powerupBalance.mineWake.ranksPerExtraMine)
+      + (input.evolvedMine ? powerupBalance.mineWake.evolvedMineBonus : 0)
+  )
+  const side = { x: -input.direction.y, y: input.direction.x }
+  for (let index = 0; index < count; index += 1) {
+    if (input.bullets.length > input.maxBullets) input.bullets.shift()
+    const offset = index - (count - 1) / 2
+    input.bullets.push({
+      x: input.player.x - input.direction.x * (powerupBalance.mineWake.backOffsetBase + index * powerupBalance.mineWake.backOffsetStep) + side.x * offset * powerupBalance.mineWake.sideOffsetStep,
+      y: input.player.y - input.direction.y * (powerupBalance.mineWake.backOffsetBase + index * powerupBalance.mineWake.backOffsetStep) + side.y * offset * powerupBalance.mineWake.sideOffsetStep,
+      vx: -input.direction.x * powerupBalance.mineWake.driftSpeed,
+      vy: -input.direction.y * powerupBalance.mineWake.driftSpeed,
+      life: powerupBalance.mineWake.lifeBase + level * powerupBalance.mineWake.lifePerRank + (input.evolvedMine ? powerupBalance.mineWake.evolvedLifeBonus : 0),
+      damage: powerupBalance.mineWake.damageBase + level * powerupBalance.mineWake.damagePerRank + input.limitMight * powerupBalance.mineWake.limitMightDamagePerRank,
+      radius: input.evolvedMine ? powerupBalance.mineWake.evolvedRadius : powerupBalance.mineWake.radius,
+      color: input.evolvedMine ? '#fff27a' : '#70a8ff',
+      pierce: input.evolvedMine ? powerupBalance.mineWake.evolvedPierce : powerupBalance.mineWake.pierce,
+      mine: true
+    })
+  }
 }
 
 export function optionOrbAngle(time: number, index: number, count: number) {

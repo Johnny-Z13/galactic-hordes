@@ -76,7 +76,7 @@ import {
   spaceViewportScale,
   worldToScreen as spaceWorldToScreen
 } from './space-camera'
-import { applyOptionOrbDamage, fireOptionOrbs as fireOptionOrbWeapons, firePrimaryWeapon, fireRearGun as fireRearGunWeapons, optionOrbAngle, optionOrbWorldPosition, spawnChainBolt as spawnChainBoltWeapon } from './space-player-weapons'
+import { applyOptionOrbDamage, deployMineWake as deployMineWakeWeapon, fireOptionOrbs as fireOptionOrbWeapons, firePrimaryWeapon, fireRearGun as fireRearGunWeapons, optionOrbAngle, optionOrbWorldPosition, spawnChainBolt as spawnChainBoltWeapon } from './space-player-weapons'
 import { applyDashRam } from './space-dash-combat'
 import { createEnemyTrailParticle } from './space-enemy-trails'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
@@ -1264,7 +1264,15 @@ export class VectorShooter {
       this.camera.shake = Math.max(this.camera.shake, 8)
       this.burst(this.player.x, this.player.y, '#70a8ff', 14 + this.build.phase * 3, 180 + this.build.phase * 24)
       this.emitDashWake(d, 1.35)
-      this.deployMineWake(d)
+      deployMineWakeWeapon({
+        bullets: this.bullets,
+        player: this.player,
+        direction: d,
+        mineRank: this.build.mine,
+        evolvedMine: this.evolved.has('mine'),
+        limitMight: this.limitBreaks.might,
+        maxBullets: MAX_BULLETS
+      })
     }
     if (this.player.dashTime > 0) {
       this.player.vx = this.player.dashX * this.player.dashSpeed
@@ -1761,35 +1769,6 @@ export class VectorShooter {
     const has = this.pressed.has(code)
     if (has) this.pressed.delete(code)
     return has
-  }
-
-  private deployMineWake(direction: Vec) {
-    const level = this.build.mine
-    if (level <= 0) return
-    const evolved = this.evolved.has('mine')
-    const count = Math.min(
-      powerupBalance.mineWake.maxMines,
-      powerupBalance.mineWake.baseMines
-        + Math.ceil(level / powerupBalance.mineWake.ranksPerExtraMine)
-        + (evolved ? powerupBalance.mineWake.evolvedMineBonus : 0)
-    )
-    const side = { x: -direction.y, y: direction.x }
-    for (let i = 0; i < count; i += 1) {
-      if (this.bullets.length > MAX_BULLETS) this.bullets.shift()
-      const offset = i - (count - 1) / 2
-      this.bullets.push({
-        x: this.player.x - direction.x * (powerupBalance.mineWake.backOffsetBase + i * powerupBalance.mineWake.backOffsetStep) + side.x * offset * powerupBalance.mineWake.sideOffsetStep,
-        y: this.player.y - direction.y * (powerupBalance.mineWake.backOffsetBase + i * powerupBalance.mineWake.backOffsetStep) + side.y * offset * powerupBalance.mineWake.sideOffsetStep,
-        vx: -direction.x * powerupBalance.mineWake.driftSpeed,
-        vy: -direction.y * powerupBalance.mineWake.driftSpeed,
-        life: powerupBalance.mineWake.lifeBase + level * powerupBalance.mineWake.lifePerRank + (evolved ? powerupBalance.mineWake.evolvedLifeBonus : 0),
-        damage: powerupBalance.mineWake.damageBase + level * powerupBalance.mineWake.damagePerRank + this.limitBreaks.might * powerupBalance.mineWake.limitMightDamagePerRank,
-        radius: evolved ? powerupBalance.mineWake.evolvedRadius : powerupBalance.mineWake.radius,
-        color: evolved ? '#fff27a' : '#70a8ff',
-        pierce: evolved ? powerupBalance.mineWake.evolvedPierce : powerupBalance.mineWake.pierce,
-        mine: true
-      })
-    }
   }
 
   private emitDashWake(direction: Vec, intensity = 1) {

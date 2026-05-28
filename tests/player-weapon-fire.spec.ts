@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { applyOptionOrbDamage, fireOptionOrbs, firePrimaryWeapon, fireRearGun, optionOrbWorldPosition, spawnChainBolt } from '../src/space-player-weapons'
+import { applyOptionOrbDamage, deployMineWake, fireOptionOrbs, firePrimaryWeapon, fireRearGun, optionOrbWorldPosition, spawnChainBolt } from '../src/space-player-weapons'
 import type { Bullet, Enemy } from '../src/main-types'
 
 const player = { x: 100, y: 50, vx: 10, vy: -4, aimAngle: 0 }
@@ -165,11 +165,33 @@ test('gravity halo option orbs pull nearby enemies toward the player', () => {
   expect(target.vx).toBeLessThan(0)
 })
 
+test('mine wake helper drops a capped trail of evolved mines behind the player', () => {
+  const bullets: Bullet[] = []
+
+  deployMineWake({
+    bullets,
+    player,
+    direction: { x: 1, y: 0 },
+    mineRank: 5,
+    evolvedMine: true,
+    limitMight: 2,
+    maxBullets: 99
+  })
+
+  expect(bullets).toHaveLength(6)
+  expect(bullets[0]).toMatchObject({ mine: true, color: '#fff27a', pierce: 5 })
+  expect(bullets[0].x).toBeLessThan(player.x)
+  expect(bullets[0].vx).toBeLessThan(0)
+  expect(bullets[0].damage).toBeGreaterThan(0)
+  expect(bullets[0].life).toBeGreaterThan(0)
+})
+
 test('secondary player weapon firing lives outside the main game class', () => {
   const main = readFileSync('src/main.ts', 'utf8')
   const weapons = readFileSync('src/space-player-weapons.ts', 'utf8')
 
   expect(weapons).toContain('export function applyOptionOrbDamage')
+  expect(weapons).toContain('export function deployMineWake')
   expect(weapons).toContain('export function firePrimaryWeapon')
   expect(weapons).toContain('export function optionOrbAngle')
   expect(weapons).toContain('export function optionOrbWorldPosition')
@@ -178,7 +200,9 @@ test('secondary player weapon firing lives outside the main game class', () => {
   expect(weapons).toContain('export function spawnChainBolt')
   expect(main).toContain("from './space-player-weapons'")
   expect(main).toContain('applyOptionOrbDamage({')
+  expect(main).toContain('deployMineWakeWeapon({')
   expect(main).toContain('firePrimaryWeapon(')
+  expect(main).not.toContain('private deployMineWake(')
   expect(main).not.toContain('private optionOrbAngle(')
   expect(main).not.toContain('private optionOrbWorldPosition(')
   expect(main).not.toContain('private fireOptionOrbs(')
