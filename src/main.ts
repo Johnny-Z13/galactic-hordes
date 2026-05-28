@@ -1,4 +1,10 @@
 import './style.css'
+import sfxUiButton1Url from './assets/sound-effects/UI_device_button1.wav?url'
+import sfxUiButton2Url from './assets/sound-effects/UI_device_button2.wav?url'
+import sfxUiButton3Url from './assets/sound-effects/UI_device_button3.wav?url'
+import sfxPlanetAmbLoopUrl from './assets/sound-effects/Atmosphere_Lowloop_planetAMB.wav?url'
+import sfxAlienshipScan4Url from './assets/sound-effects/Alienship Scanning 4.wav?url'
+import sfxAlienshipScanLowUrl from './assets/sound-effects/AlienshipScanningLOW3.wav?url'
 import collectionIconAtlasUrl from './assets/collection-icon-atlas.png'
 import glassMiteOracleSheetUrl from './assets/glass-mite-oracle-sheet-alpha.png'
 import planetAlienCatalogUrl from './assets/planet-alien-catalog-alpha.png'
@@ -550,6 +556,9 @@ class AudioDirector {
   private ambientTimer = 0
   private mood: PlanetAudioMood = 'title'
   private unlocked = false
+  private samples: Map<string, AudioBuffer> = new Map()
+  private sampleUrls: Record<string, string> = {}
+  private ambientLoop: { source: AudioBufferSourceNode; gain: GainNode; name: string } | null = null
   private planetMoods: Record<PlanetAudioMood, PlanetMoodProfile> = {
     title: { root: 55, chord: [0, 7, 12], noise: 0.012, pulse: 0.6, wobble: 0.4, filter: 820 },
     deepSpace: { root: 44, chord: [0, 5, 12], noise: 0.016, pulse: 0.48, wobble: 0.65, filter: 620 },
@@ -591,6 +600,71 @@ class AudioDirector {
     this.master.connect(limiter)
     limiter.connect(this.context.destination)
     this.unlocked = true
+    void this.loadRegisteredSamples()
+  }
+
+  registerSamples(urlsByName: Record<string, string>) {
+    Object.assign(this.sampleUrls, urlsByName)
+    if (this.unlocked) void this.loadRegisteredSamples()
+  }
+
+  private async loadRegisteredSamples() {
+    if (!this.context) return
+    const ctx = this.context
+    const pending = Object.entries(this.sampleUrls).filter(([name]) => !this.samples.has(name))
+    await Promise.all(pending.map(async ([name, url]) => {
+      try {
+        const res = await fetch(url)
+        const bytes = await res.arrayBuffer()
+        const buffer = await ctx.decodeAudioData(bytes)
+        this.samples.set(name, buffer)
+      } catch {
+        // sample missing/undecodable: silently skip so procedural audio keeps working
+      }
+    }))
+  }
+
+  playSample(name: string, opts: { gain?: number; rate?: number } = {}) {
+    if (!this.context || !this.sfx) return
+    const buffer = this.samples.get(name)
+    if (!buffer) return
+    const source = this.context.createBufferSource()
+    const amp = this.context.createGain()
+    source.buffer = buffer
+    source.playbackRate.value = opts.rate ?? 1
+    amp.gain.value = opts.gain ?? 1
+    source.connect(amp)
+    amp.connect(this.sfx)
+    source.start(this.context.currentTime)
+  }
+
+  startAmbientLoop(name: string, gain = 0.5) {
+    if (!this.context || !this.bed) return
+    if (this.ambientLoop?.name === name) return
+    this.stopAmbientLoop()
+    const buffer = this.samples.get(name)
+    if (!buffer) return
+    const source = this.context.createBufferSource()
+    const amp = this.context.createGain()
+    source.buffer = buffer
+    source.loop = true
+    amp.gain.value = 0
+    source.connect(amp)
+    amp.connect(this.bed)
+    source.start(this.context.currentTime)
+    amp.gain.linearRampToValueAtTime(gain, this.context.currentTime + 0.6)
+    this.ambientLoop = { source, gain: amp, name }
+  }
+
+  stopAmbientLoop() {
+    if (!this.context || !this.ambientLoop) return
+    const { source, gain } = this.ambientLoop
+    const now = this.context.currentTime
+    gain.gain.cancelScheduledValues(now)
+    gain.gain.setValueAtTime(gain.gain.value, now)
+    gain.gain.linearRampToValueAtTime(0, now + 0.4)
+    source.stop(now + 0.45)
+    this.ambientLoop = null
   }
 
   update(dt: number, intensity: number, mood: PlanetAudioMood) {
@@ -902,6 +976,7 @@ export class VectorShooter {
   private mobileDashQueued = false
   private mobileFireQueued = false
   private audio = new AudioDirector()
+  private uiClickSampleIndex = 0
   private camera = { x: 0, y: 0, shake: 0 }
   private glassMiteOracleSheet = new Image()
   private planetAlienCatalog = new Image()
@@ -1099,6 +1174,14 @@ export class VectorShooter {
     this.planetBossCatalog.src = planetBossCatalogUrl
     this.spaceEnemyCatalog.src = spaceEnemyCatalogUrl
     this.surfaceSpacemanSheet.src = surfaceSpacemanSheetUrl
+    this.audio.registerSamples({
+      'ui-button-1': sfxUiButton1Url,
+      'ui-button-2': sfxUiButton2Url,
+      'ui-button-3': sfxUiButton3Url,
+      'planet-amb-loop': sfxPlanetAmbLoopUrl,
+      'alienship-scan-high': sfxAlienshipScan4Url,
+      'alienship-scan-low': sfxAlienshipScanLowUrl
+    })
     this.resetProgressFromUrl()
     this.highs = this.loadScores()
     this.mothership = this.loadMothership()
@@ -1349,6 +1432,13 @@ export class VectorShooter {
 
   private bind() {
     window.addEventListener('resize', () => this.resize())
+    document.addEventListener('click', (event) => {
+      const target = event.target as HTMLElement | null
+      if (!target?.closest('button')) return
+      const sample = `ui-button-${(this.uiClickSampleIndex % 3) + 1}`
+      this.uiClickSampleIndex += 1
+      this.audio.playSample(sample, { gain: 0.45 })
+    }, true)
     const preventBrowserGesture = (event: Event) => event.preventDefault()
     document.addEventListener('gesturestart', preventBrowserGesture, { passive: false } as AddEventListenerOptions)
     document.addEventListener('gesturechange', preventBrowserGesture, { passive: false } as AddEventListenerOptions)
@@ -1907,6 +1997,7 @@ export class VectorShooter {
     if (this.transitionTimer >= this.transitionDuration) {
       this.transitionTimer = 0
       this.state = 'surface'
+      this.audio.startAmbientLoop('planet-amb-loop', 0.4)
       this.toast('SURFACE TEAM DEPLOYED: COLLECT SIGNALS, RETURN TO SHIP')
     }
   }
@@ -3149,6 +3240,9 @@ export class VectorShooter {
     const scale = spaceEnemyRunScale(this.stats.time, this.stats.planets)
     const base = balancedSpaceEnemyDefinition(kind)
     this.recordEnemyDiscovery(`enemy:space:${kind}`, `${this.enemyDisplayName(kind)} Vector`, `Encountered in open space after ${formatTime(this.stats.time)}.`, 'Space horde telemetry', base.color)
+    if (isGiantEnemyKind(kind)) {
+      this.audio.playSample(Math.random() < 0.5 ? 'alienship-scan-high' : 'alienship-scan-low', { gain: 0.6 })
+    }
     this.enemies.push({
       id: this.enemyId++,
       kind,
@@ -4683,6 +4777,7 @@ export class VectorShooter {
     this.state = 'takeoff'
     this.transitionTimer = 0
     this.transitionDuration = 1.2
+    this.audio.stopAmbientLoop()
     this.audio.land()
     this.toast(options.urgent ? 'O2 LOW - RETURNING TO SHIP' : 'RETURNING TO ORBIT')
   }
