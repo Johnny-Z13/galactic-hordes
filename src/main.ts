@@ -164,6 +164,7 @@ import {
 import { renderCollectionScreen as uiRenderCollectionScreen } from './ui/collection'
 import { showMothership as uiShowMothership, renderMothershipMetaSystems as uiRenderMothershipMetaSystems } from './ui/mothership-console'
 import { renderDebrief as uiRenderDebrief } from './ui/debrief'
+import { showScores as uiShowScores } from './ui/scores'
 import { renderIntroArrow } from './ui/intro-waypoint'
 import { vitalCriticalClass } from './ui/vital-meter'
 import {
@@ -465,7 +466,7 @@ export type WorkbenchChoice =
   | { kind: 'limit'; id: LimitId; name: string; description: string }
   | { kind: 'relic'; relic: Relic }
 
-interface ScoreEntry {
+export interface ScoreEntry {
   name: string
   score: number
   time: number
@@ -6727,49 +6728,7 @@ export class VectorShooter {
   }
 
   private showScores() {
-    this.state = 'scores'
-    this.ui.scores.innerHTML = ''
-    const panel = document.createElement('div')
-    panel.className = 'panel'
-    const h = document.createElement('h1')
-    h.className = 'title'
-    h.textContent = 'HIGH SCORES'
-    const table = document.createElement('table')
-    table.className = 'score-table'
-    table.innerHTML = '<thead><tr><th>Pilot</th><th>Score</th><th>Time</th><th>Level</th><th>Kills</th></tr></thead>'
-    const body = document.createElement('tbody')
-    for (const s of this.highs.slice(0, 8)) {
-      const tr = document.createElement('tr')
-      tr.innerHTML = `<td>${this.escape(s.name)}</td><td>${s.score}</td><td>${formatTime(s.time)}</td><td>${s.level}</td><td>${s.kills}</td>`
-      body.append(tr)
-    }
-    if (!body.children.length) {
-      const tr = document.createElement('tr')
-      tr.innerHTML = '<td colspan="5">No signals recorded yet.</td>'
-      body.append(tr)
-    }
-    table.append(body)
-    const row = document.createElement('div')
-    row.className = 'button-row'
-    const back = document.createElement('button')
-    back.className = 'vector-button'
-    back.textContent = 'Back'
-    back.addEventListener('click', () => this.showTitle())
-    const reset = document.createElement('button')
-    reset.className = 'vector-button secondary danger'
-    reset.textContent = 'Reset Save'
-    reset.addEventListener('click', () => {
-      if (reset.dataset.confirm === 'true') {
-        this.resetPersistentProgress()
-        return
-      }
-      reset.dataset.confirm = 'true'
-      reset.textContent = 'Confirm Reset'
-    })
-    row.append(back, reset)
-    panel.append(h, table, row)
-    this.ui.scores.append(panel)
-    this.showOnly('scores')
+    uiShowScores(this)
   }
 
   private resetPersistentProgress() {

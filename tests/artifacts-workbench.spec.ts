@@ -8,6 +8,7 @@ const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
 const workbenchSource = () => readFileSync(resolve(process.cwd(), 'src/ui/workbench.ts'), 'utf8')
 const collectionSource = () => readFileSync(resolve(process.cwd(), 'src/ui/collection.ts'), 'utf8')
 const mothershipSource = () => readFileSync(resolve(process.cwd(), 'src/ui/mothership-console.ts'), 'utf8')
+const scoresSource = () => readFileSync(resolve(process.cwd(), 'src/ui/scores.ts'), 'utf8')
 const styles = () => readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8')
 
 test('shipboard workbench keeps discoveries in the front end collection', () => {
@@ -299,10 +300,16 @@ test('mothership console controls expose clear focus disabled and tab labels', (
 
 test('scores screen can reset persistent progress back to first play', () => {
   const main = source()
+  const scores = scoresSource()
   const css = styles()
 
-  expect(main).toContain("reset.textContent = 'Reset Save'")
-  expect(main).toContain("reset.textContent = 'Confirm Reset'")
+  expect(main).toContain("import { showScores as uiShowScores } from './ui/scores'")
+  expect(main).toContain('private showScores() {')
+  expect(main).toContain('uiShowScores(this)')
+  expect(scores).toContain('export function showScores(self: VectorShooter)')
+  expect(scores).toContain("reset.textContent = 'Reset Save'")
+  expect(scores).toContain("reset.textContent = 'Confirm Reset'")
+  expect(scores).toContain("self['resetPersistentProgress']()")
   expect(main).toContain('private resetPersistentProgress()')
   expect(main).toContain('key === STORAGE_KEY')
   expect(main).toContain('key === MOTHERSHIP_STORAGE_KEY')
