@@ -11,6 +11,7 @@ import {
 } from '../src/surface-balance'
 
 const mainSource = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+const surfaceRunSetupSource = () => readFileSync(resolve(process.cwd(), 'src/surface/run-setup.ts'), 'utf8')
 
 test('run-level player xp timers and station values are named balance data', () => {
   const main = mainSource()
@@ -47,5 +48,5 @@ test('surface resources events and boss cache payouts are named balance data', (
   expect(pickSurfaceResourceKind({ index: 0, firstVisit: true, openingLanding: false, event: 'salvage', roll: 0.99 })).toBe('cache')
   expect(surfaceResourceValue('scrap', 'horde')).toBeGreaterThan(surfaceResourceValue('scrap', 'salvage'))
   expect(bossCacheValue(1, 'horde', 3)).toBeGreaterThan(bossCacheValue(1, 'boss', 3))
-  expect(mainSource()).toContain('surfaceRunBalance.resource.cacheSafeDistance')
+  expect(surfaceRunSetupSource()).toContain('surfaceRunBalance.resource.cacheSafeDistance')
 })

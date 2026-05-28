@@ -79,6 +79,8 @@ import { norm, dist2, len, TAU } from './math-utils'
 import { renderSurfaceBiomeMotifs as drawSurfaceBiomeMotifs } from './render/surface-biomes'
 import { renderSurfaceThreats } from './surface/render-threats'
 import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurfaceBulletsAndThreatDamage } from './surface/bullet-combat'
+import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
+import { createSurfaceResourceNodes, surfaceEventMessage } from './surface/run-setup'
 import { spawnSurfaceSplitterChildren, updateSurfaceThreatMotion } from './surface/threat-behavior'
 import { renderPlayer as drawPlayer } from './render/player'
 import { renderEnemies as drawEnemies } from './render/enemies'
@@ -97,12 +99,9 @@ import {
 } from './space-encounters'
 import { SURFACE_PILOT_SIZE_SCALE, surfacePilotMuzzleOffset, surfacePilotSpawnKeepout, surfacePilotSpriteScale } from './surface-pilot'
 import {
-  bossCacheValue,
-  pickSurfaceResourceKind,
   planetAlienCatalogVariants,
   planetBossCatalogVariants,
   surfaceEventPoint as plannedSurfaceEventPoint,
-  surfaceResourceValue,
   surfaceRunBalance,
   surfaceThreatMotionBalance,
   type AlienGiftKind,
@@ -1685,7 +1684,7 @@ export class VectorShooter {
     else if (input.interact && lore) this.inspectLoreSite(lore)
     else if (input.interact && alien) this.openAlienEncounter(alien)
     else if (input.interact && nearShip) this.startTakeoff()
-    if (this.surface.collected >= this.surface.resources.length && !nearShip) {
+    if (shouldPromptSurfaceReturn({ collected: this.surface.collected, total: this.surface.resources.length, nearShip })) {
       this.surface.message = 'CACHE CLEARED. RETURN TO SHIP.'
     }
 
@@ -3434,7 +3433,6 @@ export class VectorShooter {
   }
 
   private createSurfaceRun(planet: Planet): SurfaceRun {
-    const resources: SurfaceResource[] = []
     const world = surfaceRunBalance.world
     const pilot = {
       x: world.pilotStart.x,
@@ -3466,26 +3464,16 @@ export class VectorShooter {
     const event = profile.event
     const scenario = profile.scenario
     const count = profile.resourceCount
-    for (let i = 0; i < count; i += 1) {
-      const kind = pickSurfaceResourceKind({
-        index: i,
-        firstVisit: first,
-        openingLanding,
-        event,
-        roll: Math.random()
-      })
-      const color = kind === 'cache' ? '#fff27a' : kind === 'crystal' ? planet.color : kind === 'scrap' ? '#70a8ff' : '#8fff7d'
-      const cluster = this.surfaceSafePoint(this.surfaceEventPoint(event, i, count), kind === 'cache' ? surfaceRunBalance.resource.cacheSafeDistance : surfaceRunBalance.resource.defaultSafeDistance)
-      resources.push({
-        kind,
-        x: cluster.x,
-        y: cluster.y,
-        radius: kind === 'cache' ? surfaceRunBalance.resource.radius.cache : surfaceRunBalance.resource.radius.default,
-        value: surfaceResourceValue(kind, event),
-        color,
-        collected: false
-      })
-    }
+    const resources = createSurfaceResourceNodes({
+      count,
+      event,
+      firstVisit: first,
+      openingLanding,
+      planetColor: planet.color,
+      roll: Math.random,
+      eventPoint: (i, total) => this.surfaceEventPoint(event, i, total),
+      safePoint: (point, minDistance) => this.surfaceSafePoint(point, minDistance)
+    })
     const threats: SurfaceThreat[] = []
     const threatCount = profile.threatCount + (planet.name === 'NULL CATHEDRAL' && event !== 'horde' ? 1 : 0)
     for (let i = 0; i < threatCount; i += 1) {
@@ -3521,7 +3509,7 @@ export class VectorShooter {
       overflowSignals: 0,
       bossCacheCount: profile.bossCacheCount,
       o2Returning: false,
-      message: this.surfaceEventMessage(event, first, scenario)
+      message: surfaceEventMessage(event, first, scenario)
     }
   }
 
@@ -3797,21 +3785,6 @@ export class VectorShooter {
     return { x, y }
   }
 
-  private surfaceEventMessage(event: SurfaceEventKind, first: boolean, scenario?: SurfaceScenarioKind) {
-    if (scenario === 'lore') return 'QUIET RUINS BELOW. INSPECT THE OLD SIGNALS.'
-    if (scenario === 'boss') return 'LARGE BIO-SIGNAL BELOW. KILL IT OR RUN.'
-    if (scenario === 'friendly') return 'SINGLE LIFEFORM HAILING YOUR SUIT. APPROACH CAREFULLY.'
-    if (scenario === 'mixed') return 'WEIRD SURFACE. CONTACTS AND A RARE SIGNAL SHARE THE SAME GROUND.'
-    if (scenario === 'horde') return 'HORDE VAULT BELOW. SURVIVE IT AND THE TREASURE BREAKS OPEN.'
-    if (event === 'jackpot') return 'SIGNAL JACKPOT. GRAB EVERYTHING.'
-    if (event === 'horde') return 'HORDE VAULT. THE LOOT IS REAL. SO ARE THEY.'
-    if (event === 'swarm') return 'BAD PLANET. CONTACTS EVERYWHERE.'
-    if (event === 'relic') return 'RELIC SIGNATURES BELOW. CACHE HUNT.'
-    if (event === 'repair') return 'QUIET DOCK. PATCH UP AND SCAVENGE.'
-    if (event === 'volatile') return 'VOLATILE CACHE FIELD. EXPECT TROUBLE.'
-    return first ? 'UNKNOWN SURFACE. MINE THE SIGNAL CACHE.' : 'OLD LANDING SITE. QUICK SALVAGE ONLY.'
-  }
-
   private confirmLanding() {
     this.stopIntroWaypoint()
     if (!this.planetChoice) return
@@ -3841,11 +3814,11 @@ export class VectorShooter {
 
   private collectSurfaceResources() {
     if (!this.surface) return
-    for (const resource of this.surface.resources) {
-      if (resource.collected) continue
-      const rr = resource.radius + surfaceRunBalance.resource.collectionBonusRadius
-      if ((resource.x - this.surface.pilot.x) ** 2 + (resource.y - this.surface.pilot.y) ** 2 > rr * rr) continue
-      resource.collected = true
+    const collectedResources = collectTouchedSurfaceResources({
+      resources: this.surface.resources,
+      pilot: this.surface.pilot
+    })
+    for (const resource of collectedResources) {
       this.surface.collected += 1
       this.audio.pickup(resource.kind)
       this.burst(resource.x, resource.y, resource.color, resource.kind === 'cache' ? 22 : 10, resource.kind === 'cache' ? 240 : 140)
@@ -3919,24 +3892,13 @@ export class VectorShooter {
     if (Math.random() < ambushChance) {
       const keepouts = this.surfaceThreatKeepouts(this.surface.pilot, this.surface.ship)
       const ambush = surfaceRunBalance.cacheAmbush
-      for (let i = 0; i < ambush.baseCount + Math.floor(this.stats.time / ambush.timeDivisor); i += 1) {
-        const point = this.safeSurfaceThreatPoint({
-          x: resource.x + rand(-ambush.scatter, ambush.scatter),
-          y: resource.y + rand(-ambush.scatter, ambush.scatter)
-        }, keepouts, ambush.clearance, rand(0, TAU))
-        this.surface.threats.push({
-          x: point.x,
-          y: point.y,
-          vx: 0,
-          vy: 0,
-          hp: ambush.hpBase + this.stats.time * ambush.hpPerSecond,
-          radius: ambush.radius,
-          phase: Math.random() * TAU,
-          color: '#ff5d73',
-          hit: 0,
-          behavior: 'chaser'
-        })
-      }
+      this.surface.threats.push(...createSurfaceCacheAmbushThreats({
+        resource,
+        time: this.stats.time,
+        count: ambush.baseCount + Math.floor(this.stats.time / ambush.timeDivisor),
+        random: Math.random,
+        safeThreatPoint: (point, clearance, fallbackAngle) => this.safeSurfaceThreatPoint(point, keepouts, clearance, fallbackAngle)
+      }))
       this.surface.message = `${cacheMessage} CACHE WAS WIRED.`
     }
   }
@@ -3975,23 +3937,16 @@ export class VectorShooter {
 
   private dropSurfaceBossCache(threat: SurfaceThreat) {
     if (!this.surface) return
-    const count = this.surface.bossCacheCount
-    for (let i = 0; i < count; i += 1) {
-      const a = (i / count) * TAU + rand(-0.2, 0.2)
-      const bossCache = surfaceRunBalance.bossCache
-      const r = rand(bossCache.scatterMin, bossCache.scatterMax)
-      const point = this.surfaceSafePoint({ x: threat.x + Math.cos(a) * r, y: threat.y + Math.sin(a) * r }, bossCache.safeDistance)
-      this.surface.resources.push({
-        kind: i < 2 && this.surface.scenario === 'horde' ? 'cache' : i === 0 ? 'cache' : Math.random() < bossCache.crystalChance ? 'crystal' : 'scrap',
-        x: point.x,
-        y: point.y,
-        radius: i === 0 ? surfaceRunBalance.resource.radius.cache : surfaceRunBalance.resource.radius.default,
-        value: bossCacheValue(i, this.surface.scenario, this.stats.level),
-        color: i === 0 ? '#fff27a' : i % 2 ? threat.color : '#70a8ff',
-        collected: false
-      })
-    }
-    this.surface.message = this.surface.scenario === 'horde' ? 'HORDE VAULT DEFEATED. MASSIVE TREASURE SPILLED.' : 'BOSS SIGNAL BROKE OPEN. RICH CACHE SPILLED.'
+    const result = createSurfaceBossCacheDrops({
+      count: this.surface.bossCacheCount,
+      scenario: this.surface.scenario,
+      level: this.stats.level,
+      threat,
+      random: Math.random,
+      safePoint: (point, minDistance) => this.surfaceSafePoint(point, minDistance)
+    })
+    this.surface.resources.push(...result.resources)
+    this.surface.message = result.message
     this.camera.shake = Math.max(this.camera.shake, 10)
   }
 
