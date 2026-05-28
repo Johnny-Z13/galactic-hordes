@@ -11,6 +11,7 @@ import {
 } from '../src/surface-balance'
 
 const mainSource = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+const spaceEnemyAttacksSource = () => readFileSync(resolve(process.cwd(), 'src/space-enemy-attacks.ts'), 'utf8')
 const mutationProgressSource = () => readFileSync(resolve(process.cwd(), 'src/mutation-progress.ts'), 'utf8')
 const surfaceRunSetupSource = () => readFileSync(resolve(process.cwd(), 'src/surface/run-setup.ts'), 'utf8')
 
@@ -33,6 +34,7 @@ test('run-level player xp timers and station values are named balance data', () 
 
 test('space enemy behavior tuning is centralized outside the main game loop', () => {
   const main = mainSource()
+  const attacks = spaceEnemyAttacksSource()
 
   expect(spaceEnemyBehavior.global.spawnMinRadius).toBeLessThan(spaceEnemyBehavior.global.spawnMaxRadius)
   expect(spaceEnemyBehavior.rewards.xpValue.default).toBe(2)
@@ -41,8 +43,8 @@ test('space enemy behavior tuning is centralized outside the main game loop', ()
   expect(spaceEnemyBehavior.cathedral.latticeRings).toBeGreaterThan(0)
   expect(advancedRewardEnemyKinds).toEqual(expect.arrayContaining(['shooter', 'lancer']))
   expect(main).toContain('spaceEnemyBehavior.global.spawnMinRadius')
-  expect(main).toContain('const tuned = spaceEnemyBehavior.cathedral')
-  expect(main).toContain('tuned.latticeRings')
+  expect(attacks).toContain('const tuned = spaceEnemyBehavior.cathedral')
+  expect(attacks).toContain('tuned.latticeRings')
 })
 
 test('surface resources events and boss cache payouts are named balance data', () => {
