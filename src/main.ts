@@ -190,6 +190,7 @@ import {
   isFirstEverRun,
   pickWaypointTarget
 } from './intro-hook'
+import { installPlaytestHarnessIfRequested } from './playtest-harness'
 import type { StateHandlers } from './game-states'
 
 export type { AudioUpgradeCue } from './audio/audio-director'
@@ -6440,84 +6441,7 @@ export class VectorShooter {
   }
 
   private installHarnessIfRequested() {
-    const params = new URLSearchParams(window.location.search)
-    const hashParams = new URLSearchParams(window.location.hash.replace(/^#\??/, ''))
-    const requested = params.get('harness') ?? hashParams.get('harness') ?? ''
-    if (!['1', 'true', 'yes'].includes(requested.toLowerCase())) return
-    window.__galacticHarness = {
-      snapshot: () => ({
-        state: this.state,
-        time: this.stats.time,
-        kills: this.stats.kills,
-        level: this.stats.level,
-        xp: this.stats.xp,
-        nextXp: this.stats.nextXp,
-        hull: this.player.hull,
-        maxHull: this.player.maxHull,
-        score: this.stats.score,
-        planets: this.stats.planets,
-        pendingUpgrades: this.pendingUpgrades,
-        lockedPlanetId: this.autoNavTargetPlanetId,
-        objective: {
-          label: this.ui.objective.parentElement?.querySelector('.hud-label')?.textContent ?? '',
-          text: this.ui.objective.textContent ?? ''
-        },
-        resources: { ...this.resources },
-        enemies: this.enemies.length,
-        pickups: this.pickups.length,
-        currentNode: currentSectorNode(this.sectorMap).config.templateId,
-        perf: { ...this.perf }
-      })
-    }
-    window.debugSpawnSingleEnemy = (kind, dx, dy) => this.debugSpawnSingleEnemy(kind, dx, dy)
-    window.debugPlayerPosition = () => this.debugPlayerPosition()
-    window.debugNearestEnemyDistance = () => this.debugNearestEnemyDistance()
-    window.debugStepEnemies = (dt) => this.debugStepEnemies(dt)
-    window.debugEnemyCount = () => this.debugEnemyCount()
-    window.debugForceFirstEverRun = () => {
-      this.debrief = null
-      this.stats.planets = 0
-      this.introWaypoint = null
-    }
-    window.debugIntroWaypointState = () => {
-      const wp = this.introWaypoint
-      if (!wp) return null
-      return { active: wp.active, timer: wp.timer, targetPlanetId: wp.targetPlanetId }
-    }
-    window.debugLandOnNearestPlanet = () => {
-      if (this.state !== 'playing') return false
-      let nearest: Planet | null = null
-      let bestD = Infinity
-      for (const p of this.planets) {
-        const d = dist2(p, this.player)
-        if (d < bestD) { bestD = d; nearest = p }
-      }
-      if (!nearest) return false
-      this.startLanding(nearest)
-      return true
-    }
-    window.debugScorePopupsSnapshot = () => ({
-      count: this.scorePopups.length,
-      texts: this.scorePopups.map((sp) => sp.text)
-    })
-    window.debugStepScorePopups = (dt: number) => advanceScorePopups(this.scorePopups, dt)
-    window.debugHitstopUntil = () => this.hitstopUntil
-    window.debugForceKillNearestEnemy = (giant: boolean) => {
-      let target: Enemy | null = null
-      if (giant) {
-        target = this.enemies.find((e) => isGiantEnemyKind(e.kind)) ?? null
-      } else {
-        let best = Infinity
-        for (const e of this.enemies) {
-          if (isGiantEnemyKind(e.kind)) continue
-          const d = dist2(e, this.player)
-          if (d < best) { best = d; target = e }
-        }
-      }
-      if (!target) return false
-      this.killEnemy(target, true)
-      return true
-    }
+    installPlaytestHarnessIfRequested(this)
   }
 
   private debugSpawnSingleEnemy(kind: EnemyKind, dx: number, dy: number) {
