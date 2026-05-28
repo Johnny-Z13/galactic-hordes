@@ -6,7 +6,7 @@ export const introHookConfig = {
     color: '#fff27a'
   },
   popup: { lifeSeconds: 0.6, riseSpeed: 40, fontPx: 13 },
-  hitFlash: { durationSeconds: 0.08, color: '#ff5d73' },
+  hitFlash: { durationSeconds: 0.08, dashRamDurationSeconds: 0.12, color: '#ff5d73' },
   hitstop: { durationSeconds: 0.04, giantKindsOnly: true },
   magnetGlint: { frameInterval: 4, particleSpeed: 30 },
   safeDriftFirstNode: { spawnMultiplier: 1.25, extraStartingSpawns: 2 },

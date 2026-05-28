@@ -1,6 +1,7 @@
 import type { Vec, Enemy, EnemyKind } from '../main-types'
 import { TAU } from '../math-utils'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spriteEnemyKinds } from '../space-enemies'
+import { introHookConfig } from '../intro-hook'
 
 export interface EnemiesView {
   ctx: CanvasRenderingContext2D
@@ -35,7 +36,7 @@ export function renderEnemies(view: EnemiesView): void {
     ctx.translate(p.x, p.y)
     ctx.rotate(e.phase)
     ctx.scale(view.scale, view.scale)
-    ctx.strokeStyle = e.flash > 0 ? '#ffffff' : e.color
+    ctx.strokeStyle = e.flash > 0 ? introHookConfig.hitFlash.color : e.color
     ctx.shadowColor = e.color
     ctx.shadowBlur = view.allowGlow ? 12 : 0
     ctx.lineWidth = e.kind === 'warden' || e.kind === 'brute' ? 3 : 2
@@ -153,7 +154,7 @@ function renderSpaceSpriteEnemy(view: EnemiesView, e: Enemy, p: Vec): void {
   ctx.drawImage(sheet, frame * sw, row * sh, sw, sh, -dw / 2, -dh / 2, dw, dh)
   if (e.flash > 0) {
     ctx.globalAlpha = 0.45
-    ctx.strokeStyle = '#ffffff'
+    ctx.strokeStyle = introHookConfig.hitFlash.color
     ctx.lineWidth = 2
     ctx.beginPath()
     ctx.arc(0, 0, e.radius * 1.35 * view.scale, 0, TAU)
@@ -195,7 +196,7 @@ function renderHordeEnemies(view: EnemiesView): void {
   strokeEnemyBatch(view, 'cathedral', '#d7fff7')
   strokeEnemyBatch(view, 'warden', '#b990ff')
   ctx.lineWidth = 1.8
-  ctx.strokeStyle = '#ffffff'
+  ctx.strokeStyle = introHookConfig.hitFlash.color
   ctx.beginPath()
   for (const e of view.enemies) {
     if (e.flash <= 0) continue
@@ -368,7 +369,7 @@ function renderEnemyLod(view: EnemiesView, e: Enemy, p: Vec): void {
   ctx.translate(p.x, p.y)
   ctx.rotate(e.phase)
   ctx.scale(view.scale, view.scale)
-  ctx.strokeStyle = e.flash > 0 ? '#ffffff' : e.color
+  ctx.strokeStyle = e.flash > 0 ? introHookConfig.hitFlash.color : e.color
   ctx.lineWidth = 1.5
   const r = e.radius
   ctx.beginPath()

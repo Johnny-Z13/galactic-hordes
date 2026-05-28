@@ -152,6 +152,7 @@ import {
 import { renderCollectionScreen as uiRenderCollectionScreen } from './ui/collection'
 import { showMothership as uiShowMothership, renderMothershipMetaSystems as uiRenderMothershipMetaSystems } from './ui/mothership-console'
 import { renderDebrief as uiRenderDebrief } from './ui/debrief'
+import { introHookConfig } from './intro-hook'
 import type { StateHandlers } from './game-states'
 
 export type GameState = 'title' | 'mothership' | 'collection' | 'powerups' | 'sectorMap' | 'station' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
@@ -2620,7 +2621,7 @@ export class VectorShooter {
       + this.build.phase * powerupBalance.dash.ramDamagePerPhaseRank
       + this.build.engine * powerupBalance.dash.ramDamagePerEngineRank
     e.hp -= damage
-    e.flash = Math.max(e.flash, 0.12)
+    e.flash = Math.max(e.flash, introHookConfig.hitFlash.dashRamDurationSeconds)
     e.vx += this.player.dashX * force
     e.vy += this.player.dashY * force
     this.burst(e.x, e.y, '#b990ff', 5 + this.build.phase, 130 + this.build.phase * 20)
@@ -3118,7 +3119,7 @@ export class VectorShooter {
 
   private damageEnemy(e: Enemy, amount: number, color: string) {
     e.hp -= amount
-    e.flash = 0.05
+    e.flash = introHookConfig.hitFlash.durationSeconds
     if (!this.isHighLoad() && this.particles.length < MAX_PARTICLES && Math.random() < 0.2) {
       this.particles.push({ x: e.x, y: e.y, vx: rand(-80, 80), vy: rand(-80, 80), life: 0.22, maxLife: 0.22, color, size: 2, glow: 10 })
     }
