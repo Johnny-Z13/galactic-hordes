@@ -88,8 +88,13 @@ test('shipboard workbench installs directly from bay detail', () => {
   const workbenchChoices = workbenchChoicesSource()
   const css = styles()
 
-  expect(main).toContain("import type { WorkbenchChoice } from './workbench-choices'")
+  expect(main).toContain("import { rollWorkbenchChoices, type WorkbenchChoice } from './workbench-choices'")
   expect(main).not.toContain('export type WorkbenchChoice =')
+  expect(main).toContain('return rollWorkbenchChoices({')
+  expect(main).not.toContain('private weightedUpgrade(')
+  expect(main).not.toContain('private rollRelicChoice(')
+  expect(main).not.toContain('private rollLimitBreak(')
+  expect(main).not.toContain('private availableEvolutions(')
   expect(workbench).toContain("import type { WorkbenchChoice } from '../workbench-choices'")
   expect(workbench).not.toContain("WorkbenchChoice, AudioUpgradeCue } from '../main'")
   expect(workbenchChoices).toContain('export type WorkbenchChoice =')
@@ -511,11 +516,12 @@ test('surface workbench install preserves payoff through takeoff handoff', () =>
 
 test('planet discoveries unlock the first spacesuit workbench path', () => {
   const main = source()
+  const workbenchChoices = workbenchChoicesSource()
 
-  expect(main).toContain('firstOpportunityUpgrade')
+  expect(workbenchChoices).toContain('firstOpportunityUpgrade')
   expect(main).toContain('private discoverySuitOffer = false')
   expect(main).toContain("this.discoverySuitOffer = true")
-  expect(main).toContain("firstOpportunityUpgrade(upgrades, this.build, 'suitO2')")
+  expect(workbenchChoices).toContain("firstOpportunityUpgrade(upgrades, input.build, 'suitO2')")
   expect(main).toContain('uiWorkbenchExtraUnlockedIds(this)')
   expect(main).toContain("choice.upgrade.bucket === 'spacesuit'")
 })

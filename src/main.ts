@@ -39,10 +39,8 @@ import { planetRadius } from './planet-sizing'
 import { runBalance } from './run-balance'
 import { scoreEntryFromRun, type ScoreEntry } from './score-history'
 import { advanceScorePopups, appendScorePopup, createInstallPopup, createScorePopup, createSignalPopup, type ScorePopupModel } from './score-popups'
-import type { WorkbenchChoice } from './workbench-choices'
+import { rollWorkbenchChoices, type WorkbenchChoice } from './workbench-choices'
 import {
-  evolutions,
-  limitBreakChoices,
   pickupBalance,
   powerupBalance,
   relics,
@@ -157,8 +155,6 @@ import {
   returnBeaconEligible
 } from './return-beacons'
 import {
-  firstOpportunityUpgrade,
-  workbenchRollableUpgrades,
   workbenchUnlockEdges,
   workbenchUpgradeRows,
   type WorkbenchUpgradeRow
@@ -3120,68 +3116,16 @@ export class VectorShooter {
   }
 
   private rollUpgrades(count: number, rare = false): WorkbenchChoice[] {
-    const choices: WorkbenchChoice[] = []
-    const evo = this.availableEvolutions()
-    if (evo.length && (rare || Math.random() < workbenchBalance.evolutionChanceBase + this.build.luck * workbenchBalance.evolutionChanceLuckPerRank)) {
-      choices.push({ kind: 'evolution', evolution: evo[Math.floor(Math.random() * evo.length)] })
-    }
-    const relic = this.rollRelicChoice(rare)
-    if (relic && choices.length < count) choices.push({ kind: 'relic', relic })
-    const discoverySuit = this.discoverySuitOffer
-      ? firstOpportunityUpgrade(upgrades, this.build, 'suitO2')
-      : null
-    if (discoverySuit && choices.length < count) choices.push({ kind: 'upgrade', upgrade: discoverySuit })
-    const available = workbenchRollableUpgrades(upgrades, this.build, uiWorkbenchExtraUnlockedIds(this))
-      .filter((u) => !choices.some((choice) => choice.kind === 'upgrade' && choice.upgrade.id === u.id))
-    while (choices.length < count && available.length) {
-      const selected = this.weightedUpgrade(available, rare)
-      choices.push({ kind: 'upgrade', upgrade: selected })
-      available.splice(available.indexOf(selected), 1)
-    }
-    while (choices.length < count) choices.push(this.rollLimitBreak())
-    return choices
-  }
-
-  private weightedUpgrade(pool: Upgrade[], rare: boolean) {
-    const benchTier = this.mothership.departments.workbench
-    const ownedBias = workbenchBalance.ownedBiasBase
-      + this.build.luck * workbenchBalance.ownedBiasLuckPerRank
-      + (benchTier >= workbenchBalance.ownedBiasWorkbenchTier ? workbenchBalance.ownedBiasWorkbenchBonus : 0)
-    const rareBias = rare ? workbenchBalance.rareUpgradeWeightMultiplier : 1
-    const weights = pool.map((upgrade) => {
-      const owned = this.build[upgrade.id] > 0
-      const weaponFocus = upgrade.category === 'weapon' ? workbenchBalance.weaponFocusWeight : 1
-      return Math.max(1, upgrade.rarity * (owned ? ownedBias : 1) * weaponFocus * (upgrade.rarity < workbenchBalance.rareUpgradeRarityThreshold ? rareBias : 1))
+    return rollWorkbenchChoices({
+      count,
+      rare,
+      build: this.build,
+      relics: this.relics,
+      evolved: this.evolved,
+      workbenchTier: this.mothership.departments.workbench,
+      discoverySuitOffer: this.discoverySuitOffer,
+      extraUnlockedIds: uiWorkbenchExtraUnlockedIds(this)
     })
-    let roll = Math.random() * weights.reduce((sum, weight) => sum + weight, 0)
-    for (let i = 0; i < pool.length; i += 1) {
-      roll -= weights[i]
-      if (roll <= 0) return pool[i]
-    }
-    return pool[pool.length - 1]
-  }
-
-  private rollRelicChoice(rare: boolean): Relic | null {
-    const missing = relics.filter((relic) => !this.relics.has(relic.id))
-    if (!missing.length) return null
-    const chance = (rare ? workbenchBalance.relicChanceRare : workbenchBalance.relicChanceBase)
-      + this.build.luck * workbenchBalance.relicChanceLuckPerRank
-      + this.build.survey * workbenchBalance.relicChanceSurveyPerRank
-    if (Math.random() > chance) return null
-    let roll = Math.random() * missing.reduce((sum, relic) => sum + relic.rarity, 0)
-    for (const relic of missing) {
-      roll -= relic.rarity
-      if (roll <= 0) return relic
-    }
-    return missing[0]
-  }
-
-  private rollLimitBreak(): WorkbenchChoice {
-    return { kind: 'limit', ...limitBreakChoices[Math.floor(Math.random() * limitBreakChoices.length)] }
-  }
-
-  private availableEvolutions() {
-    return evolutions.filter((evolution) => this.build[evolution.weapon] >= upgradeMaxRank(evolution.weapon) && this.relics.has(evolution.relic) && !this.evolved.has(evolution.weapon))
   }
 
   private applyWorkbenchChoice(choice: WorkbenchChoice) {
