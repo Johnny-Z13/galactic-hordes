@@ -2,6 +2,23 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> ## PROGRESS (as of 2026-05-28, branch `phase-0-refactor`, pushed to origin)
+>
+> Per-step checkboxes below were NOT ticked for Tasks 1–4 (they predate this status block); trust this table and the git log over the boxes.
+>
+> | Task | Status | Commits |
+> |------|--------|---------|
+> | 1. Characterization test + harness hooks | ✅ done | `068bb4e`, `77413f3`, `dde67c3` |
+> | 2. Enemy AI → `enemy-behaviors.ts` (+ `main-types.ts`) | ✅ done | `48e6780`, `0ab1a60`, `d7d1e61` |
+> | 3. Scene rendering → `render/` (surface-biomes, player, enemies) | ✅ done | `dba6f97`, `44852c5`, `0daddec` |
+> | 4. UI screens → `src/ui/` (workbench, collection, mothership-console, debrief) | ✅ done | `830a1e7`, `ed0c25f`, `8c32824`, `282ee88` |
+> | 5. State-dispatch map → `game-states.ts` | ⬜ **NOT STARTED — resume here** | — |
+> | 6. Phase 0 verification gate + `phase-0-complete` tag | ⬜ not started | — |
+>
+> **Baseline grew 213 → 218** (Tasks 1–2 added enemy-behavior characterization tests). Current state: `tsc` clean, **218 tests passing**, balance sim flags none. `main.ts` ~9,840 → ~7,290 lines.
+>
+> **Task 4 deviated from the written approach** (mixin + bracket-access instead of view+callbacks) — see the Task 4 section for the rationale, the gotchas (source-text tests, non-contiguous clusters, CRLF), and the mechanics that also apply to Task 5.
+
 **Goal:** Shrink `src/main.ts` (~9,840 lines) by ~40–50% through behavior-preserving extraction of enemy behaviors, rendering, UI screens, and the state-dispatch map — with the existing 213-test Playwright suite as the correctness contract.
 
 **Architecture:** `VectorShooter` in `src/main.ts` remains the orchestrator that owns game state. We extract (1) per-enemy AI into a `src/enemy-behaviors.ts` strategy table driven through a narrow context interface, (2) canvas rendering into `src/render/` modules taking `(ctx, view)`, (3) UI-screen rendering into `src/ui/` modules, and (4) the per-state `update`/`render`/`audioMood` dispatch into a single `states` record. No state-management rewrite, no view-model layer.
@@ -350,41 +367,42 @@ git commit -m "refactor: extract enemy rendering into render/enemies"
 
 ---
 
-## Task 4: Extract UI-screen rendering into `src/ui/`
+## Task 4: Extract UI-screen rendering into `src/ui/` ✅ COMPLETE (2026-05-28)
 
-These methods build DOM/canvas for menus and have nothing to do with the game loop. They are the code Phase 2 will edit, so isolating them now pays off twice. Move one screen per commit.
+> **STATUS: DONE.** All four screens extracted on branch `phase-0-refactor`, commits
+> `830a1e7` (workbench), `ed0c25f` (collection), `8c32824` (mothership-console),
+> `282ee88` (debrief). `main.ts` shed ~1,240 lines into `src/ui/`. Full suite **218 passing**
+> (baseline grew from 214 to 218 in Task 1–2 via the enemy-behavior characterization tests),
+> `tsc` clean, balance sim flags none.
 
-**Files:**
-- Create: `src/ui/workbench.ts`, `src/ui/mothership-console.ts`, `src/ui/collection.ts`, `src/ui/debrief.ts`
-- Modify: `src/main.ts`
+These methods build DOM/canvas for menus and have nothing to do with the game loop. They are the code Phase 2 will edit, so isolating them now pays off twice. One screen per commit.
 
-- [ ] **Step 1: Move the workbench screen**
+**Files created:** `src/ui/workbench.ts`, `src/ui/collection.ts`, `src/ui/mothership-console.ts`, `src/ui/debrief.ts`. **Modified:** `src/main.ts`.
 
-Grep `private renderWorkbench` in `src/main.ts` to list all related methods (`renderWorkbench`, `renderWorkbenchManifest`, etc.). Move them into `src/ui/workbench.ts` as exported functions taking a `WorkbenchView` (the data they read) plus callbacks for the actions they trigger (install, recycle, close). Delegate from thin methods in `main.ts`.
+### Approach actually used (differs from the original plan — read this before extending the pattern)
 
-- [ ] **Step 2: Typecheck and run the suite**
+The original plan called for "exported functions taking a `WorkbenchView` plus callbacks." During implementation that was rejected with the user: the workbench cluster reads ~15 class fields, calls ~12 game-logic methods, AND re-renders itself recursively, so a faithful view+callbacks interface needed ~27 members incl. a `rerender()` escape hatch — coupling moved into a giant param object, not real decoupling. **Decision: mixin pattern instead.**
 
-Run: `npx tsc --noEmit` → clean.
-Run: `npx playwright test` → `214 passed`. The `artifacts-workbench.spec.ts` suite directly exercises this — it is the safety net.
+- Each moved method became `export function name(self: VectorShooter, ...args)` in the `src/ui/` module.
+- Module functions call each other as plain module calls (`renderWorkbenchInstallSurface(self)`), not `self.method()`.
+- References to `VectorShooter` **private** members use **bracket access** (`self['build']`, `self['escape'](x)`) — TS allows this under `strict`, so **NO class members were widened to public** (encapsulation preserved; specs asserting `private X(` stay green).
+- `main.ts` keeps **thin delegators** only for methods with external callers (e.g. `private renderLevelUp(t,c) { uiRenderLevelUp(this, t, c) }`) and aliased imports where main.ts code calls a moved helper.
+- `VectorShooter` is now `export class`; shared types/consts it owns were exported as needed: `WorkbenchChoice`, `AudioUpgradeCue`, `ArtifactKind`, `ArtifactRecord`, `MothershipCollectionFilter`, `MothershipConsoleView`, `clamp`, `hashString`, `formatTime`.
 
-- [ ] **Step 3: Commit**
+### Gotchas future agents MUST know (these cost real time)
 
-```bash
-git add src/ui/workbench.ts src/main.ts
-git commit -m "refactor: extract workbench UI into ui/workbench"
-```
+1. **A large slice of the suite asserts on `main.ts` SOURCE TEXT, not behavior** (`expect(main).toContain("this.renderWorkbenchInstallSurface()")`). Every extraction breaks a wall of these even when tsc is clean. Retarget each broken assertion to read the new module file and match the moved form (`this.foo` → `self['foo']`, `private foo(` → `export function foo(self: VectorShooter`). This matches the precedent the render extractions (Task 3) set in `dash-feel.spec.ts` etc. Affected specs: `artifacts-workbench.spec.ts`, `audio-sound-design.spec.ts`, `powerup-balance.spec.ts`, `sector-map-ui.spec.ts`, `game-over-return.spec.ts`.
+2. **Clusters are NOT always contiguous.** The mothership methods were interleaved with front-screen plumbing (`showCollection`/`showPowerUps`/scroll helpers that must STAY in main.ts). A naive `sed` line-range sweep grabbed the interlopers and broke compilation. Extract interleaved methods individually by **brace-matching**, not by line range.
+3. **Bracket access breaks substring assertions.** `self['upgradeLevelDetail'](x)` does NOT contain the substring `upgradeLevelDetail(x)` (the `'](` splits it) — retarget those test strings to the bracketed form.
+4. **`renderGameOver` is pre-existing dead code** (no callers). It was moved verbatim per plan, not deleted (scope discipline). Worth deciding later whether to drop it.
 
-- [ ] **Step 4: Repeat for mothership console, collection, and debrief**
+### Mechanics (for the remaining Phase 0 / Phase 2 work)
 
-For each of `renderMothershipConsole*` → `src/ui/mothership-console.ts`, `renderCollection*` → `src/ui/collection.ts`, `renderDebrief`/`renderGameOver` → `src/ui/debrief.ts`: move verbatim with a view + callbacks, delegate, typecheck, run suite (`214 passed`), commit one per screen:
-
-```bash
-git add src/ui/mothership-console.ts src/main.ts
-git commit -m "refactor: extract mothership console UI into ui/mothership-console"
-# then collection, then debrief, each its own commit
-```
-
-`mothership-progression.spec.ts` and `artifacts-workbench.spec.ts` guard these.
+- Scratch scripts: Bash-tool `/tmp` resolves to `D:\tmp` for Node on this Windows box — use a repo-local `.tmp-refactor/`. `package.json` is `"type":"module"` so scratch scripts must be `.cjs`. `rm -rf` is sandbox-blocked; use PowerShell `Remove-Item -Recurse -Force`. `git checkout` restores CRLF line endings, so line-mutation scripts must handle `\r?\n`.
+- [x] **Step 1: Workbench** — `830a1e7`. Suite 218.
+- [x] **Step 2: Collection** — `ed0c25f`. Suite 218.
+- [x] **Step 3: Mothership console + `renderBuildManifest`** — `8c32824`. Suite 218.
+- [x] **Step 4: Debrief / game-over** — `282ee88`. Suite 218.
 
 ---
 
