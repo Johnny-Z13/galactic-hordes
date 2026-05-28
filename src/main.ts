@@ -35,7 +35,7 @@ import { planetNameFor } from './planet-names'
 import { pickupMagnetRange, pickupMagnetStrength } from './pickup-magnet'
 import { planetRadius } from './planet-sizing'
 import { runBalance } from './run-balance'
-import { advanceScorePopups, createScorePopup, scorePopupScreenPoint, type ScorePopupModel } from './score-popups'
+import { advanceScorePopups, appendScorePopup, createScorePopup, scorePopupScreenPoint, type ScorePopupModel } from './score-popups'
 import {
   evolutions,
   limitBreakChoices,
@@ -2897,14 +2897,14 @@ export class VectorShooter {
       this.collisionFxCooldown = highLoad ? 0.04 : 0
     }
     if (reward) {
-      this.pushScorePopup(createScorePopup({
+      appendScorePopup(this.scorePopups, createScorePopup({
         x: e.x,
         y: e.y,
         value: e.value,
         layer: 'space',
         riseSpeed: introHookConfig.popup.riseSpeed,
         lifeSeconds: introHookConfig.popup.lifeSeconds
-      }))
+      }), introHookConfig.popup.cap)
       if (introHookConfig.hitstop.giantKindsOnly && isGiantEnemyKind(e.kind)) {
         this.hitstopUntil = performance.now() / 1000 + introHookConfig.hitstop.durationSeconds
       }
@@ -3939,14 +3939,14 @@ export class VectorShooter {
         this.audio.boom(threat.boss ? 'heavy' : 'surface')
         this.stats.kills += 1
         this.stats.score += scoreValue
-        this.pushScorePopup(createScorePopup({
+        appendScorePopup(this.scorePopups, createScorePopup({
           x: threat.x,
           y: threat.y,
           value: scoreValue,
           layer: 'surface',
           riseSpeed: introHookConfig.popup.riseSpeed,
           lifeSeconds: introHookConfig.popup.lifeSeconds
-        }))
+        }), introHookConfig.popup.cap)
         if (threat.behavior === 'splitter' && !threat.splitChild) {
           this.surface.threats.push(...spawnSurfaceSplitterChildren({
             threat,
@@ -4463,11 +4463,6 @@ export class VectorShooter {
         glow: glow ? (shard ? 32 : 24) : shard ? 18 : 12
       })
     }
-  }
-
-  private pushScorePopup(popup: ScorePopupModel) {
-    if (this.scorePopups.length >= introHookConfig.popup.cap) this.scorePopups.shift()
-    this.scorePopups.push(popup)
   }
 
   private screenToWorld(x: number, y: number): Vec {

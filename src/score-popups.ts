@@ -51,3 +51,8 @@ export function advanceScorePopups(popups: ScorePopupModel[], dt: number) {
     if (popup.life <= 0) popups.splice(i, 1)
   }
 }
+
+export function appendScorePopup(popups: ScorePopupModel[], popup: ScorePopupModel, cap: number) {
+  if (popups.length >= cap) popups.shift()
+  popups.push(popup)
+}
