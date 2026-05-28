@@ -370,9 +370,10 @@ test('workbench surfaces ready installs before deep bay inspection', () => {
 
   expect(workbench).toContain('export function workbenchReadyRows(')
   expect(workbench).toContain('export function renderWorkbenchSignalBriefing(')
+  expect(workbench).toContain('export const workbenchTopOfferCap = 5')
   expect(workbench).toContain("briefing.className = 'workbench-signal-briefing'")
   expect(workbench).toContain("offers.className = 'manifest-grid workbench-current-offers'")
-  expect(workbench).toContain('for (const row of workbenchReadyRows(self, rows).slice(0, 3))')
+  expect(workbench).toContain('for (const row of readyRows.slice(0, workbenchTopOfferCap))')
   expect(workbench.indexOf('renderWorkbenchSignalBriefing(self, rows)')).toBeGreaterThan(-1)
   expect(workbench.indexOf('renderWorkbenchSignalBriefing(self, rows)')).toBeLessThan(workbench.indexOf("workbenchSectionLabel(self, 'SYSTEM BAYS')"))
   expect(css).toContain('.workbench-signal-briefing')

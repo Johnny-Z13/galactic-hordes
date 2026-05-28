@@ -3,6 +3,9 @@ import { evolutions, relics, upgrades, workbenchBalance, type Upgrade, type Upgr
 import { workbenchUnlockEdges, workbenchUpgradeRows, type WorkbenchUpgradeRow } from '../workbench-rolls'
 import { workbenchBayDefinitions, workbenchBayForUpgrade, type WorkbenchBayDefinition } from '../workbench-bays'
 import { weaponHudReadout } from '../weapon-signatures'
+
+export const workbenchTopOfferCap = 5
+
 export function renderLevelUp(self: VectorShooter, title: string, copy: string) {
   self['levelUpTitle'] = title
   self['levelUpCopy'] = copy
@@ -297,7 +300,7 @@ export function renderWorkbenchSignalBriefing(self: VectorShooter, rows: Array<W
 
   const offers = document.createElement('div')
   offers.className = 'manifest-grid workbench-current-offers'
-  for (const row of workbenchReadyRows(self, rows).slice(0, 3)) offers.append(renderWorkbenchUpgradeChip(self, row.upgrade))
+  for (const row of readyRows.slice(0, workbenchTopOfferCap)) offers.append(renderWorkbenchUpgradeChip(self, row.upgrade))
   briefing.append(offers)
   return briefing
 }
