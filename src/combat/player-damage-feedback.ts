@@ -32,10 +32,6 @@ export function advancePlayerDamageFlash(flash: PlayerDamageFlash | null, dt: nu
   return flash.life > 0 ? flash : null
 }
 
-export function vitalCriticalClass(ratio: number): 'critical' | '' {
-  return ratio <= 0.3 ? 'critical' : ''
-}
-
 function playerDamageFlashKind(input: {
   hullRatio: number
   hullDamage: number

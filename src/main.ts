@@ -3,7 +3,7 @@ import { AudioDirector, type PlanetAudioMood } from './audio/audio-director'
 import { sfxSamples } from './audio/sfx-samples'
 import { damageFeedbackConfig } from './combat/damage-feedback'
 import { advanceImpactPulses, createImpactPulse, type ImpactPulse } from './combat/impact-feedback'
-import { advancePlayerDamageFlash, createPlayerDamageFlash, vitalCriticalClass, type PlayerDamageFlash } from './combat/player-damage-feedback'
+import { advancePlayerDamageFlash, createPlayerDamageFlash, type PlayerDamageFlash } from './combat/player-damage-feedback'
 import { weaponSoundKindFor } from './combat/weapon-sound'
 import collectionIconAtlasUrl from './assets/collection-icon-atlas.png'
 import glassMiteOracleSheetUrl from './assets/glass-mite-oracle-sheet-alpha.png'
@@ -164,6 +164,7 @@ import { renderCollectionScreen as uiRenderCollectionScreen } from './ui/collect
 import { showMothership as uiShowMothership, renderMothershipMetaSystems as uiRenderMothershipMetaSystems } from './ui/mothership-console'
 import { renderDebrief as uiRenderDebrief } from './ui/debrief'
 import { renderIntroArrow } from './ui/intro-waypoint'
+import { vitalCriticalClass } from './ui/vital-meter'
 import {
   introHookConfig,
   introSafeDriftSpawnMultiplier,

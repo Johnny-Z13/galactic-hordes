@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { vitalCriticalClass } from '../src/combat/player-damage-feedback'
+import { vitalCriticalClass } from '../src/ui/vital-meter'
 
 test('vital critical class applies at low health only', () => {
   expect(vitalCriticalClass(0.31)).toBe('')
