@@ -78,6 +78,7 @@ import {
 } from './space-camera'
 import { fireOptionOrbs as fireOptionOrbWeapons, firePrimaryWeapon, fireRearGun as fireRearGunWeapons, optionOrbAngle, optionOrbWorldPosition, spawnChainBolt as spawnChainBoltWeapon } from './space-player-weapons'
 import { applyDashRam } from './space-dash-combat'
+import { createEnemyTrailParticle } from './space-enemy-trails'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { clamp, norm, dist2, hash32, len, rngFrom, TAU } from './math-utils'
@@ -2129,27 +2130,8 @@ export class VectorShooter {
 
   private emitEnemyTrail(e: Enemy, color: string, intensity = 1) {
     if (this.isHighLoad() || this.particles.length >= MAX_PARTICLES) return
-    const speed = Math.hypot(e.vx, e.vy)
-    if (speed < 85 || Math.random() > 0.42 * intensity) return
-    const back = norm(-e.vx, -e.vy)
-    const side = { x: -back.y, y: back.x }
-    const spread = isGiantEnemyKind(e.kind) ? 24 : e.kind === 'bulwark' ? 18 : e.kind === 'skimmer' || e.kind === 'helix' ? 13 : 8
-    const life = isGiantEnemyKind(e.kind) ? 0.62 : e.kind === 'shard' ? 0.28 : e.kind === 'razor' ? 0.34 : 0.46
-    this.particles.push({
-      x: e.x + back.x * e.radius * 0.75 + side.x * rand(-spread, spread),
-      y: e.y + back.y * e.radius * 0.75 + side.y * rand(-spread, spread),
-      vx: back.x * rand(30, 90) + side.x * rand(-24, 24),
-      vy: back.y * rand(30, 90) + side.y * rand(-24, 24),
-      life,
-      maxLife: life,
-      color,
-      size: isGiantEnemyKind(e.kind) ? rand(4, 9) : e.kind === 'bulwark' ? rand(3, 7) : rand(2, 5),
-      angle: Math.atan2(e.vy, e.vx),
-      spin: rand(-2, 2),
-      sides: isGiantEnemyKind(e.kind) || e.kind === 'bulwark' ? 4 : undefined,
-      length: isGiantEnemyKind(e.kind) ? rand(44, 84) : e.kind === 'shard' ? rand(42, 76) : e.kind === 'razor' ? rand(34, 68) : rand(20, 44),
-      glow: this.allowGlow() ? 28 : 14
-    })
+    const trail = createEnemyTrailParticle({ enemy: e, color, intensity, glowEnabled: this.allowGlow() })
+    if (trail) this.particles.push(trail)
   }
 
   private spaceEnemyAttackContext(): SpaceEnemyAttackContext {
