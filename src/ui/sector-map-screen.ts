@@ -1,6 +1,7 @@
 import {
   availableSectorChoices,
   currentSectorNode,
+  sectorNodeDecisionIntel,
   sectorNodeRunProfile,
   type SectorHazardTag,
   type SectorMap,
@@ -102,6 +103,7 @@ export function showSectorMap(self: VectorShooter, message: string) {
   list.className = 'sector-choice-list'
   for (const choice of choices) {
     const profile = sectorNodeRunProfile(choice)
+    const intel = sectorNodeDecisionIntel(choice)
     const hazards = sectorHazardsLabel(choice.config.hazards)
     const planets = sectorPlanetLabel(choice.config.planets.countMin, choice.config.planets.countMax)
     const option = document.createElement('button')
@@ -113,6 +115,11 @@ export function showSectorMap(self: VectorShooter, message: string) {
           <b class="sector-choice-title">${self['escape'](choice.label)}</b>
         </span>
         <small>${self['escape'](choice.config.readout)}</small>
+        <span class="sector-choice-intel" aria-label="Route decision intel">
+          <span>${self['escape'](intel.directive)}</span>
+          <span>${self['escape'](intel.reward)}</span>
+          <span>${self['escape'](intel.risk)}</span>
+        </span>
         <span class="sector-choice-metrics" aria-label="Route metrics">
           <span><b>${planets}</b><em>PLANETS</em></span>
           <span><b>${choice.config.waves.length}</b><em>${sectorWaveLabel(choice.config.waveOrder)}</em></span>

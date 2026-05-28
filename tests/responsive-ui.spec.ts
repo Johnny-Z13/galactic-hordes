@@ -91,12 +91,14 @@ const sectorMapMarkup = (css: string) => `
               <button class="sector-choice hostile" type="button">
                 <span class="sector-choice-head"><span class="sector-choice-kind">COMBAT</span><b class="sector-choice-title">SAFE DRIFT 1-1</b></span>
                 <small>Safe drift. Low pressure, modest rewards.</small>
+                <span class="sector-choice-intel"><span>RECOVER</span><span>SALVAGE</span><span>LOW RISK</span></span>
                 <span class="sector-choice-metrics"><span><b>1-2</b><em>PLANETS</em></span><span><b>1</b><em>SCOUTS</em></span><span><b>x0.50</b><em>PRESSURE</em></span><span><b>CLEAR</b><em>HAZARDS</em></span></span>
                 <i class="sector-choice-readout">PLANETS 1-2 / WAVES 1 SCOUTS / HAZARDS CLEAR / PRESSURE x0.50</i>
               </button>
               <button class="sector-choice planet" type="button">
                 <span class="sector-choice-head"><span class="sector-choice-kind">PLANET</span><b class="sector-choice-title">PLANET CLUSTER 1-2</b></span>
                 <small>Planet route. More landings, moderate pressure.</small>
+                <span class="sector-choice-intel"><span>LANDINGS</span><span>PLANETS</span><span>MED RISK</span></span>
                 <span class="sector-choice-metrics"><span><b>3-6</b><em>PLANETS</em></span><span><b>2</b><em>SWARM</em></span><span><b>x0.88</b><em>PRESSURE</em></span><span><b>CLEAR</b><em>HAZARDS</em></span></span>
                 <i class="sector-choice-readout">PLANETS 3-6 / WAVES 2 SWARM / HAZARDS CLEAR / PRESSURE x0.88</i>
               </button>

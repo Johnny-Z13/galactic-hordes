@@ -922,6 +922,24 @@ canvas {
   line-height: 1;
 }
 
+.sector-choice-intel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.sector-choice-intel span {
+  min-width: 0;
+  border: 1px solid rgba(255, 242, 122, 0.18);
+  background: rgba(255, 242, 122, 0.07);
+  color: #fff27a;
+  padding: 5px 6px;
+  font-size: 9px;
+  line-height: 1.05;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
 .sector-choice-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

@@ -3,6 +3,7 @@ import {
   availableSectorChoices,
   completeSectorNode,
   createSectorMap,
+  sectorNodeDecisionIntel,
   sectorNodeRunProfile,
   sectorNodeTemplateCatalog,
   selectSectorNode
@@ -129,6 +130,35 @@ test('sector node profiles provide enemy recipes planet bias and station service
   expect(sectorNodeRunProfile(final).bossRequired).toBe(true)
   expect(sectorNodeRunProfile(final).enemyBias).toEqual(expect.arrayContaining(['cathedral']))
   expect(sectorNodeRunProfile(final).config.waves.every((wave) => wave.atSeconds > 0)).toBe(true)
+})
+
+test('sector decision intel translates route configs into quick reward and risk reads', () => {
+  const sampledNodes = Array.from({ length: 40 }, (_, seed) => createSectorMap(seed + 700))
+    .flatMap((candidate) => candidate.nodes)
+  const safe = sampledNodes.find((node) => node.config.templateId === 'safeDrift')!
+  const planet = sampledNodes.find((node) => node.config.templateId === 'planetCluster')!
+  const asteroid = sampledNodes.find((node) => node.config.templateId === 'asteroidBelt')!
+  const station = sampledNodes.find((node) => node.kind === 'station')!
+
+  expect(sectorNodeDecisionIntel(safe)).toMatchObject({
+    directive: 'RECOVER',
+    reward: expect.stringMatching(/SALVAGE|SIGNAL|CACHE|REPAIR/),
+    risk: 'LOW RISK'
+  })
+  expect(sectorNodeDecisionIntel(planet)).toMatchObject({
+    directive: 'LANDINGS',
+    reward: expect.stringMatching(/PLANETS|RELIC TRACE|SIGNAL|CACHE/),
+    risk: expect.stringMatching(/LOW RISK|MED RISK/)
+  })
+  expect(sectorNodeDecisionIntel(asteroid)).toMatchObject({
+    directive: 'NAV TEST',
+    risk: 'HIGH RISK'
+  })
+  expect(sectorNodeDecisionIntel(station)).toMatchObject({
+    directive: 'SERVICE',
+    reward: 'REPAIR / WORKBENCH',
+    risk: 'SAFE DOCK'
+  })
 })
 
 test('sector generation guarantees early safety exploration anchors and late route checks', () => {

@@ -141,6 +141,12 @@ export interface SectorNodeRunProfile {
   allowsMetaUpgrades: boolean
 }
 
+export interface SectorNodeDecisionIntel {
+  directive: string
+  reward: string
+  risk: string
+}
+
 const nodeRows = [0, 1, 2, 3] as const
 
 export const sectorNodeTemplateCatalog: Record<SectorNodeTemplateId, SectorNodeTemplate> = {
@@ -1153,4 +1159,53 @@ export const sectorNodeRunProfile = (node: SectorNode): SectorNodeRunProfile => 
     rewardShape: node.config.rewardShape,
     enemyPacket: node.config.enemyPacket
   }
+}
+
+export const sectorNodeDecisionIntel = (node: SectorNode): SectorNodeDecisionIntel => {
+  const profile = sectorNodeRunProfile(node)
+  return {
+    directive: sectorNodeDirective(node),
+    reward: sectorNodeRewardRead(node, profile),
+    risk: sectorNodeRiskRead(node, profile)
+  }
+}
+
+const sectorNodeDirective = (node: SectorNode) => {
+  if (node.kind === 'station') return 'SERVICE'
+  if (node.kind === 'boss') return 'BOSS GATE'
+  if (node.kind === 'final') return 'LAST STAND'
+  if (node.config.templateId === 'safeDrift') return 'RECOVER'
+  if (node.config.templateId === 'planetCluster') return 'LANDINGS'
+  if (node.config.templateId === 'asteroidBelt') return 'NAV TEST'
+  if (node.config.templateId === 'hunterLane') return 'FIGHT'
+  if (node.config.templateId === 'derelictField') return 'GREED'
+  if (node.config.templateId === 'nebulaAnomaly') return 'VOLATILE'
+  return node.kind === 'planet' ? 'LANDINGS' : 'ROUTE'
+}
+
+const sectorNodeRewardRead = (node: SectorNode, profile: SectorNodeRunProfile) => {
+  if (node.kind === 'station') return 'REPAIR / WORKBENCH'
+  if (profile.rewardShape.id === 'relicTrace') return 'RELIC TRACE'
+  if (profile.rewardShape.id === 'signalBloom' || node.config.rewards.upgradeSignalBonusChance >= 0.08) return 'SIGNAL'
+  if (node.config.planets.countMin >= 2 || node.config.templateId === 'planetCluster') return 'PLANETS'
+  if (profile.rewardShape.id === 'repairCache') return 'REPAIR'
+  if (node.config.hazards.includes('derelictCache')) return 'CACHE'
+  if (profile.rewardShape.id === 'scrapHeavy' || profile.rewardMultiplier >= 1.08) return 'SALVAGE'
+  return 'SALVAGE'
+}
+
+const sectorNodeRiskRead = (node: SectorNode, profile: SectorNodeRunProfile) => {
+  if (node.kind === 'station') return 'SAFE DOCK'
+  if (
+    node.kind === 'boss'
+    || node.kind === 'final'
+    || node.config.pace === 'boss'
+    || node.config.pace === 'intense'
+    || node.config.hazards.includes('asteroids')
+    || node.config.hazards.includes('hunterWing')
+    || node.config.hazards.includes('nebula')
+    || profile.spawnMultiplier >= 1.05
+  ) return 'HIGH RISK'
+  if (node.config.pace === 'safe' && profile.spawnMultiplier < 0.82) return 'LOW RISK'
+  return 'MED RISK'
 }
