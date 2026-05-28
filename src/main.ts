@@ -15,7 +15,7 @@ import spaceEnemyCatalogUrl from './assets/space-enemy-catalog-alpha.png'
 import surfaceSpacemanSheetUrl from './assets/surface-spaceman-sheet-alpha.png'
 import { orderArtifactArchiveCards } from './artifact-archive'
 import { collectionCatalog, collectionCatalogById, collectionIconAtlasColumns, collectionIconAtlasRows } from './collection-catalog'
-import { buildDebriefReport, type DebriefReport } from './debrief-report'
+import type { DebriefReport } from './debrief-report'
 import {
   activeBalanceProfile,
   balancedSpaceEnemyDefinition,
@@ -35,6 +35,7 @@ import { planetNameFor } from './planet-names'
 import { collectPickup, dropPickup, updatePickupsPhysics, type Pickup, type PickupKind } from './pickups'
 import { planetRadius } from './planet-sizing'
 import { runBalance } from './run-balance'
+import { resolveFinishedRun } from './run/finish-run'
 import { scoreEntryFromRun, type ScoreEntry } from './score-history'
 import { advanceScorePopups, appendScorePopup, createInstallPopup, createScorePopup, createSignalPopup, type ScorePopupModel } from './score-popups'
 import { rollWorkbenchChoices, type WorkbenchChoice } from './workbench-choices'
@@ -148,7 +149,6 @@ import { planSurfaceEncounter, rollPlanetArchetype, type PlanetArchetype, type S
 import { surfaceThreatSpawnPoint } from './surface-spawn'
 import { dashVector, touchActionLabel } from './mobile-controls'
 import {
-  applyRunRecovery,
   defaultMothershipState,
   isMothershipDepartmentUnlocked,
   mothershipDepartments,
@@ -4654,32 +4654,21 @@ export class VectorShooter {
 
   private finishRun(outcome: RunOutcomeKind) {
     if (this.state === 'debrief') return
-    const before = { ...this.mothership.resources }
     const archiveRecords = this.currentRunArchiveRecords()
-    const discoveries = Object.values(archiveRecords)
     const nodesCleared = this.sectorMap.nodes.filter((node) => node.completed && node.kind !== 'mothership').length
-    this.mothership = applyRunRecovery(this.mothership, {
-      outcome,
-      resources: this.resources,
-      archiveRecords,
-      skippedBeacons: this.skippedReturnBeacons
-    })
-    this.saveMothership()
-    const recovered = {
-      scrap: this.mothership.resources.scrap - before.scrap,
-      crystal: this.mothership.resources.crystal - before.crystal,
-      cores: this.mothership.resources.cores - before.cores
-    }
-    this.debrief = buildDebriefReport({
+    const finished = resolveFinishedRun({
+      mothership: this.mothership,
       outcome,
       earnedResources: this.resources,
-      recoveredResources: recovered,
-      discoveries,
+      archiveRecords,
       nodesCleared,
       planetsVisited: this.stats.planets,
       skippedBeacons: this.skippedReturnBeacons,
       stationVisits: this.stationVisits
     })
+    this.mothership = finished.mothership
+    this.saveMothership()
+    this.debrief = finished.debrief
     this.returnBeacon = null
     this.autoNavTargetBeacon = false
     this.state = 'debrief'

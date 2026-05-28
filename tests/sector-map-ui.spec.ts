@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 const mainSource = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
 const debriefSource = () => readFileSync(resolve(process.cwd(), 'src/ui/debrief.ts'), 'utf8')
 const debriefReportSource = () => readFileSync(resolve(process.cwd(), 'src/debrief-report.ts'), 'utf8')
+const finishRunSource = () => readFileSync(resolve(process.cwd(), 'src/run/finish-run.ts'), 'utf8')
 const optionalSource = (path: string) => {
   try {
     return readFileSync(resolve(process.cwd(), path), 'utf8')
@@ -186,6 +187,7 @@ test('dock action stays visible and pulses while a station is available', () => 
 test('station visits persist as route memory and journey debrief context', () => {
   const main = mainSource()
   const debriefReport = debriefReportSource()
+  const finishRun = finishRunSource()
   const stationDock = stationDockSource()
   const sectorMapScreen = sectorMapScreenSource()
 
@@ -195,8 +197,9 @@ test('station visits persist as route memory and journey debrief context', () =>
   expect(main).toContain('private recordStationVisit(')
   expect(stationDock).toContain('station-contact-panel')
   expect(sectorMapScreen).toContain("stateLabel = stationVisit ? 'DOCKED'")
-  expect(main).toContain('buildDebriefReport({')
+  expect(finishRun).toContain('buildDebriefReport({')
   expect(main).toContain('stationVisits: this.stationVisits')
+  expect(finishRun).toContain('stationVisits: input.stationVisits')
   expect(debriefReport).toContain('stationVisits: [...input.stationVisits]')
   expect(debriefReport).toContain('journeyDistanceLy({')
   expect(debriefSource()).toContain('Light Years')
