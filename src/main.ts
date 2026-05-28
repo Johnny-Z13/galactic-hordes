@@ -77,6 +77,7 @@ import {
   spaceViewportScale,
   worldToScreen as spaceWorldToScreen
 } from './space-camera'
+import { fireOptionOrbs as fireOptionOrbWeapons, fireRearGun as fireRearGunWeapons } from './space-player-weapons'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { clamp, norm, dist2, hash32, len, rngFrom, TAU } from './math-utils'
@@ -171,7 +172,7 @@ import {
   type WorkbenchUpgradeRow
 } from './workbench-rolls'
 import { workbenchBayDefinitions, workbenchBayForUpgrade, type WorkbenchBayDefinition, type WorkbenchBayId } from './workbench-bays'
-import { optionOrbProfile, pulseVolleyCount, rearGunProfile, starterSignatureFlags, weaponMilestonePulse } from './weapon-signatures'
+import { optionOrbProfile, pulseVolleyCount, starterSignatureFlags, weaponMilestonePulse } from './weapon-signatures'
 import {
   renderLevelUp as uiRenderLevelUp,
   currentLevelUpScrollTop as uiCurrentLevelUpScrollTop,
@@ -1852,76 +1853,6 @@ export class VectorShooter {
     }
   }
 
-  private fireOptionOrbs(serial: number, damage: number, speed: number) {
-    const evolved = this.evolved.has('orbit')
-    const profile = optionOrbProfile({ orbitRank: this.build.orbit, fireSerial: serial, evolved })
-    if (!profile.fires || profile.count <= 0) return
-
-    const radius = powerupBalance.orbit.radiusBase + this.build.orbit * powerupBalance.orbit.radiusPerRank
-    const boltSpeed = speed * powerupBalance.orbit.boltSpeedMultiplier
-    const boltLife = spaceProjectileLifeForOffscreenTravel(
-      powerupBalance.weapon.pulseBaseLife * powerupBalance.orbit.boltLifeMultiplier,
-      boltSpeed,
-      this.width,
-      this.height,
-      this.spaceScale()
-    )
-    const color = evolved ? '#fff27a' : '#8fff7d'
-    for (let i = 0; i < profile.count; i += 1) {
-      if (this.bullets.length > MAX_BULLETS) this.bullets.shift()
-      const orb = this.optionOrbWorldPosition(i, profile.count, radius)
-      const lace = profile.count > 1 ? (i - (profile.count - 1) / 2) * 0.025 : 0
-      const a = this.player.aimAngle + lace
-      this.bullets.push({
-        x: orb.x + Math.cos(a) * 10,
-        y: orb.y + Math.sin(a) * 10,
-        vx: Math.cos(a) * boltSpeed + this.player.vx * 0.1,
-        vy: Math.sin(a) * boltSpeed + this.player.vy * 0.1,
-        life: boltLife,
-        damage: damage * profile.damageMultiplier,
-        radius: evolved ? 3.4 : 2.8,
-        color,
-        pierce: profile.pierce,
-        chain: this.evolved.has('chain') ? 1 : 0,
-        option: true
-      })
-    }
-  }
-
-  private fireRearGun(damage: number, speed: number) {
-    const profile = rearGunProfile(this.build.rear)
-    if (profile.shots <= 0) return
-
-    const rearSpeed = speed * profile.speedMultiplier
-    for (let i = 0; i < profile.shots; i += 1) {
-      if (this.bullets.length > MAX_BULLETS) this.bullets.shift()
-      const offset = profile.shots === 1 ? 0 : (i - (profile.shots - 1) / 2) * profile.spread
-      const a = this.player.aimAngle + Math.PI + offset
-      const vx = Math.cos(a) * rearSpeed + this.player.vx * 0.1
-      const vy = Math.sin(a) * rearSpeed + this.player.vy * 0.1
-      const bulletSpeed = Math.hypot(vx, vy)
-      this.bullets.push({
-        x: this.player.x + Math.cos(a) * 21,
-        y: this.player.y + Math.sin(a) * 21,
-        vx,
-        vy,
-        life: spaceProjectileLifeForOffscreenTravel(
-          powerupBalance.weapon.pulseBaseLife * powerupBalance.rearGun.lifeMultiplier,
-          bulletSpeed,
-          this.width,
-          this.height,
-          this.spaceScale()
-        ),
-        damage: damage * profile.damageMultiplier,
-        radius: 3.2,
-        color: '#ff9d5c',
-        pierce: profile.pierce,
-        rail: false,
-        chain: 0
-      })
-    }
-  }
-
   private fire() {
     if (this.bullets.length > MAX_BULLETS) this.bullets.splice(0, this.bullets.length - MAX_BULLETS)
     const rapid = this.build.rapid
@@ -2029,8 +1960,32 @@ export class VectorShooter {
         chain: storm ? powerupBalance.weapon.stormNeedleChainBonus : 0
       })
     }
-    this.fireOptionOrbs(serial, damage, speed)
-    this.fireRearGun(damage, speed)
+    fireOptionOrbWeapons({
+      bullets: this.bullets,
+      player: this.player,
+      orbitRank: this.build.orbit,
+      fireSerial: serial,
+      evolvedOrbit: this.evolved.has('orbit'),
+      evolvedChain: this.evolved.has('chain'),
+      damage,
+      speed,
+      width: this.width,
+      height: this.height,
+      scale: this.spaceScale(),
+      time: this.stats.time,
+      maxBullets: MAX_BULLETS
+    })
+    fireRearGunWeapons({
+      bullets: this.bullets,
+      player: this.player,
+      rearRank: this.build.rear,
+      damage,
+      speed,
+      width: this.width,
+      height: this.height,
+      scale: this.spaceScale(),
+      maxBullets: MAX_BULLETS
+    })
     this.audio.fire(weaponSoundKindFor({
       rail,
       needle,
