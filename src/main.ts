@@ -113,6 +113,7 @@ import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction,
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
 import { createSurfaceResourceNodes, surfaceEventMessage } from './surface/run-setup'
 import { surfaceGunCooldown, surfaceGunDamage, surfaceGunSpeed, surfaceLowOxygenRatio, surfaceMaxHealth, surfaceMaxOxygen } from './surface/suit-stats'
+import { createSurfaceAliens as createSurfaceAliensFactory, createSurfaceLoreSites as createSurfaceLoreSitesFactory, type SurfaceAlienModel, type SurfaceLoreSiteModel } from './surface/discovery-factory'
 import { createGenericSurfaceThreat as createGenericSurfaceThreatFactory, createGlassMiteOracleThreat as createGlassMiteOracleThreatFactory, createPlanetBossThreat as createPlanetBossThreatFactory } from './surface/threat-factory'
 import { safeSurfaceThreatPoint, surfaceThreatKeepouts } from './surface/threat-placement'
 import { spawnSurfaceSplitterChildren, updateSurfaceThreatMotion } from './surface/threat-behavior'
@@ -145,10 +146,8 @@ import {
 import { nextSpaceWaveWarning, spaceWaveId } from './space-wave-director'
 import { surfacePilotMuzzleOffset } from './surface-pilot'
 import {
-  planetAlienCatalogVariants,
   surfaceEventPoint as plannedSurfaceEventPoint,
   surfaceRunBalance,
-  type AlienGiftKind,
   type SurfaceResourceKind,
   type SurfaceThreatBehavior
 } from './surface-balance'
@@ -312,29 +311,8 @@ interface SurfaceBullet {
   color: string
 }
 
-interface SurfaceAlien {
-  x: number
-  y: number
-  radius: number
-  phase: number
-  color: string
-  name: string
-  gift: AlienGiftKind
-  resolved: boolean
-  sprite?: 'alienCatalog'
-  spriteRow?: number
-}
-
-interface SurfaceLoreSite {
-  x: number
-  y: number
-  radius: number
-  phase: number
-  kind: 'fossils' | 'pyramid' | 'grave' | 'machine' | 'choir'
-  title: string
-  copy: string
-  resolved: boolean
-}
+type SurfaceAlien = SurfaceAlienModel
+type SurfaceLoreSite = SurfaceLoreSiteModel
 
 interface SurfaceRun {
   planet: Planet
@@ -463,7 +441,6 @@ const localStorageWithFallback = (primaryKey: string, legacyKeys: string[]) => (
 )
 
 const savedGraphicsMode = (): GraphicsMode => (localStorageWithFallback(GRAPHICS_STORAGE_KEY, LEGACY_GRAPHICS_STORAGE_KEYS) as GraphicsMode | null) || 'LOW'
-const ALIEN_CATALOG_ROWS = planetAlienCatalogVariants.length
 const angleLerp = (a: number, b: number, t: number) => {
   const diff = Math.atan2(Math.sin(b - a), Math.cos(b - a))
   return a + diff * t
@@ -3014,88 +2991,30 @@ export class VectorShooter {
   }
 
   private createSurfaceAliens(planet: Planet, event: SurfaceEventKind, threatCount: number, scenario: SurfaceScenarioKind, forcedCount?: number): SurfaceAlien[] {
-    if (forcedCount === 0) return []
-    const quiet = threatCount === 0
-    const chance =
-      scenario === 'friendly' ? 1 :
-      scenario === 'mixed' ? 0.62 + this.surfaceInterest() * 0.24 :
-      event === 'swarm' ? 0.06 :
-      event === 'volatile' ? 0.22 :
-      event === 'repair' ? 0.72 :
-      event === 'standard' ? 0.58 :
-      event === 'relic' ? 0.46 :
-      0.28
-    if (forcedCount === undefined && Math.random() > chance + (quiet ? surfaceRunBalance.alien.quietBonusChance : 0)) return []
-    const gifts: AlienGiftKind[] = ['herb', 'idol', 'coin', 'map', 'beacon']
-    const row = hashString(planet.id, Math.floor(this.stats.time) + 17) % ALIEN_CATALOG_ROWS
-    const variant = planetAlienCatalogVariants[row]
-    return [{
-      x: rand(260, 1340),
-      y: rand(210, 960),
-      radius: surfaceRunBalance.alien.radius,
-      phase: rand(0, TAU),
-      color: variant.color,
-      name: variant.name,
-      gift: Math.random() < 0.42 ? variant.gift : gifts[Math.floor(Math.random() * gifts.length)],
-      resolved: false,
-      sprite: 'alienCatalog',
-      spriteRow: row
-    }]
+    return createSurfaceAliensFactory({
+      planet,
+      event,
+      threatCount,
+      scenario,
+      forcedCount,
+      surfaceInterest: this.surfaceInterest(),
+      time: this.stats.time,
+      random: Math.random,
+      randomRange: rand
+    })
   }
 
   private createSurfaceLoreSites(planet: Planet, scenario: SurfaceScenarioKind, event: SurfaceEventKind, forcedCount?: number): SurfaceLoreSite[] {
-    if (forcedCount === 0) return []
-    if (forcedCount === undefined && scenario !== 'lore' && event !== 'relic' && planet.archetype !== 'strange') return []
-    const count = forcedCount ?? (scenario === 'lore' ? 2 + Math.floor(Math.random() * 3) : Math.random() < 0.34 ? 1 : 0)
-    const sites: SurfaceLoreSite[] = []
-    const library = this.loreLibrary(planet)
-    for (let i = 0; i < count; i += 1) {
-      const entry = library[(hashString(planet.id, i + this.stats.planets * 11) + i) % library.length]
-      const a = (i / Math.max(1, count)) * TAU + rand(-0.42, 0.42)
-      const point = this.surfaceSafePoint({ x: 800 + Math.cos(a) * rand(260, 520), y: 590 + Math.sin(a) * rand(220, 420) }, 260)
-      sites.push({
-        x: point.x,
-        y: point.y,
-        radius: entry.kind === 'pyramid' ? 36 : 30,
-        phase: rand(0, TAU),
-        kind: entry.kind,
-        title: entry.title,
-        copy: entry.copy,
-        resolved: false
-      })
-    }
-    return sites
-  }
-
-  private loreLibrary(planet: Planet): Array<Pick<SurfaceLoreSite, 'kind' | 'title' | 'copy'>> {
-    const name = planet.name
-    return [
-      {
-        kind: 'fossils',
-        title: 'FOSSIL BED',
-        copy: `The fossils are arranged in spirals, not by tide but by ritual. Whatever lived on ${name} learned to count the stars before it learned to leave.`
-      },
-      {
-        kind: 'pyramid',
-        title: 'VECTOR PYRAMID',
-        copy: `The pyramid has no entrance, only a black seam humming under the dust. Your suit translates one repeated phrase: "We aimed the sky at ourselves."`
-      },
-      {
-        kind: 'grave',
-        title: 'GLASS GRAVES',
-        copy: `Each grave marker contains a tiny preserved storm. The names are gone, but the weather inside them still remembers the dead.`
-      },
-      {
-        kind: 'machine',
-        title: 'SLEEPING MACHINE',
-        copy: `A buried engine ticks once when your shadow crosses it. It is still waiting for pilots who became fossils long before your species had radios.`
-      },
-      {
-        kind: 'choir',
-        title: 'BONE CHOIR',
-        copy: `Rib-like arches vibrate when you walk between them. The song is only two notes, but your ship answers from orbit.`
-      }
-    ]
+    return createSurfaceLoreSitesFactory({
+      planet,
+      scenario,
+      event,
+      forcedCount,
+      planetsVisited: this.stats.planets,
+      random: Math.random,
+      randomRange: rand,
+      safePoint: (point, minDistance) => this.surfaceSafePoint(point, minDistance)
+    })
   }
 
   private surfaceEventPoint(event: SurfaceEventKind, i: number, count: number): Vec {
