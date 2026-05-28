@@ -26,6 +26,15 @@ export const hash32 = (x: number, y: number, salt = 0) => {
   return (h ^ (h >>> 16)) >>> 0
 }
 
+export const hashString = (value: string, salt = 0) => {
+  let h = 2166136261 ^ salt
+  for (let i = 0; i < value.length; i += 1) {
+    h ^= value.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return h >>> 0
+}
+
 export const rngFrom = (seed: number) => {
   let t = seed >>> 0
   return () => {

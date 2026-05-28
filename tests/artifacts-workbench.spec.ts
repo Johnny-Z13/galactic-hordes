@@ -18,6 +18,7 @@ const titleSource = () => readFileSync(resolve(process.cwd(), 'src/ui/title-scre
 const workbenchSource = () => readFileSync(resolve(process.cwd(), 'src/ui/workbench.ts'), 'utf8')
 const workbenchChoicesSource = () => readFileSync(resolve(process.cwd(), 'src/workbench-choices.ts'), 'utf8')
 const collectionSource = () => readFileSync(resolve(process.cwd(), 'src/ui/collection.ts'), 'utf8')
+const artifactArchiveSource = () => readFileSync(resolve(process.cwd(), 'src/artifact-archive.ts'), 'utf8')
 const mothershipSource = () => readFileSync(resolve(process.cwd(), 'src/ui/mothership-console.ts'), 'utf8')
 const scoresSource = () => readFileSync(resolve(process.cwd(), 'src/ui/scores.ts'), 'utf8')
 const styles = () => readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8')
@@ -275,10 +276,11 @@ test('mothership department upgrades preserve command scroll position', () => {
 
 test('artifacts track relics aliens lore and planet finds with generated icons', () => {
   const main = source()
+  const archive = artifactArchiveSource()
   const css = styles()
 
   expect(main).toContain("import collectionIconAtlasUrl from './assets/collection-icon-atlas.png'")
-  expect(main).toContain('interface ArtifactRecord')
+  expect(archive).toContain('interface ArtifactRecord')
   expect(main).toContain('private artifacts = new Map<string, ArtifactRecord>()')
   expect(main).toContain('this.recordArtifact(')
   expect(collectionSource()).toContain('export function artifactIcon(self: VectorShooter')
@@ -338,10 +340,10 @@ test('collection screen supports Vampire Survivors style category filters and de
 })
 
 test('collection screen uses canonical catalog icons for found records', () => {
-  const main = source()
+  const archive = artifactArchiveSource()
 
-  expect(main).toContain('collectionCatalogById.get(record.id)')
-  expect(main).toContain('icon: collectionEntry.icon')
+  expect(archive).toContain('collectionCatalogById.get(record.id)')
+  expect(archive).toContain('icon: collectionEntry.icon')
   expect(collectionSource()).toContain('icon: entry.icon')
   expect(collectionSource()).toContain('color: entry.color')
 })

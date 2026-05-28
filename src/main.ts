@@ -13,8 +13,16 @@ import planetAlienCatalogUrl from './assets/planet-alien-catalog-alpha.png'
 import planetBossCatalogUrl from './assets/planet-boss-catalog-alpha.png'
 import spaceEnemyCatalogUrl from './assets/space-enemy-catalog-alpha.png'
 import surfaceSpacemanSheetUrl from './assets/surface-spaceman-sheet-alpha.png'
-import { orderArtifactArchiveCards } from './artifact-archive'
-import { collectionCatalog, collectionCatalogById, collectionIconAtlasColumns, collectionIconAtlasRows } from './collection-catalog'
+import {
+  artifactColor as archiveArtifactColor,
+  collectionSlug as archiveCollectionSlug,
+  currentRunArchiveRecords as archiveRecordsFromArtifacts,
+  orderArtifactArchiveCards,
+  recordArtifactDiscovery,
+  type ArtifactKind,
+  type ArtifactRecord
+} from './artifact-archive'
+import { collectionCatalog, collectionIconAtlasColumns, collectionIconAtlasRows } from './collection-catalog'
 import type { DebriefReport } from './debrief-report'
 import {
   activeBalanceProfile,
@@ -85,7 +93,7 @@ import { EnemySpatialGrid } from './space-enemy-grid'
 import { damageSpaceHazard as damageSpaceHazardCombat } from './space-hazard-combat'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
-import { clamp, norm, dist2, hash32, len, rngFrom, TAU } from './math-utils'
+import { clamp, norm, dist2, hash32, hashString, len, rngFrom, TAU } from './math-utils'
 export { clamp } from './math-utils'
 import { renderScorePopups as drawScorePopups } from './render/score-popups'
 import { renderSectorWaveWarning as drawSectorWaveWarning } from './render/sector-wave-warning'
@@ -210,10 +218,10 @@ import { installPlaytestHarnessIfRequested } from './playtest-harness'
 import type { StateHandlers } from './game-states'
 
 export type { AudioUpgradeCue } from './audio/audio-director'
+export type { ArtifactKind, ArtifactRecord } from './artifact-archive'
 
 export type GameState = 'title' | 'mothership' | 'collection' | 'powerups' | 'sectorMap' | 'station' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
 type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
-export type ArtifactKind = 'relic' | 'alien' | 'lore' | 'planet' | 'cache' | 'enemy'
 export type MothershipConsoleView = 'workbench' | 'manifest'
 export type MothershipCollectionFilter = 'all' | 'found' | 'locked' | ArtifactKind
 
@@ -367,17 +375,6 @@ interface SurfaceRun {
   message: string
 }
 
-export interface ArtifactRecord {
-  id: string
-  kind: ArtifactKind
-  title: string
-  detail: string
-  source: string
-  color: string
-  icon: number
-  count: number
-}
-
 interface ReturnBeacon {
   x: number
   y: number
@@ -472,14 +469,6 @@ const ALIEN_CATALOG_ROWS = planetAlienCatalogVariants.length
 const angleLerp = (a: number, b: number, t: number) => {
   const diff = Math.atan2(Math.sin(b - a), Math.cos(b - a))
   return a + diff * t
-}
-export const hashString = (value: string, salt = 0) => {
-  let h = 2166136261 ^ salt
-  for (let i = 0; i < value.length; i += 1) {
-    h ^= value.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return h >>> 0
 }
 export const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60)
@@ -4499,27 +4488,8 @@ export class VectorShooter {
   }
 
   private recordArtifact(record: Omit<ArtifactRecord, 'count'>) {
-    const collectionEntry = collectionCatalogById.get(record.id)
-    const canonicalRecord = collectionEntry
-      ? {
-          ...record,
-          kind: collectionEntry.kind,
-          color: collectionEntry.color,
-          icon: collectionEntry.icon
-        }
-      : record
-    const existing = this.artifacts.get(record.id)
-    if (existing) {
-      existing.count += 1
-      existing.detail = canonicalRecord.detail
-      existing.source = canonicalRecord.source
-      existing.kind = canonicalRecord.kind
-      existing.color = canonicalRecord.color
-      existing.icon = canonicalRecord.icon
-      return
-    }
-    this.artifacts.set(record.id, { ...canonicalRecord, count: 1 })
-    if (['alien', 'cache', 'lore', 'relic'].includes(canonicalRecord.kind)) this.discoverySuitOffer = true
+    const result = recordArtifactDiscovery(this.artifacts, record)
+    if (result.unlocksSuitOffer) this.discoverySuitOffer = true
   }
 
   private recordEnemyDiscovery(id: string, title: string, detail: string, source: string, color: string) {
@@ -4535,20 +4505,11 @@ export class VectorShooter {
   }
 
   private collectionSlug(value: string) {
-    return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    return archiveCollectionSlug(value)
   }
 
   private artifactColor(kind: ArtifactKind, key: string) {
-    const palettes: Record<ArtifactKind, string[]> = {
-      relic: ['#fff27a', '#f8fffb', '#b990ff'],
-      alien: ['#b990ff', '#57fff3', '#8fff7d'],
-      lore: ['#d7fff7', '#70a8ff', '#fff27a'],
-      planet: ['#57fff3', '#8fff7d', '#ff5d73', '#b990ff'],
-      cache: ['#fff27a', '#70a8ff', '#57fff3'],
-      enemy: ['#ff5d73', '#ff61d8', '#fff27a', '#57fff3']
-    }
-    const colors = palettes[kind]
-    return colors[hashString(key, 73) % colors.length]
+    return archiveArtifactColor(kind, key)
   }
 
   private choiceMarkup(choice: WorkbenchChoice) {
@@ -4676,20 +4637,7 @@ export class VectorShooter {
   }
 
   private currentRunArchiveRecords(): Record<string, PersistentArchiveRecord> {
-    const records: Record<string, PersistentArchiveRecord> = {}
-    for (const artifact of this.artifacts.values()) {
-      records[artifact.id] = {
-        id: artifact.id,
-        kind: artifact.kind,
-        title: artifact.title,
-        detail: artifact.detail,
-        source: artifact.source,
-        color: artifact.color,
-        icon: artifact.icon,
-        count: artifact.count
-      }
-    }
-    return records
+    return archiveRecordsFromArtifacts(this.artifacts.values())
   }
 
   private renderDebrief() {
