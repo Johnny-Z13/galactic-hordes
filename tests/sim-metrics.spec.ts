@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { summarizeSimBatch } from '../src/sim/sim-metrics'
+import { formatSeconds, summarizeSimBatch } from '../src/sim/sim-metrics'
 import { runSimPlaythrough } from '../src/sim/sim-runner'
 
 test('batch summary aggregates survival route planets economy and combat', () => {
@@ -76,4 +76,8 @@ test('stress sweep stays brutal without crossing the destructive ceiling', () =>
 
   expect(summary.survival.destroyedRate).toBeLessThanOrEqual(0.95)
   expect(summary.balanceFlags.some((flag) => flag.includes('Destroyed rate'))).toBe(false)
+})
+
+test('formatSeconds carries rounded seconds into the minute', () => {
+  expect(formatSeconds(659.7)).toBe('11:00')
 })

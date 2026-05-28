@@ -135,8 +135,9 @@ export function summarizeSimBatch(options: SimBatchOptions, runs: SimRunResult[]
 }
 
 export function formatSeconds(seconds: number) {
-  const minutes = Math.floor(seconds / 60)
-  const secs = Math.round(seconds % 60).toString().padStart(2, '0')
+  const roundedSeconds = Math.round(seconds)
+  const minutes = Math.floor(roundedSeconds / 60)
+  const secs = (roundedSeconds % 60).toString().padStart(2, '0')
   return `${minutes}:${secs}`
 }
 

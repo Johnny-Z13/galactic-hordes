@@ -1,4 +1,5 @@
 import type { SectorNode } from '../sector-map'
+import { BEACON_INTERVAL } from '../return-beacons'
 import type { SimRng } from './sim-rng'
 import type { SimDeathCause, SimDifficulty } from './sim-types'
 import type { SimPolicy } from './sim-policies'
@@ -24,6 +25,8 @@ const difficultyPressure = {
   normal: 1,
   stress: 1.34
 } as const satisfies Record<SimDifficulty, number>
+
+const postIntroStationWindowFloor = BEACON_INTERVAL - 30
 
 export function simulateSpaceNode(input: {
   node: SectorNode
@@ -54,7 +57,8 @@ export function simulateSpaceNode(input: {
       : node.kind === 'station'
         ? 0
         : 64 + config.depth * 86 + config.waves.length * 12
-  const nodeSeconds = Math.max(0, Math.round(baseSeconds * (1.04 - policy.routeRush * 0.18) + rng.range(-8, 12)))
+  const nodeDurationFloor = node.kind === 'station' || input.seconds === 0 ? 0 : postIntroStationWindowFloor
+  const nodeSeconds = Math.max(nodeDurationFloor, Math.round(baseSeconds * (1.04 - policy.routeRush * 0.18) + rng.range(-8, 12)))
   const rawDamage = (pressure + hazardPressure - defense - riskOffset) * rng.range(12, 24)
   const damageTaken = Math.max(0, Math.round(rawDamage))
   const earlyWaveKills = config.waves
