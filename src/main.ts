@@ -78,6 +78,7 @@ import {
 } from './space-camera'
 import { applyOptionOrbDamage, deployMineWake as deployMineWakeWeapon, fireOptionOrbs as fireOptionOrbWeapons, firePrimaryWeapon, fireRearGun as fireRearGunWeapons, optionOrbAngle, optionOrbWorldPosition, spawnChainBolt as spawnChainBoltWeapon } from './space-player-weapons'
 import { applyDashRam } from './space-dash-combat'
+import { createDashWakeEffects } from './space-dash-wake'
 import { createEnemyTrailParticle } from './space-enemy-trails'
 import { EnemySpatialGrid } from './space-enemy-grid'
 import { damageSpaceHazard as damageSpaceHazardCombat } from './space-hazard-combat'
@@ -1771,51 +1772,21 @@ export class VectorShooter {
   }
 
   private emitDashWake(direction: Vec, intensity = 1) {
-    if (this.isHighLoad() && intensity < 1) return
-    if (intensity < 1 && Math.random() > intensity) return
+    const wake = createDashWakeEffects({
+      origin: this.player,
+      direction,
+      engineRank: this.build.engine,
+      phaseRank: this.build.phase,
+      intensity,
+      highLoad: this.isHighLoad(),
+      glowEnabled: this.allowGlow(),
+      canAddShockwave: this.shockwaves.length < MAX_SHOCKWAVES
+    })
 
-    const engine = this.build.engine
-    const phase = this.build.phase
-    const color = phase >= 2 ? '#b990ff' : engine >= 4 ? '#fff27a' : '#70a8ff'
-    const accent = phase > 0 ? '#d7fff7' : '#57fff3'
-    const side = { x: -direction.y, y: direction.x }
-    const count = Math.max(2, Math.floor((3 + engine + phase * 1.4) * intensity))
-    const backDistance = 20 + engine * 4
-
-    if (intensity >= 1 && this.shockwaves.length < MAX_SHOCKWAVES) {
-      this.shockwaves.push({
-        x: this.player.x - direction.x * 12,
-        y: this.player.y - direction.y * 12,
-        radius: 12 + engine * 3 + phase * 4,
-        speed: 360 + engine * 34 + phase * 28,
-        life: 0.32 + engine * 0.025,
-        maxLife: 0.32 + engine * 0.025,
-        color,
-        jag: rand(0, TAU)
-      })
-    }
-
-    for (let i = 0; i < count; i += 1) {
+    this.shockwaves.push(...wake.shockwaves)
+    for (const particle of wake.particles) {
       if (this.particles.length >= MAX_PARTICLES) this.particles.shift()
-      const lane = (i - (count - 1) / 2) * (4 + engine * 0.7)
-      const jitter = rand(-7, 7)
-      const speed = rand(90 + engine * 10, 210 + engine * 28 + phase * 18)
-      const life = rand(0.22, 0.46 + engine * 0.035)
-      this.particles.push({
-        x: this.player.x - direction.x * (backDistance + rand(0, 22)) + side.x * (lane + jitter),
-        y: this.player.y - direction.y * (backDistance + rand(0, 22)) + side.y * (lane + jitter),
-        vx: -direction.x * speed + side.x * rand(-36, 36),
-        vy: -direction.y * speed + side.y * rand(-36, 36),
-        life,
-        maxLife: life,
-        color: i % 3 === 0 ? accent : color,
-        size: rand(2.4, 5.6 + engine * 0.45),
-        angle: Math.atan2(direction.y, direction.x),
-        spin: rand(-4, 4),
-        sides: phase >= 2 && i % 4 === 0 ? 4 : undefined,
-        length: rand(28 + engine * 7, 58 + engine * 14 + phase * 8),
-        glow: this.allowGlow() ? 32 : 16
-      })
+      this.particles.push(particle)
     }
   }
 
