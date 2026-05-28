@@ -152,6 +152,7 @@ import {
 import { renderCollectionScreen as uiRenderCollectionScreen } from './ui/collection'
 import { showMothership as uiShowMothership, renderMothershipMetaSystems as uiRenderMothershipMetaSystems } from './ui/mothership-console'
 import { renderDebrief as uiRenderDebrief } from './ui/debrief'
+import { renderIntroArrow } from './ui/intro-waypoint'
 import { introHookConfig, isFirstEverRun, pickWaypointTarget } from './intro-hook'
 import type { StateHandlers } from './game-states'
 
@@ -4849,7 +4850,23 @@ export class VectorShooter {
     this.renderParticles(ctx)
     this.renderLandingPrompt(ctx)
     this.renderMinimap()
+    this.renderIntroWaypoint(ctx)
     this.renderScorePopups(ctx)
+  }
+
+  private renderIntroWaypoint(ctx: CanvasRenderingContext2D) {
+    const wp = this.introWaypoint
+    if (!wp || !wp.active || !wp.targetPlanetId) return
+    const target = this.planets.find((p) => p.id === wp.targetPlanetId)
+    if (!target) return
+    const screen = this.worldToScreen(target.x, target.y)
+    renderIntroArrow({
+      ctx,
+      width: this.width,
+      height: this.height,
+      targetScreen: screen,
+      planetName: target.name
+    })
   }
 
   private renderScorePopups(ctx: CanvasRenderingContext2D) {
