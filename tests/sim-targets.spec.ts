@@ -7,6 +7,7 @@ test('every policy has a concrete simulation target envelope', () => {
   expect(Object.keys(simBalanceTargets)).toEqual(['balanced', 'survival', 'planetHunter', 'greedyCache', 'routeRusher', 'stress'])
   expect(simBalanceTargets.balanced.medianSurvivalMin).toBeGreaterThan(0)
   expect(simBalanceTargets.planetHunter.averagePlanetsMin).toBeGreaterThan(simBalanceTargets.routeRusher.averagePlanetsMin)
+  expect(simBalanceTargets.balanced.medianFinalClearMin).toBeGreaterThan(simBalanceTargets.routeRusher.medianFinalClearMin)
 })
 
 test('target flags identify low planet engagement', () => {

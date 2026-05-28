@@ -10,6 +10,7 @@ test('batch summary aggregates survival route planets economy and combat', () =>
   expect(summary.runs).toHaveLength(5)
   expect(summary.survival.averageSeconds).toBeGreaterThan(0)
   expect(summary.route.averageNodesCleared).toBeGreaterThan(0)
+  expect(summary.route.medianFinalClearSeconds === null || summary.route.medianFinalClearSeconds > 0).toBe(true)
   expect(Object.values(summary.route.templateCounts).reduce((sum, count) => sum + count, 0)).toBeGreaterThan(0)
   expect(summary.combat.averageKills).toBeGreaterThanOrEqual(0)
   expect(summary.firstMinute.averageKillsFirst60Sec).toBeGreaterThanOrEqual(0)
@@ -42,6 +43,20 @@ test('batch summary flags missing procedural variety', () => {
 
   expect(summary.balanceFlags.some((flag) => flag.includes('route template variety'))).toBe(true)
   expect(summary.balanceFlags.some((flag) => flag.includes('planet archetype variety'))).toBe(true)
+})
+
+test('batch summary flags final-route clears that are too compressed', () => {
+  const options = { seed: 700, runs: 5, policy: 'balanced' as const, maxSeconds: 1800, difficulty: 'normal' as const }
+  const runs = Array.from({ length: options.runs }, (_, index) => ({
+    ...runSimPlaythrough({ ...options, seed: options.seed + index }),
+    outcome: 'finalCleared' as const,
+    finalReached: true,
+    seconds: 300 + index * 15
+  }))
+  const summary = summarizeSimBatch(options, runs)
+
+  expect(summary.route.medianFinalClearSeconds).toBe(330)
+  expect(summary.balanceFlags.some((flag) => flag.includes('Median final clear'))).toBe(true)
 })
 
 test('planet hunter engagement is judged by batch rate, not one dry run', () => {

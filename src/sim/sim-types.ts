@@ -90,6 +90,7 @@ export interface SimBatchSummary {
   route: {
     averageNodesCleared: number
     finalReached: number
+    medianFinalClearSeconds: number | null
     templateCounts: Record<string, number>
     stationServiceCounts: Record<string, number>
   }

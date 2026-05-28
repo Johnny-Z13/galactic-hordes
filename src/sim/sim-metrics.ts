@@ -55,6 +55,13 @@ function addTargetFlags(summary: Omit<SimBatchSummary, 'balanceFlags'>, flags: s
   if (summary.route.averageNodesCleared < target.averageNodesMin) {
     flags.push(`Average nodes cleared ${summary.route.averageNodesCleared.toFixed(1)} is below ${target.averageNodesMin.toFixed(1)} for ${summary.options.policy}.`)
   }
+  if (
+    summary.route.medianFinalClearSeconds !== null
+    && target.medianFinalClearMin > 0
+    && summary.route.medianFinalClearSeconds < target.medianFinalClearMin
+  ) {
+    flags.push(`Median final clear ${formatSeconds(summary.route.medianFinalClearSeconds)} is below ${formatSeconds(target.medianFinalClearMin)} for ${summary.options.policy}.`)
+  }
   if (Object.keys(summary.route.templateCounts).length < target.routeTemplateVarietyMin) {
     flags.push(`Low route template variety across batch; expected at least ${target.routeTemplateVarietyMin} template families.`)
   }
@@ -65,6 +72,9 @@ function addTargetFlags(summary: Omit<SimBatchSummary, 'balanceFlags'>, flags: s
 
 export function summarizeSimBatch(options: SimBatchOptions, runs: SimRunResult[]): SimBatchSummary {
   const seconds = runs.map((run) => run.seconds)
+  const finalClearSeconds = runs
+    .filter((run) => run.outcome === 'finalCleared' || run.finalReached)
+    .map((run) => run.seconds)
   const templateCounts = mergeCounts(runs.map((run) => run.coverage.routeTemplates))
   const archetypeCounts = mergeCounts(runs.map((run) => run.coverage.planetArchetypes))
   const deathCounts = deathCauseCounts(runs)
@@ -80,6 +90,7 @@ export function summarizeSimBatch(options: SimBatchOptions, runs: SimRunResult[]
     route: {
       averageNodesCleared: average(runs.map((run) => run.nodesCleared)),
       finalReached: runs.filter((run) => run.finalReached).length,
+      medianFinalClearSeconds: finalClearSeconds.length ? median(finalClearSeconds) : null,
       templateCounts,
       stationServiceCounts: mergeCounts(runs.map((run) => run.coverage.stationServices))
     },
