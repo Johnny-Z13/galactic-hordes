@@ -66,6 +66,17 @@ test('ui click audio routes button intent to semantic sample pools', () => {
   expect(cues).toContain("button.classList.contains('danger')")
 })
 
+test('semantic ui click cues give route commitments a confirm sound', () => {
+  const cues = uiClickCuesSource()
+
+  expect(cues).toContain("button.classList.contains('sector-choice')")
+  expect(cues).toContain("button.classList.contains('sector-node') && button.classList.contains('available')")
+  expect(cues).toContain("button.classList.contains('mothership-route-node') && button.classList.contains('available')")
+  expect(cues).toContain("button.classList.contains('mothership-launch')")
+  expect(cues).toContain("button.classList.contains('mothership-console-tab')")
+  expect(cues).toContain("button.classList.contains('meta-department-toggle')")
+})
+
 test('gameplay events route to specialized audio cues', () => {
   const main = source()
 
