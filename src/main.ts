@@ -2300,7 +2300,7 @@ export class VectorShooter {
         // glint cadence: counter not reset on range-exit; steady rhythm is intentional
         p.glintFrame = (p.glintFrame ?? 0) + 1
         if (p.glintFrame % introHookConfig.magnetGlint.frameInterval === 0) {
-          this.burst(p.x, p.y, p.color, 1, introHookConfig.magnetGlint.particleSpeed)
+          this.burst(p.x, p.y, introHookConfig.magnetGlint.color, 1, introHookConfig.magnetGlint.particleSpeed)
         }
       }
       p.x += p.vx * dt

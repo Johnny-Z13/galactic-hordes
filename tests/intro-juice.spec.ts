@@ -116,3 +116,29 @@ test('enemy.flash is stamped by damage with the configured hitFlash duration', a
   // damageFeedbackConfig.hitFlash.durationSeconds = 0.08
   expect(result.flashAfter).toBeCloseTo(0.08, 2)
 })
+
+test('pickup magnet glint uses a dedicated cyan signal color while pulled', async ({ page }) => {
+  await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
+  await page.evaluate(() => localStorage.clear())
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForFunction(
+    () => typeof (window as unknown as { __vectorShooter?: unknown }).__vectorShooter === 'object',
+    null,
+    { timeout: READY_TIMEOUT }
+  )
+  const result = await page.evaluate(() => {
+    const g = (window as unknown as { __vectorShooter: any }).__vectorShooter
+    g.state = 'playing'
+    g.player.x = 0
+    g.player.y = 0
+    g.pickups = [{ kind: 'xp', x: 120, y: 0, vx: 0, vy: 0, value: 1, radius: 5.6, life: 10, color: '#8fff7d' }]
+    g.particles = []
+    for (let i = 0; i < 4; i += 1) g.updatePickups(1 / 60)
+    return {
+      particleCount: g.particles.length,
+      particleColors: g.particles.map((particle: { color: string }) => particle.color)
+    }
+  })
+  expect(result.particleCount).toBeGreaterThan(0)
+  expect(result.particleColors).toContain('#57fff3')
+})

@@ -21,6 +21,7 @@ test('introHookConfig has the expected tuning keys and sane defaults', () => {
   expect(introHookConfig.hitstop.giantKindsOnly).toBe(true)
   expect(introHookConfig.magnetGlint.frameInterval).toBeGreaterThanOrEqual(1)
   expect(introHookConfig.magnetGlint.particleSpeed).toBeGreaterThan(0)
+  expect(introHookConfig.magnetGlint.color).toMatch(/^#[0-9a-fA-F]{6}$/)
   expect(introHookConfig.safeDriftFirstNode.spawnMultiplier).toBeGreaterThan(1)
   expect(introHookConfig.safeDriftFirstNode.extraStartingSpawns).toBeGreaterThanOrEqual(0)
   expect(introHookConfig.firstPlanetPayoff.cacheMultiplier).toBeGreaterThan(1)
