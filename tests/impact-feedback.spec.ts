@@ -59,14 +59,17 @@ test('impact pulses age out in place', () => {
 
 test('main wires space impact pulses through damage kill update and render', () => {
   const main = readFileSync('src/main.ts', 'utf8')
+  const renderer = readFileSync('src/render/impact-pulses.ts', 'utf8')
 
   expect(main).toContain("from './combat/impact-feedback'")
+  expect(main).toContain("from './render/impact-pulses'")
   expect(main).toContain('private impactPulses: ImpactPulse[] = []')
   expect(main).toContain('advanceImpactPulses({ pulses: this.impactPulses, dt })')
   expect(main).toContain("kind: 'hit'")
   expect(main).toContain("kind: 'kill'")
   expect(main).toContain('this.impactPulses.push(pulse)')
   expect(main).toContain('this.renderImpactPulses(ctx)')
-  expect(main).toContain('private renderImpactPulses(')
+  expect(main).toContain('drawImpactPulses({')
+  expect(renderer).toContain('export function renderImpactPulses')
   expect(main).toContain('this.impactPulses = []')
 })

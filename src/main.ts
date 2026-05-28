@@ -92,6 +92,7 @@ import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, surfaceWavePressu
 import { renderPlayer as drawPlayer } from './render/player'
 import { renderEnemies as drawEnemies } from './render/enemies'
 import { renderSpawnEntryPings as drawSpawnEntryPings } from './render/spawn-entry-pings'
+import { renderImpactPulses as drawImpactPulses } from './render/impact-pulses'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
 import { advancedRewardEnemyKinds, spaceEnemyBehavior } from './space-enemy-behavior'
 import {
@@ -5879,33 +5880,15 @@ export class VectorShooter {
   }
 
   private renderImpactPulses(ctx: CanvasRenderingContext2D) {
-    if (this.impactPulses.length === 0) return
-    ctx.save()
-    ctx.globalCompositeOperation = this.allowGlow() ? 'lighter' : 'source-over'
-    for (const pulse of this.impactPulses) {
-      const screen = this.worldToScreen(pulse.x, pulse.y)
-      if (screen.x < -120 || screen.x > this.width + 120 || screen.y < -120 || screen.y > this.height + 120) continue
-      const alpha = clamp(pulse.life / pulse.maxLife, 0, 1)
-      const progress = 1 - alpha
-      const radius = pulse.radius * this.spaceScale() * (0.62 + progress * 0.72)
-      ctx.save()
-      ctx.globalAlpha = alpha * (pulse.kind === 'kill' ? 0.86 : 0.58)
-      ctx.strokeStyle = pulse.kind === 'kill' ? '#ffedf1' : pulse.color
-      ctx.shadowColor = pulse.color
-      ctx.shadowBlur = this.allowGlow() ? (pulse.kind === 'kill' ? 24 : 12) : 0
-      ctx.lineWidth = pulse.lineWidth
-      ctx.beginPath()
-      ctx.arc(screen.x, screen.y, radius, 0, TAU)
-      ctx.stroke()
-      if (pulse.kind === 'kill') {
-        ctx.globalAlpha *= 0.5
-        ctx.beginPath()
-        ctx.arc(screen.x, screen.y, Math.max(8, radius * 0.42), 0, TAU)
-        ctx.stroke()
-      }
-      ctx.restore()
-    }
-    ctx.restore()
+    drawImpactPulses({
+      ctx,
+      pulses: this.impactPulses,
+      width: this.width,
+      height: this.height,
+      glow: this.allowGlow(),
+      scale: this.spaceScale(),
+      worldToScreen: (x, y) => this.worldToScreen(x, y)
+    })
   }
 
   private renderPickups(ctx: CanvasRenderingContext2D) {
