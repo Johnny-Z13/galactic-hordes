@@ -2,6 +2,7 @@ import type { SpaceWaveWarning } from './space-wave-director'
 
 type RunObjectiveState = 'playing' | 'surface' | string
 type SurfaceObjectiveKind = 'jackpot' | 'swarm' | 'relic' | 'repair' | 'volatile' | 'standard' | 'horde' | 'cache' | null
+const STATION_DECISION_SECONDS = 30
 
 export interface RunObjectiveReadoutInput {
   state: RunObjectiveState
@@ -47,6 +48,12 @@ export function runObjectiveReadout(input: RunObjectiveReadoutInput): RunObjecti
     }
   }
   const secondsUntilStation = Math.max(0, Math.ceil(input.nextReturnBeaconAt - input.elapsed))
+  if (secondsUntilStation <= STATION_DECISION_SECONDS) {
+    return {
+      label: 'STATION',
+      text: `Station signal in ${secondsUntilStation}s // hold route or prepare to dock`
+    }
+  }
   return {
     label: 'ROUTE',
     text: `${input.routeObjective} // STATION ${secondsUntilStation}s`

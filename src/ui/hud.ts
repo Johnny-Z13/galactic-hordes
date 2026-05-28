@@ -63,6 +63,7 @@ export function updateHud(self: VectorShooter) {
   const objectiveLabel = self['ui'].objective.parentElement?.querySelector('.hud-label')
   self['ui'].objective.parentElement?.classList.toggle('signal-ready', objectiveReadout.label === 'SIGNAL')
   self['ui'].objective.parentElement?.classList.toggle('threat-inbound', objectiveReadout.label === 'WAVE')
+  self['ui'].objective.parentElement?.classList.toggle('station-soon', objectiveReadout.label === 'STATION')
   if (objectiveLabel) objectiveLabel.textContent = objectiveReadout.label
   self['ui'].objective.textContent = objectiveReadout.text
   const beaconText = self['returnBeacon']

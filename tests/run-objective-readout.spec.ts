@@ -69,6 +69,21 @@ test('run objective readout surfaces imminent sector waves as the next threat be
   })
 })
 
+test('run objective readout turns near station timing into a decision beat', () => {
+  expect(runObjectiveReadout({
+    state: 'playing',
+    routeObjective: 'Recover, scout, and reach the next route branch.',
+    elapsed: 96,
+    nextReturnBeaconAt: 120,
+    returnBeaconDistance: null,
+    surfaceEvent: null,
+    pendingUpgrades: 0
+  })).toEqual({
+    label: 'STATION',
+    text: 'Station signal in 24s // hold route or prepare to dock'
+  })
+})
+
 test('run objective readout keeps dock guidance while noting ready mutation signals', () => {
   expect(runObjectiveReadout({
     state: 'playing',
@@ -114,9 +129,11 @@ test('hud wires route objective readout through a dedicated chip', () => {
   expect(hud).toContain("self['ui'].objective.parentElement?.querySelector('.hud-label')")
   expect(hud).toContain("classList.toggle('signal-ready', objectiveReadout.label === 'SIGNAL')")
   expect(hud).toContain("classList.toggle('threat-inbound', objectiveReadout.label === 'WAVE')")
+  expect(hud).toContain("classList.toggle('station-soon', objectiveReadout.label === 'STATION')")
   expect(css).toContain('.hud-chip.objective')
   expect(css).toContain('.hud-chip.objective.signal-ready')
   expect(css).toContain('.hud-chip.objective.threat-inbound')
+  expect(css).toContain('.hud-chip.objective.station-soon')
   expect(css).toContain('.hud-chip.objective .hud-value')
   expect(css).toContain('@media (max-width: 920px)')
   expect(css).toContain('.hud-chip.objective {')
