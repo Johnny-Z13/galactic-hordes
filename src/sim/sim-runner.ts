@@ -6,6 +6,7 @@ import {
   selectSectorNode,
   type SectorNode
 } from '../sector-map'
+import { introSafeDriftSpawnMultiplier, introSafeDriftStartingSpawns } from '../intro-hook'
 import type { PlanetArchetype } from '../surface-encounters'
 import { createSimRng, pickWeighted } from './sim-rng'
 import { scoreRouteChoice, simPolicies, type SimPolicy } from './sim-policies'
@@ -39,16 +40,17 @@ function increment(record: Record<string, number>, key: string, amount = 1) {
   record[key] = (record[key] ?? 0) + amount
 }
 
-function recordSpaceEngagement(firstMinute: SimFirstMinuteState, startSeconds: number, nodeSeconds: number, kills: number) {
+function recordSpaceEngagement(firstMinute: SimFirstMinuteState, startSeconds: number, nodeSeconds: number, kills: number, frontLoadedKills = 0) {
   if (kills <= 0 || nodeSeconds <= 0) return
 
-  const firstKillSec = startSeconds + Math.min(nodeSeconds, nodeSeconds / kills)
+  const firstKillSec = startSeconds + (frontLoadedKills > 0 ? Math.min(3, nodeSeconds / Math.max(1, frontLoadedKills)) : Math.min(nodeSeconds, nodeSeconds / kills))
   if (firstMinute.firstKillSec === null) firstMinute.firstKillSec = firstKillSec
 
   if (startSeconds >= 60) return
   const overlapSeconds = Math.min(60, startSeconds + nodeSeconds) - startSeconds
   if (overlapSeconds <= 0) return
-  firstMinute.killsFirst60Sec += Math.max(0, Math.round(kills * (overlapSeconds / nodeSeconds)))
+  const steadyKills = Math.max(0, kills - frontLoadedKills)
+  firstMinute.killsFirst60Sec += Math.max(0, frontLoadedKills + Math.round(steadyKills * (overlapSeconds / nodeSeconds)))
 }
 
 function addEconomy(target: SimEconomyState, source: SimEconomyState) {
@@ -79,6 +81,21 @@ function choosePlanetArchetype(node: SectorNode, rng: ReturnType<typeof createSi
 
 function defensiveRanks(build: ReturnType<typeof createEmptyUpgradeBuild>) {
   return build.shield + build.repair + build.vampire + build.nav + build.suitHealth + build.suitO2
+}
+
+function introAdjustedNode(node: SectorNode, seconds: number): SectorNode {
+  if (seconds !== 0 || node.config.templateId !== 'safeDrift') return node
+  return {
+    ...node,
+    config: {
+      ...node.config,
+      enemies: {
+        ...node.config.enemies,
+        startingSpawns: introSafeDriftStartingSpawns(node.config.enemies.startingSpawns),
+        spawnMultiplier: introSafeDriftSpawnMultiplier(node.config.enemies.spawnMultiplier)
+      }
+    }
+  }
 }
 
 function runWorkbenchSignals(input: {
@@ -138,6 +155,7 @@ function runPlanetVisits(input: {
       survey: input.build.survey,
       difficulty: input.difficulty
     })
+    if (input.planetsLanded + landed === 0) visit.resources.mutationSignals = Math.max(visit.resources.mutationSignals, 1)
     landed += 1
     damageTaken += visit.damageTaken
     discoveries += visit.discoveries
@@ -180,11 +198,12 @@ export function runSimPlaythrough(options: SimRunOptions): SimRunResult {
     const node = chooseRoute(choices, policy, rng)
     sectorMap = selectSectorNode(sectorMap, node.id)
     const selected = currentSectorNode(sectorMap)
+    const nodeForRun = introAdjustedNode(selected, seconds)
     increment(coverage.routeTemplates, selected.config.templateId)
     events.push({ t: seconds, kind: 'routeSelected', templateId: selected.config.templateId, label: selected.label })
 
     if (selected.kind === 'station') {
-      const dock = simulateStationDock({ node: selected, currentDamage: damageTaken })
+      const dock = simulateStationDock({ node: nodeForRun, currentDamage: damageTaken })
       damageTaken = Math.max(0, damageTaken - dock.repaired)
       addEconomy(economy, dock.resources)
       for (const service of dock.services) increment(coverage.stationServices, service)
@@ -197,14 +216,14 @@ export function runSimPlaythrough(options: SimRunOptions): SimRunResult {
     }
 
     const space = simulateSpaceNode({
-      node: selected,
+      node: nodeForRun,
       policy,
       rng,
       seconds,
       difficulty: options.difficulty,
       defensiveRanks: defensiveRanks(build)
     })
-    recordSpaceEngagement(firstMinute, seconds, space.nodeSeconds, space.kills)
+    recordSpaceEngagement(firstMinute, seconds, space.nodeSeconds, space.kills, space.frontLoadedKills)
     kills += space.kills
     damageTaken += space.damageTaken
     if (space.damageTaken > 0 && space.deathCause !== 'none') {
@@ -212,10 +231,10 @@ export function runSimPlaythrough(options: SimRunOptions): SimRunResult {
     }
 
     const planetVisits = runPlanetVisits({
-      node: selected,
+      node: nodeForRun,
       policy,
       rng,
-      seconds: seconds + space.nodeSeconds * 0.55,
+      seconds: seconds + space.nodeSeconds * (seconds === 0 ? 0.43 : 0.55),
       planetsLanded,
       build,
       coverage,
@@ -227,12 +246,17 @@ export function runSimPlaythrough(options: SimRunOptions): SimRunResult {
     damageTaken += planetVisits.damageTaken
     discoveries += planetVisits.discoveries
     if (planetVisits.firstLandingAt !== null && firstMinute.firstLandingSec === null) firstMinute.firstLandingSec = planetVisits.firstLandingAt
+    if (planetVisits.firstLandingAt !== null && planetVisits.landed > 0 && firstMinute.firstWorkbenchSec === null && economy.mutationSignals > 0) {
+      const workbenchAt = planetVisits.firstLandingAt + 18
+      const workbench = runWorkbenchSignals({ economy, build, coverage, events, policy, rng, seconds: workbenchAt })
+      if (workbench.upgraded) firstMinute.firstWorkbenchSec = workbenchAt
+    }
 
     const nodeReward = {
-      scrap: Math.round(selected.config.rewards.resourceMultiplier * (18 + space.kills * 0.45)),
-      crystal: Math.round(selected.config.rewards.resourceMultiplier * (2 + planetsLanded * 0.22)),
-      cores: selected.kind === 'boss' && rng.chance(0.45) ? 1 : 0,
-      mutationSignals: rng.chance(selected.config.rewards.upgradeSignalBonusChance + policy.cacheGreed * 0.04) ? 1 : 0
+      scrap: Math.round(nodeForRun.config.rewards.resourceMultiplier * (18 + space.kills * 0.45)),
+      crystal: Math.round(nodeForRun.config.rewards.resourceMultiplier * (2 + planetsLanded * 0.22)),
+      cores: nodeForRun.kind === 'boss' && rng.chance(0.45) ? 1 : 0,
+      mutationSignals: rng.chance(nodeForRun.config.rewards.upgradeSignalBonusChance + policy.cacheGreed * 0.04) ? 1 : 0
     }
     addEconomy(economy, nodeReward)
     const workbench = runWorkbenchSignals({ economy, build, coverage, events, policy, rng, seconds: seconds + space.nodeSeconds * 0.82 })

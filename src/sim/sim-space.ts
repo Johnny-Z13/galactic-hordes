@@ -6,6 +6,7 @@ import type { SimPolicy } from './sim-policies'
 export interface SimSpaceNodeResult {
   nodeSeconds: number
   kills: number
+  frontLoadedKills: number
   damageTaken: number
   deathCause: Exclude<SimDeathCause, 'surface'>
 }
@@ -56,7 +57,13 @@ export function simulateSpaceNode(input: {
   const nodeSeconds = Math.max(0, Math.round(baseSeconds * (1.04 - policy.routeRush * 0.18) + rng.range(-8, 12)))
   const rawDamage = (pressure + hazardPressure - defense - riskOffset) * rng.range(12, 24)
   const damageTaken = Math.max(0, Math.round(rawDamage))
-  const kills = Math.max(0, Math.round(nodeSeconds * pressure * (0.24 + policy.riskTolerance * 0.1)))
+  const earlyWaveKills = config.waves
+    .filter((wave) => wave.atSeconds <= 60)
+    .reduce((sum, wave) => sum + Object.values(wave.enemies).reduce((waveSum, count) => waveSum + (count ?? 0), 0), 0)
+  const frontLoadedKills = input.seconds === 0
+    ? Math.max(0, Math.round((config.enemies.startingSpawns.length * 1.8 + earlyWaveKills * 0.55) * difficultyPressure[input.difficulty] * (0.9 + policy.riskTolerance * 0.18)))
+    : 0
+  const kills = Math.max(0, Math.round(nodeSeconds * pressure * (0.24 + policy.riskTolerance * 0.1)) + frontLoadedKills)
   const deathCause: SimSpaceNodeResult['deathCause'] = damageTaken <= 0
     ? 'none'
     : config.hazards.includes('asteroids') && hazardPressure > 0.35 && rng.chance(0.55)
@@ -65,5 +72,5 @@ export function simulateSpaceNode(input: {
         ? 'projectile'
         : 'contact'
 
-  return { nodeSeconds, kills, damageTaken, deathCause }
+  return { nodeSeconds, kills, frontLoadedKills, damageTaken, deathCause }
 }
