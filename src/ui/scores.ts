@@ -1,4 +1,37 @@
 import { formatTime, type VectorShooter } from '../main'
+import { scoreExpeditionLogEntries, type ScoreEntry } from '../score-history'
+
+function renderScoreExpeditionLog(self: VectorShooter, entries: ScoreEntry[]) {
+  const storyEntries = scoreExpeditionLogEntries(entries)
+  if (!storyEntries.length) return null
+  const log = document.createElement('section')
+  log.className = 'score-expedition-log'
+  const heading = document.createElement('div')
+  heading.className = 'score-expedition-heading'
+  const eyebrow = document.createElement('span')
+  eyebrow.textContent = 'EXPEDITION ARCHIVE'
+  const title = document.createElement('b')
+  title.textContent = 'Notable Runs'
+  heading.append(eyebrow, title)
+  const cards = document.createElement('div')
+  cards.className = 'score-expedition-cards'
+  for (const entry of storyEntries) {
+    const card = document.createElement('article')
+    card.className = 'score-expedition-card'
+    const name = document.createElement('b')
+    name.textContent = entry.journeyTitle ?? 'Expedition'
+    const meta = document.createElement('span')
+    meta.textContent = `${self['escape'](entry.name)} // ${entry.score} pts // ${formatTime(entry.time)} // ${entry.lightYears ?? 0} LY`
+    const highlight = document.createElement('p')
+    highlight.textContent = entry.highlights?.[0] ?? ''
+    const resources = document.createElement('em')
+    resources.textContent = `Scrap ${entry.resources?.scrap ?? 0} // Crystals ${entry.resources?.crystal ?? 0} // Cores ${entry.resources?.cores ?? 0}`
+    card.append(name, meta, highlight, resources)
+    cards.append(card)
+  }
+  log.append(heading, cards)
+  return log
+}
 
 export function showScores(self: VectorShooter) {
   self['state'] = 'scores'
@@ -41,7 +74,10 @@ export function showScores(self: VectorShooter) {
     reset.textContent = 'Confirm Reset'
   })
   row.append(back, reset)
-  panel.append(h, table, row)
+  const log = renderScoreExpeditionLog(self, self['highs'])
+  panel.append(h, table)
+  if (log) panel.append(log)
+  panel.append(row)
   self['ui'].scores.append(panel)
   self['showOnly']('scores')
 }

@@ -36,6 +36,7 @@ import { planetNameFor } from './planet-names'
 import { updatePickupsPhysics, type Pickup, type PickupKind } from './pickups'
 import { planetRadius } from './planet-sizing'
 import { runBalance } from './run-balance'
+import { scoreEntryFromRun, type ScoreEntry } from './score-history'
 import { advanceScorePopups, appendScorePopup, createScorePopup, type ScorePopupModel } from './score-popups'
 import {
   evolutions,
@@ -442,15 +443,6 @@ export type WorkbenchChoice =
   | { kind: 'evolution'; evolution: Evolution }
   | { kind: 'limit'; id: LimitId; name: string; description: string }
   | { kind: 'relic'; relic: Relic }
-
-export interface ScoreEntry {
-  name: string
-  score: number
-  time: number
-  level: number
-  kills: number
-  date: string
-}
 
 interface PerfStats {
   updateMs: number
@@ -6599,14 +6591,15 @@ export class VectorShooter {
   private saveScore() {
     if (this.scoreSaved) return
     this.scoreSaved = true
-    const entry: ScoreEntry = {
+    const entry = scoreEntryFromRun({
       name: this.scoreName,
-      score: Math.floor(this.stats.score),
+      score: this.stats.score,
       time: this.stats.time,
       level: this.stats.level,
       kills: this.stats.kills,
-      date: new Date().toISOString()
-    }
+      date: new Date().toISOString(),
+      debrief: this.debrief
+    })
     this.highs = [...this.highs, entry].sort((a, b) => b.score - a.score).slice(0, 10)
     localStorage.setItem(SCORE_STORAGE_KEY, JSON.stringify(this.highs))
   }
