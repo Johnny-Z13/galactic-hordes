@@ -422,6 +422,16 @@ test('workbench card selection does not shift card layout or shake the camera', 
   expect(applyEvolution).not.toContain('this.camera.shake')
 })
 
+test('workbench weapon upgrades emit milestone feedback at visible breakpoints', () => {
+  const main = source()
+  const applyUpgrade = main.slice(main.indexOf('private applyUpgrade'), main.indexOf('private applyEvolution'))
+
+  expect(main).toContain('weaponMilestonePulse')
+  expect(applyUpgrade).toContain('weaponMilestonePulse({ upgrade, nextRank })')
+  expect(applyUpgrade).toContain('this.burst(this.player.x, this.player.y, milestone.color, milestone.count, milestone.speed)')
+  expect(applyUpgrade).toContain('this.toast(milestone.label)')
+})
+
 test('workbench overlays freeze the gameplay camera instead of using title drift', () => {
   const main = source()
   const update = main.slice(main.indexOf('private update(dt: number)'), main.indexOf('private audioMood'))

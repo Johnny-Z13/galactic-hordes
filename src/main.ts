@@ -149,7 +149,7 @@ import {
   type WorkbenchUpgradeRow
 } from './workbench-rolls'
 import { workbenchBayDefinitions, workbenchBayForUpgrade, type WorkbenchBayDefinition, type WorkbenchBayId } from './workbench-bays'
-import { optionOrbProfile, pulseVolleyCount, rearGunProfile, starterSignatureFlags } from './weapon-signatures'
+import { optionOrbProfile, pulseVolleyCount, rearGunProfile, starterSignatureFlags, weaponMilestonePulse } from './weapon-signatures'
 import {
   renderLevelUp as uiRenderLevelUp,
   currentLevelUpScrollTop as uiCurrentLevelUpScrollTop,
@@ -3273,7 +3273,14 @@ export class VectorShooter {
     const anchor = this.fxAnchor()
     const color = this.upgradeFxColor(upgrade)
     this.upgradeSurge(anchor.x, anchor.y, color, upgrade.category === 'weapon' ? '#ffffff' : '#d7fff7', upgrade.category === 'weapon' ? 1.1 : 0.92)
-    this.toast(`${upgrade.name.toUpperCase()} ONLINE`)
+    const nextRank = nextLevel
+    const milestone = weaponMilestonePulse({ upgrade, nextRank })
+    if (milestone) {
+      this.burst(this.player.x, this.player.y, milestone.color, milestone.count, milestone.speed)
+      this.toast(milestone.label)
+    } else {
+      this.toast(`${upgrade.name.toUpperCase()} ONLINE`)
+    }
   }
 
   private applyEvolution(evolution: Evolution) {

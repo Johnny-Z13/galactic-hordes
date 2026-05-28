@@ -1,4 +1,4 @@
-import { powerupBalance, type UpgradeId } from './powerup-balance'
+import { powerupBalance, type Upgrade, type UpgradeId } from './powerup-balance'
 
 export type StarterSignatureId = 'rapid' | 'split' | 'engine' | 'magnet' | 'shield' | 'nav' | 'rail' | 'rift' | 'heat'
 
@@ -51,6 +51,13 @@ export interface WeaponHudReadoutInput {
   evolved: ReadonlySet<string>
 }
 
+export interface WeaponMilestonePulse {
+  label: string
+  color: string
+  count: number
+  speed: number
+}
+
 export const pulseVolleyCount = ({ rapidRank, fireSerial, evolved }: PulseVolleyInput) => {
   if (evolved) return 3
   return rapidRank >= 5 && fireSerial % 5 === 0 ? 2 : 1
@@ -82,6 +89,40 @@ export const rearGunProfile = (rearRank: number): RearGunProfile => {
     speedMultiplier: powerupBalance.rearGun.speedMultiplierBase + rank * powerupBalance.rearGun.speedMultiplierPerRank,
     pierce: rank >= powerupBalance.rearGun.pierceRank ? 1 : 0
   }
+}
+
+export const weaponMilestonePulse = (input: { upgrade: Upgrade; nextRank: number }): WeaponMilestonePulse | null => {
+  if (input.upgrade.bucket !== 'weapons') return null
+
+  const rank = Math.max(0, Math.floor(input.nextRank))
+  switch (input.upgrade.id) {
+    case 'rapid':
+      if (rank === 2) return { label: 'PULSE WAKE ONLINE', color: '#57fff3', count: 18, speed: 260 }
+      if (rank === 5) return { label: 'DOUBLE PULSE ONLINE', color: '#fff27a', count: 26, speed: 320 }
+      break
+    case 'split':
+      if (rank === 1) return { label: 'PRISM FAN ONLINE', color: '#b990ff', count: 20, speed: 280 }
+      break
+    case 'rear':
+      if (rank === 1) return { label: 'REAR GUN ONLINE', color: '#70a8ff', count: 18, speed: 260 }
+      if (rank === powerupBalance.rearGun.twinBarrelRank) return { label: 'TWIN REAR BARRELS', color: '#57fff3', count: 24, speed: 310 }
+      break
+    case 'orbit':
+      if (rank === 1) return { label: 'OPTION ORB ONLINE', color: '#8fff7d', count: 22, speed: 280 }
+      if (rank === 3) return { label: 'SECOND OPTION ORB ONLINE', color: '#8fff7d', count: 24, speed: 300 }
+      if (rank === 5) return { label: 'THIRD OPTION ORB ONLINE', color: '#8fff7d', count: 26, speed: 320 }
+      break
+    case 'rail':
+      if (rank === 1) return { label: 'RAIL LATTICE ONLINE', color: '#fff27a', count: 24, speed: 340 }
+      break
+    case 'rift':
+      if (rank === 1) return { label: 'RIFT NEEDLE ONLINE', color: '#ff61d8', count: 24, speed: 340 }
+      break
+    case 'chain':
+      if (rank === 1) return { label: 'STATIC ARC ONLINE', color: '#57fff3', count: 20, speed: 300 }
+      break
+  }
+  return null
 }
 
 export const starterSignatureFlags = (build: Partial<Record<StarterSignatureId, number>>): StarterSignatureFlags => {

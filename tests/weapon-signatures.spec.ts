@@ -1,5 +1,19 @@
 import { expect, test } from '@playwright/test'
-import { optionOrbProfile, pulseVolleyCount, rearGunProfile, starterSignatureFlags, weaponHudReadout } from '../src/weapon-signatures'
+import { upgrades } from '../src/powerup-balance'
+import {
+  optionOrbProfile,
+  pulseVolleyCount,
+  rearGunProfile,
+  starterSignatureFlags,
+  weaponHudReadout,
+  weaponMilestonePulse
+} from '../src/weapon-signatures'
+
+const upgrade = (id: string) => {
+  const match = upgrades.find((candidate) => candidate.id === id)
+  if (!match) throw new Error(`Missing upgrade fixture: ${id}`)
+  return match
+}
 
 test('pulse cannon rank five earns its promised cadence double shot', () => {
   expect(pulseVolleyCount({ rapidRank: 4, fireSerial: 10, evolved: false })).toBe(1)
@@ -57,6 +71,22 @@ test('rear gun upgrade adds backward fire coverage and scales into twin barrels'
   expect(rearGunProfile(1)).toMatchObject({ shots: 1, spread: 0 })
   expect(rearGunProfile(3).shots).toBe(2)
   expect(rearGunProfile(5).damageMultiplier).toBeGreaterThan(rearGunProfile(1).damageMultiplier)
+})
+
+test('weapon milestone pulse marks visible branch breakpoints', () => {
+  expect(weaponMilestonePulse({ upgrade: upgrade('rapid'), nextRank: 2 })).toMatchObject({
+    label: 'PULSE WAKE ONLINE',
+    color: '#57fff3'
+  })
+  expect(weaponMilestonePulse({ upgrade: upgrade('rapid'), nextRank: 5 })).toMatchObject({
+    label: 'DOUBLE PULSE ONLINE',
+    color: '#fff27a'
+  })
+  expect(weaponMilestonePulse({ upgrade: upgrade('rear'), nextRank: 3 })).toMatchObject({
+    label: 'TWIN REAR BARRELS'
+  })
+  expect(weaponMilestonePulse({ upgrade: upgrade('rapid'), nextRank: 3 })).toBeNull()
+  expect(weaponMilestonePulse({ upgrade: upgrade('shield'), nextRank: 1 })).toBeNull()
 })
 
 test('weapon hud readout starts as the base pulse cannon', () => {
