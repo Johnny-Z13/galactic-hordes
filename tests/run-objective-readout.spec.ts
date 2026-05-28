@@ -109,6 +109,21 @@ test('run objective readout turns near station timing into a decision beat', () 
   })
 })
 
+test('run objective readout does not show a zero-second station before a beacon exists', () => {
+  expect(runObjectiveReadout({
+    state: 'playing',
+    routeObjective: 'Clear scouts, bank signal, then dock or chase cache.',
+    elapsed: 0,
+    nextReturnBeaconAt: 0,
+    returnBeaconDistance: null,
+    surfaceEvent: null,
+    pendingUpgrades: 0
+  })).toEqual({
+    label: 'ROUTE',
+    text: 'Clear scouts, bank signal, then dock or chase cache. // STATION --'
+  })
+})
+
 test('run objective readout keeps dock guidance while noting ready mutation signals', () => {
   expect(runObjectiveReadout({
     state: 'playing',

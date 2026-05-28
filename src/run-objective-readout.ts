@@ -52,8 +52,10 @@ export function runObjectiveReadout(input: RunObjectiveReadoutInput): RunObjecti
       text: `${input.waveWarning.label} in ${Math.ceil(input.waveWarning.secondsUntil)}s // ${input.waveWarning.enemyTotal} ${contacts}`
     }
   }
-  const secondsUntilStation = Math.max(0, Math.ceil(input.nextReturnBeaconAt - input.elapsed))
-  if (secondsUntilStation <= STATION_DECISION_SECONDS) {
+  const rawSecondsUntilStation = Math.ceil(input.nextReturnBeaconAt - input.elapsed)
+  const stationTimerPending = rawSecondsUntilStation > 0
+  const secondsUntilStation = Math.max(0, rawSecondsUntilStation)
+  if (stationTimerPending && secondsUntilStation <= STATION_DECISION_SECONDS) {
     return {
       label: 'STATION',
       text: `Station signal in ${secondsUntilStation}s // hold route or prepare to dock`
@@ -61,7 +63,7 @@ export function runObjectiveReadout(input: RunObjectiveReadoutInput): RunObjecti
   }
   return {
     label: 'ROUTE',
-    text: `${routeText(input)} // STATION ${secondsUntilStation}s`
+    text: `${routeText(input)} // STATION ${stationTimerPending ? `${secondsUntilStation}s` : '--'}`
   }
 }
 
