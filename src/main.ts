@@ -19,9 +19,7 @@ import {
   pickSpaceEnemyKind,
   scaledBossTimer,
   scaledSpawnTimer,
-  scaledSurfaceDamage,
   scaledSurfaceHp,
-  scaledSurfaceSpeed,
   spaceEnemyRunScale,
   spaceEnemySpeedBonus,
   spaceSpawnBalance,
@@ -80,6 +78,8 @@ import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { norm, dist2, len, TAU } from './math-utils'
 import { renderSurfaceBiomeMotifs as drawSurfaceBiomeMotifs } from './render/surface-biomes'
 import { renderSurfaceThreats } from './surface/render-threats'
+import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurfaceBulletsAndThreatDamage } from './surface/bullet-combat'
+import { spawnSurfaceSplitterChildren, updateSurfaceThreatMotion } from './surface/threat-behavior'
 import { renderPlayer as drawPlayer } from './render/player'
 import { renderEnemies as drawEnemies } from './render/enemies'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
@@ -95,7 +95,7 @@ import {
   type MeteorAsteroidPlan,
   type SpaceEncounterKind
 } from './space-encounters'
-import { SURFACE_PILOT_SIZE_SCALE, surfacePilotCollisionRadius, surfacePilotMuzzleOffset, surfacePilotSpawnKeepout, surfacePilotSpriteScale } from './surface-pilot'
+import { SURFACE_PILOT_SIZE_SCALE, surfacePilotMuzzleOffset, surfacePilotSpawnKeepout, surfacePilotSpriteScale } from './surface-pilot'
 import {
   bossCacheValue,
   pickSurfaceResourceKind,
@@ -3945,89 +3945,31 @@ export class VectorShooter {
     if (!this.surface) return
     for (let i = this.surface.threats.length - 1; i >= 0; i -= 1) {
       const threat = this.surface.threats[i]
-      threat.phase += dt
-      threat.hit -= dt
-      const toPilot = norm(this.surface.pilot.x - threat.x, this.surface.pilot.y - threat.y)
-      this.steerSurfaceThreat(threat, toPilot, dt)
-      threat.vx *= Math.pow(surfaceThreatMotionBalance.frictionBase, dt)
-      threat.vy *= Math.pow(surfaceThreatMotionBalance.frictionBase, dt)
-      threat.x = clamp(threat.x + threat.vx * dt, surfaceThreatMotionBalance.edgePadding, this.surface.width - surfaceThreatMotionBalance.edgePadding)
-      threat.y = clamp(threat.y + threat.vy * dt, surfaceThreatMotionBalance.edgePadding, this.surface.height - surfaceThreatMotionBalance.edgePadding)
-      const rr = threat.radius + surfacePilotCollisionRadius()
-      if ((threat.x - this.surface.pilot.x) ** 2 + (threat.y - this.surface.pilot.y) ** 2 < rr * rr && this.surface.pilot.invuln <= 0) {
-        this.damagePlayer(scaledSurfaceDamage(threat.boss ? surfaceThreatBalance.boss.contactDamage : surfaceThreatBalance.generic.contactDamage))
+      const motion = updateSurfaceThreatMotion({
+        threat,
+        pilot: this.surface.pilot,
+        surface: { width: this.surface.width, height: this.surface.height },
+        dt
+      })
+      if (motion.blinkBurst) this.burst(motion.blinkBurst.x, motion.blinkBurst.y, motion.blinkBurst.color, motion.blinkBurst.count, motion.blinkBurst.speed)
+      if (motion.contactDamage !== null) {
+        this.damagePlayer(motion.contactDamage)
         this.burst(this.surface.pilot.x, this.surface.pilot.y, '#ff5d73', 10, 160)
       }
       if (threat.hp <= 0) {
         this.burst(threat.x, threat.y, threat.color, threat.boss ? 42 : 24, threat.boss ? 360 : 260)
         this.audio.boom(threat.boss ? 'heavy' : 'surface')
         this.stats.score += threat.boss ? runBalance.scoring.surfaceBossScore : runBalance.scoring.surfaceThreatScore
-        if (threat.behavior === 'splitter' && !threat.splitChild) this.spawnSurfaceSplitters(threat)
+        if (threat.behavior === 'splitter' && !threat.splitChild) {
+          this.surface.threats.push(...spawnSurfaceSplitterChildren({
+            threat,
+            surface: { width: this.surface.width, height: this.surface.height },
+            time: this.stats.time
+          }))
+        }
         if (threat.boss) this.dropSurfaceBossCache(threat)
         this.surface.threats.splice(i, 1)
       }
-    }
-  }
-
-  private steerSurfaceThreat(threat: SurfaceThreat, toPilot: Vec, dt: number) {
-    if (!this.surface) return
-    const accel = scaledSurfaceSpeed(threat.boss ? surfaceThreatBalance.boss.acceleration : surfaceThreatBalance.generic.acceleration)
-    const maxSpeed = scaledSurfaceSpeed(threat.boss ? surfaceThreatBalance.boss.maxSpeed : surfaceThreatBalance.generic.maxSpeed)
-    const behavior = threat.behavior ?? 'chaser'
-    if (behavior === 'orbiter') {
-      const distance = len(this.surface.pilot.x - threat.x, this.surface.pilot.y - threat.y)
-      const radial =
-        distance > surfaceThreatMotionBalance.orbit.outerDistance ? surfaceThreatMotionBalance.orbit.pull :
-        distance < surfaceThreatMotionBalance.orbit.innerDistance ? surfaceThreatMotionBalance.orbit.repel :
-        surfaceThreatMotionBalance.orbit.hold
-      threat.vx += (toPilot.x * radial - toPilot.y * surfaceThreatMotionBalance.orbit.tangent) * accel * dt
-      threat.vy += (toPilot.y * radial + toPilot.x * surfaceThreatMotionBalance.orbit.tangent) * accel * dt
-    } else if (behavior === 'blinker') {
-      threat.behaviorCooldown = (threat.behaviorCooldown ?? rand(surfaceThreatMotionBalance.blink.cooldownMin, surfaceThreatMotionBalance.blink.cooldownMax)) - dt
-      const distance = len(this.surface.pilot.x - threat.x, this.surface.pilot.y - threat.y)
-      if (threat.behaviorCooldown <= 0 && distance > surfaceThreatMotionBalance.blink.minDistance) {
-        threat.vx += (toPilot.x * surfaceThreatMotionBalance.blink.dashSpeedScale - toPilot.y * surfaceThreatMotionBalance.blink.sideSpeedScale) * maxSpeed
-        threat.vy += (toPilot.y * surfaceThreatMotionBalance.blink.dashSpeedScale + toPilot.x * surfaceThreatMotionBalance.blink.sideSpeedScale) * maxSpeed
-        threat.behaviorCooldown = rand(surfaceThreatMotionBalance.blink.cooldownMin, surfaceThreatMotionBalance.blink.cooldownMax)
-        this.burst(threat.x, threat.y, threat.color, 8, 120)
-      } else {
-        threat.vx += toPilot.x * accel * surfaceThreatMotionBalance.blink.driftAccelerationScale * dt
-        threat.vy += toPilot.y * accel * surfaceThreatMotionBalance.blink.driftAccelerationScale * dt
-      }
-    } else {
-      threat.vx += toPilot.x * accel * dt
-      threat.vy += toPilot.y * accel * dt
-    }
-    this.limitSurfaceThreatSpeed(threat, maxSpeed)
-  }
-
-  private limitSurfaceThreatSpeed(threat: SurfaceThreat, maxSpeed: number) {
-    const speed = len(threat.vx, threat.vy)
-    if (speed <= maxSpeed) return
-    threat.vx = (threat.vx / speed) * maxSpeed
-    threat.vy = (threat.vy / speed) * maxSpeed
-  }
-
-  private spawnSurfaceSplitters(threat: SurfaceThreat) {
-    if (!this.surface) return
-    for (let i = 0; i < surfaceThreatMotionBalance.splitter.childCount; i += 1) {
-      const angle = (i / surfaceThreatMotionBalance.splitter.childCount) * TAU + threat.phase
-      const x = clamp(threat.x + Math.cos(angle) * surfaceThreatMotionBalance.splitter.childScatter, surfaceThreatMotionBalance.edgePadding, this.surface.width - surfaceThreatMotionBalance.edgePadding)
-      const y = clamp(threat.y + Math.sin(angle) * surfaceThreatMotionBalance.splitter.childScatter, surfaceThreatMotionBalance.edgePadding, this.surface.height - surfaceThreatMotionBalance.edgePadding)
-      const childSpeed = scaledSurfaceSpeed(surfaceThreatBalance.generic.maxSpeed) * surfaceThreatMotionBalance.splitter.childSpeedScale
-      this.surface.threats.push({
-        x,
-        y,
-        vx: Math.cos(angle) * childSpeed,
-        vy: Math.sin(angle) * childSpeed,
-        hp: scaledSurfaceHp(surfaceThreatBalance.generic.swarmBaseHp + this.stats.time * surfaceThreatBalance.generic.swarmHpPerSecond) * surfaceThreatMotionBalance.splitter.childHpScale,
-        radius: surfaceThreatBalance.generic.swarmRadius,
-        phase: rand(0, TAU),
-        color: threat.color,
-        hit: 0,
-        behavior: 'chaser',
-        splitChild: true
-      })
     }
   }
 
@@ -4279,28 +4221,15 @@ export class VectorShooter {
 
   private updateSurfaceBullets(dt: number) {
     if (!this.surface) return
-    for (let i = this.surface.bullets.length - 1; i >= 0; i -= 1) {
-      const bullet = this.surface.bullets[i]
-      bullet.life -= dt
-      bullet.x += bullet.vx * dt
-      bullet.y += bullet.vy * dt
-      if (bullet.life <= 0 || bullet.x < -20 || bullet.y < -20 || bullet.x > this.surface.width + 20 || bullet.y > this.surface.height + 20) {
-        this.surface.bullets.splice(i, 1)
-        continue
-      }
-      for (const threat of this.surface.threats) {
-        const rr = threat.radius + bullet.radius
-        if ((threat.x - bullet.x) ** 2 + (threat.y - bullet.y) ** 2 > rr * rr) continue
-        threat.hp -= bullet.damage
-        threat.hit = 0.035
-        const push = norm(threat.x - bullet.x, threat.y - bullet.y)
-        threat.vx += push.x * 70
-        threat.vy += push.y * 70
-        this.playBulletImpact(0.85)
-        this.surfaceHitSpark(bullet.x, bullet.y, bullet.color)
-        this.surface.bullets.splice(i, 1)
-        break
-      }
+    const result = updateSurfaceBulletsAndThreatDamage({
+      bullets: this.surface.bullets,
+      threats: this.surface.threats,
+      surface: { width: this.surface.width, height: this.surface.height },
+      dt
+    })
+    for (const hit of result.hits) {
+      this.playBulletImpact(0.85)
+      this.surfaceHitSpark(hit.x, hit.y, hit.color)
     }
   }
 
@@ -4328,16 +4257,7 @@ export class VectorShooter {
 
   private findSurfaceTarget() {
     if (!this.surface) return null
-    let best: SurfaceThreat | null = null
-    let bestD = 420 * 420
-    for (const threat of this.surface.threats) {
-      const d = (threat.x - this.surface.pilot.x) ** 2 + (threat.y - this.surface.pilot.y) ** 2
-      if (d < bestD) {
-        bestD = d
-        best = threat
-      }
-    }
-    return best
+    return pickSurfaceTarget({ threats: this.surface.threats, pilot: this.surface.pilot })
   }
 
   private fireSurfaceGun() {
@@ -4348,20 +4268,15 @@ export class VectorShooter {
     this.surface.pilot.facing = angle
     this.surface.pilot.gunCd = this.surfaceGunCooldown()
     this.audio.fire('surface', 1)
-    const muzzleX = this.surface.pilot.x + Math.cos(angle) * surfacePilotMuzzleOffset()
-    const muzzleY = this.surface.pilot.y + Math.sin(angle) * surfacePilotMuzzleOffset()
-    const speed = this.surfaceGunSpeed()
-    this.surface.bullets.push({
-      x: muzzleX,
-      y: muzzleY,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      life: 0.62,
-      radius: 4,
+    const bullet = createSurfaceBullet({
+      pilot: this.surface.pilot,
+      target,
+      speed: this.surfaceGunSpeed(),
       damage: this.surfaceGunDamage(),
-      color: '#fff27a'
+      muzzleOffset: surfacePilotMuzzleOffset()
     })
-    this.burst(muzzleX, muzzleY, '#fff27a', 4, 90)
+    this.surface.bullets.push(bullet)
+    this.burst(bullet.x, bullet.y, bullet.color, 4, 90)
   }
 
   private startTakeoff(options: { urgent?: boolean; skipWorkbench?: boolean } = {}) {
