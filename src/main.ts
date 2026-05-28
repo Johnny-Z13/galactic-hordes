@@ -36,10 +36,8 @@ import {
 import { navigationCruiseScalar, navigationTrailProfile } from './navigation-cruise'
 import { canLockPlanetCourse, nearestPlanetCourseTarget, planetCourseLockToast } from './navigation-planet-lock'
 import { applyMutationXp } from './mutation-progress'
-import { selectPlanetBiome, type PlanetBiomeProfile } from './planet-biomes'
-import { planetNameFor } from './planet-names'
+import { createChunkPlanet, type GeneratedPlanet } from './planet-generation'
 import { collectPickup, dropPickup, updatePickupsPhysics, type Pickup, type PickupKind } from './pickups'
-import { planetRadius } from './planet-sizing'
 import { runBalance } from './run-balance'
 import { resolveFinishedRun } from './run/finish-run'
 import { scoreEntryFromRun, type ScoreEntry } from './score-history'
@@ -152,7 +150,7 @@ import {
   type SurfaceResourceKind,
   type SurfaceThreatBehavior
 } from './surface-balance'
-import { planSurfaceEncounter, rollPlanetArchetype, type PlanetArchetype, type SurfaceEventKind, type SurfaceScenarioKind } from './surface-encounters'
+import { planSurfaceEncounter, type PlanetArchetype, type SurfaceEventKind, type SurfaceScenarioKind } from './surface-encounters'
 import { dashVector, touchActionLabel } from './mobile-controls'
 import {
   defaultMothershipState,
@@ -250,20 +248,7 @@ interface Shockwave {
   jag: number
 }
 
-export interface Planet {
-  id: string
-  name: string
-  x: number
-  y: number
-  radius: number
-  color: string
-  visited: boolean
-  reward: string
-  chunkX: number
-  chunkY: number
-  archetype: PlanetArchetype
-  biome: PlanetBiomeProfile
-}
+export type Planet = GeneratedPlanet
 
 interface SpaceChunk {
   key: string
@@ -841,78 +826,16 @@ export class VectorShooter {
   }
 
   private generatePlanet(chunkX: number, chunkY: number, index: number, rng: () => number, existing: Planet[] = []): Planet {
-    const archetype = this.pickSectorPlanetArchetype(chunkX, chunkY, index, rng)
-    const biome = selectPlanetBiome(archetype, chunkX, chunkY, index)
-    const color = {
-      cache: '#57fff3',
-      hostile: '#ff5d73',
-      repair: '#8fff7d',
-      relic: '#fff27a',
-      strange: '#b990ff',
-      lore: '#d7fff7',
-      horde: '#ff61d8'
-    }[archetype]
-    const name = planetNameFor({ archetype, biomeId: biome.id, chunkX, chunkY, index })
-    const margin = 420
-    const radius = planetRadius(rng)
-    let x = chunkX * CHUNK_SIZE + margin + rng() * (CHUNK_SIZE - margin * 2)
-    let y = chunkY * CHUNK_SIZE + margin + rng() * (CHUNK_SIZE - margin * 2)
-    let placed = false
-    for (let attempt = 0; attempt < 28; attempt += 1) {
-      const candidate = {
-        x: chunkX * CHUNK_SIZE + margin + rng() * (CHUNK_SIZE - margin * 2),
-        y: chunkY * CHUNK_SIZE + margin + rng() * (CHUNK_SIZE - margin * 2)
-      }
-      const clear = existing.every((planet) => Math.sqrt((planet.x - candidate.x) ** 2 + (planet.y - candidate.y) ** 2) > this.planetClearance(radius, planet.radius))
-      if (clear) {
-        x = candidate.x
-        y = candidate.y
-        placed = true
-        break
-      }
-    }
-    if (!placed) {
-      const slot = this.planetFallbackSlot(index, existing.length)
-      x = chunkX * CHUNK_SIZE + margin + slot.x * (CHUNK_SIZE - margin * 2)
-      y = chunkY * CHUNK_SIZE + margin + slot.y * (CHUNK_SIZE - margin * 2)
-    }
-    const reward = {
-      cache: 'Cache-heavy salvage and mutation signals.',
-      hostile: 'Hostile planet. Better rewards, uglier landing.',
-      repair: 'Repair-rich safe dock with quieter salvage.',
-      relic: 'Relic signatures and rare cache odds.',
-      strange: 'Unstable signal. Anything could be waiting.',
-      lore: 'Quiet ruins, fossils, graves, and inspectable narrative signals.',
-      horde: 'Vast enemy horde guarding a massive treasure vault.'
-    }[archetype]
-    const id = `${chunkX}:${chunkY}:${index}`
-    return { id, name, x, y, radius, color, visited: this.visitedPlanets.has(id), reward, chunkX, chunkY, archetype, biome }
-  }
-
-  private planetClearance(a: number, b: number) {
-    return Math.max(520, a + b + 300)
-  }
-
-  private pickSectorPlanetArchetype(chunkX: number, chunkY: number, index: number, rng: () => number) {
-    const bias = this.sectorNodeProfile.config.planets.archetypeBias
-    const total = Object.values(bias).reduce((sum, weight) => sum + (weight ?? 0), 0)
-    if (total > 0 && rng() < 0.55) {
-      let roll = rng() * total
-      for (const [archetype, weight] of Object.entries(bias) as Array<[PlanetArchetype, number]>) {
-        roll -= weight
-        if (roll <= 0) return archetype
-      }
-    }
-    return rollPlanetArchetype({ chunkX, chunkY, index, random: rng })
-  }
-
-  private planetFallbackSlot(index: number, existingCount: number) {
-    const slots = [
-      { x: 0.2, y: 0.24 },
-      { x: 0.78, y: 0.34 },
-      { x: 0.42, y: 0.78 }
-    ]
-    return slots[(index + existingCount) % slots.length]
+    return createChunkPlanet({
+      chunkX,
+      chunkY,
+      index,
+      rng,
+      existing,
+      visitedPlanetIds: this.visitedPlanets,
+      archetypeBias: this.sectorNodeProfile.config.planets.archetypeBias,
+      chunkSize: CHUNK_SIZE
+    })
   }
 
   private makeScreens() {
