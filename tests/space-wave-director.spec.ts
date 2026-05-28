@@ -59,10 +59,13 @@ test('next space wave warning skips fired waves', () => {
 
 test('main renders sector wave warnings from the space wave director', () => {
   const main = readFileSync('src/main.ts', 'utf8')
+  const renderer = readFileSync('src/render/sector-wave-warning.ts', 'utf8')
 
   expect(main).toContain("from './space-wave-director'")
+  expect(main).toContain("from './render/sector-wave-warning'")
   expect(main).toContain('spaceWaveId(this.sectorMap.currentNodeId, wave)')
   expect(main).toContain('nextSpaceWaveWarning({')
   expect(main).toContain('this.renderSectorWaveWarning(ctx)')
-  expect(main).toContain('private renderSectorWaveWarning(')
+  expect(main).toContain('drawSectorWaveWarning({')
+  expect(renderer).toContain('export function renderSectorWaveWarning')
 })
