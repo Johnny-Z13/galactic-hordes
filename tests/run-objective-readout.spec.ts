@@ -150,7 +150,22 @@ test('run objective readout switches to surface objective while on foot', () => 
     pendingUpgrades: 3
   })).toEqual({
     label: 'SURFACE',
-    text: 'Collect cache signals, then return to ship'
+    text: 'Collect cache signals, then return to ship // install 3 signals'
+  })
+})
+
+test('surface objective keeps banked signal install payoff visible', () => {
+  expect(runObjectiveReadout({
+    state: 'surface',
+    routeObjective: 'Scout planet-rich space and land for discoveries.',
+    elapsed: 160,
+    nextReturnBeaconAt: 220,
+    returnBeaconDistance: null,
+    surfaceEvent: 'standard',
+    pendingUpgrades: 2
+  })).toEqual({
+    label: 'SURFACE',
+    text: 'Collect surface resources, then return to ship // install 2 signals'
   })
 })
 

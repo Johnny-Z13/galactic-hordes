@@ -29,7 +29,7 @@ export function runObjectiveReadout(input: RunObjectiveReadoutInput): RunObjecti
   if (input.state === 'surface') {
     return {
       label: 'SURFACE',
-      text: surfaceObjectiveText(input.surfaceEvent)
+      text: surfaceObjectiveText(input.surfaceEvent, input.pendingUpgrades)
     }
   }
   if (input.returnBeaconDistance !== null) {
@@ -77,11 +77,12 @@ function signalReadyText(count: number) {
   return `${count} signal${count === 1 ? '' : 's'} ready`
 }
 
-function surfaceObjectiveText(event: SurfaceObjectiveKind) {
-  if (event === 'cache') return 'Collect cache signals, then return to ship'
-  if (event === 'relic') return 'Recover relic signal, then return to ship'
-  if (event === 'repair') return 'Secure repairs, then return to ship'
-  if (event === 'horde' || event === 'swarm') return 'Survive the landing zone, then return to ship'
-  if (event === 'volatile') return 'Salvage unstable resources, then return to ship'
-  return 'Collect surface resources, then return to ship'
+function surfaceObjectiveText(event: SurfaceObjectiveKind, pendingUpgrades: number) {
+  const installText = pendingUpgrades > 0 ? ` // install ${pendingUpgrades} signal${pendingUpgrades === 1 ? '' : 's'}` : ''
+  if (event === 'cache') return `Collect cache signals, then return to ship${installText}`
+  if (event === 'relic') return `Recover relic signal, then return to ship${installText}`
+  if (event === 'repair') return `Secure repairs, then return to ship${installText}`
+  if (event === 'horde' || event === 'swarm') return `Survive the landing zone, then return to ship${installText}`
+  if (event === 'volatile') return `Salvage unstable resources, then return to ship${installText}`
+  return `Collect surface resources, then return to ship${installText}`
 }
