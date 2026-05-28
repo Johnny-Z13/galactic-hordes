@@ -93,6 +93,7 @@ import { spawnSurfaceSplitterChildren, updateSurfaceThreatMotion } from './surfa
 import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, surfaceWavePressureReadout, updateSurfaceWaveDirector, type SurfaceWaveState, type SurfaceWaveTelegraph } from './surface/wave-director'
 import { renderPlayer as drawPlayer } from './render/player'
 import { renderEnemies as drawEnemies } from './render/enemies'
+import { renderThreatIndicators as drawThreatIndicators } from './render/threat-indicators'
 import { renderSpawnEntryPings as drawSpawnEntryPings } from './render/spawn-entry-pings'
 import { renderImpactPulses as drawImpactPulses } from './render/impact-pulses'
 import { renderPickups as drawPickups } from './render/pickups'
@@ -4478,6 +4479,7 @@ export class VectorShooter {
     this.renderPickups(ctx)
     this.renderBullets(ctx)
     this.renderEnemies(ctx)
+    this.renderThreatIndicators(ctx)
     this.renderSpawnEntryPings(ctx)
     this.renderOrbitals(ctx)
     this.renderAutopilot(ctx)
@@ -5673,6 +5675,18 @@ export class VectorShooter {
       height: this.height,
       glow: this.allowGlow(),
       scale: this.spaceScale(),
+      worldToScreen: (x, y) => this.worldToScreen(x, y)
+    })
+  }
+
+  private renderThreatIndicators(ctx: CanvasRenderingContext2D) {
+    drawThreatIndicators({
+      ctx,
+      targets: this.enemies,
+      player: this.player,
+      width: this.width,
+      height: this.height,
+      glow: this.allowGlow(),
       worldToScreen: (x, y) => this.worldToScreen(x, y)
     })
   }
