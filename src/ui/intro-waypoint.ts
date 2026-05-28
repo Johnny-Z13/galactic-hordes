@@ -8,9 +8,37 @@ export interface IntroWaypointView {
   planetName: string
 }
 
+export interface IntroWaypointLabelAnchorInput {
+  width: number
+  height: number
+  targetScreen: { x: number; y: number }
+  fontPx: number
+  label: string
+  sublabel: string
+}
+
+export function introWaypointLabelAnchor(input: IntroWaypointLabelAnchorInput) {
+  const margin = 36
+  const cx = input.width / 2
+  const cy = input.height / 2
+  const dx = input.targetScreen.x - cx
+  const dy = input.targetScreen.y - cy
+  const angle = Math.atan2(dy, dx)
+  const halfW = input.width / 2 - margin
+  const halfH = input.height / 2 - margin
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
+  const scale = Math.min(halfW / Math.max(Math.abs(cos), 0.0001), halfH / Math.max(Math.abs(sin), 0.0001))
+  const arrowX = cx + cos * scale
+  const arrowY = cy + sin * scale
+  const longest = Math.max(input.label.length, input.sublabel.length)
+  const maxTextWidth = Math.min(input.width - 16, Math.max(96, longest * input.fontPx * 0.68))
+  const textX = Math.max(maxTextWidth / 2 + 8, Math.min(input.width - maxTextWidth / 2 - 8, arrowX))
+  return { arrowX, arrowY, textX, textY: arrowY + 22, angle, maxTextWidth }
+}
+
 export function renderIntroArrow(view: IntroWaypointView): void {
   const { ctx, width, height, targetScreen, planetName } = view
-  const margin = 36 // px inset from canvas edge for off-screen arrow
   const onScreen =
     targetScreen.x >= 0 && targetScreen.x <= width &&
     targetScreen.y >= 0 && targetScreen.y <= height
@@ -26,23 +54,17 @@ export function renderIntroArrow(view: IntroWaypointView): void {
     ctx.fillText('LAND HERE', targetScreen.x, targetScreen.y - 28)
     ctx.fillText(planetName, targetScreen.x, targetScreen.y - 14)
   } else {
-    // Off-screen: draw an arrow at the playfield edge pointing at the target.
-    const cx = width / 2
-    const cy = height / 2
-    const dx = targetScreen.x - cx
-    const dy = targetScreen.y - cy
-    const angle = Math.atan2(dy, dx)
-    const halfW = width / 2 - margin
-    const halfH = height / 2 - margin
-    const cos = Math.cos(angle)
-    const sin = Math.sin(angle)
-    // clamp-to-rect-edge: pick the axis that hits the bounding box first
-    const scale = Math.min(halfW / Math.max(Math.abs(cos), 0.0001), halfH / Math.max(Math.abs(sin), 0.0001))
-    const ax = cx + cos * scale
-    const ay = cy + sin * scale
-    ctx.translate(ax, ay)
+    const anchor = introWaypointLabelAnchor({
+      width,
+      height,
+      targetScreen,
+      fontPx: introHookConfig.waypoint.fontPx,
+      label: 'LAND HERE',
+      sublabel: planetName
+    })
+    ctx.translate(anchor.arrowX, anchor.arrowY)
     ctx.save()
-    ctx.rotate(angle)
+    ctx.rotate(anchor.angle)
     ctx.beginPath()
     ctx.moveTo(0, 0)
     ctx.lineTo(-18, -9)
@@ -51,8 +73,8 @@ export function renderIntroArrow(view: IntroWaypointView): void {
     ctx.closePath()
     ctx.fill()
     ctx.restore()
-    ctx.fillText('LAND HERE', 0, 22)
-    ctx.fillText(planetName, 0, 22 + introHookConfig.waypoint.fontPx + 2)
+    ctx.fillText('LAND HERE', anchor.textX - anchor.arrowX, 22, anchor.maxTextWidth)
+    ctx.fillText(planetName, anchor.textX - anchor.arrowX, 22 + introHookConfig.waypoint.fontPx + 2, anchor.maxTextWidth)
   }
   ctx.restore()
 }

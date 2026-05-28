@@ -161,7 +161,14 @@ import { renderCollectionScreen as uiRenderCollectionScreen } from './ui/collect
 import { showMothership as uiShowMothership, renderMothershipMetaSystems as uiRenderMothershipMetaSystems } from './ui/mothership-console'
 import { renderDebrief as uiRenderDebrief } from './ui/debrief'
 import { renderIntroArrow } from './ui/intro-waypoint'
-import { introHookConfig, isFirstEverRun, pickWaypointTarget } from './intro-hook'
+import {
+  hitFlashColor,
+  introHookConfig,
+  introSafeDriftSpawnMultiplier,
+  introSafeDriftStartingSpawns,
+  isFirstEverRun,
+  pickWaypointTarget
+} from './intro-hook'
 import type { StateHandlers } from './game-states'
 
 export type GameState = 'title' | 'mothership' | 'collection' | 'powerups' | 'sectorMap' | 'station' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
@@ -1657,8 +1664,7 @@ export class VectorShooter {
     if (!wp || !wp.active) return
     wp.timer -= dt
     if (wp.timer <= 0) {
-      wp.active = false
-      return
+      wp.timer = introHookConfig.waypoint.durationSeconds
     }
     // If the target planet has been chunk-unloaded, try to re-pick.
     const stillExists = this.planets.some((p) => p.id === wp.targetPlanetId)
@@ -5247,7 +5253,7 @@ export class VectorShooter {
       ctx.save()
       ctx.translate(p.x, p.y)
       ctx.rotate(threat.phase)
-      ctx.strokeStyle = threat.hit > 0 ? '#fff27a' : threat.color
+      ctx.strokeStyle = hitFlashColor(threat.hit > 0, threat.color)
       ctx.shadowColor = threat.color
       ctx.shadowBlur = 18
       ctx.lineWidth = 2
@@ -5290,7 +5296,7 @@ export class VectorShooter {
     if (threat.hit > 0) {
       ctx.globalCompositeOperation = 'screen'
       ctx.globalAlpha = 0.16
-      ctx.fillStyle = '#57fff3'
+      ctx.fillStyle = introHookConfig.hitFlash.color
       ctx.beginPath()
       ctx.arc(p.x, p.y - 14 + bob, threat.radius + 14, 0, TAU)
       ctx.fill()
@@ -5331,7 +5337,7 @@ export class VectorShooter {
   private renderFallbackMite(ctx: CanvasRenderingContext2D, threat: SurfaceThreat, p: Vec) {
     ctx.save()
     ctx.translate(p.x, p.y)
-    ctx.strokeStyle = threat.hit > 0 ? '#fff27a' : '#57fff3'
+    ctx.strokeStyle = hitFlashColor(threat.hit > 0, '#57fff3')
     ctx.shadowColor = '#57fff3'
     ctx.shadowBlur = 16
     ctx.lineWidth = 2
@@ -5343,7 +5349,7 @@ export class VectorShooter {
     ctx.lineTo(-22, -2)
     ctx.closePath()
     ctx.stroke()
-    ctx.strokeStyle = '#fff27a'
+    ctx.strokeStyle = hitFlashColor(threat.hit > 0, '#fff27a')
     ctx.beginPath()
     ctx.moveTo(-14, 16)
     ctx.lineTo(-34, 34)
@@ -7636,7 +7642,21 @@ export class VectorShooter {
     this.camera.x = target.x
     this.camera.y = target.y
     this.updateSpaceChunks(true)
-    for (const kind of this.sectorNodeProfile.config.enemies.startingSpawns) this.spawnEnemy(kind)
+    const introSafeDrift =
+      node.config.templateId === 'safeDrift'
+      && this.isIntroSectorNode(node)
+      && isFirstEverRun({ planets: this.stats.planets, hasDebrief: this.debrief !== null })
+      && this.stats.time === 0
+    if (introSafeDrift) {
+      this.sectorNodeProfile = {
+        ...this.sectorNodeProfile,
+        spawnMultiplier: introSafeDriftSpawnMultiplier(this.sectorNodeProfile.spawnMultiplier)
+      }
+    }
+    const startingSpawns = introSafeDrift
+      ? introSafeDriftStartingSpawns(this.sectorNodeProfile.config.enemies.startingSpawns)
+      : this.sectorNodeProfile.config.enemies.startingSpawns
+    for (const kind of startingSpawns) this.spawnEnemy(kind)
   }
 
   private completeSectorNodeViaBeacon() {

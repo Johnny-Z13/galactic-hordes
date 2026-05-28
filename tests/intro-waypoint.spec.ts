@@ -54,6 +54,34 @@ test('intro waypoint deactivates after landing', async ({ page }) => {
   expect(result.afterLanding?.active).toBe(false)
 })
 
+test('intro waypoint stays active past its reminder timer until first landing', async ({ page }) => {
+  await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
+  await page.evaluate(() => localStorage.clear())
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForFunction(() => typeof (window as unknown as { debugIntroWaypointState?: unknown }).debugIntroWaypointState === 'function', null, { timeout: READY_TIMEOUT })
+  const result = await page.evaluate(async () => {
+    const w = window as unknown as {
+      debugForceFirstEverRun: () => void
+      debugIntroWaypointState: () => { active: boolean; timer: number; targetPlanetId: string | null } | null
+      __vectorShooter: {
+        state: string
+        tickIntroWaypoint: (dt: number) => void
+      }
+    }
+    w.debugForceFirstEverRun()
+    const g = w.__vectorShooter
+    g.state = 'playing'
+    await new Promise((r) => requestAnimationFrame(() => r(null)))
+    await new Promise((r) => requestAnimationFrame(() => r(null)))
+    g.tickIntroWaypoint(31)
+    return w.debugIntroWaypointState()
+  })
+
+  expect(result?.active).toBe(true)
+  expect(result?.timer).toBeGreaterThan(0)
+  expect(result?.targetPlanetId).not.toBeNull()
+})
+
 test('intro waypoint does NOT activate on a second run (debrief present)', async ({ page }) => {
   await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
   await page.evaluate(() => localStorage.clear())

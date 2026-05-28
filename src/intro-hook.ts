@@ -13,6 +13,23 @@ export const introHookConfig = {
   firstPlanetPayoff: { cacheMultiplier: 1.4, guaranteedRelic: true, extraLoreSites: 1 }
 } as const
 
+export function introSafeDriftStartingSpawns<T>(base: readonly T[]): T[] {
+  const spawns = [...base]
+  if (base.length === 0) return spawns
+  for (let i = 0; i < introHookConfig.safeDriftFirstNode.extraStartingSpawns; i += 1) {
+    spawns.push(base[i % base.length])
+  }
+  return spawns
+}
+
+export function introSafeDriftSpawnMultiplier(base: number): number {
+  return base * introHookConfig.safeDriftFirstNode.spawnMultiplier
+}
+
+export function hitFlashColor(hit: boolean, fallback: string): string {
+  return hit ? introHookConfig.hitFlash.color : fallback
+}
+
 export interface IsFirstEverRunInput {
   planets: number
   hasDebrief: boolean

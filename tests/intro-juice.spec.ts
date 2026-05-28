@@ -1,7 +1,25 @@
 import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 
 const HARNESS_URL = 'http://127.0.0.1:5176/?harness=1'
 const READY_TIMEOUT = 10_000
+
+test('surface threat renderers use the shared red hit-flash color', () => {
+  const main = readFileSync('src/main.ts', 'utf8')
+  const surfaceThreats = main.slice(main.indexOf('private renderSurfaceThreats'), main.indexOf('private renderSurfaceAliens'))
+
+  expect(surfaceThreats).toContain('hitFlashColor(threat.hit > 0')
+  expect(surfaceThreats).not.toContain("threat.hit > 0 ? '#fff27a'")
+})
+
+test('first safeDrift node consumes intro spawn pressure helpers at runtime', () => {
+  const main = readFileSync('src/main.ts', 'utf8')
+  const prepareSectorNode = main.slice(main.indexOf('private prepareSectorNode'), main.indexOf('private completeSectorNodeViaBeacon'))
+
+  expect(prepareSectorNode).toContain("node.config.templateId === 'safeDrift'")
+  expect(prepareSectorNode).toContain('introSafeDriftSpawnMultiplier(this.sectorNodeProfile.spawnMultiplier)')
+  expect(prepareSectorNode).toContain('introSafeDriftStartingSpawns(this.sectorNodeProfile.config.enemies.startingSpawns)')
+})
 
 test('score popups appear after a kill and clear after popup lifetime elapses', async ({ page }) => {
   await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
