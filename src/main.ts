@@ -3387,13 +3387,14 @@ export class VectorShooter {
     const planet = this.planets.find((p) => Math.sqrt(dist2(p, this.player)) < p.radius + 86)
     if (!planet) {
       if (this.lockReturnBeacon()) return
-      if (this.build.nav >= powerupBalance.ship.navPlanetLockRank) {
+      const signalInstallReady = this.pendingUpgrades > 0
+      if (this.build.nav >= powerupBalance.ship.navPlanetLockRank || signalInstallReady) {
         const target = this.nearestPlanetBeacon()
         if (target) {
           this.autoNavTargetPlanetId = target.id
           this.autoNavActive = true
           this.autoNavHeading = Math.atan2(target.y - this.player.y, target.x - this.player.x)
-          this.toast(`NAV GHOST LOCKED: ${target.name}`)
+          this.toast(signalInstallReady ? `SIGNAL COURSE LOCKED: ${target.name}` : `NAV GHOST LOCKED: ${target.name}`)
           this.audio.pickup('nav')
           return
         }
@@ -5905,11 +5906,12 @@ export class VectorShooter {
     }
     const planet = this.planets.find((p) => Math.sqrt(dist2(p, this.player)) < p.radius + 86)
     const stationAvailable = Boolean(this.returnBeacon)
+    const signalInstallReady = this.pendingUpgrades > 0
     const action = touchActionLabel({
       state: 'playing',
       planetNearby: Boolean(planet),
       returnBeaconAvailable: stationAvailable,
-      canPlanetLock: Boolean(!this.autoNavTargetPlanetId && !stationAvailable && this.build.nav >= powerupBalance.ship.navPlanetLockRank && this.planets.length)
+      canPlanetLock: Boolean(!this.autoNavTargetPlanetId && !stationAvailable && (this.build.nav >= powerupBalance.ship.navPlanetLockRank || signalInstallReady) && this.planets.length)
     })
     this.ui.touchAction.classList.toggle('hidden', !action)
     this.ui.touchAction.classList.toggle('urgent', stationAvailable)

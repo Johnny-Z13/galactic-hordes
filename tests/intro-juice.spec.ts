@@ -170,3 +170,46 @@ test('banked mutation signals create visible decision feedback', async ({ page }
   expect(result.pendingUpgrades).toBe(1)
   expect(result.texts).toContain('SIGNAL READY')
 })
+
+test('banked mutation signal lets the starter ship lock a planet for install', async ({ page }) => {
+  await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
+  await page.evaluate(() => localStorage.clear())
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForFunction(
+    () => typeof (window as unknown as { __vectorShooter?: unknown }).__vectorShooter === 'object',
+    null,
+    { timeout: READY_TIMEOUT }
+  )
+  const result = await page.evaluate(() => {
+    const g = (window as unknown as { __vectorShooter: any }).__vectorShooter
+    g.state = 'playing'
+    g.pendingUpgrades = 1
+    g.build.nav = 0
+    g.player.x = 0
+    g.player.y = 0
+    g.player.landedCd = 0
+    g.returnBeacon = null
+    g.planets = [{
+      id: 'install-world',
+      name: 'Install World',
+      x: 1200,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      radius: 120,
+      color: '#57fff3',
+      reward: 'Workbench landing',
+      visited: false,
+      archetype: 'repair',
+      biome: { label: 'Signal flats', baseColor: '#57fff3', accentColor: '#fff27a', surfaceMotif: 'craters' }
+    }]
+    g.tryLand()
+    return {
+      target: g.autoNavTargetPlanetId,
+      toast: g.toastText
+    }
+  })
+
+  expect(result.target).toBe('install-world')
+  expect(result.toast).toContain('SIGNAL COURSE LOCKED')
+})

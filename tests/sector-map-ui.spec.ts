@@ -167,6 +167,8 @@ test('dock action stays visible and pulses while a station is available', () => 
 
   expect(main).toContain('const stationAvailable = Boolean(this.returnBeacon)')
   expect(main).toContain('returnBeaconAvailable: stationAvailable')
+  expect(main).toContain('const signalInstallReady = this.pendingUpgrades > 0')
+  expect(main).toContain('this.build.nav >= powerupBalance.ship.navPlanetLockRank || signalInstallReady')
   expect(main).toContain("this.ui.touchAction.classList.toggle('urgent', stationAvailable)")
   expect(css).toContain('.touch-button.urgent')
   expect(css).toContain('@keyframes dock-action-pulse')
