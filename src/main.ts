@@ -66,6 +66,7 @@ import {
 } from './sector-map'
 import { pressurePackSize, shouldRecycleEnemy } from './spawn-pressure'
 import { buildStationVisitRecord, journeyDistanceLy, stationNameForNode as stationMemoryNameForNode, type StationVisitRecord } from './station-memory'
+import { advanceSpawnEntryPings, createSpawnEntryPing, spawnEntryPingScreenPoint, type SpawnEntryPing } from './spawn-entry-feedback'
 import {
   cameraTargetFor,
   screenToWorld as spaceScreenToWorld,
@@ -685,6 +686,7 @@ export class VectorShooter {
   private particles: Particle[] = []
   private scorePopups: ScorePopup[] = []
   private shockwaves: Shockwave[] = []
+  private spawnEntryPings: SpawnEntryPing[] = []
   private spaceHazards: SpaceHazardAsteroid[] = []
   private asteroidFieldTimer = 0
   private asteroidFieldSpawnTimer = 0
@@ -2378,6 +2380,7 @@ export class VectorShooter {
       p.vy *= Math.pow(0.12, dt)
       if (p.life <= 0) this.particles.splice(i, 1)
     }
+    advanceSpawnEntryPings({ pings: this.spawnEntryPings, dt })
   }
 
   private tryDashRam(e: Enemy) {
@@ -2871,6 +2874,13 @@ export class VectorShooter {
       color: base.color,
       flash: 0
     })
+    this.spawnEntryPings.push(createSpawnEntryPing({
+      x,
+      y,
+      color: base.color,
+      giant: isGiantEnemyKind(kind)
+    }))
+    if (this.spawnEntryPings.length > 96) this.spawnEntryPings.shift()
   }
 
   private enemyDisplayName(kind: EnemyKind) {
@@ -4496,6 +4506,7 @@ export class VectorShooter {
     this.renderPickups(ctx)
     this.renderBullets(ctx)
     this.renderEnemies(ctx)
+    this.renderSpawnEntryPings(ctx)
     this.renderOrbitals(ctx)
     this.renderAutopilot(ctx)
     if (this.state !== 'dying' || this.deathTimer < 0.16) this.renderPlayer(ctx)
@@ -5848,6 +5859,53 @@ export class VectorShooter {
     })
   }
 
+  private renderSpawnEntryPings(ctx: CanvasRenderingContext2D) {
+    if (this.spawnEntryPings.length === 0) return
+    ctx.save()
+    ctx.globalCompositeOperation = this.allowGlow() ? 'lighter' : 'source-over'
+    for (const ping of this.spawnEntryPings) {
+      const screen = this.worldToScreen(ping.x, ping.y)
+      const point = spawnEntryPingScreenPoint({
+        screen,
+        width: this.width,
+        height: this.height,
+        margin: ping.giant ? 36 : 28
+      })
+      const alpha = clamp(ping.life / ping.maxLife, 0, 1)
+      const progress = 1 - alpha
+      const radius = ping.radius * (point.offscreen ? 0.58 : this.spaceScale()) * (0.62 + progress * 0.76)
+      ctx.save()
+      ctx.globalAlpha = alpha * (ping.giant ? 0.95 : 0.78)
+      ctx.strokeStyle = ping.giant ? '#ffedf1' : ping.color
+      ctx.fillStyle = ping.color
+      ctx.shadowColor = ping.color
+      ctx.shadowBlur = this.allowGlow() ? (ping.giant ? 28 : 16) : 0
+      ctx.lineWidth = ping.giant ? 2.6 : 1.8
+      ctx.beginPath()
+      ctx.arc(point.x, point.y, radius, 0, TAU)
+      ctx.stroke()
+      ctx.globalAlpha *= 0.62
+      ctx.beginPath()
+      ctx.arc(point.x, point.y, Math.max(7, radius * 0.38), 0, TAU)
+      ctx.stroke()
+      if (point.offscreen) {
+        const angle = Math.atan2(point.y - this.height / 2, point.x - this.width / 2)
+        ctx.translate(point.x, point.y)
+        ctx.rotate(angle)
+        ctx.globalAlpha = alpha
+        ctx.beginPath()
+        ctx.moveTo(16, 0)
+        ctx.lineTo(-7, -8)
+        ctx.lineTo(-3, 0)
+        ctx.lineTo(-7, 8)
+        ctx.closePath()
+        ctx.fill()
+      }
+      ctx.restore()
+    }
+    ctx.restore()
+  }
+
   private renderPickups(ctx: CanvasRenderingContext2D) {
     const highLoad = this.isHighLoad()
     const scale = this.spaceScale()
@@ -7149,6 +7207,7 @@ export class VectorShooter {
     this.pickups = []
     this.particles = []
     this.shockwaves = []
+    this.spawnEntryPings = []
     this.spaceHazards = []
     this.asteroidFieldTimer = 0
     this.asteroidFieldSpawnTimer = 0
@@ -7244,6 +7303,7 @@ export class VectorShooter {
     this.pickups = []
     this.particles = []
     this.shockwaves = []
+    this.spawnEntryPings = []
     this.spaceHazards = []
     this.asteroidFieldTimer = 0
     this.asteroidFieldSpawnTimer = 0
