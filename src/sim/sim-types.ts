@@ -119,6 +119,7 @@ export interface SimBatchSummary {
     medianFirstWorkbenchSec: number
   }
   upgrades: {
+    averageChosen: number
     chosenCounts: Record<string, number>
   }
   balanceFlags: string[]

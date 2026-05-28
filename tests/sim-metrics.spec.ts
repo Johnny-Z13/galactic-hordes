@@ -15,6 +15,7 @@ test('batch summary aggregates survival route planets economy and combat', () =>
   expect(summary.combat.averageKills).toBeGreaterThanOrEqual(0)
   expect(summary.firstMinute.averageKillsFirst60Sec).toBeGreaterThanOrEqual(0)
   expect(summary.firstMinute.medianFirstKillSec).toBeGreaterThanOrEqual(0)
+  expect(summary.upgrades.averageChosen).toBeGreaterThan(0)
 })
 
 test('batch summary flags destructive median survival', () => {

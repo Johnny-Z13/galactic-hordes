@@ -35,6 +35,10 @@ function deathCauseCounts(runs: SimRunResult[]) {
   return counts
 }
 
+function upgradeChoiceCount(run: SimRunResult) {
+  return Object.values(run.coverage.upgradesChosen).reduce((sum, count) => sum + count, 0)
+}
+
 function addTargetFlags(summary: Omit<SimBatchSummary, 'balanceFlags'>, flags: string[]) {
   const target = simBalanceTargets[summary.options.policy]
   if (summary.survival.medianSeconds < target.medianSurvivalMin) {
@@ -119,6 +123,7 @@ export function summarizeSimBatch(options: SimBatchOptions, runs: SimRunResult[]
       medianFirstWorkbenchSec: nullableMedian(runs.map((run) => run.firstMinute.firstWorkbenchSec))
     },
     upgrades: {
+      averageChosen: average(runs.map(upgradeChoiceCount)),
       chosenCounts: mergeCounts(runs.map((run) => run.coverage.upgradesChosen))
     }
   }
