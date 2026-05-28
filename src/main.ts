@@ -30,10 +30,8 @@ import {
   pickSpaceEnemyKind,
   scaledBossTimer,
   scaledSpawnTimer,
-  scaledSurfaceHp,
   spaceSpawnBalance,
-  spawnPressureMinutes,
-  surfaceThreatBalance
+  spawnPressureMinutes
 } from './game-balance'
 import { navigationCruiseScalar, navigationTrailProfile } from './navigation-cruise'
 import { canLockPlanetCourse, nearestPlanetCourseTarget, planetCourseLockToast } from './navigation-planet-lock'
@@ -115,6 +113,7 @@ import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction,
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
 import { createSurfaceResourceNodes, surfaceEventMessage } from './surface/run-setup'
 import { surfaceGunCooldown, surfaceGunDamage, surfaceGunSpeed, surfaceLowOxygenRatio, surfaceMaxHealth, surfaceMaxOxygen } from './surface/suit-stats'
+import { createGenericSurfaceThreat as createGenericSurfaceThreatFactory, createGlassMiteOracleThreat as createGlassMiteOracleThreatFactory, createPlanetBossThreat as createPlanetBossThreatFactory } from './surface/threat-factory'
 import { safeSurfaceThreatPoint, surfaceThreatKeepouts } from './surface/threat-placement'
 import { spawnSurfaceSplitterChildren, updateSurfaceThreatMotion } from './surface/threat-behavior'
 import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, updateSurfaceWaveDirector, type SurfaceWaveState, type SurfaceWaveTelegraph } from './surface/wave-director'
@@ -147,10 +146,8 @@ import { nextSpaceWaveWarning, spaceWaveId } from './space-wave-director'
 import { surfacePilotMuzzleOffset } from './surface-pilot'
 import {
   planetAlienCatalogVariants,
-  planetBossCatalogVariants,
   surfaceEventPoint as plannedSurfaceEventPoint,
   surfaceRunBalance,
-  surfaceThreatMotionBalance,
   type AlienGiftKind,
   type SurfaceResourceKind,
   type SurfaceThreatBehavior
@@ -2979,106 +2976,41 @@ export class VectorShooter {
   }
 
   private createGenericSurfaceThreat(planet: Planet, event: SurfaceEventKind, i: number, total: number, keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>): SurfaceThreat {
-    const a = (i / Math.max(1, total)) * TAU + rand(-0.25, 0.25)
-    const placement = surfaceRunBalance.threatPlacement
-    const r = event === 'horde'
-      ? rand(placement.hordeDistanceMin, placement.hordeDistanceMax)
-      : event === 'swarm'
-        ? rand(placement.swarmDistanceMin, placement.swarmDistanceMax)
-        : rand(placement.defaultDistanceMin, placement.defaultDistanceMax)
-    const point = this.safeSurfaceThreatPoint({
-      x: surfaceRunBalance.world.ship.x + 20 + Math.cos(a) * r,
-      y: surfaceRunBalance.world.ship.y + Math.sin(a) * r
-    }, keepouts, event === 'swarm' || event === 'horde' ? placement.swarmClearance : placement.defaultClearance, a)
-    const id = event === 'horde'
-      ? 'enemy:surface:horde'
-      : event === 'swarm'
-        ? 'enemy:surface:swarm'
-        : planet.name === 'NULL CATHEDRAL'
-          ? 'enemy:surface:null-cathedral'
-          : 'enemy:surface:standard'
-    const title = event === 'horde'
-      ? 'Horde Larva'
-      : event === 'swarm'
-        ? 'Swarm Skitterer'
-        : planet.name === 'NULL CATHEDRAL'
-          ? 'Cathedral Sentinel'
-          : 'Surface Crawler'
-    const color = event === 'horde' ? '#ff61d8' : planet.name === 'RED MERCY' || planet.name === 'NULL CATHEDRAL' ? '#ff5d73' : '#fff27a'
-    this.recordEnemyDiscovery(id, title, `${planet.name} surface contact.`, 'Planet surface telemetry', color)
-    return {
-      x: point.x,
-      y: point.y,
-      vx: 0,
-      vy: 0,
-      hp: scaledSurfaceHp(
-        event === 'horde'
-          ? surfaceThreatBalance.generic.hordeBaseHp + this.stats.time * surfaceThreatBalance.generic.hordeHpPerSecond
-          : event === 'swarm'
-            ? surfaceThreatBalance.generic.swarmBaseHp + this.stats.time * surfaceThreatBalance.generic.swarmHpPerSecond
-            : planet.name === 'NULL CATHEDRAL'
-              ? surfaceThreatBalance.generic.specialBaseHp
-              : surfaceThreatBalance.generic.baseHp
-      ),
-      radius: event === 'horde'
-        ? surfaceThreatBalance.generic.hordeRadius
-        : event === 'swarm'
-          ? surfaceThreatBalance.generic.swarmRadius
-          : planet.name === 'NULL CATHEDRAL'
-            ? surfaceThreatBalance.generic.specialRadius
-            : surfaceThreatBalance.generic.radius,
-      phase: rand(0, TAU),
-      color,
-      hit: 0,
-      behavior: 'chaser'
-    }
+    const { threat, discovery } = createGenericSurfaceThreatFactory({
+      planet,
+      event,
+      index: i,
+      total,
+      keepouts,
+      time: this.stats.time,
+      randomRange: rand
+    })
+    this.recordEnemyDiscovery(discovery.id, discovery.title, discovery.detail, discovery.source, discovery.color)
+    return threat
   }
 
   private createPlanetBossThreat(planet: Planet, crowded: boolean, keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>): SurfaceThreat {
-    const seed = hashString(planet.id, this.stats.planets + Math.floor(this.stats.time / 60))
-    const row = seed % planetBossCatalogVariants.length
-    const variant = planetBossCatalogVariants[row]
-    const angle = ((seed >>> 4) / 0xfffffff) * TAU
-    const distance = crowded ? rand(280, 420) : rand(170, 320)
-    const point = this.safeSurfaceThreatPoint({
-      x: surfaceRunBalance.world.ship.x + 20 + Math.cos(angle) * distance,
-      y: surfaceRunBalance.world.ship.y + Math.sin(angle) * distance
-    }, keepouts, surfaceRunBalance.threatPlacement.bossClearance, angle)
-    this.recordEnemyDiscovery(`enemy:surface:boss:${row}`, variant.title, `${planet.name} ${variant.note}.`, 'Boss catalog telemetry', variant.color)
-    return {
-      x: point.x,
-      y: point.y,
-      vx: 0,
-      vy: 0,
-      hp: scaledSurfaceHp(surfaceThreatBalance.boss.baseHp + this.stats.time * surfaceThreatBalance.boss.hpPerSecond + this.stats.level * surfaceThreatBalance.boss.hpPerLevel),
-      radius: surfaceThreatBalance.boss.radius,
-      phase: rand(0, TAU),
-      color: variant.color,
-      hit: 0,
-      sprite: 'bossCatalog',
-      spriteRow: row,
-      boss: true,
-      behavior: variant.behavior,
-      behaviorCooldown: rand(surfaceThreatMotionBalance.blink.cooldownMin, surfaceThreatMotionBalance.blink.cooldownMax)
-    }
+    const { threat, discovery } = createPlanetBossThreatFactory({
+      planet,
+      crowded,
+      keepouts,
+      time: this.stats.time,
+      level: this.stats.level,
+      planetsVisited: this.stats.planets,
+      randomRange: rand
+    })
+    this.recordEnemyDiscovery(discovery.id, discovery.title, discovery.detail, discovery.source, discovery.color)
+    return threat
   }
 
   private createGlassMiteOracleThreat(keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>): SurfaceThreat {
-    const point = this.safeSurfaceThreatPoint({ x: rand(990, 1080), y: rand(760, 880) }, keepouts, surfaceRunBalance.threatPlacement.oracleClearance, Math.PI * 0.25)
-    this.recordEnemyDiscovery('enemy:surface:oracle', 'Glass Mite Oracle', 'Rare crystalline oracle encountered on a strange surface.', 'Planet surface telemetry', '#57fff3')
-    return {
-      x: point.x,
-      y: point.y,
-      vx: 0,
-      vy: 0,
-      hp: scaledSurfaceHp(surfaceThreatBalance.oracle.baseHp + this.stats.time * surfaceThreatBalance.oracle.hpPerSecond),
-      radius: surfaceThreatBalance.oracle.radius,
-      phase: rand(0, TAU),
-      color: '#57fff3',
-      hit: 0,
-      sprite: 'glassMiteOracle',
-      behavior: 'chaser'
-    }
+    const { threat, discovery } = createGlassMiteOracleThreatFactory({
+      keepouts,
+      time: this.stats.time,
+      randomRange: rand
+    })
+    this.recordEnemyDiscovery(discovery.id, discovery.title, discovery.detail, discovery.source, discovery.color)
+    return threat
   }
 
   private createSurfaceAliens(planet: Planet, event: SurfaceEventKind, threatCount: number, scenario: SurfaceScenarioKind, forcedCount?: number): SurfaceAlien[] {

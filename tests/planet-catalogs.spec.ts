@@ -41,6 +41,7 @@ test('planet sprite atlases have one row per catalog variant and four frames', (
 
 test('new planet boss behaviors are tuned from surface balance config', () => {
   const source = readFileSync('src/main.ts', 'utf8')
+  const threatFactorySource = readFileSync('src/surface/threat-factory.ts', 'utf8')
   const threatBehaviorSource = readFileSync('src/surface/threat-behavior.ts', 'utf8')
 
   expect(surfaceThreatMotionBalance.orbit.tangent).toBeGreaterThan(0)
@@ -49,5 +50,5 @@ test('new planet boss behaviors are tuned from surface balance config', () => {
   expect(threatBehaviorSource).toContain("behavior === 'orbiter'")
   expect(threatBehaviorSource).toContain("behavior === 'blinker'")
   expect(source).toContain("threat.behavior === 'splitter'")
-  expect(source).toContain('surfaceThreatMotionBalance')
+  expect(threatFactorySource).toContain('surfaceThreatMotionBalance')
 })
