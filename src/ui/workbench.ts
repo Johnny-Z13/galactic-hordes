@@ -276,6 +276,10 @@ export function workbenchReadyRows(self: VectorShooter, rows: Array<WorkbenchUpg
   return rows.filter((row) => row.status === 'standby' && !workbenchBayBalanceGate(self, row.upgrade))
 }
 
+export function workbenchTopReadyRows(self: VectorShooter, rows: Array<WorkbenchUpgradeRow<Upgrade>>) {
+  return workbenchReadyRows(self, rows).slice(0, workbenchTopOfferCap)
+}
+
 export function renderWorkbenchSignalBriefing(self: VectorShooter, rows: Array<WorkbenchUpgradeRow<Upgrade>>) {
   const briefing = document.createElement('div')
   briefing.className = 'workbench-signal-briefing'
@@ -300,7 +304,7 @@ export function renderWorkbenchSignalBriefing(self: VectorShooter, rows: Array<W
 
   const offers = document.createElement('div')
   offers.className = 'manifest-grid workbench-current-offers'
-  for (const row of readyRows.slice(0, workbenchTopOfferCap)) offers.append(renderWorkbenchUpgradeChip(self, row.upgrade))
+  for (const row of workbenchTopReadyRows(self, rows)) offers.append(renderWorkbenchUpgradeChip(self, row.upgrade))
   briefing.append(offers)
   return briefing
 }
@@ -520,6 +524,7 @@ export function renderWorkbenchInstallSurface(self: VectorShooter) {
   if (self['expandedWorkbenchBay'] && !workbenchBayDefinitions.some((bay) => bay.id === self['expandedWorkbenchBay'])) self['expandedWorkbenchBay'] = null
 
   const rows = workbenchUpgradeRows(upgrades, self['build'], [], workbenchExtraUnlockedIds(self))
+  for (const row of workbenchTopReadyRows(self, rows)) offeredUpgradeChoices.set(row.upgrade.id, { kind: 'upgrade', upgrade: row.upgrade })
 
   const bayShell = document.createElement('div')
   bayShell.className = 'workbench-bay-shell'
