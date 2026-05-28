@@ -1434,7 +1434,12 @@ export class VectorShooter {
     window.addEventListener('resize', () => this.resize())
     document.addEventListener('click', (event) => {
       const target = event.target as HTMLElement | null
-      if (!target?.closest('button')) return
+      const button = target?.closest('button') as HTMLButtonElement | null
+      if (!button || button.disabled) return
+      // First click on the title screen is the user gesture that unlocks Web Audio.
+      // Without this, the very first menu clicks make no sound because unlock()
+      // is only otherwise called from in-game input paths.
+      this.audio.unlock()
       const sample = `ui-button-${(this.uiClickSampleIndex % 3) + 1}`
       this.uiClickSampleIndex += 1
       this.audio.playSample(sample, { gain: 0.45 })
