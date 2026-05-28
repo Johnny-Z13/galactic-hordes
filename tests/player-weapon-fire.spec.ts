@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { fireOptionOrbs, fireRearGun, spawnChainBolt } from '../src/space-player-weapons'
+import { fireOptionOrbs, firePrimaryWeapon, fireRearGun, spawnChainBolt } from '../src/space-player-weapons'
 import type { Bullet, Enemy } from '../src/main-types'
 
 const player = { x: 100, y: 50, vx: 10, vy: -4, aimAngle: 0 }
@@ -90,16 +90,54 @@ test('chain bolt helper jumps from the hit enemy to the nearest valid target', (
   expect(bullets[1].damage).toBeCloseTo(11.6)
 })
 
+test('primary weapon helper emits pulse volleys, rail shots, and needles', () => {
+  const bullets: Bullet[] = []
+
+  const result = firePrimaryWeapon({
+    bullets,
+    player,
+    build: {
+      rapid: 5,
+      split: 1,
+      rail: 3,
+      rift: 2,
+      heat: 0,
+      echo: 0,
+      pierce: 2,
+      chain: 1
+    },
+    evolved: new Set(['chain']),
+    limitBreaks: { cooldown: 0, might: 0, speed: 0, amount: 0 },
+    statsLevel: 4,
+    fireSerial: 10,
+    width: 1280,
+    height: 720,
+    scale: 1,
+    maxBullets: 99
+  })
+
+  expect(result).toMatchObject({ nextFireSerial: 11, rapid: 5, rayCount: 2, rail: true, needle: true })
+  expect(result.fireCooldown).toBeCloseTo(0.25)
+  expect(result.damage).toBeCloseTo(24.8)
+  expect(result.speed).toBe(650)
+  expect(bullets).toHaveLength(5)
+  expect(bullets[0]).toMatchObject({ rail: true, color: '#fff27a', pierce: 9, chain: 4 })
+  expect(bullets[0].life).toBeGreaterThan(0)
+  expect(bullets[4]).toMatchObject({ rail: true, color: '#b990ff', pierce: 6, chain: 2 })
+})
+
 test('secondary player weapon firing lives outside the main game class', () => {
   const main = readFileSync('src/main.ts', 'utf8')
   const weapons = readFileSync('src/space-player-weapons.ts', 'utf8')
 
+  expect(weapons).toContain('export function firePrimaryWeapon')
   expect(weapons).toContain('export function optionOrbAngle')
   expect(weapons).toContain('export function optionOrbWorldPosition')
   expect(weapons).toContain('export function fireOptionOrbs')
   expect(weapons).toContain('export function fireRearGun')
   expect(weapons).toContain('export function spawnChainBolt')
   expect(main).toContain("from './space-player-weapons'")
+  expect(main).toContain('firePrimaryWeapon(')
   expect(main).not.toContain('private optionOrbAngle(')
   expect(main).not.toContain('private optionOrbWorldPosition(')
   expect(main).not.toContain('private fireOptionOrbs(')

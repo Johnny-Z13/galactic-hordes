@@ -1,7 +1,8 @@
 import type { Bullet, Enemy } from './main-types'
-import { powerupBalance } from './powerup-balance'
+import { clamp } from './math-utils'
+import { powerupBalance, type UpgradeId } from './powerup-balance'
 import { spaceProjectileLifeForOffscreenTravel } from './space-camera'
-import { optionOrbProfile, rearGunProfile } from './weapon-signatures'
+import { optionOrbProfile, pulseVolleyCount, rearGunProfile } from './weapon-signatures'
 
 export interface WeaponPlayerState {
   x: number
@@ -47,6 +48,39 @@ export interface ChainBoltInput {
   chainRank: number
   evolvedChain: boolean
   maxBullets: number
+}
+
+export type PrimaryWeaponBuildState = Pick<Record<UpgradeId, number>, 'rapid' | 'split' | 'rail' | 'rift' | 'heat' | 'echo' | 'pierce' | 'chain'>
+
+export interface WeaponLimitBreakState {
+  cooldown: number
+  might: number
+  speed: number
+  amount: number
+}
+
+export interface PrimaryWeaponFireInput extends WeaponViewportInput {
+  bullets: Bullet[]
+  player: WeaponPlayerState
+  build: PrimaryWeaponBuildState
+  evolved: { has(id: string): boolean }
+  limitBreaks: WeaponLimitBreakState
+  statsLevel: number
+  fireSerial: number
+  maxBullets: number
+  glassRisk?: number
+}
+
+export interface PrimaryWeaponFireResult {
+  fireCooldown: number
+  damage: number
+  speed: number
+  rayCount: number
+  rail: boolean
+  needle: boolean
+  rapid: number
+  fireSerial: number
+  nextFireSerial: number
 }
 
 export function optionOrbAngle(time: number, index: number, count: number) {
@@ -128,6 +162,129 @@ export function fireRearGun(input: RearGunFireInput) {
       rail: false,
       chain: 0
     })
+  }
+}
+
+export function firePrimaryWeapon(input: PrimaryWeaponFireInput): PrimaryWeaponFireResult {
+  if (input.bullets.length > input.maxBullets) input.bullets.splice(0, input.bullets.length - input.maxBullets)
+  const rapid = input.build.rapid
+  const choir = input.evolved.has('rapid')
+  const shatter = input.evolved.has('split')
+  const solar = input.evolved.has('rail')
+  const resonance = input.evolved.has('echo')
+  const storm = input.evolved.has('chain')
+  const blackNeedle = input.evolved.has('rift')
+  const glassRisk = input.glassRisk ?? 1
+  const fireCooldown = clamp(
+    (
+      powerupBalance.weapon.baseFireCooldown
+      - rapid * powerupBalance.weapon.rapidCooldownPerRank
+      - input.build.heat * powerupBalance.weapon.heatCooldownPerRank
+      - input.limitBreaks.cooldown * powerupBalance.weapon.limitCooldownPerRank
+    ) * (choir ? powerupBalance.weapon.choirCooldownMultiplier : 1),
+    powerupBalance.weapon.minFireCooldown,
+    powerupBalance.weapon.baseFireCooldown
+  )
+  const damage = (
+    powerupBalance.weapon.baseDamage
+    + input.statsLevel * powerupBalance.weapon.damagePerLevel
+    + input.build.rail * powerupBalance.weapon.railDamagePerRank
+    + input.build.rift * powerupBalance.weapon.riftDamagePerRank
+    + input.limitBreaks.might * powerupBalance.weapon.limitMightDamagePerRank
+  ) * glassRisk
+  const speed = powerupBalance.weapon.baseProjectileSpeed
+    + input.build.echo * powerupBalance.weapon.echoProjectileSpeedPerRank
+    + input.build.heat * powerupBalance.weapon.heatProjectileSpeedPerRank
+    + input.limitBreaks.speed * powerupBalance.weapon.limitSpeedProjectileSpeedPerRank
+  const rayCount = 1 + input.build.split + (shatter ? powerupBalance.weapon.shatterExtraRays : 0) + Math.floor(input.limitBreaks.amount / powerupBalance.weapon.limitAmountRanksPerExtraRay)
+  const spread = rayCount === 1 ? 0 : clamp(
+    powerupBalance.weapon.spreadBase + rayCount * powerupBalance.weapon.spreadPerRay,
+    powerupBalance.weapon.spreadBase,
+    powerupBalance.weapon.spreadMax
+  )
+  const railInterval = Math.max((solar ? powerupBalance.weapon.solarRailBaseInterval : powerupBalance.weapon.railBaseInterval) - input.build.rail, powerupBalance.weapon.railMinimumInterval)
+  const needleInterval = Math.max((blackNeedle ? powerupBalance.weapon.blackNeedleBaseInterval : powerupBalance.weapon.needleBaseInterval) - input.build.rift, powerupBalance.weapon.needleMinimumInterval)
+  const rail = input.build.rail > 0 && input.fireSerial % railInterval === 0
+  const needle = input.build.rift > 0 && input.fireSerial % needleInterval === 0
+  const volleys = pulseVolleyCount({ rapidRank: rapid, fireSerial: input.fireSerial, evolved: choir })
+  const cadenceDouble = volleys > 1 && !choir
+  const pulseColor = storm ? '#8fff7d' : choir ? '#f6fffe' : cadenceDouble ? '#d7fff7' : input.build.heat >= 3 ? '#ff9d5c' : input.build.pierce >= 3 ? '#70a8ff' : '#57fff3'
+
+  for (let volleyIndex = 0; volleyIndex < volleys; volleyIndex += 1) {
+    for (let rayIndex = 0; rayIndex < rayCount; rayIndex += 1) {
+      const offset = (rayCount === 1 ? 0 : (rayIndex - (rayCount - 1) / 2) * spread) + (volleys === 1 ? 0 : (volleyIndex - 0.5) * powerupBalance.weapon.volleyOffset)
+      const angle = input.player.aimAngle + offset
+      const vx = Math.cos(angle) * speed + input.player.vx * 0.14
+      const vy = Math.sin(angle) * speed + input.player.vy * 0.14
+      const bulletSpeed = Math.hypot(vx, vy)
+      const bulletLife = rail
+        ? spaceProjectileLifeForOffscreenTravel(
+          powerupBalance.weapon.railBaseLife + (solar ? powerupBalance.weapon.solarRailLifeBonus : 0),
+          bulletSpeed,
+          input.width,
+          input.height,
+          input.scale
+        )
+        : spaceProjectileLifeForOffscreenTravel(
+          powerupBalance.weapon.pulseBaseLife + input.build.echo * powerupBalance.weapon.echoLifePerRank + (resonance ? powerupBalance.weapon.resonanceLifeBonus : 0),
+          bulletSpeed,
+          input.width,
+          input.height,
+          input.scale
+        )
+      input.bullets.push({
+        x: input.player.x + Math.cos(angle) * 22,
+        y: input.player.y + Math.sin(angle) * 22,
+        vx,
+        vy,
+        life: bulletLife,
+        damage: rail
+          ? damage * (solar ? powerupBalance.weapon.solarRailDamageMultiplier : powerupBalance.weapon.railDamageMultiplier)
+          : damage * (shatter && rayIndex !== Math.floor(rayCount / 2) ? powerupBalance.weapon.shatterSideRayDamageMultiplier : 1),
+        radius: rail ? (solar ? 7 : 5) : 3.5,
+        color: rail ? '#fff27a' : needle ? '#b990ff' : pulseColor,
+        pierce: rail
+          ? powerupBalance.weapon.railPierceBase + input.build.pierce + (solar ? powerupBalance.weapon.solarRailPierceBonus : 0)
+          : input.build.pierce + (resonance ? powerupBalance.weapon.resonancePierceBonus : 0),
+        rail,
+        chain: input.build.chain + (storm ? powerupBalance.weapon.stormChainBonus : 0)
+      })
+    }
+  }
+
+  if (needle) {
+    const angle = input.player.aimAngle
+    input.bullets.push({
+      x: input.player.x + Math.cos(angle) * 24,
+      y: input.player.y + Math.sin(angle) * 24,
+      vx: Math.cos(angle) * (speed * powerupBalance.weapon.needleSpeedMultiplier),
+      vy: Math.sin(angle) * (speed * powerupBalance.weapon.needleSpeedMultiplier),
+      life: spaceProjectileLifeForOffscreenTravel(
+        powerupBalance.weapon.needleLife,
+        speed * powerupBalance.weapon.needleSpeedMultiplier,
+        input.width,
+        input.height,
+        input.scale
+      ),
+      damage: damage * (blackNeedle ? powerupBalance.weapon.blackNeedleDamageMultiplier : powerupBalance.weapon.needleDamageMultiplier),
+      radius: blackNeedle ? powerupBalance.weapon.blackNeedleRadius : powerupBalance.weapon.needleRadius,
+      color: blackNeedle ? '#ffffff' : '#b990ff',
+      pierce: powerupBalance.weapon.needlePierceBase + input.build.rift + (blackNeedle ? powerupBalance.weapon.blackNeedlePierceBonus : 0),
+      rail: true,
+      chain: storm ? powerupBalance.weapon.stormNeedleChainBonus : 0
+    })
+  }
+
+  return {
+    fireCooldown,
+    damage,
+    speed,
+    rayCount,
+    rail,
+    needle,
+    rapid,
+    fireSerial: input.fireSerial,
+    nextFireSerial: input.fireSerial + 1
   }
 }
 
