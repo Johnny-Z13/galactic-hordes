@@ -29,6 +29,7 @@ test('css styles critical health fill as a persistent warning', () => {
   const css = readFileSync('src/style.css', 'utf8')
 
   expect(css).toContain('.hud-meter-fill.health.critical')
+  expect(css).toContain('.hud-meter:has(.hud-meter-fill.health.critical)')
   expect(css).toContain('@keyframes critical-health-pulse')
 })
 
@@ -36,5 +37,6 @@ test('css styles critical oxygen fill as a persistent warning', () => {
   const css = readFileSync('src/style.css', 'utf8')
 
   expect(css).toContain('.hud-meter-fill.xp.critical')
+  expect(css).toContain('.hud-meter:has(.hud-meter-fill.xp.critical)')
   expect(css).toContain('@keyframes critical-oxygen-pulse')
 })
