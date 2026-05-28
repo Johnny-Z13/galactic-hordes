@@ -1,5 +1,6 @@
 import { clamp, formatTime, type VectorShooter } from '../main'
 import { dist2 } from '../math-utils'
+import { mutationXpReadout } from '../mutation-progress'
 import { runObjectiveReadout } from '../run-objective-readout'
 import { currentSectorNode } from '../sector-map'
 import { weaponHudReadout } from '../weapon-signatures'
@@ -76,7 +77,7 @@ export function updateHud(self: VectorShooter) {
   } else {
     self['ui'].hullLabel.textContent = 'HULL'
     self['ui'].xpLabel.textContent = 'XP'
-    self['ui'].level.textContent = `LV ${self['stats'].level}`
+    self['ui'].level.textContent = mutationXpReadout(self['stats'])
     const shield = self['player'].maxShield > 0 ? ` +${Math.floor(self['player'].shield)}` : ''
     self['ui'].hull.textContent = `${Math.ceil(Math.max(0, self['player'].hull))}/${self['player'].maxHull}${shield}`
     const hullRatio = Math.max(0, self['player'].hull) / self['player'].maxHull

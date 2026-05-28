@@ -17,3 +17,7 @@ export function applyMutationXp(progress: MutationProgress, gainedXp: number) {
   }
   return levelsGained
 }
+
+export function mutationXpReadout(progress: MutationProgress) {
+  return `LV ${progress.level} // ${Math.floor(progress.xp)}/${Math.floor(progress.nextXp)}`
+}
