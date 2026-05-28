@@ -1,3 +1,5 @@
+import type { SpaceWaveWarning } from './space-wave-director'
+
 type RunObjectiveState = 'playing' | 'surface' | string
 type SurfaceObjectiveKind = 'jackpot' | 'swarm' | 'relic' | 'repair' | 'volatile' | 'standard' | 'horde' | 'cache' | null
 
@@ -9,6 +11,7 @@ export interface RunObjectiveReadoutInput {
   returnBeaconDistance: number | null
   surfaceEvent: SurfaceObjectiveKind
   pendingUpgrades: number
+  waveWarning?: SpaceWaveWarning | null
 }
 
 export interface RunObjectiveReadout {
@@ -34,6 +37,13 @@ export function runObjectiveReadout(input: RunObjectiveReadoutInput): RunObjecti
     return {
       label: 'SIGNAL',
       text: `${input.pendingUpgrades} mutation signal${input.pendingUpgrades === 1 ? '' : 's'} ready // dock or land to install`
+    }
+  }
+  if (input.waveWarning) {
+    const contacts = input.waveWarning.enemyTotal === 1 ? 'contact' : 'contacts'
+    return {
+      label: 'WAVE',
+      text: `${input.waveWarning.label} in ${Math.ceil(input.waveWarning.secondsUntil)}s // ${input.waveWarning.enemyTotal} ${contacts}`
     }
   }
   const secondsUntilStation = Math.max(0, Math.ceil(input.nextReturnBeaconAt - input.elapsed))

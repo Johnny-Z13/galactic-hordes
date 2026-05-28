@@ -3,7 +3,9 @@ import { dist2 } from '../math-utils'
 import { mutationSignalAlmostReady, mutationXpReadout } from '../mutation-progress'
 import { runObjectiveReadout } from '../run-objective-readout'
 import { currentSectorNode } from '../sector-map'
+import { nextSpaceWaveWarning } from '../space-wave-director'
 import { weaponHudReadout } from '../weapon-signatures'
+import { spaceSpawnBalance } from '../game-balance'
 import { vitalCriticalClass } from './vital-meter'
 
 export function makeHud(self: VectorShooter) {
@@ -49,10 +51,18 @@ export function updateHud(self: VectorShooter) {
     nextReturnBeaconAt: self['nextReturnBeaconAt'],
     returnBeaconDistance,
     surfaceEvent: self['surface']?.event ?? null,
-    pendingUpgrades: self['pendingUpgrades']
+    pendingUpgrades: self['pendingUpgrades'],
+    waveWarning: self['state'] === 'playing' ? nextSpaceWaveWarning({
+      nodeId: self['sectorMap'].currentNodeId,
+      waves: self['sectorNodeProfile'].config.waves,
+      firedWaveIds: self['firedSectorWaves'],
+      elapsed: self['stats'].time - self['sectorNodeStartedAt'],
+      warningSeconds: spaceSpawnBalance.sectorWaveWarningSeconds
+    }) : null
   })
   const objectiveLabel = self['ui'].objective.parentElement?.querySelector('.hud-label')
   self['ui'].objective.parentElement?.classList.toggle('signal-ready', objectiveReadout.label === 'SIGNAL')
+  self['ui'].objective.parentElement?.classList.toggle('threat-inbound', objectiveReadout.label === 'WAVE')
   if (objectiveLabel) objectiveLabel.textContent = objectiveReadout.label
   self['ui'].objective.textContent = objectiveReadout.text
   const beaconText = self['returnBeacon']

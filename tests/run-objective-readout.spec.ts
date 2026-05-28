@@ -47,6 +47,28 @@ test('run objective readout surfaces banked mutation signals during flight', () 
   })
 })
 
+test('run objective readout surfaces imminent sector waves as the next threat beat', () => {
+  expect(runObjectiveReadout({
+    state: 'playing',
+    routeObjective: 'Recover, scout, and reach the next route branch.',
+    elapsed: 58,
+    nextReturnBeaconAt: 120,
+    returnBeaconDistance: null,
+    surfaceEvent: null,
+    pendingUpgrades: 0,
+    waveWarning: {
+      id: 'node-a:Knife wing:65',
+      label: 'Knife wing',
+      secondsUntil: 6.2,
+      enemyTotal: 4,
+      progress: 0.48
+    }
+  })).toEqual({
+    label: 'WAVE',
+    text: 'Knife wing in 7s // 4 contacts'
+  })
+})
+
 test('run objective readout keeps dock guidance while noting ready mutation signals', () => {
   expect(runObjectiveReadout({
     state: 'playing',
@@ -84,13 +106,17 @@ test('hud wires route objective readout through a dedicated chip', () => {
 
   expect(main).toContain('objective: document.createElement')
   expect(hud).toContain("import { runObjectiveReadout } from '../run-objective-readout'")
+  expect(hud).toContain("import { nextSpaceWaveWarning } from '../space-wave-director'")
   expect(hud).toContain("const objective = chip('ROUTE', self['ui'].objective, 'objective wide')")
   expect(hud).toContain('const objectiveReadout = runObjectiveReadout({')
+  expect(hud).toContain('waveWarning: self[\'state\'] === \'playing\' ? nextSpaceWaveWarning({')
   expect(hud).toContain("pendingUpgrades: self['pendingUpgrades']")
   expect(hud).toContain("self['ui'].objective.parentElement?.querySelector('.hud-label')")
   expect(hud).toContain("classList.toggle('signal-ready', objectiveReadout.label === 'SIGNAL')")
+  expect(hud).toContain("classList.toggle('threat-inbound', objectiveReadout.label === 'WAVE')")
   expect(css).toContain('.hud-chip.objective')
   expect(css).toContain('.hud-chip.objective.signal-ready')
+  expect(css).toContain('.hud-chip.objective.threat-inbound')
   expect(css).toContain('.hud-chip.objective .hud-value')
   expect(css).toContain('@media (max-width: 920px)')
   expect(css).toContain('.hud-chip.objective {')
