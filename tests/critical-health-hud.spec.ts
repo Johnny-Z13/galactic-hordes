@@ -17,9 +17,24 @@ test('main toggles critical health on ship and surface hud fills', () => {
   expect(source).toContain('Math.max(0, this.player.hull) / this.player.maxHull')
 })
 
+test('main toggles critical oxygen on the surface o2 hud fill', () => {
+  const source = readFileSync('src/main.ts', 'utf8')
+
+  expect(source).toContain('const oxygenRatio = this.surface.pilot.oxygen / this.surface.pilot.maxOxygen')
+  expect(source).toContain("this.ui.xpFill.classList.toggle('critical', vitalCriticalClass(oxygenRatio) === 'critical')")
+  expect(source).toContain("this.ui.xpFill.classList.toggle('critical', false)")
+})
+
 test('css styles critical health fill as a persistent warning', () => {
   const css = readFileSync('src/style.css', 'utf8')
 
   expect(css).toContain('.hud-meter-fill.health.critical')
   expect(css).toContain('@keyframes critical-health-pulse')
+})
+
+test('css styles critical oxygen fill as a persistent warning', () => {
+  const css = readFileSync('src/style.css', 'utf8')
+
+  expect(css).toContain('.hud-meter-fill.xp.critical')
+  expect(css).toContain('@keyframes critical-oxygen-pulse')
 })

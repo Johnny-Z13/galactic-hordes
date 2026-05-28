@@ -6336,9 +6336,11 @@ export class VectorShooter {
       this.ui.hull.textContent = `${Math.ceil(this.surface.pilot.health)}/${this.surface.pilot.maxHealth}`
       this.ui.level.textContent = `${Math.ceil(this.surface.pilot.oxygen)}s`
       const healthRatio = this.surface.pilot.health / this.surface.pilot.maxHealth
+      const oxygenRatio = this.surface.pilot.oxygen / this.surface.pilot.maxOxygen
       this.ui.hullFill.style.width = `${clamp(healthRatio * 100, 0, 100)}%`
       this.ui.hullFill.classList.toggle('critical', vitalCriticalClass(healthRatio) === 'critical')
-      this.ui.xpFill.style.width = `${clamp((this.surface.pilot.oxygen / this.surface.pilot.maxOxygen) * 100, 0, 100)}%`
+      this.ui.xpFill.style.width = `${clamp(oxygenRatio * 100, 0, 100)}%`
+      this.ui.xpFill.classList.toggle('critical', vitalCriticalClass(oxygenRatio) === 'critical')
     } else {
       this.ui.hullLabel.textContent = 'HULL'
       this.ui.xpLabel.textContent = 'XP'
@@ -6349,6 +6351,7 @@ export class VectorShooter {
       this.ui.hullFill.style.width = `${clamp(hullRatio * 100, 0, 100)}%`
       this.ui.hullFill.classList.toggle('critical', vitalCriticalClass(hullRatio) === 'critical')
       this.ui.xpFill.style.width = `${clamp((this.stats.xp / this.stats.nextXp) * 100, 0, 100)}%`
+      this.ui.xpFill.classList.toggle('critical', false)
     }
     this.updateTouchHud()
     this.updatePerfHud()
