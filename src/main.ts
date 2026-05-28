@@ -749,6 +749,7 @@ export class VectorShooter {
     resources: document.createElement('span'),
     weapon: document.createElement('span'),
     hullFill: document.createElement('div'),
+    shieldFill: document.createElement('div'),
     xpFill: document.createElement('div'),
     toast: document.createElement('div'),
     perf: document.createElement('div'),
@@ -834,7 +835,7 @@ export class VectorShooter {
     top.className = 'topbar'
     const meters = document.createElement('div')
     meters.className = 'hud-meters'
-    meters.append(this.meter('HULL', this.ui.hull, this.ui.hullFill, 'health', this.ui.hullLabel), this.meter('XP', this.ui.level, this.ui.xpFill, 'xp', this.ui.xpLabel))
+    meters.append(this.meter('HULL', this.ui.hull, this.ui.hullFill, 'health', this.ui.hullLabel, this.ui.shieldFill), this.meter('XP', this.ui.level, this.ui.xpFill, 'xp', this.ui.xpLabel))
     const left = document.createElement('div')
     left.className = 'hud-cluster hud-cluster-left'
     left.append(this.chip('TIME', this.ui.time), this.chip('SCORE', this.ui.score))
@@ -846,7 +847,7 @@ export class VectorShooter {
     return hud
   }
 
-  private meter(label: string, value: HTMLElement, fill: HTMLElement, tone: string, labelEl = document.createElement('span')) {
+  private meter(label: string, value: HTMLElement, fill: HTMLElement, tone: string, labelEl = document.createElement('span'), shieldFill?: HTMLElement) {
     const meter = document.createElement('div')
     meter.className = `hud-meter ${tone}`
     const meta = document.createElement('div')
@@ -857,7 +858,9 @@ export class VectorShooter {
     const bar = document.createElement('div')
     bar.className = 'hud-meter-bar'
     fill.className = `hud-meter-fill ${tone}`
+    if (shieldFill) shieldFill.className = 'hud-meter-shield-fill'
     bar.append(fill)
+    if (shieldFill) bar.append(shieldFill)
     meter.append(meta, bar)
     return meter
   }
@@ -6340,6 +6343,9 @@ export class VectorShooter {
       const oxygenRatio = this.surface.pilot.oxygen / this.surface.pilot.maxOxygen
       this.ui.hullFill.style.width = `${clamp(healthRatio * 100, 0, 100)}%`
       this.ui.hullFill.classList.toggle('critical', vitalCriticalClass(healthRatio) === 'critical')
+      this.ui.shieldFill.style.width = '0%'
+      this.ui.shieldFill.classList.toggle('visible', false)
+      this.ui.shieldFill.classList.toggle('depleted', false)
       this.ui.xpFill.style.width = `${clamp(oxygenRatio * 100, 0, 100)}%`
       this.ui.xpFill.classList.toggle('critical', vitalCriticalClass(oxygenRatio) === 'critical')
     } else {
@@ -6349,8 +6355,12 @@ export class VectorShooter {
       const shield = this.player.maxShield > 0 ? ` +${Math.floor(this.player.shield)}` : ''
       this.ui.hull.textContent = `${Math.ceil(Math.max(0, this.player.hull))}/${this.player.maxHull}${shield}`
       const hullRatio = Math.max(0, this.player.hull) / this.player.maxHull
+      const shieldRatio = this.player.maxShield > 0 ? this.player.shield / this.player.maxShield : 0
       this.ui.hullFill.style.width = `${clamp(hullRatio * 100, 0, 100)}%`
       this.ui.hullFill.classList.toggle('critical', vitalCriticalClass(hullRatio) === 'critical')
+      this.ui.shieldFill.style.width = `${clamp(shieldRatio * 100, 0, 100)}%`
+      this.ui.shieldFill.classList.toggle('visible', this.player.maxShield > 0)
+      this.ui.shieldFill.classList.toggle('depleted', this.player.maxShield > 0 && this.player.shield <= 0)
       this.ui.xpFill.style.width = `${clamp((this.stats.xp / this.stats.nextXp) * 100, 0, 100)}%`
       this.ui.xpFill.classList.toggle('critical', false)
     }

@@ -129,6 +129,7 @@ canvas {
 }
 
 .hud-meter-bar {
+  position: relative;
   height: 6px;
   border: 1px solid rgba(87, 255, 243, 0.42);
   background: rgba(87, 255, 243, 0.08);
@@ -141,9 +142,35 @@ canvas {
 }
 
 .hud-meter-fill {
+  position: relative;
+  z-index: 1;
   height: 100%;
   width: 0%;
   transition: width 120ms ease;
+}
+
+.hud-meter-shield-fill {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  bottom: 0;
+  width: 0%;
+  height: 2px;
+  opacity: 0;
+  background: linear-gradient(90deg, rgba(87, 255, 243, 0.2), #57fff3);
+  box-shadow: 0 0 10px rgba(87, 255, 243, 0.78);
+  transition: width 140ms ease, opacity 120ms ease;
+}
+
+.hud-meter-shield-fill.visible {
+  opacity: 1;
+}
+
+.hud-meter-shield-fill.depleted {
+  width: 100% !important;
+  opacity: 0.34;
+  background: rgba(87, 255, 243, 0.22);
+  box-shadow: none;
 }
 
 .hud-meter-fill.health {
