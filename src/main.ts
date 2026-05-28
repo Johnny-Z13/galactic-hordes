@@ -32,7 +32,7 @@ import { navigationCruiseScalar, navigationTrailProfile } from './navigation-cru
 import { applyMutationXp } from './mutation-progress'
 import { selectPlanetBiome, type PlanetBiomeProfile } from './planet-biomes'
 import { planetNameFor } from './planet-names'
-import { pickupMagnetRange, pickupMagnetStrength } from './pickup-magnet'
+import { updatePickupsPhysics, type Pickup, type PickupKind } from './pickups'
 import { planetRadius } from './planet-sizing'
 import { runBalance } from './run-balance'
 import { advanceScorePopups, appendScorePopup, createScorePopup, type ScorePopupModel } from './score-popups'
@@ -193,25 +193,10 @@ import type { StateHandlers } from './game-states'
 export type { AudioUpgradeCue } from './audio/audio-director'
 
 export type GameState = 'title' | 'mothership' | 'collection' | 'powerups' | 'sectorMap' | 'station' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
-type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
 type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
 export type ArtifactKind = 'relic' | 'alien' | 'lore' | 'planet' | 'cache' | 'enemy'
 export type MothershipConsoleView = 'workbench' | 'manifest'
 export type MothershipCollectionFilter = 'all' | 'found' | 'locked' | ArtifactKind
-
-interface Pickup {
-  kind: PickupKind
-  x: number
-  y: number
-  vx: number
-  vy: number
-  value: number
-  radius: number
-  life: number
-  color: string
-  /** Frames spent in magnet pull range; drives glint emit cadence. */
-  glintFrame?: number
-}
 
 interface Particle {
   x: number
@@ -2292,37 +2277,19 @@ export class VectorShooter {
   }
 
   private updatePickups(dt: number) {
-    const magnetInput = {
-      magnetLevel: this.build.magnet,
-      limitMagnet: this.limitBreaks.magnet,
-      hasHungryCompass: this.relics.has('hungryCompass')
-    }
-    for (let i = this.pickups.length - 1; i >= 0; i -= 1) {
-      const p = this.pickups[i]
-      p.life -= dt
-      const d = Math.sqrt(dist2(p, this.player))
-      const magnet = pickupMagnetRange(p.kind, magnetInput)
-      if (d < magnet || p.kind === 'magnet') {
-        const pull = norm(this.player.x - p.x, this.player.y - p.y)
-        const strength = pickupMagnetStrength(p.kind)
-        p.vx += pull.x * strength * dt
-        p.vy += pull.y * strength * dt
-        // glint cadence: counter not reset on range-exit; steady rhythm is intentional
-        p.glintFrame = (p.glintFrame ?? 0) + 1
-        if (p.glintFrame % introHookConfig.magnetGlint.frameInterval === 0) {
-          this.burst(p.x, p.y, introHookConfig.magnetGlint.color, 1, introHookConfig.magnetGlint.particleSpeed)
-        }
-      }
-      p.x += p.vx * dt
-      p.y += p.vy * dt
-      p.vx *= Math.pow(0.08, dt)
-      p.vy *= Math.pow(0.08, dt)
-      const rr = p.radius + this.player.radius + 6
-      if (d < rr || p.life <= 0) {
-        if (d < rr) this.collect(p)
-        this.pickups.splice(i, 1)
-      }
-    }
+    const result = updatePickupsPhysics({
+      pickups: this.pickups,
+      dt,
+      player: this.player,
+      magnetInput: {
+        magnetLevel: this.build.magnet,
+        limitMagnet: this.limitBreaks.magnet,
+        hasHungryCompass: this.relics.has('hungryCompass')
+      },
+      glintEvery: introHookConfig.magnetGlint.frameInterval
+    })
+    for (const glint of result.glints) this.burst(glint.x, glint.y, introHookConfig.magnetGlint.color, 1, introHookConfig.magnetGlint.particleSpeed)
+    for (const pickup of result.collected) this.collect(pickup)
   }
 
   private updateParticles(dt: number) {
