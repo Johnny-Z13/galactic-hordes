@@ -74,12 +74,30 @@ test('sector procedural texture is seeded but changes route personality across r
 })
 
 test('wave grammar gets bounded seeded jitter instead of identical route clocks', () => {
-  const safeDriftFirstWaveTimes = Array.from({ length: 20 }, (_, seed) => createSectorMap(seed + 500))
-    .map((map) => map.nodes.find((node) => node.column === 1 && node.config.templateId === 'safeDrift')?.config.waves[0]?.atSeconds)
-    .filter((time): time is number => typeof time === 'number')
+  const safeDriftWaveTimes = Array.from({ length: 20 }, (_, seed) => createSectorMap(seed + 500))
+    .map((map) => map.nodes.find((node) => node.column === 1 && node.config.templateId === 'safeDrift')?.config.waves.map((wave) => wave.atSeconds) ?? [])
+    .filter((times) => times.length > 0)
 
-  expect(new Set(safeDriftFirstWaveTimes).size).toBeGreaterThan(3)
-  expect(safeDriftFirstWaveTimes.every((time) => time >= 14 && time <= 120)).toBe(true)
+  expect(new Set(safeDriftWaveTimes.map((times) => times.join(','))).size).toBeGreaterThan(3)
+  expect(safeDriftWaveTimes.flat().every((time) => time >= 14 && time <= 120)).toBe(true)
+})
+
+test('first safe drift creates a three beat opening combat arc', () => {
+  const map = createSectorMap(17)
+  const safe = map.nodes.find((node) => node.column === 1 && node.config.templateId === 'safeDrift')!
+  const waveTimes = safe.config.waves.map((wave) => wave.atSeconds)
+  const waveLabels = safe.config.waves.map((wave) => wave.label)
+
+  expect(waveTimes.length).toBeGreaterThanOrEqual(3)
+  expect(waveTimes[0]).toBeGreaterThanOrEqual(14)
+  expect(waveTimes[0]).toBeLessThanOrEqual(18)
+  expect(waveTimes[1]).toBeGreaterThanOrEqual(24)
+  expect(waveTimes[1]).toBeLessThanOrEqual(36)
+  expect(waveTimes[2]).toBeGreaterThanOrEqual(39)
+  expect(waveTimes[2]).toBeLessThanOrEqual(56)
+  expect(waveLabels.join(' // ')).toContain('Contact')
+  expect(waveLabels.join(' // ')).toContain('Flank')
+  expect(waveLabels.join(' // ')).toContain('Decision')
 })
 
 test('sector map creates connected forward routes with stations before the final gate', () => {
@@ -160,6 +178,14 @@ test('sector decision intel translates route configs into quick reward and risk 
     reward: 'REPAIR / WORKBENCH',
     risk: 'SAFE DOCK'
   })
+})
+
+test('safe drift objective frames combat collection and station choice', () => {
+  const map = createSectorMap(22)
+  const safe = map.nodes.find((node) => node.column === 1 && node.config.templateId === 'safeDrift')!
+
+  expect(safe.config.objective).toBe('Clear scouts, bank signal, then dock or chase cache.')
+  expect(safe.config.readout).toMatch(/^Opening route\. Scouts, signal, station choice\./)
 })
 
 test('sector generation guarantees early safety exploration anchors and late route checks', () => {

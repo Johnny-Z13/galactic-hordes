@@ -50,13 +50,16 @@ export function simulateSpaceNode(input: {
   )
   const defense = policy.survivalUpgradeBias * 0.22 + input.defensiveRanks * 0.025
   const riskOffset = policy.riskTolerance * 0.22
+  const durationWaveCount = config.templateId === 'safeDrift'
+    ? Math.min(config.waves.length, 2)
+    : config.waves.length
   const baseSeconds = node.kind === 'final'
     ? 210
     : node.kind === 'boss'
       ? 165
       : node.kind === 'station'
         ? 0
-        : 64 + config.depth * 86 + config.waves.length * 12
+        : 64 + config.depth * 86 + durationWaveCount * 12
   const nodeDurationFloor = node.kind === 'station' || input.seconds === 0 ? 0 : postIntroStationWindowFloor
   const nodeSeconds = Math.max(nodeDurationFloor, Math.round(baseSeconds * (1.04 - policy.routeRush * 0.18) + rng.range(-8, 12)))
   const rawDamage = (pressure + hazardPressure - defense - riskOffset) * rng.range(12, 24)

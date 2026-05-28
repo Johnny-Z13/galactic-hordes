@@ -33,3 +33,21 @@ test('post-intro route node duration models the route station window', () => {
 
   expect(result.nodeSeconds).toBeGreaterThanOrEqual(BEACON_INTERVAL - 30)
 })
+
+test('only safe drift opening waves avoid stretching route duration', () => {
+  const safe = nodes.find((node) => node.config.templateId === 'safeDrift' && node.config.waves.length >= 3)!
+  const combatRoute = nodes.find((node) => node.config.templateId !== 'safeDrift' && node.kind !== 'station' && node.kind !== 'boss' && node.kind !== 'final' && node.config.waves.length >= 2)!
+  const policy = simPolicies.balanced
+
+  const safeTwoWaves = { ...safe, config: { ...safe.config, waves: safe.config.waves.slice(0, 2) } }
+  const combatTwoWaves = { ...combatRoute, config: { ...combatRoute.config, waves: combatRoute.config.waves.slice(0, 2) } }
+  const combatThreeWaves = { ...combatRoute, config: { ...combatRoute.config, waves: [...combatRoute.config.waves, combatRoute.config.waves[1]] } }
+
+  const safeFull = simulateSpaceNode({ node: safe, policy, rng: createSimRng(71), seconds: 0, difficulty: 'normal', defensiveRanks: 0 })
+  const safeShort = simulateSpaceNode({ node: safeTwoWaves, policy, rng: createSimRng(71), seconds: 0, difficulty: 'normal', defensiveRanks: 0 })
+  const combatFull = simulateSpaceNode({ node: combatThreeWaves, policy, rng: createSimRng(72), seconds: 0, difficulty: 'normal', defensiveRanks: 0 })
+  const combatShort = simulateSpaceNode({ node: combatTwoWaves, policy, rng: createSimRng(72), seconds: 0, difficulty: 'normal', defensiveRanks: 0 })
+
+  expect(safeFull.nodeSeconds).toBe(safeShort.nodeSeconds)
+  expect(combatFull.nodeSeconds).toBeGreaterThan(combatShort.nodeSeconds)
+})

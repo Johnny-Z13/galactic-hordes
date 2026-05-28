@@ -29,7 +29,7 @@ test('simulation runner records first-minute engagement telemetry', () => {
 })
 
 test('survival policy takes less damage than greedy cache policy across the same seeds', () => {
-  const seeds = [200, 201, 202, 203, 204]
+  const seeds = Array.from({ length: 30 }, (_, index) => 200 + index)
   const survivalDamage = seeds.reduce((sum, seed) => sum + runSimPlaythrough({ seed, policy: 'survival', maxSeconds: 600, difficulty: 'normal' }).damageTaken, 0)
   const greedyDamage = seeds.reduce((sum, seed) => sum + runSimPlaythrough({ seed, policy: 'greedyCache', maxSeconds: 600, difficulty: 'normal' }).damageTaken, 0)
 

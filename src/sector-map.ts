@@ -428,14 +428,16 @@ const configFor = (templateId: SectorNodeTemplateId, column: number, random: () 
       waveOrder,
       hazards,
       planets: planetConfig(1, 2, 'sparse', { repair: 1.6, cache: 1.1 }),
-      enemies: enemyConfig(['chaser'], { chaser: 1, splinter: 0.55, lancer: depth > 0.45 ? 0.35 : 0 }, 0.6 * pacePressureFor(pace) * pressureScale(depth, template.pressureRole), 0.72),
+      enemies: enemyConfig(['chaser'], { chaser: 1, splinter: 0.55, lancer: depth > 0.45 ? 0.35 : 0 }, 0.56 * pacePressureFor(pace) * pressureScale(depth, template.pressureRole), 0.72),
       waves: [
-        { atSeconds: 30, label: 'Scout drift', enemies: scaleEnemyCounts({ chaser: 3, splinter: 1 }, depth, 0.35), notes: 'Low-pressure route that protects recovery space.' }
+        { atSeconds: 12, label: 'Contact scouts', enemies: scaleEnemyCounts({ chaser: 1 }, depth, 0.18), notes: 'Immediate contact so the route starts with shooting.' },
+        { atSeconds: 28, label: 'Flank drift', enemies: scaleEnemyCounts({ chaser: 2 }, depth, 0.22), notes: 'Small mixed flank before the player settles into collection.' },
+        { atSeconds: 43, label: 'Decision pickets', enemies: scaleEnemyCounts({ chaser: 2, splinter: 1 }, depth, 0.26), notes: 'Pressure arrives as the station/cache decision comes online.' }
       ],
       rewards: { resourceMultiplier: 0.9 * rewardScale(depth), chestIntervalMultiplier: 1.15, upgradeSignalBonusChance: 0.03 + depth * 0.03 },
-      objective: 'Recover, scout, and reach the next route branch.',
-      readout: 'Safe drift. Low pressure, modest rewards.',
-      notes: ['Breather node. Use sparingly so route choices are not all combat pressure.']
+      objective: 'Clear scouts, bank signal, then dock or chase cache.',
+      readout: 'Opening route. Scouts, signal, station choice.',
+      notes: ['Opening breather with enough pressure to teach shooting, collection, and docking.']
     })
   }
   if (templateId === 'planetCluster') {
