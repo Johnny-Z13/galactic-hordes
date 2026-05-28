@@ -7701,6 +7701,28 @@ export class VectorShooter {
     window.debugNearestEnemyDistance = () => this.debugNearestEnemyDistance()
     window.debugStepEnemies = (dt) => this.debugStepEnemies(dt)
     window.debugEnemyCount = () => this.debugEnemyCount()
+    window.debugForceFirstEverRun = () => {
+      this.debrief = null
+      this.stats.planets = 0
+      this.introWaypoint = null
+    }
+    window.debugIntroWaypointState = () => {
+      const wp = this.introWaypoint
+      if (!wp) return null
+      return { active: wp.active, timer: wp.timer, targetPlanetId: wp.targetPlanetId }
+    }
+    window.debugLandOnNearestPlanet = () => {
+      if (this.state !== 'playing') return false
+      let nearest: Planet | null = null
+      let bestD = Infinity
+      for (const p of this.planets) {
+        const d = dist2(p, this.player)
+        if (d < bestD) { bestD = d; nearest = p }
+      }
+      if (!nearest) return false
+      this.startLanding(nearest)
+      return true
+    }
   }
 
   private debugSpawnSingleEnemy(kind: EnemyKind, dx: number, dy: number) {
@@ -7805,6 +7827,9 @@ declare global {
     debugNearestEnemyDistance?: () => number
     debugStepEnemies?: (dt: number) => void
     debugEnemyCount?: () => number
+    debugForceFirstEverRun?: () => void
+    debugIntroWaypointState?: () => { active: boolean; timer: number; targetPlanetId: string | null } | null
+    debugLandOnNearestPlanet?: () => boolean
   }
 }
 
