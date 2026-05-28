@@ -83,7 +83,7 @@ import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction,
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
 import { createSurfaceResourceNodes, surfaceEventMessage } from './surface/run-setup'
 import { spawnSurfaceSplitterChildren, updateSurfaceThreatMotion } from './surface/threat-behavior'
-import { createSurfaceWaveState, updateSurfaceWaveDirector, type SurfaceWaveState } from './surface/wave-director'
+import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, updateSurfaceWaveDirector, type SurfaceWaveState, type SurfaceWaveTelegraph } from './surface/wave-director'
 import { renderPlayer as drawPlayer } from './render/player'
 import { renderEnemies as drawEnemies } from './render/enemies'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
@@ -106,6 +106,7 @@ import {
   surfaceEventPoint as plannedSurfaceEventPoint,
   surfaceRunBalance,
   surfaceThreatMotionBalance,
+  surfaceWaveDirectorBalance,
   type AlienGiftKind,
   type SurfaceResourceKind,
   type SurfaceThreatBehavior
@@ -340,6 +341,7 @@ interface SurfaceRun {
   aliens: SurfaceAlien[]
   loreSites: SurfaceLoreSite[]
   wave: SurfaceWaveState
+  waveTelegraphs: SurfaceWaveTelegraph[]
   collected: number
   pendingUpgrade: boolean
   bankedSignals: number
@@ -3516,6 +3518,7 @@ export class VectorShooter {
       aliens,
       loreSites,
       wave: createSurfaceWaveState({ event, scenario }),
+      waveTelegraphs: [],
       collected: 0,
       pendingUpgrade: false,
       bankedSignals: 0,
@@ -3950,23 +3953,73 @@ export class VectorShooter {
 
   private updateSurfaceWaves(dt: number) {
     if (!this.surface) return
+    const readyWaves = advanceSurfaceWaveTelegraphs({ telegraphs: this.surface.waveTelegraphs, dt })
+    for (const anchor of readyWaves) {
+      this.spawnSurfaceWaveThreats(anchor)
+    }
+
+    const queuedWaveThreats = this.surface.waveTelegraphs.reduce((total, telegraph) => total + telegraph.spawnCount, 0)
     const result = updateSurfaceWaveDirector({
       wave: this.surface.wave,
       event: this.surface.event,
       scenario: this.surface.scenario,
       dt,
-      activeThreats: this.surface.threats.length,
+      activeThreats: this.surface.threats.length + queuedWaveThreats,
       o2Returning: this.surface.o2Returning,
       collected: this.surface.collected,
       totalResources: this.surface.resources.length
     })
-    if (result.spawnCount <= 0) return
+    if (result.telegraph) {
+      const point = this.surfaceWaveTelegraphPoint()
+      this.surface.waveTelegraphs.push({
+        x: point.x,
+        y: point.y,
+        spawnCount: result.telegraph.spawnCount,
+        life: result.telegraph.warningSeconds,
+        maxLife: result.telegraph.warningSeconds
+      })
+      return
+    }
+
+    if (result.spawnCount > 0) this.spawnSurfaceWaveThreats({
+      ...this.surfaceWaveTelegraphPoint(),
+      spawnCount: result.spawnCount
+    })
+  }
+
+  private surfaceWaveTelegraphPoint(): Vec {
+    if (!this.surface) return { x: 0, y: 0 }
+    const pressureDistance = this.surface.event === 'horde'
+      ? 460
+      : this.surface.event === 'swarm'
+        ? 420
+        : 360
+    const angle = this.surface.wave.waveIndex * 1.618 + this.stats.time * 0.13
+    const keepouts = this.surfaceThreatKeepouts(this.surface.pilot, this.surface.ship)
+    return this.safeSurfaceThreatPoint({
+      x: this.surface.pilot.x + Math.cos(angle) * pressureDistance,
+      y: this.surface.pilot.y + Math.sin(angle) * pressureDistance
+    }, keepouts, surfaceRunBalance.threatPlacement.swarmClearance, angle)
+  }
+
+  private spawnSurfaceWaveThreats(anchor: { x: number; y: number; spawnCount: number }) {
+    if (!this.surface) return
     const keepouts = this.surfaceThreatKeepouts(this.surface.pilot, this.surface.ship)
     const start = this.surface.threats.length
-    const total = Math.max(1, start + result.spawnCount)
-    for (let i = 0; i < result.spawnCount; i += 1) {
-      this.surface.threats.push(this.createGenericSurfaceThreat(this.surface.planet, this.surface.event, start + i, total, keepouts))
+    const total = Math.max(1, start + anchor.spawnCount)
+    const scatter = anchor.spawnCount > 1 ? 54 : 0
+    for (let i = 0; i < anchor.spawnCount; i += 1) {
+      const angle = (i / Math.max(1, anchor.spawnCount)) * TAU + this.surface.wave.elapsed * 0.7
+      const point = this.safeSurfaceThreatPoint({
+        x: anchor.x + Math.cos(angle) * scatter,
+        y: anchor.y + Math.sin(angle) * scatter
+      }, keepouts, surfaceRunBalance.threatPlacement.swarmClearance, angle)
+      const threat = this.createGenericSurfaceThreat(this.surface.planet, this.surface.event, start + i, total, keepouts)
+      threat.x = point.x
+      threat.y = point.y
+      this.surface.threats.push(threat)
     }
+    this.burst(anchor.x, anchor.y, '#ff5d73', 8 + anchor.spawnCount * 2, 170)
   }
 
   private dropSurfaceBossCache(threat: SurfaceThreat) {
@@ -4568,6 +4621,7 @@ export class VectorShooter {
     this.renderSurfaceLoreSites(ctx, s)
     this.renderSurfaceAliens(ctx, s)
     this.renderSurfaceBullets(ctx, s)
+    this.renderSurfaceWaveTelegraphs(ctx, s)
     renderSurfaceThreats({
       ctx,
       threats: s.threats,
@@ -4824,6 +4878,29 @@ export class VectorShooter {
       ctx.stroke()
     }
     ctx.restore()
+  }
+
+  private renderSurfaceWaveTelegraphs(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
+    for (const telegraph of s.waveTelegraphs) {
+      const p = this.surfaceToScreen(telegraph.x, telegraph.y)
+      const progress = clamp(1 - telegraph.life / telegraph.maxLife, 0, 1)
+      const pulse = Math.sin(this.stats.time * 12) * surfaceWaveDirectorBalance.telegraph.pulseRadius * (0.35 + progress)
+      const radius = surfaceWaveDirectorBalance.telegraph.radius + pulse
+      ctx.save()
+      ctx.globalAlpha = 0.35 + progress * 0.45
+      ctx.strokeStyle = progress > 0.62 ? '#ff5d73' : '#ff9f4a'
+      ctx.shadowColor = ctx.strokeStyle
+      ctx.shadowBlur = this.allowGlow() ? 24 : 0
+      ctx.lineWidth = 2 + progress * 2
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, radius, 0, TAU)
+      ctx.stroke()
+      ctx.setLineDash([8, 8])
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, Math.max(14, radius * 0.58), -Math.PI / 2, -Math.PI / 2 + TAU * progress)
+      ctx.stroke()
+      ctx.restore()
+    }
   }
 
   private renderSurfacePilot(ctx: CanvasRenderingContext2D, s: SurfaceRun) {

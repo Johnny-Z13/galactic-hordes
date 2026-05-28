@@ -7,7 +7,27 @@ export interface SurfaceWaveState {
   waveIndex: number
 }
 
+export interface SurfaceWaveTelegraphRequest {
+  spawnCount: number
+  warningSeconds: number
+}
+
 export interface SurfaceWaveResult {
+  spawnCount: number
+  telegraph: SurfaceWaveTelegraphRequest | null
+}
+
+export interface SurfaceWaveTelegraph {
+  x: number
+  y: number
+  spawnCount: number
+  life: number
+  maxLife: number
+}
+
+export interface SurfaceWaveSpawnAnchor {
+  x: number
+  y: number
   spawnCount: number
 }
 
@@ -33,13 +53,13 @@ export function updateSurfaceWaveDirector(input: {
   totalResources: number
 }): SurfaceWaveResult {
   input.wave.elapsed += input.dt
-  if (input.o2Returning) return { spawnCount: 0 }
+  if (input.o2Returning) return noSurfaceWaveSpawn()
 
   const cap = activeThreatCapFor(input.event, input.scenario)
-  if (input.activeThreats >= cap) return { spawnCount: 0 }
+  if (input.activeThreats >= cap) return noSurfaceWaveSpawn()
 
   input.wave.timer -= input.dt
-  if (input.wave.timer > 0) return { spawnCount: 0 }
+  if (input.wave.timer > 0) return noSurfaceWaveSpawn()
 
   const budget = cap - input.activeThreats
   const spawnCount = Math.min(budget, packSizeFor({
@@ -53,7 +73,33 @@ export function updateSurfaceWaveDirector(input: {
   input.wave.timer += intervalFor(input.event, input.scenario)
   if (input.wave.timer <= 0) input.wave.timer = intervalFor(input.event, input.scenario)
 
-  return { spawnCount }
+  return {
+    spawnCount: 0,
+    telegraph: {
+      spawnCount,
+      warningSeconds: surfaceWaveDirectorBalance.telegraph.warningSeconds
+    }
+  }
+}
+
+export function advanceSurfaceWaveTelegraphs(input: {
+  telegraphs: SurfaceWaveTelegraph[]
+  dt: number
+}): SurfaceWaveSpawnAnchor[] {
+  const ready: SurfaceWaveSpawnAnchor[] = []
+  for (let i = input.telegraphs.length - 1; i >= 0; i -= 1) {
+    const telegraph = input.telegraphs[i]
+    telegraph.life -= input.dt
+    if (telegraph.life > 0) continue
+    ready.push({ x: telegraph.x, y: telegraph.y, spawnCount: telegraph.spawnCount })
+    input.telegraphs.splice(i, 1)
+  }
+  ready.reverse()
+  return ready
+}
+
+function noSurfaceWaveSpawn(): SurfaceWaveResult {
+  return { spawnCount: 0, telegraph: null }
 }
 
 function initialDelayFor(event: SurfaceEventKind, scenario: SurfaceScenarioKind): number {

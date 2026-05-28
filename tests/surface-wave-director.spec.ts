@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { surfaceWaveDirectorBalance } from '../src/surface-balance'
-import { createSurfaceWaveState, updateSurfaceWaveDirector } from '../src/surface/wave-director'
+import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, updateSurfaceWaveDirector } from '../src/surface/wave-director'
 
 test('friendly surface waves wait through the opening grace window', () => {
   const wave = createSurfaceWaveState({ event: 'relic', scenario: 'friendly' })
@@ -45,7 +45,28 @@ test('horde waves spawn faster and larger than standard waves', () => {
     totalResources: 10
   })
 
-  expect(hordeResult.spawnCount).toBeGreaterThan(standardResult.spawnCount)
+  expect(hordeResult.telegraph?.spawnCount).toBeGreaterThan(standardResult.telegraph?.spawnCount ?? 0)
+})
+
+test('surface wave director emits a telegraph before spawning', () => {
+  const wave = createSurfaceWaveState({ event: 'standard', scenario: 'salvage' })
+
+  const result = updateSurfaceWaveDirector({
+    wave,
+    event: 'standard',
+    scenario: 'salvage',
+    dt: surfaceWaveDirectorBalance.initialDelay.default,
+    activeThreats: 0,
+    o2Returning: false,
+    collected: 0,
+    totalResources: 10
+  })
+
+  expect(result.spawnCount).toBe(0)
+  expect(result.telegraph).toEqual({
+    spawnCount: 1,
+    warningSeconds: surfaceWaveDirectorBalance.telegraph.warningSeconds
+  })
 })
 
 test('surface wave director respects active threat cap and oxygen return pause', () => {
@@ -75,6 +96,18 @@ test('surface wave director respects active threat cap and oxygen return pause',
   }).spawnCount).toBe(0)
 })
 
+test('surface wave telegraphs expire into spawn anchors', () => {
+  const telegraphs = [
+    { x: 100, y: 200, spawnCount: 2, life: 0.2, maxLife: 1 },
+    { x: 400, y: 500, spawnCount: 1, life: 1.2, maxLife: 1.2 }
+  ]
+
+  const ready = advanceSurfaceWaveTelegraphs({ telegraphs, dt: 0.25 })
+
+  expect(ready).toEqual([{ x: 100, y: 200, spawnCount: 2 }])
+  expect(telegraphs).toEqual([{ x: 400, y: 500, spawnCount: 1, life: 0.95, maxLife: 1.2 }])
+})
+
 test('surface wave director ramps pack size as surface time and collection pressure rise', () => {
   const early = createSurfaceWaveState({ event: 'volatile', scenario: 'mixed' })
   const late = createSurfaceWaveState({ event: 'volatile', scenario: 'mixed' })
@@ -101,7 +134,7 @@ test('surface wave director ramps pack size as surface time and collection press
     totalResources: 18
   })
 
-  expect(lateResult.spawnCount).toBeGreaterThan(earlyResult.spawnCount)
+  expect(lateResult.telegraph?.spawnCount).toBeGreaterThan(earlyResult.telegraph?.spawnCount ?? 0)
 })
 
 test('main delegates surface wave timing to the surface module', () => {
@@ -111,6 +144,9 @@ test('main delegates surface wave timing to the surface module', () => {
   expect(main).toContain("from './surface/wave-director'")
   expect(main).toContain('createSurfaceWaveState({')
   expect(main).toContain('updateSurfaceWaveDirector({')
+  expect(main).toContain('advanceSurfaceWaveTelegraphs({')
+  expect(main).toContain('renderSurfaceWaveTelegraphs(ctx, s)')
   expect(main).toContain('private updateSurfaceWaves(')
+  expect(main).toContain('private renderSurfaceWaveTelegraphs(')
   expect(director).toContain('surfaceWaveDirectorBalance')
 })

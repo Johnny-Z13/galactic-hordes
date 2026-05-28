@@ -87,6 +87,11 @@ export const surfaceWaveDirectorBalance = {
     max: 7,
     rampEverySeconds: 45,
     collectedPressureEvery: 6
+  },
+  telegraph: {
+    warningSeconds: 1.15,
+    radius: 54,
+    pulseRadius: 18
   }
 } as const
 
