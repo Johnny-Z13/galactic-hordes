@@ -3299,8 +3299,43 @@ button.manifest-chip:focus-visible,
   grid-template-columns: 1fr;
 }
 
+.workbench-signal-briefing {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(255, 242, 122, 0.28);
+  background:
+    linear-gradient(90deg, rgba(255, 242, 122, 0.08), transparent 48%),
+    rgba(2, 10, 13, 0.72);
+  padding: 8px;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+
+.workbench-signal-briefing-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(215, 255, 247, 0.76);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.workbench-signal-briefing-head b {
+  color: #fff27a;
+  font-size: 13px;
+  text-shadow: 0 0 12px rgba(255, 242, 122, 0.34);
+  white-space: nowrap;
+}
+
+.workbench-signal-briefing-head span {
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .workbench-current-offers {
-  margin-bottom: 10px;
   border: 1px solid rgba(255, 242, 122, 0.3);
   background:
     linear-gradient(90deg, rgba(255, 242, 122, 0.065), transparent 42%),

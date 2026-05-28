@@ -269,6 +269,39 @@ export function workbenchBayBalanceGate(self: VectorShooter, upgrade: Upgrade) {
   return `SYNC LOCK // upgrade another bay to ${catchupTarget}+ ranks`
 }
 
+export function workbenchReadyRows(self: VectorShooter, rows: Array<WorkbenchUpgradeRow<Upgrade>>) {
+  return rows.filter((row) => row.status === 'standby' && !workbenchBayBalanceGate(self, row.upgrade))
+}
+
+export function renderWorkbenchSignalBriefing(self: VectorShooter, rows: Array<WorkbenchUpgradeRow<Upgrade>>) {
+  const briefing = document.createElement('div')
+  briefing.className = 'workbench-signal-briefing'
+  const readyRows = workbenchReadyRows(self, rows)
+  const signalCount = self['pendingUpgrades']
+  const head = document.createElement('div')
+  head.className = 'workbench-signal-briefing-head'
+  head.innerHTML = signalCount > 0
+    ? `<b>${signalCount} SIGNAL${signalCount === 1 ? '' : 'S'} READY</b><span>${readyRows.length} install path${readyRows.length === 1 ? '' : 's'} online // choose now or inspect a bay</span>`
+    : '<b>NO SIGNALS BANKED</b><span>Level up during a route or dock at service stations to install more systems.</span>'
+  briefing.append(head)
+
+  if (signalCount <= 0 || readyRows.length === 0) {
+    const empty = document.createElement('div')
+    empty.className = 'workbench-empty-offers'
+    empty.textContent = signalCount > 0
+      ? 'No eligible systems are online. Inspect locked bays for the next requirement.'
+      : 'No install choices available.'
+    briefing.append(empty)
+    return briefing
+  }
+
+  const offers = document.createElement('div')
+  offers.className = 'manifest-grid workbench-current-offers'
+  for (const row of workbenchReadyRows(self, rows).slice(0, 3)) offers.append(renderWorkbenchUpgradeChip(self, row.upgrade))
+  briefing.append(offers)
+  return briefing
+}
+
 export function renderManifestSummary(self: VectorShooter) {
   const summary = document.createElement('div')
   summary.className = 'manifest-summary'
@@ -495,6 +528,7 @@ export function renderWorkbenchInstallSurface(self: VectorShooter) {
   wrap.append(
     title,
     renderManifestSummary(self),
+    renderWorkbenchSignalBriefing(self, rows),
     workbenchSectionLabel(self, 'SYSTEM BAYS'),
     bayShell
   )
