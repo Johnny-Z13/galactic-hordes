@@ -79,6 +79,7 @@ import { norm, dist2, len, TAU } from './math-utils'
 import { renderSurfaceBiomeMotifs as drawSurfaceBiomeMotifs } from './render/surface-biomes'
 import { renderSurfaceThreats } from './surface/render-threats'
 import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurfaceBulletsAndThreatDamage } from './surface/bullet-combat'
+import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction, surfaceTakeoffRequest, surfaceTransitionProgress } from './surface/lifecycle'
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
 import { createSurfaceResourceNodes, surfaceEventMessage } from './surface/run-setup'
 import { spawnSurfaceSplitterChildren, updateSurfaceThreatMotion } from './surface/threat-behavior'
@@ -1605,8 +1606,9 @@ export class VectorShooter {
     this.toastTimer -= dt
     this.updateParticles(dt)
     this.updateHud()
-    if (this.transitionTimer >= this.transitionDuration * 0.5) this.snapToOrbitReturnPoint()
-    if (this.transitionTimer >= this.transitionDuration) this.finishTakeoff()
+    const progress = surfaceTransitionProgress({ timer: this.transitionTimer, duration: this.transitionDuration })
+    if (progress.snapToOrbit) this.snapToOrbitReturnPoint()
+    if (progress.complete) this.finishTakeoff()
   }
 
   private updateDying(dt: number) {
@@ -1648,7 +1650,20 @@ export class VectorShooter {
     if (this.toastTimer <= 0) this.ui.toast.classList.remove('visible')
     this.surface.pilot.gunCd -= dt
     this.surface.pilot.invuln -= dt
-    this.updateSurfaceOxygen(dt)
+    const oxygen = advanceSurfaceOxygen({
+      oxygen: this.surface.pilot.oxygen,
+      maxOxygen: this.surface.pilot.maxOxygen,
+      o2Returning: this.surface.o2Returning,
+      dt,
+      lowOxygenRatio: this.surfaceLowOxygenRatio()
+    })
+    this.surface.pilot.oxygen = oxygen.oxygen
+    this.surface.o2Returning = oxygen.o2Returning
+    if (oxygen.lowTriggered) {
+      this.surface.message = 'O2 LOW - RETURNING TO SHIP'
+      this.toast('O2 LOW - RETURNING TO SHIP')
+    }
+    if (oxygen.depleted) this.startTakeoff()
     if (this.state !== 'surface' || !this.surface) return
 
     const accel = powerupBalance.ship.surfaceAcceleration * dt
@@ -1680,10 +1695,16 @@ export class VectorShooter {
     const nearShip = Math.sqrt(dist2(this.surface.pilot, this.surface.ship)) < 64
     const lore = this.findNearbyLoreSite()
     const alien = this.findNearbyAlien()
-    if (this.surface.o2Returning && nearShip) this.startTakeoff()
-    else if (input.interact && lore) this.inspectLoreSite(lore)
-    else if (input.interact && alien) this.openAlienEncounter(alien)
-    else if (input.interact && nearShip) this.startTakeoff()
+    const action = surfaceInteractionAction({
+      o2Returning: this.surface.o2Returning,
+      nearShip,
+      interact: input.interact,
+      nearbyLore: lore !== null,
+      nearbyAlien: alien !== null
+    })
+    if (action === 'takeoff') this.startTakeoff()
+    else if (action === 'inspectLore' && lore) this.inspectLoreSite(lore)
+    else if (action === 'openAlien' && alien) this.openAlienEncounter(alien)
     if (shouldPromptSurfaceReturn({ collected: this.surface.collected, total: this.surface.resources.length, nearShip })) {
       this.surface.message = 'CACHE CLEARED. RETURN TO SHIP.'
     }
@@ -1696,18 +1717,6 @@ export class VectorShooter {
     this.updateParticles(dt)
     this.updateHud()
     if (this.player.hull <= 0) this.gameOver()
-  }
-
-  private updateSurfaceOxygen(dt: number) {
-    if (!this.surface) return
-    this.surface.pilot.oxygen = Math.max(0, this.surface.pilot.oxygen - dt)
-    const low = this.surface.pilot.oxygen <= this.surface.pilot.maxOxygen * this.surfaceLowOxygenRatio()
-    if (low && !this.surface.o2Returning) {
-      this.surface.o2Returning = true
-      this.surface.message = 'O2 LOW - RETURNING TO SHIP'
-      this.toast('O2 LOW - RETURNING TO SHIP')
-    }
-    if (this.surface.pilot.oxygen <= 0) this.startTakeoff()
   }
 
   private getInput() {
@@ -4236,17 +4245,22 @@ export class VectorShooter {
 
   private startTakeoff(options: { urgent?: boolean; skipWorkbench?: boolean } = {}) {
     if (!this.surface) return
-    if (this.pendingUpgrades > 0 && !options.urgent && !options.skipWorkbench) {
+    const request = surfaceTakeoffRequest({
+      pendingUpgrades: this.pendingUpgrades,
+      urgent: options.urgent,
+      skipWorkbench: options.skipWorkbench
+    })
+    if (request.action === 'openWorkbench') {
       this.takeoffAfterWorkbench = true
       this.openLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} banked mutation signal${this.pendingUpgrades === 1 ? '' : 's'} available. Spend before takeoff.`)
       return
     }
     this.state = 'takeoff'
     this.transitionTimer = 0
-    this.transitionDuration = 1.2
+    this.transitionDuration = request.duration
     this.audio.stopAmbientLoop()
     this.audio.land()
-    this.toast(options.urgent ? 'O2 LOW - RETURNING TO SHIP' : 'RETURNING TO ORBIT')
+    this.toast(request.toast)
   }
 
   private finishTakeoff() {
@@ -4262,9 +4276,7 @@ export class VectorShooter {
       this.updateSpaceChunks(true)
     }
     if (first) this.recordPlanetArtifact(this.surface.planet, 'Surface expedition')
-    this.stats.score += first
-      ? runBalance.landing.surfaceExtractScoreBase + this.surface.collected * runBalance.landing.surfaceExtractScorePerResource
-      : this.surface.collected * runBalance.landing.surfaceRevisitScorePerResource
+    this.stats.score += surfaceExtractionScore({ firstVisit: first, collected: this.surface.collected })
     this.player.landedCd = runBalance.landing.landedCooldownSeconds
     this.player.invuln = runBalance.landing.orbitInvulnerabilitySeconds
     const planetName = this.surface.planet.name

@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import { upgrades } from '../src/powerup-balance'
 
 const source = () => fs.readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8')
+const lifecycleSource = () => fs.readFileSync(new URL('../src/surface/lifecycle.ts', import.meta.url), 'utf8')
 
 test('surface runs track human health and oxygen instead of ship hull xp', () => {
   const main = source()
@@ -15,9 +16,12 @@ test('surface runs track human health and oxygen instead of ship hull xp', () =>
 
 test('low oxygen auto returns the surface pilot to the ship', () => {
   const main = source()
+  const lifecycle = lifecycleSource()
 
   expect(main).toContain("this.toast('O2 LOW - RETURNING TO SHIP')")
-  expect(main).toContain('this.surface.o2Returning = true')
+  expect(main).toContain('advanceSurfaceOxygen({')
+  expect(lifecycle).toContain('lowTriggered')
+  expect(lifecycle).toContain('depleted')
   expect(main).toContain('this.startTakeoff()')
   expect(main).not.toContain('this.startTakeoff({ urgent: true })')
 })
