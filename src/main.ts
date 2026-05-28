@@ -6346,6 +6346,7 @@ export class VectorShooter {
       this.ui.shieldFill.style.width = '0%'
       this.ui.shieldFill.classList.toggle('visible', false)
       this.ui.shieldFill.classList.toggle('depleted', false)
+      this.ui.shieldFill.classList.toggle('recharging', false)
       this.ui.xpFill.style.width = `${clamp(oxygenRatio * 100, 0, 100)}%`
       this.ui.xpFill.classList.toggle('critical', vitalCriticalClass(oxygenRatio) === 'critical')
     } else {
@@ -6361,6 +6362,7 @@ export class VectorShooter {
       this.ui.shieldFill.style.width = `${clamp(shieldRatio * 100, 0, 100)}%`
       this.ui.shieldFill.classList.toggle('visible', this.player.maxShield > 0)
       this.ui.shieldFill.classList.toggle('depleted', this.player.maxShield > 0 && this.player.shield <= 0)
+      this.ui.shieldFill.classList.toggle('recharging', this.player.maxShield > 0 && this.player.shieldDelay > 0)
       this.ui.xpFill.style.width = `${clamp((this.stats.xp / this.stats.nextXp) * 100, 0, 100)}%`
       this.ui.xpFill.classList.toggle('critical', false)
     }

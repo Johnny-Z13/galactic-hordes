@@ -19,7 +19,9 @@ test('hud updates shield strip only during ship flight', () => {
   expect(main).toContain('const shieldRatio = this.player.maxShield > 0 ? this.player.shield / this.player.maxShield : 0')
   expect(main).toContain("this.ui.shieldFill.classList.toggle('visible', this.player.maxShield > 0)")
   expect(main).toContain("this.ui.shieldFill.classList.toggle('depleted', this.player.maxShield > 0 && this.player.shield <= 0)")
+  expect(main).toContain("this.ui.shieldFill.classList.toggle('recharging', this.player.maxShield > 0 && this.player.shieldDelay > 0)")
   expect(main).toContain("this.ui.shieldFill.classList.toggle('visible', false)")
+  expect(main).toContain("this.ui.shieldFill.classList.toggle('recharging', false)")
 })
 
 test('css renders shield as a compact cyan buffer strip', () => {
@@ -28,4 +30,6 @@ test('css renders shield as a compact cyan buffer strip', () => {
   expect(css).toContain('.hud-meter-shield-fill')
   expect(css).toContain('.hud-meter-shield-fill.visible')
   expect(css).toContain('.hud-meter-shield-fill.depleted')
+  expect(css).toContain('.hud-meter-shield-fill.recharging')
+  expect(css).toContain('@keyframes shield-recharge-wait')
 })

@@ -173,6 +173,20 @@ canvas {
   box-shadow: none;
 }
 
+.hud-meter-shield-fill.recharging {
+  animation: shield-recharge-wait 520ms ease-in-out infinite alternate;
+}
+
+@keyframes shield-recharge-wait {
+  from {
+    filter: brightness(0.72);
+  }
+
+  to {
+    filter: brightness(1.28);
+  }
+}
+
 .hud-meter-fill.health {
   background: linear-gradient(90deg, #ff5d73, var(--green));
   box-shadow: 0 0 14px rgba(143, 255, 125, 0.58);
