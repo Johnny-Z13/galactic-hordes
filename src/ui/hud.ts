@@ -1,6 +1,6 @@
 import { clamp, formatTime, type VectorShooter } from '../main'
 import { dist2 } from '../math-utils'
-import { mutationXpReadout } from '../mutation-progress'
+import { mutationSignalAlmostReady, mutationXpReadout } from '../mutation-progress'
 import { runObjectiveReadout } from '../run-objective-readout'
 import { currentSectorNode } from '../sector-map'
 import { weaponHudReadout } from '../weapon-signatures'
@@ -74,6 +74,7 @@ export function updateHud(self: VectorShooter) {
     self['ui'].shieldFill.classList.toggle('recharging', false)
     self['ui'].xpFill.style.width = `${clamp(oxygenRatio * 100, 0, 100)}%`
     self['ui'].xpFill.classList.toggle('critical', vitalCriticalClass(oxygenRatio) === 'critical')
+    self['ui'].xpFill.classList.toggle('near-signal', false)
   } else {
     self['ui'].hullLabel.textContent = 'HULL'
     self['ui'].xpLabel.textContent = 'XP'
@@ -90,6 +91,7 @@ export function updateHud(self: VectorShooter) {
     self['ui'].shieldFill.classList.toggle('recharging', self['player'].maxShield > 0 && self['player'].shieldDelay > 0)
     self['ui'].xpFill.style.width = `${clamp((self['stats'].xp / self['stats'].nextXp) * 100, 0, 100)}%`
     self['ui'].xpFill.classList.toggle('critical', false)
+    self['ui'].xpFill.classList.toggle('near-signal', mutationSignalAlmostReady(self['stats']))
   }
   self['updateTouchHud']()
   self['updatePerfHud']()

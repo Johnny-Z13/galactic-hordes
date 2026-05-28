@@ -21,3 +21,7 @@ export function applyMutationXp(progress: MutationProgress, gainedXp: number) {
 export function mutationXpReadout(progress: MutationProgress) {
   return `LV ${progress.level} // ${Math.floor(progress.xp)}/${Math.floor(progress.nextXp)}`
 }
+
+export function mutationSignalAlmostReady(progress: MutationProgress) {
+  return progress.nextXp > 0 && progress.xp / progress.nextXp >= 0.825
+}

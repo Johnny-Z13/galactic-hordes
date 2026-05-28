@@ -225,6 +225,34 @@ canvas {
   box-shadow: 0 0 14px rgba(87, 255, 243, 0.5);
 }
 
+.hud-meter-fill.xp.near-signal {
+  background: linear-gradient(90deg, var(--green), #fff27a 68%, #ffffff);
+  box-shadow: 0 0 20px rgba(255, 242, 122, 0.72), 0 0 10px rgba(87, 255, 243, 0.46);
+  animation: mutation-signal-charge 760ms ease-in-out infinite alternate;
+}
+
+.hud-meter:has(.hud-meter-fill.xp.near-signal) .hud-meter-bar {
+  border-color: rgba(255, 242, 122, 0.9);
+  background: rgba(255, 242, 122, 0.12);
+  box-shadow: 0 0 14px rgba(255, 242, 122, 0.24);
+}
+
+.hud-meter:has(.hud-meter-fill.xp.near-signal) .hud-meter-meta,
+.hud-meter:has(.hud-meter-fill.xp.near-signal) .hud-meter-value {
+  color: #fff27a;
+  text-shadow: 0 0 10px rgba(255, 242, 122, 0.46);
+}
+
+@keyframes mutation-signal-charge {
+  from {
+    filter: saturate(1) brightness(1);
+  }
+
+  to {
+    filter: saturate(1.18) brightness(1.34);
+  }
+}
+
 .hud-meter-fill.xp.critical {
   background: linear-gradient(90deg, #fff27a, #57fff3 64%, #fff27a);
   box-shadow: 0 0 18px rgba(255, 242, 122, 0.72);
