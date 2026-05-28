@@ -114,6 +114,7 @@ import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurf
 import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction, surfaceTakeoffRequest, surfaceTransitionProgress } from './surface/lifecycle'
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
 import { createSurfaceResourceNodes, surfaceEventMessage } from './surface/run-setup'
+import { surfaceGunCooldown, surfaceGunDamage, surfaceGunSpeed, surfaceLowOxygenRatio, surfaceMaxHealth, surfaceMaxOxygen } from './surface/suit-stats'
 import { spawnSurfaceSplitterChildren, updateSurfaceThreatMotion } from './surface/threat-behavior'
 import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, updateSurfaceWaveDirector, type SurfaceWaveState, type SurfaceWaveTelegraph } from './surface/wave-director'
 import { renderPlayer as drawPlayer } from './render/player'
@@ -2946,33 +2947,27 @@ export class VectorShooter {
   }
 
   private surfaceMaxHealth() {
-    return powerupBalance.surface.baseHealth + this.build.suitHealth * powerupBalance.surface.healthPerSuitRank
+    return surfaceMaxHealth(this.build)
   }
 
   private surfaceMaxOxygen() {
-    return powerupBalance.surface.baseOxygen + this.build.suitO2 * powerupBalance.surface.oxygenPerSuitRank
+    return surfaceMaxOxygen(this.build)
   }
 
   private surfaceLowOxygenRatio() {
-    return this.build.suitO2 >= powerupBalance.surface.lowOxygenSuitThreshold
-      ? powerupBalance.surface.lowOxygenRatioUpgraded
-      : powerupBalance.surface.lowOxygenRatioBase
+    return surfaceLowOxygenRatio(this.build)
   }
 
   private surfaceGunDamage() {
-    return powerupBalance.surface.baseGunDamage + this.build.suitBlaster * powerupBalance.surface.gunDamagePerBlasterRank
+    return surfaceGunDamage(this.build)
   }
 
   private surfaceGunCooldown() {
-    return clamp(
-      powerupBalance.surface.baseGunCooldown - this.build.suitBlaster * powerupBalance.surface.gunCooldownPerBlasterRank,
-      powerupBalance.surface.minGunCooldown,
-      powerupBalance.surface.baseGunCooldown
-    )
+    return surfaceGunCooldown(this.build)
   }
 
   private surfaceGunSpeed() {
-    return powerupBalance.surface.baseGunSpeed + this.build.suitBlaster * powerupBalance.surface.gunSpeedPerBlasterRank
+    return surfaceGunSpeed(this.build)
   }
 
   private surfaceThreatKeepouts(pilot: Vec, ship: Vec) {
