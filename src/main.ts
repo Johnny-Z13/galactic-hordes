@@ -65,11 +65,11 @@ import {
   selectSectorNode,
   type SectorMap,
   type SectorNode,
-  type SectorNodeRunProfile,
-  type SectorStationService
+  type SectorNodeRunProfile
 } from './sector-map'
 import { pressurePackSize, shouldRecycleEnemy } from './spawn-pressure'
-import { buildStationVisitRecord, stationNameForNode as stationMemoryNameForNode, type StationVisitRecord } from './station-memory'
+import { buildStationVisitRecord, type StationVisitRecord } from './station-memory'
+import { buildRouteStationDockReport, buildServiceStationDockReport, type StationDockReport } from './station-dock-report'
 import { advanceSpawnEntryPings, createSpawnEntryPing, type SpawnEntryPing } from './spawn-entry-feedback'
 import {
   cameraTargetFor,
@@ -371,23 +371,6 @@ interface ReturnBeacon {
   age: number
   reminded: boolean
   assistTriggered: boolean
-}
-
-export interface StationDockReport {
-  nodeId: string
-  stationName: string
-  nodeLabel: string
-  fiction: string
-  serviceLine: string
-  repaired: number
-  workbenchSignals: number
-  scrap: number
-  crystal: number
-  services: SectorStationService[]
-  contactName: string
-  contactRole: string
-  rumor: string
-  routeStatus: string
 }
 
 interface PlayerState {
@@ -6173,63 +6156,19 @@ export class VectorShooter {
     }
     this.audio.pickup('nav')
     const visit = this.recordStationVisit(node, repaired, workbenchSignals, scrap, crystal)
-    return {
-      nodeId: node.id,
-      stationName: visit.stationName,
-      nodeLabel: node.label,
-      fiction: this.stationFictionForNode(node, visit.stationName, true),
-      serviceLine: `Station services are run-only. Hull +${repaired}, workbench ${workbenchSignals > 0 ? `+${workbenchSignals} signal` : 'signal already staged'}, scrap +${scrap}, crystal +${crystal}.`,
+    return buildServiceStationDockReport({
+      node,
+      visit,
       repaired,
       workbenchSignals,
       scrap,
-      crystal,
-      services: [...node.stationServices],
-      contactName: visit.contactName,
-      contactRole: visit.contactRole,
-      rumor: visit.rumor,
-      routeStatus: 'Service berth clear. Route traffic control is holding your next jump.'
-    }
-  }
-
-  private stationNameForNode(node: SectorNode) {
-    return stationMemoryNameForNode(node)
-  }
-
-  private stationFictionForNode(node: SectorNode, stationName: string, serviceDock: boolean) {
-    const lines = serviceDock
-      ? [
-          `${stationName} answers with a warm carrier tone. Docking arms fold around the hull and a tired traffic officer stamps your route charter.`,
-          `${stationName} smells of hot coolant, recycled coffee, and old jump maps. The berth crew patch the hull while the route board blinks awake.`,
-          `${stationName} rotates under your canopy like a brass compass. Service crews swarm the scorch marks and the station AI opens a temporary workbench lane.`
-        ]
-      : [
-          `Welcome to ${stationName}. The docking collar seals with a low magnetic thud while the station master reads your route clearance aloud.`,
-          `${stationName} catches the ship on a green-lit gantry. Beyond the glass, freight drones cut silent lanes through the dark.`,
-          `A cracked sign over the airlock flickers: WELCOME TO ${stationName}. Your ship settles into the berth and the sector map spools back online.`
-        ]
-    return lines[hashString(node.id, serviceDock ? 91 : 47) % lines.length]
+      crystal
+    })
   }
 
   private routeStationDockReport(node: SectorNode): StationDockReport {
     const visit = this.recordStationVisit(node, 0, 0, 0, 0)
-    return {
-      nodeId: node.id,
-      stationName: visit.stationName,
-      nodeLabel: node.label,
-      fiction: this.stationFictionForNode(node, visit.stationName, false),
-      serviceLine: this.pendingUpgrades > 0
-        ? `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} banked in the station buffer.`
-        : 'No mutation signals are waiting in the station buffer.',
-      repaired: 0,
-      workbenchSignals: 0,
-      scrap: 0,
-      crystal: 0,
-      services: [...node.stationServices],
-      contactName: visit.contactName,
-      contactRole: visit.contactRole,
-      rumor: visit.rumor,
-      routeStatus: `${node.label} logged complete. Departure control is ready to hand you back to the sector map.`
-    }
+    return buildRouteStationDockReport({ node, visit, pendingUpgrades: this.pendingUpgrades })
   }
 
   private showStationDock(report: StationDockReport) {

@@ -1,6 +1,7 @@
 import type { SectorStationService } from '../sector-map'
 import { availableSectorChoices } from '../sector-map'
-import type { StationDockReport, VectorShooter } from '../main'
+import type { StationDockReport } from '../station-dock-report'
+import type { VectorShooter } from '../main'
 import { sectorNodeGlyph } from './sector-map-screen'
 
 export function showStationDock(self: VectorShooter, report: StationDockReport) {

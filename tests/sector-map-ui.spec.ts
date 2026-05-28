@@ -13,6 +13,7 @@ const optionalSource = (path: string) => {
   }
 }
 const stationDockSource = () => optionalSource('src/ui/station-dock.ts')
+const stationDockReportSource = () => optionalSource('src/station-dock-report.ts')
 const sectorMapScreenSource = () => optionalSource('src/ui/sector-map-screen.ts')
 
 test('sector map is a first class screen between mothership and expeditions', () => {
@@ -110,8 +111,10 @@ test('route launch refreshes hud after selecting the sector node', () => {
 test('station docking opens a master command menu with collapsible sections and route map', () => {
   const main = mainSource()
   const stationDock = stationDockSource()
+  const stationDockReport = stationDockReportSource()
   const css = readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8')
 
+  expect(main).toContain("import { buildRouteStationDockReport, buildServiceStationDockReport, type StationDockReport } from './station-dock-report'")
   expect(main).toContain("import { showStationDock as uiShowStationDock } from './ui/station-dock'")
   expect(main).toContain('private showStationDock(report: StationDockReport) {')
   expect(main).toContain('uiShowStationDock(this, report)')
@@ -125,8 +128,12 @@ test('station docking opens a master command menu with collapsible sections and 
   expect(stationDock).toContain("workbench.addEventListener('click', () => self['openStationWorkbench']())")
   expect(stationDock).toContain("route.addEventListener('click', () => self['leaveStationForSectorMap']())")
   expect(stationDock).toContain('station-command-section')
-  expect(main).toContain('private stationNameForNode(')
-  expect(main).toContain('private stationFictionForNode(')
+  expect(stationDock).toContain("import type { StationDockReport } from '../station-dock-report'")
+  expect(main).not.toContain('private stationNameForNode(')
+  expect(main).not.toContain('private stationFictionForNode(')
+  expect(stationDockReport).toContain('export function stationFictionForNode(')
+  expect(stationDockReport).toContain('export function buildRouteStationDockReport(')
+  expect(stationDockReport).toContain('export function buildServiceStationDockReport(')
   expect(stationDock).toContain('Open Workbench')
   expect(stationDock).toContain('CARGO MANIFEST')
   expect(stationDock).toContain('ROUTE MAP')
@@ -150,6 +157,7 @@ test('sector stations offer run services but not permanent meta upgrades', () =>
 
   expect(main).toContain('private applySectorStationServices(')
   expect(main).toContain('Station services are run-only')
+  expect(stationMethod).toContain('buildServiceStationDockReport({')
   expect(stationMethod).not.toContain('purchaseMothershipTier')
 })
 
