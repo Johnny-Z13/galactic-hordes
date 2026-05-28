@@ -14,6 +14,7 @@ import {
 } from '../src/return-beacons'
 
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+const hudSource = () => readFileSync(resolve(process.cwd(), 'src/ui/hud.ts'), 'utf8')
 
 test('blocks first beacon before four minutes or before first planet', () => {
   expect(returnBeaconEligible({ time: 239, planetsVisited: 1, activeBeacon: false, nextBeaconAt: 0 })).toBe(false)
@@ -57,11 +58,12 @@ test('spawns the first beacon close enough to read as an offer', () => {
 
 test('route station is reinforced by HUD distance reminder and docking assist', () => {
   const main = source()
+  const hud = hudSource()
 
   expect(main).toContain('SPACE STATION AVAILABLE - TAP DOCK TO LOCK')
   expect(main).toContain('SPACE STATION WAITING - TAP DOCK TO LOCK')
   expect(main).toContain('DOCKING COURSE SET - NUDGE AWAY TO SKIP')
-  expect(main).toContain('STATION ${Math.floor(Math.sqrt(dist2(this.returnBeacon, this.player)))}')
+  expect(hud).toContain("STATION ${Math.floor(Math.sqrt(dist2(self['returnBeacon'], self['player'])))}")
   expect(main).toContain('RETURN_BEACON_ASSIST_SECONDS')
   expect(main).toContain('RETURN_BEACON_SKIP_DISTANCE')
 })

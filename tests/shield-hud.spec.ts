@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 
 const mainSource = () => readFileSync('src/main.ts', 'utf8')
+const hudSource = () => readFileSync('src/ui/hud.ts', 'utf8')
 const cssSource = () => readFileSync('src/style.css', 'utf8')
 
 test('hud owns a shield fill and attaches it to the hull meter', () => {
@@ -14,14 +15,18 @@ test('hud owns a shield fill and attaches it to the hull meter', () => {
 
 test('hud updates shield strip only during ship flight', () => {
   const main = mainSource()
+  const hud = hudSource()
 
-  expect(main).toContain('this.ui.shieldFill.style.width =')
-  expect(main).toContain('const shieldRatio = this.player.maxShield > 0 ? this.player.shield / this.player.maxShield : 0')
-  expect(main).toContain("this.ui.shieldFill.classList.toggle('visible', this.player.maxShield > 0)")
-  expect(main).toContain("this.ui.shieldFill.classList.toggle('depleted', this.player.maxShield > 0 && this.player.shield <= 0)")
-  expect(main).toContain("this.ui.shieldFill.classList.toggle('recharging', this.player.maxShield > 0 && this.player.shieldDelay > 0)")
-  expect(main).toContain("this.ui.shieldFill.classList.toggle('visible', false)")
-  expect(main).toContain("this.ui.shieldFill.classList.toggle('recharging', false)")
+  expect(main).toContain("import { updateHud as uiUpdateHud } from './ui/hud'")
+  expect(main).toContain('uiUpdateHud(this)')
+  expect(hud).toContain('export function updateHud(self: VectorShooter)')
+  expect(hud).toContain("self['ui'].shieldFill.style.width =")
+  expect(hud).toContain("const shieldRatio = self['player'].maxShield > 0 ? self['player'].shield / self['player'].maxShield : 0")
+  expect(hud).toContain("self['ui'].shieldFill.classList.toggle('visible', self['player'].maxShield > 0)")
+  expect(hud).toContain("self['ui'].shieldFill.classList.toggle('depleted', self['player'].maxShield > 0 && self['player'].shield <= 0)")
+  expect(hud).toContain("self['ui'].shieldFill.classList.toggle('recharging', self['player'].maxShield > 0 && self['player'].shieldDelay > 0)")
+  expect(hud).toContain("self['ui'].shieldFill.classList.toggle('visible', false)")
+  expect(hud).toContain("self['ui'].shieldFill.classList.toggle('recharging', false)")
 })
 
 test('css renders shield as a compact cyan buffer strip', () => {

@@ -149,7 +149,7 @@ import {
   type WorkbenchUpgradeRow
 } from './workbench-rolls'
 import { workbenchBayDefinitions, workbenchBayForUpgrade, type WorkbenchBayDefinition, type WorkbenchBayId } from './workbench-bays'
-import { optionOrbProfile, pulseVolleyCount, rearGunProfile, starterSignatureFlags, weaponHudReadout } from './weapon-signatures'
+import { optionOrbProfile, pulseVolleyCount, rearGunProfile, starterSignatureFlags } from './weapon-signatures'
 import {
   renderLevelUp as uiRenderLevelUp,
   currentLevelUpScrollTop as uiCurrentLevelUpScrollTop,
@@ -165,8 +165,8 @@ import { showMothership as uiShowMothership } from './ui/mothership-console'
 import { renderDebrief as uiRenderDebrief } from './ui/debrief'
 import { showScores as uiShowScores } from './ui/scores'
 import { showTitle as uiShowTitle } from './ui/title-screen'
+import { updateHud as uiUpdateHud } from './ui/hud'
 import { renderIntroArrow } from './ui/intro-waypoint'
-import { vitalCriticalClass } from './ui/vital-meter'
 import {
   introHookConfig,
   introSafeDriftSpawnMultiplier,
@@ -6323,53 +6323,7 @@ export class VectorShooter {
   }
 
   private updateHud() {
-    this.ui.score.textContent = Math.floor(this.stats.score).toString()
-    this.ui.time.textContent = formatTime(this.stats.time)
-    this.ui.wave.textContent = this.stats.kills.toString()
-    this.ui.high.textContent = Math.max(this.stats.highScore, this.stats.score).toString()
-    const weaponReadout = weaponHudReadout({
-      build: this.build,
-      evolved: this.evolved
-    })
-    this.ui.weapon.textContent = weaponReadout.text
-    const beaconText = this.returnBeacon
-      ? ` // STATION ${Math.floor(Math.sqrt(dist2(this.returnBeacon, this.player)))}`
-      : ''
-    this.ui.resources.textContent = `Scrap ${this.resources.scrap}  Crystals ${this.resources.crystal}  Cores ${this.resources.cores}${beaconText}`
-    if (this.state === 'surface' && this.surface) {
-      this.ui.hullLabel.textContent = 'HEALTH'
-      this.ui.xpLabel.textContent = 'O2'
-      this.ui.hull.textContent = `${Math.ceil(this.surface.pilot.health)}/${this.surface.pilot.maxHealth}`
-      this.ui.level.textContent = `${Math.ceil(this.surface.pilot.oxygen)}s`
-      const healthRatio = this.surface.pilot.health / this.surface.pilot.maxHealth
-      const oxygenRatio = this.surface.pilot.oxygen / this.surface.pilot.maxOxygen
-      this.ui.hullFill.style.width = `${clamp(healthRatio * 100, 0, 100)}%`
-      this.ui.hullFill.classList.toggle('critical', vitalCriticalClass(healthRatio) === 'critical')
-      this.ui.shieldFill.style.width = '0%'
-      this.ui.shieldFill.classList.toggle('visible', false)
-      this.ui.shieldFill.classList.toggle('depleted', false)
-      this.ui.shieldFill.classList.toggle('recharging', false)
-      this.ui.xpFill.style.width = `${clamp(oxygenRatio * 100, 0, 100)}%`
-      this.ui.xpFill.classList.toggle('critical', vitalCriticalClass(oxygenRatio) === 'critical')
-    } else {
-      this.ui.hullLabel.textContent = 'HULL'
-      this.ui.xpLabel.textContent = 'XP'
-      this.ui.level.textContent = `LV ${this.stats.level}`
-      const shield = this.player.maxShield > 0 ? ` +${Math.floor(this.player.shield)}` : ''
-      this.ui.hull.textContent = `${Math.ceil(Math.max(0, this.player.hull))}/${this.player.maxHull}${shield}`
-      const hullRatio = Math.max(0, this.player.hull) / this.player.maxHull
-      const shieldRatio = this.player.maxShield > 0 ? this.player.shield / this.player.maxShield : 0
-      this.ui.hullFill.style.width = `${clamp(hullRatio * 100, 0, 100)}%`
-      this.ui.hullFill.classList.toggle('critical', vitalCriticalClass(hullRatio) === 'critical')
-      this.ui.shieldFill.style.width = `${clamp(shieldRatio * 100, 0, 100)}%`
-      this.ui.shieldFill.classList.toggle('visible', this.player.maxShield > 0)
-      this.ui.shieldFill.classList.toggle('depleted', this.player.maxShield > 0 && this.player.shield <= 0)
-      this.ui.shieldFill.classList.toggle('recharging', this.player.maxShield > 0 && this.player.shieldDelay > 0)
-      this.ui.xpFill.style.width = `${clamp((this.stats.xp / this.stats.nextXp) * 100, 0, 100)}%`
-      this.ui.xpFill.classList.toggle('critical', false)
-    }
-    this.updateTouchHud()
-    this.updatePerfHud()
+    uiUpdateHud(this)
   }
 
   private updatePerfHud() {

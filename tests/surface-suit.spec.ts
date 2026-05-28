@@ -3,15 +3,17 @@ import fs from 'node:fs'
 import { upgrades } from '../src/powerup-balance'
 
 const source = () => fs.readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8')
+const hudSource = () => fs.readFileSync(new URL('../src/ui/hud.ts', import.meta.url), 'utf8')
 const lifecycleSource = () => fs.readFileSync(new URL('../src/surface/lifecycle.ts', import.meta.url), 'utf8')
 
 test('surface runs track human health and oxygen instead of ship hull xp', () => {
   const main = source()
+  const hud = hudSource()
 
   expect(main).toContain('health: this.surfaceMaxHealth()')
   expect(main).toContain('oxygen: this.surfaceMaxOxygen()')
-  expect(main).toContain("this.ui.hullLabel.textContent = 'HEALTH'")
-  expect(main).toContain("this.ui.xpLabel.textContent = 'O2'")
+  expect(hud).toContain("self['ui'].hullLabel.textContent = 'HEALTH'")
+  expect(hud).toContain("self['ui'].xpLabel.textContent = 'O2'")
 })
 
 test('low oxygen auto returns the surface pilot to the ship', () => {
