@@ -22,8 +22,6 @@ import {
   scaledBossTimer,
   scaledSpawnTimer,
   scaledSurfaceHp,
-  spaceEnemyRunScale,
-  spaceEnemySpeedBonus,
   spaceSpawnBalance,
   spawnPressureMinutes,
   surfaceThreatBalance
@@ -79,6 +77,7 @@ import {
 import { applyOptionOrbDamage, deployMineWake as deployMineWakeWeapon, fireOptionOrbs as fireOptionOrbWeapons, firePrimaryWeapon, fireRearGun as fireRearGunWeapons, optionOrbAngle, optionOrbWorldPosition, spawnChainBolt as spawnChainBoltWeapon } from './space-player-weapons'
 import { applyDashRam } from './space-dash-combat'
 import { createDashWakeEffects } from './space-dash-wake'
+import { createSpaceEnemy, createSplitChildEnemy } from './space-enemy-factory'
 import { createEnemyTrailParticle } from './space-enemy-trails'
 import { EnemySpatialGrid } from './space-enemy-grid'
 import { damageSpaceHazard as damageSpaceHazardCombat } from './space-hazard-combat'
@@ -2298,33 +2297,24 @@ export class VectorShooter {
 
   private spawnEnemyAt(kind: EnemyKind, x: number, y: number) {
     if (this.enemies.length >= MAX_ENEMIES) return
-    const scale = spaceEnemyRunScale(this.stats.time, this.stats.planets)
-    const base = balancedSpaceEnemyDefinition(kind)
-    this.recordEnemyDiscovery(`enemy:space:${kind}`, `${this.enemyDisplayName(kind)} Vector`, `Encountered in open space after ${formatTime(this.stats.time)}.`, 'Space horde telemetry', base.color)
+    const color = balancedSpaceEnemyDefinition(kind).color
+    this.recordEnemyDiscovery(`enemy:space:${kind}`, `${this.enemyDisplayName(kind)} Vector`, `Encountered in open space after ${formatTime(this.stats.time)}.`, 'Space horde telemetry', color)
     if (isGiantEnemyKind(kind)) {
       this.audio.playSample(Math.random() < 0.5 ? 'alienship-scan-high' : 'alienship-scan-low', { gain: 0.6 })
     }
-    this.enemies.push({
+    const enemy = createSpaceEnemy({
       id: this.enemyId++,
       kind,
       x,
       y,
-      vx: 0,
-      vy: 0,
-      hp: base.hp * scale,
-      maxHp: base.hp * scale,
-      radius: base.radius,
-      speed: base.speed + spaceEnemySpeedBonus(this.stats.time),
-      value: Math.floor(base.value * scale),
-      phase: Math.random() * TAU,
-      cd: Math.random() * spaceEnemyBehavior.global.initialCooldownRandomSeconds,
-      color: base.color,
-      flash: 0
+      time: this.stats.time,
+      planets: this.stats.planets
     })
+    this.enemies.push(enemy)
     this.spawnEntryPings.push(createSpawnEntryPing({
       x,
       y,
-      color: base.color,
+      color: enemy.color,
       giant: isGiantEnemyKind(kind)
     }))
     if (this.spawnEntryPings.length > 96) this.spawnEntryPings.shift()
@@ -2451,24 +2441,12 @@ export class VectorShooter {
   }
 
   private spawnChild(x: number, y: number): Enemy {
-    const a = Math.random() * TAU
-    return {
+    return createSplitChildEnemy({
       id: this.enemyId++,
-      kind: 'chaser',
-      x: x + Math.cos(a) * spaceEnemyBehavior.splitChild.spawnOffset,
-      y: y + Math.sin(a) * spaceEnemyBehavior.splitChild.spawnOffset,
-      vx: Math.cos(a) * spaceEnemyBehavior.splitChild.launchSpeed,
-      vy: Math.sin(a) * spaceEnemyBehavior.splitChild.launchSpeed,
-      hp: spaceEnemyBehavior.splitChild.hpBase + this.stats.time / spaceEnemyBehavior.splitChild.hpTimeDivisor,
-      maxHp: spaceEnemyBehavior.splitChild.hpBase + this.stats.time / spaceEnemyBehavior.splitChild.hpTimeDivisor,
-      radius: spaceEnemyBehavior.splitChild.radius,
-      speed: spaceEnemyBehavior.splitChild.speed,
-      value: spaceEnemyBehavior.splitChild.value,
-      phase: Math.random() * TAU,
-      cd: 0,
-      color: '#70a8ff',
-      flash: 0
-    }
+      x,
+      y,
+      time: this.stats.time
+    })
   }
 
   private damagePlayer(amount: number) {
