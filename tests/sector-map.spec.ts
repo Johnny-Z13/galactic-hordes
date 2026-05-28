@@ -15,6 +15,7 @@ test('sector map starts at the mothership and ends at a final node', () => {
   const start = map.nodes.find((node) => node.kind === 'mothership')
   const final = map.nodes.find((node) => node.kind === 'final')
 
+  expect(map.columns).toBeGreaterThanOrEqual(7)
   expect(start).toMatchObject({ id: 'mothership', column: 0, completed: true })
   expect(final?.column).toBe(map.columns - 1)
   expect(final?.label).toContain('LAST STAND')
@@ -164,18 +165,19 @@ test('sector decision intel translates route configs into quick reward and risk 
 test('sector generation guarantees early safety exploration anchors and late route checks', () => {
   const map = createSectorMap(123)
   const columnOneTemplates = new Set(map.nodes.filter((node) => node.column === 1).map((node) => node.config.templateId))
-  const columnFourTemplates = new Set(map.nodes.filter((node) => node.column === 4).map((node) => node.config.templateId))
+  const routeCheckColumn = map.columns - 2
+  const routeCheckTemplates = new Set(map.nodes.filter((node) => node.column === routeCheckColumn).map((node) => node.config.templateId))
 
   expect([...columnOneTemplates]).toEqual(expect.arrayContaining(['safeDrift', 'planetCluster']))
   expect(columnOneTemplates.size).toBeGreaterThanOrEqual(3)
-  expect([...columnFourTemplates]).toEqual(expect.arrayContaining(['bossGate', 'freeport']))
-  expect(columnFourTemplates.size).toBeGreaterThanOrEqual(3)
+  expect([...routeCheckTemplates]).toEqual(expect.arrayContaining(['bossGate', 'freeport']))
+  expect(routeCheckTemplates.size).toBeGreaterThanOrEqual(3)
 })
 
 test('node depth increases pressure and reward readability deeper into the route', () => {
   const map = createSectorMap(123)
   const early = map.nodes.find((node) => node.column === 1 && node.config.templateId === 'safeDrift')!
-  const late = map.nodes.find((node) => node.column === 4 && node.config.templateId === 'bossGate')!
+  const late = map.nodes.find((node) => node.column === map.columns - 2 && node.config.templateId === 'bossGate')!
 
   expect(early.config.depth).toBeLessThan(late.config.depth)
   expect(early.config.rewards.resourceMultiplier).toBeLessThan(late.config.rewards.resourceMultiplier)

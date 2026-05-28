@@ -28,5 +28,5 @@ test('simulation balance target docs describe final-clear pacing targets', () =>
   const doc = readFileSync(resolve(process.cwd(), 'docs/simulation-balance-targets.md'), 'utf8')
 
   expect(doc).toContain('Median Final Clear')
-  expect(doc).toContain('balanced | 4:00-20:00 | >= 8:00')
+  expect(doc).toContain('balanced | 4:00-20:00 | >= 12:00')
 })

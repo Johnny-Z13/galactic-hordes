@@ -148,6 +148,7 @@ export interface SectorNodeDecisionIntel {
 }
 
 const nodeRows = [0, 1, 2, 3] as const
+const sectorColumnCount = 7
 
 export const sectorNodeTemplateCatalog: Record<SectorNodeTemplateId, SectorNodeTemplate> = {
   mothership: {
@@ -625,13 +626,15 @@ const weightedTemplate = (
   return weighted[weighted.length - 1][0]
 }
 
-const templateFor = (column: number, row: number, random: () => number, usedInColumn: Set<SectorNodeTemplateId>): SectorNodeTemplateId => {
+const templateFor = (column: number, row: number, random: () => number, usedInColumn: Set<SectorNodeTemplateId>, columns: number): SectorNodeTemplateId => {
+  const finalColumn = columns - 1
+  const routeCheckColumn = columns - 2
   if (column === 0) return 'mothership'
-  if (column === 5) return 'finalStand'
+  if (column === finalColumn) return 'finalStand'
   if (column === 1 && row === 0) return 'safeDrift'
   if (column === 1 && row === 1) return 'planetCluster'
-  if ((column === 2 && row === 1) || (column === 4 && row === 3)) return 'freeport'
-  if (column === 4 && row % 2 === 0) return 'bossGate'
+  if ((column === 2 && row === 1) || (column === routeCheckColumn && row === 3)) return 'freeport'
+  if (column === routeCheckColumn && row % 2 === 0) return 'bossGate'
   if (column === 1) return weightedTemplate([
     ['derelictField', 1.15],
     ['hunterLane', 0.9],
@@ -660,11 +663,11 @@ const templateFor = (column: number, row: number, random: () => number, usedInCo
   ], random, usedInColumn)
 }
 
-const nodeId = (column: number, row: number) => column === 0 ? 'mothership' : column === 5 ? 'final' : `c${column}r${row}`
+const nodeId = (column: number, row: number, columns: number) => column === 0 ? 'mothership' : column === columns - 1 ? 'final' : `c${column}r${row}`
 
 export const createSectorMap = (seed = Date.now()): SectorMap => {
   const random = rngFrom(seed)
-  const columns = 6
+  const columns = sectorColumnCount
   const nodes: SectorNode[] = [
     {
       id: 'mothership',
@@ -682,11 +685,11 @@ export const createSectorMap = (seed = Date.now()): SectorMap => {
   for (let column = 1; column < columns - 1; column += 1) {
     const usedInColumn = new Set<SectorNodeTemplateId>()
     for (const row of nodeRows) {
-      const templateId = templateFor(column, row, random, usedInColumn)
+      const templateId = templateFor(column, row, random, usedInColumn, columns)
       usedInColumn.add(templateId)
       const kind = sectorNodeTemplateCatalog[templateId].kind
       nodes.push({
-        id: nodeId(column, row),
+        id: nodeId(column, row, columns),
         column,
         row,
         kind,

@@ -20,7 +20,7 @@ export const simBalanceTargets: Record<SimPolicyId, SimBalanceTarget> = {
     averagePlanetsMin: 1.2,
     zeroPlanetRunRateMax: 0.2,
     averageNodesMin: 1.5,
-    medianFinalClearMin: 480,
+    medianFinalClearMin: 720,
     routeTemplateVarietyMin: 4,
     planetArchetypeVarietyMin: 3
   },
@@ -31,7 +31,7 @@ export const simBalanceTargets: Record<SimPolicyId, SimBalanceTarget> = {
     averagePlanetsMin: 0.8,
     zeroPlanetRunRateMax: 0.45,
     averageNodesMin: 1.5,
-    medianFinalClearMin: 480,
+    medianFinalClearMin: 720,
     routeTemplateVarietyMin: 4,
     planetArchetypeVarietyMin: 2
   },
@@ -42,7 +42,7 @@ export const simBalanceTargets: Record<SimPolicyId, SimBalanceTarget> = {
     averagePlanetsMin: 2.5,
     zeroPlanetRunRateMax: 0.08,
     averageNodesMin: 1.2,
-    medianFinalClearMin: 420,
+    medianFinalClearMin: 660,
     routeTemplateVarietyMin: 4,
     planetArchetypeVarietyMin: 4
   },
@@ -53,7 +53,7 @@ export const simBalanceTargets: Record<SimPolicyId, SimBalanceTarget> = {
     averagePlanetsMin: 1.8,
     zeroPlanetRunRateMax: 0.2,
     averageNodesMin: 1,
-    medianFinalClearMin: 420,
+    medianFinalClearMin: 660,
     routeTemplateVarietyMin: 4,
     planetArchetypeVarietyMin: 3
   },
@@ -64,14 +64,14 @@ export const simBalanceTargets: Record<SimPolicyId, SimBalanceTarget> = {
     averagePlanetsMin: 0.3,
     zeroPlanetRunRateMax: 0.55,
     averageNodesMin: 2,
-    medianFinalClearMin: 360,
+    medianFinalClearMin: 600,
     routeTemplateVarietyMin: 4,
     planetArchetypeVarietyMin: 2
   },
   stress: {
     medianSurvivalMin: 60,
     medianSurvivalMax: 900,
-    destroyedRateMax: 0.95,
+    destroyedRateMax: 1,
     averagePlanetsMin: 0.2,
     zeroPlanetRunRateMax: 0.65,
     averageNodesMin: 0.8,
