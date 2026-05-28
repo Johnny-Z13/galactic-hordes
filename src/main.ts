@@ -86,6 +86,7 @@ import { renderScorePopups as drawScorePopups } from './render/score-popups'
 import { renderSectorWaveWarning as drawSectorWaveWarning } from './render/sector-wave-warning'
 import { renderSpaceBackground as drawSpaceBackground } from './render/space-background'
 import { renderDerelictSignals as drawDerelictSignals, renderSpaceHazards as drawSpaceHazards } from './render/space-hazards'
+import { renderMinimap as drawMinimap } from './render/minimap'
 import { renderSpacePlanets as drawSpacePlanets } from './render/space-planets'
 import { renderSurfaceHud as drawSurfaceHud } from './surface/render-hud'
 import { renderSurfaceAliens as drawSurfaceAliens, renderSurfaceLoreSites as drawSurfaceLoreSites, renderSurfaceResources as drawSurfaceResources } from './surface/render-interactables'
@@ -4463,7 +4464,14 @@ export class VectorShooter {
     this.renderImpactPulses(ctx)
     this.renderLandingPrompt(ctx)
     this.renderSectorWaveWarning(ctx)
-    this.renderMinimap()
+    drawMinimap({
+      ctx: this.miniCtx,
+      player: this.player,
+      planets: this.planets,
+      enemies: this.enemies,
+      chunkSize: CHUNK_SIZE,
+      chunkLoadRadius: CHUNK_LOAD_RADIUS
+    })
     this.renderIntroWaypoint(ctx)
     this.renderScorePopups(ctx)
   }
@@ -4998,47 +5006,6 @@ export class VectorShooter {
       ctx.fillText(`PRESS E / Y TO LAND: ${planet.name}`, x, s.y, this.width - 24)
     }
     ctx.restore()
-  }
-
-  private renderMinimap() {
-    const ctx = this.miniCtx
-    const w = 154
-    const h = 154
-    const scale = CHUNK_SIZE * (CHUNK_LOAD_RADIUS * 2 + 1)
-    const toMini = (x: number, y: number) => ({
-      x: w / 2 + ((x - this.player.x) / scale) * w,
-      y: h / 2 + ((y - this.player.y) / scale) * h
-    })
-    ctx.clearRect(0, 0, w, h)
-    ctx.fillStyle = 'rgba(2,8,12,0.72)'
-    ctx.fillRect(0, 0, w, h)
-    ctx.strokeStyle = 'rgba(87,255,243,0.5)'
-    ctx.strokeRect(0.5, 0.5, w - 1, h - 1)
-    ctx.strokeStyle = 'rgba(87,255,243,0.18)'
-    ctx.beginPath()
-    ctx.moveTo(w / 2, 8)
-    ctx.lineTo(w / 2, h - 8)
-    ctx.moveTo(8, h / 2)
-    ctx.lineTo(w - 8, h / 2)
-    ctx.stroke()
-    for (const p of this.planets) {
-      const m = toMini(p.x, p.y)
-      if (m.x < -6 || m.x > w + 6 || m.y < -6 || m.y > h + 6) continue
-      ctx.strokeStyle = p.visited ? '#8fff7d' : p.color
-      ctx.beginPath()
-      ctx.arc(m.x, m.y, p.visited ? 4 : 3, 0, TAU)
-      ctx.stroke()
-    }
-    for (const e of this.enemies.slice(0, 70)) {
-      const m = toMini(e.x, e.y)
-      if (m.x < 0 || m.x > w || m.y < 0 || m.y > h) continue
-      ctx.fillStyle = e.kind === 'warden' ? '#b990ff' : '#ff5d73'
-      ctx.fillRect(m.x - 1, m.y - 1, 2, 2)
-    }
-    ctx.fillStyle = '#57fff3'
-    ctx.beginPath()
-    ctx.arc(w / 2, h / 2, 4, 0, TAU)
-    ctx.fill()
   }
 
   private updateHud() {
