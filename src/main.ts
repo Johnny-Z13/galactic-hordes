@@ -84,6 +84,7 @@ import { norm, dist2, len, TAU } from './math-utils'
 import { renderSurfaceBiomeMotifs as drawSurfaceBiomeMotifs } from './render/surface-biomes'
 import { renderScorePopups as drawScorePopups } from './render/score-popups'
 import { renderSectorWaveWarning as drawSectorWaveWarning } from './render/sector-wave-warning'
+import { renderSurfaceBullets as drawSurfaceBullets, renderSurfaceWaveTelegraphs as drawSurfaceWaveTelegraphs } from './surface/render-projectiles'
 import { renderSurfaceThreats } from './surface/render-threats'
 import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurfaceBulletsAndThreatDamage } from './surface/bullet-combat'
 import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction, surfaceTakeoffRequest, surfaceTransitionProgress } from './surface/lifecycle'
@@ -123,7 +124,6 @@ import {
   surfaceEventPoint as plannedSurfaceEventPoint,
   surfaceRunBalance,
   surfaceThreatMotionBalance,
-  surfaceWaveDirectorBalance,
   type AlienGiftKind,
   type SurfaceResourceKind,
   type SurfaceThreatBehavior
@@ -4593,8 +4593,20 @@ export class VectorShooter {
     this.renderSurfaceResources(ctx, s)
     this.renderSurfaceLoreSites(ctx, s)
     this.renderSurfaceAliens(ctx, s)
-    this.renderSurfaceBullets(ctx, s)
-    this.renderSurfaceWaveTelegraphs(ctx, s)
+    drawSurfaceBullets({
+      ctx,
+      bullets: s.bullets,
+      time: this.stats.time,
+      allowGlow: this.allowGlow(),
+      surfaceToScreen: (x, y) => this.surfaceToScreen(x, y)
+    })
+    drawSurfaceWaveTelegraphs({
+      ctx,
+      telegraphs: s.waveTelegraphs,
+      time: this.stats.time,
+      allowGlow: this.allowGlow(),
+      surfaceToScreen: (x, y) => this.surfaceToScreen(x, y)
+    })
     renderSurfaceThreats({
       ctx,
       threats: s.threats,
@@ -4830,48 +4842,6 @@ export class VectorShooter {
     ctx.arc(p.x, p.y + bob, alien.radius + 12 + Math.sin(this.stats.time * 3) * 3, 0, TAU)
     ctx.stroke()
     ctx.restore()
-  }
-
-  private renderSurfaceBullets(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
-    ctx.save()
-    ctx.strokeStyle = '#fff27a'
-    ctx.fillStyle = '#fff27a'
-    ctx.shadowColor = '#fff27a'
-    ctx.shadowBlur = this.allowGlow() ? 4 : 0
-    ctx.lineWidth = 1.1
-    ctx.globalAlpha = 0.58
-    for (const bullet of s.bullets) {
-      const p = this.surfaceToScreen(bullet.x, bullet.y)
-      const angle = Math.atan2(bullet.vy, bullet.vx)
-      ctx.beginPath()
-      ctx.moveTo(p.x - Math.cos(angle) * 7, p.y - Math.sin(angle) * 7)
-      ctx.lineTo(p.x + Math.cos(angle) * 6, p.y + Math.sin(angle) * 6)
-      ctx.stroke()
-    }
-    ctx.restore()
-  }
-
-  private renderSurfaceWaveTelegraphs(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
-    for (const telegraph of s.waveTelegraphs) {
-      const p = this.surfaceToScreen(telegraph.x, telegraph.y)
-      const progress = clamp(1 - telegraph.life / telegraph.maxLife, 0, 1)
-      const pulse = Math.sin(this.stats.time * 12) * surfaceWaveDirectorBalance.telegraph.pulseRadius * (0.35 + progress)
-      const radius = surfaceWaveDirectorBalance.telegraph.radius + pulse
-      ctx.save()
-      ctx.globalAlpha = 0.35 + progress * 0.45
-      ctx.strokeStyle = progress > 0.62 ? '#ff5d73' : '#ff9f4a'
-      ctx.shadowColor = ctx.strokeStyle
-      ctx.shadowBlur = this.allowGlow() ? 24 : 0
-      ctx.lineWidth = 2 + progress * 2
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, radius, 0, TAU)
-      ctx.stroke()
-      ctx.setLineDash([8, 8])
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, Math.max(14, radius * 0.58), -Math.PI / 2, -Math.PI / 2 + TAU * progress)
-      ctx.stroke()
-      ctx.restore()
-    }
   }
 
   private renderSurfacePilot(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
