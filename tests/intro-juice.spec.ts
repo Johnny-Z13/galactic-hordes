@@ -142,3 +142,31 @@ test('pickup magnet glint uses a dedicated cyan signal color while pulled', asyn
   expect(result.particleCount).toBeGreaterThan(0)
   expect(result.particleColors).toContain('#57fff3')
 })
+
+test('banked mutation signals create visible decision feedback', async ({ page }) => {
+  await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
+  await page.evaluate(() => localStorage.clear())
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForFunction(
+    () => typeof (window as unknown as { __vectorShooter?: unknown }).__vectorShooter === 'object',
+    null,
+    { timeout: READY_TIMEOUT }
+  )
+  const result = await page.evaluate(() => {
+    const g = (window as unknown as { __vectorShooter: any }).__vectorShooter
+    g.state = 'playing'
+    g.player.x = 0
+    g.player.y = 0
+    g.stats.xp = g.stats.nextXp - 1
+    g.pickups = [{ kind: 'xp', x: 0, y: 0, vx: 0, vy: 0, value: 2, radius: 5.6, life: 10, color: '#57fff3' }]
+    g.scorePopups = []
+    g.updatePickups(1 / 60)
+    return {
+      pendingUpgrades: g.pendingUpgrades,
+      texts: g.scorePopups.map((popup: { text: string }) => popup.text)
+    }
+  })
+
+  expect(result.pendingUpgrades).toBe(1)
+  expect(result.texts).toContain('SIGNAL READY')
+})

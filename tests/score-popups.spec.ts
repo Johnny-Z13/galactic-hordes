@@ -23,6 +23,28 @@ test('score popups carry their render layer and reward text', async () => {
   })
 })
 
+test('signal popups carry explicit decision text and color', async () => {
+  const mod = await import('../src/score-popups')
+  const popup = mod.createSignalPopup({
+    x: 12,
+    y: 34,
+    layer: 'space',
+    riseSpeed: 28,
+    lifeSeconds: 0.8
+  })
+
+  expect(popup).toMatchObject({
+    x: 12,
+    y: 34,
+    vy: -28,
+    life: 0.8,
+    totalLife: 0.8,
+    text: 'SIGNAL READY',
+    color: '#fff27a',
+    layer: 'space'
+  })
+})
+
 test('score popups project through the matching camera layer', async () => {
   const mod = await import('../src/score-popups')
   const surfacePopup = mod.createScorePopup({
@@ -92,6 +114,7 @@ test('surface threat kills create surface-layer score feedback', () => {
   expect(main).toContain('drawScorePopups({')
   expect(renderer).toContain('export function renderScorePopups')
   expect(renderer).toContain('scorePopupScreenPoint')
+  expect(renderer).toContain('popup.color ?? introHookConfig.popup.color')
   expect(updateSurfaceThreats).toContain('appendScorePopup(this.scorePopups, createScorePopup({')
   expect(updateSurfaceThreats).toContain("layer: 'surface'")
   expect(updateSurfaceThreats).toContain('this.stats.kills += 1')

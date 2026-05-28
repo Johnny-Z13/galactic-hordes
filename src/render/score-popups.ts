@@ -15,10 +15,10 @@ export function renderScorePopups(view: ScorePopupRenderView) {
   ctx.save()
   ctx.font = `${introHookConfig.popup.fontPx}px Courier New`
   ctx.textAlign = 'center'
-  ctx.fillStyle = introHookConfig.popup.color
   for (const popup of popups) {
     const screen = scorePopupScreenPoint(popup, { worldToScreen, surfaceToScreen })
     ctx.globalAlpha = Math.max(0, popup.life / popup.totalLife)
+    ctx.fillStyle = popup.color ?? introHookConfig.popup.color
     ctx.fillText(popup.text, screen.x, screen.y)
   }
   ctx.globalAlpha = 1

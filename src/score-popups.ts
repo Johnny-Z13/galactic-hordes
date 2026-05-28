@@ -10,6 +10,7 @@ export interface ScorePopupModel {
   totalLife: number
   text: string
   layer: ScorePopupLayer
+  color?: string
 }
 
 export function createScorePopup(input: {
@@ -28,6 +29,25 @@ export function createScorePopup(input: {
     totalLife: input.lifeSeconds,
     text: `+${Math.round(input.value)}`,
     layer: input.layer
+  }
+}
+
+export function createSignalPopup(input: {
+  x: number
+  y: number
+  layer: ScorePopupLayer
+  riseSpeed: number
+  lifeSeconds: number
+}): ScorePopupModel {
+  return {
+    x: input.x,
+    y: input.y,
+    vy: -input.riseSpeed,
+    life: input.lifeSeconds,
+    totalLife: input.lifeSeconds,
+    text: 'SIGNAL READY',
+    layer: input.layer,
+    color: '#fff27a'
   }
 }
 

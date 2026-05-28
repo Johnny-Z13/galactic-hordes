@@ -37,7 +37,7 @@ import { updatePickupsPhysics, type Pickup, type PickupKind } from './pickups'
 import { planetRadius } from './planet-sizing'
 import { runBalance } from './run-balance'
 import { scoreEntryFromRun, type ScoreEntry } from './score-history'
-import { advanceScorePopups, appendScorePopup, createScorePopup, type ScorePopupModel } from './score-popups'
+import { advanceScorePopups, appendScorePopup, createScorePopup, createSignalPopup, type ScorePopupModel } from './score-popups'
 import {
   evolutions,
   limitBreakChoices,
@@ -3055,6 +3055,16 @@ export class VectorShooter {
 
   private bankUpgrade(message?: string) {
     this.pendingUpgrades += 1
+    const signalAnchor = this.state === 'surface' && this.surface
+      ? { x: this.surface.pilot.x, y: this.surface.pilot.y - 42, layer: 'surface' as const }
+      : { x: this.player.x, y: this.player.y - 42, layer: 'space' as const }
+    appendScorePopup(this.scorePopups, createSignalPopup({
+      x: signalAnchor.x,
+      y: signalAnchor.y,
+      layer: signalAnchor.layer,
+      riseSpeed: introHookConfig.popup.riseSpeed,
+      lifeSeconds: introHookConfig.popup.lifeSeconds
+    }), introHookConfig.popup.cap)
     if (message) this.toast(message)
     return true
   }
