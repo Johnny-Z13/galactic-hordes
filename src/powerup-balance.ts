@@ -82,10 +82,10 @@ export const powerupBalance = {
     rangePerMagnetRank: 62,
     rangePerLimitRank: 12,
     hungryCompassBonus: 120,
-    xpBaseBonus: 64,
+    xpBaseBonus: 155,
     xpRangePerMagnetRank: 16,
     xpRangePerLimitRank: 4,
-    xpStrength: 1380,
+    xpStrength: 1680,
     repairStrength: 940,
     defaultStrength: 540
   },

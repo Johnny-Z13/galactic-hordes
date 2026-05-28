@@ -9,6 +9,13 @@ test('xp pickups get extra attraction range over other drops', () => {
   expect(xpRange).toBeGreaterThanOrEqual(repairRange + 55)
 })
 
+test('starter xp vacuum reaches across opening combat drift', () => {
+  const xpRange = pickupMagnetRange('xp', { magnetLevel: 0, limitMagnet: 0, hasHungryCompass: false })
+
+  expect(xpRange).toBeGreaterThanOrEqual(260)
+  expect(pickupMagnetStrength('xp')).toBeGreaterThanOrEqual(1600)
+})
+
 test('signal magnet range uses named balance values', () => {
   const base = pickupMagnetRange('repair', { magnetLevel: 0, limitMagnet: 0, hasHungryCompass: false })
   const rankOne = pickupMagnetRange('repair', { magnetLevel: 1, limitMagnet: 0, hasHungryCompass: false })
