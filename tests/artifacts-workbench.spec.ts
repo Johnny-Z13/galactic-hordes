@@ -5,6 +5,7 @@ import { orderArtifactArchiveCards } from '../src/artifact-archive'
 import { collectionCatalog, collectionCatalogById, collectionIconAtlasColumns, collectionIconAtlasRows } from '../src/collection-catalog'
 
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+const frontSubscreensSource = () => readFileSync(resolve(process.cwd(), 'src/ui/front-subscreens.ts'), 'utf8')
 const workbenchSource = () => readFileSync(resolve(process.cwd(), 'src/ui/workbench.ts'), 'utf8')
 const collectionSource = () => readFileSync(resolve(process.cwd(), 'src/ui/collection.ts'), 'utf8')
 const mothershipSource = () => readFileSync(resolve(process.cwd(), 'src/ui/mothership-console.ts'), 'utf8')
@@ -13,12 +14,18 @@ const styles = () => readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8
 
 test('shipboard workbench keeps discoveries in the front end collection', () => {
   const main = source()
+  const front = frontSubscreensSource()
 
   expect(main).not.toContain('type WorkbenchView')
   expect(main).not.toContain("artifactsTab.textContent = 'Artifacts'")
   expect(main).not.toContain('this.workbenchView')
   expect(main).toContain("collection.textContent = 'Collection'")
+  expect(main).toContain("import { showCollection as uiShowCollection, showPowerUps as uiShowPowerUps } from './ui/front-subscreens'")
   expect(main).toContain('private showCollection(options: { scrollTop?: number } = {})')
+  expect(main).toContain('uiShowCollection(this, options)')
+  expect(main).not.toContain('private renderCollectionScreen()')
+  expect(front).toContain('export function showCollection(self: VectorShooter')
+  expect(front).toContain('renderCollectionScreen(self)')
 })
 
 test('shipboard workbench installs directly from bay detail', () => {
@@ -91,15 +98,17 @@ test('shipboard workbench can be skipped without spending every signal', () => {
 
 test('front end integrates standalone collection and power up screens', () => {
   const main = source()
+  const front = frontSubscreensSource()
   const css = styles()
 
   expect(main).toContain("type GameState = 'title' | 'mothership' | 'collection' | 'powerups'")
   expect(main).toContain("collection.textContent = 'Collection'")
   expect(main).toContain("powerups.textContent = 'Power Up'")
-  expect(main).toContain("this.ui.collection.className = 'screen collection-route-screen'")
-  expect(main).toContain("this.ui.powerups.className = 'screen powerups-route-screen'")
-  expect(main).toContain('shell.append(header, this.renderCollectionScreen())')
-  expect(main).toContain('shell.append(header, uiRenderMothershipMetaSystems(this))')
+  expect(front).toContain("self['ui'].collection.className = 'screen collection-route-screen'")
+  expect(front).toContain("self['ui'].powerups.className = 'screen powerups-route-screen'")
+  expect(front).toContain('shell.append(header, renderCollectionScreen(self))')
+  expect(front).toContain('shell.append(header, renderMothershipMetaSystems(self))')
+  expect(main).toContain('uiShowPowerUps(this, options)')
   expect(main).toContain("type MothershipConsoleView = 'workbench' | 'manifest'")
   expect(main).toContain("type MothershipCollectionFilter = 'all' | 'found' | 'locked' | ArtifactKind")
   expect(collectionSource()).toContain('collectionCards(self)')
@@ -138,12 +147,14 @@ test('desktop mothership shows route map alongside launch controls', () => {
 
 test('first mothership visit keeps command systems out of the launch deck', () => {
   const main = source()
+  const front = frontSubscreensSource()
   const mothership = mothershipSource()
 
   expect(mothership).toContain('shell.append(header, flight)')
   expect(mothership).not.toContain('shell.append(header, flight, systemsHeader, renderMothershipMetaSystems(self))')
   expect(main).toContain("powerups.textContent = 'Power Up'")
   expect(main).toContain('private showPowerUps(options: { scrollTop?: number } = {})')
+  expect(front).toContain('front-subscreen powerups-subscreen')
 })
 
 test('mothership permanent upgrades render as selected command departments', () => {

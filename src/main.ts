@@ -161,8 +161,8 @@ import {
   workbenchExtraUnlockedIds as uiWorkbenchExtraUnlockedIds,
   installCueFor as uiInstallCueFor
 } from './ui/workbench'
-import { renderCollectionScreen as uiRenderCollectionScreen } from './ui/collection'
-import { showMothership as uiShowMothership, renderMothershipMetaSystems as uiRenderMothershipMetaSystems } from './ui/mothership-console'
+import { showCollection as uiShowCollection, showPowerUps as uiShowPowerUps } from './ui/front-subscreens'
+import { showMothership as uiShowMothership } from './ui/mothership-console'
 import { renderDebrief as uiRenderDebrief } from './ui/debrief'
 import { showScores as uiShowScores } from './ui/scores'
 import { renderIntroArrow } from './ui/intro-waypoint'
@@ -6443,10 +6443,6 @@ export class VectorShooter {
     return uiRenderManifestRelicLine(this)
   }
 
-  private renderCollectionScreen() {
-    return uiRenderCollectionScreen(this)
-  }
-
   private recordArtifact(record: Omit<ArtifactRecord, 'count'>) {
     const collectionEntry = collectionCatalogById.get(record.id)
     const canonicalRecord = collectionEntry
@@ -6673,58 +6669,11 @@ export class VectorShooter {
   }
 
   private showCollection(options: { scrollTop?: number } = {}) {
-    this.state = 'collection'
-    this.ui.collection.innerHTML = ''
-    this.ui.collection.className = 'screen collection-route-screen'
-    const shell = document.createElement('div')
-    shell.className = 'front-subscreen collection-subscreen'
-    const header = document.createElement('header')
-    header.className = 'front-subscreen-head'
-    header.innerHTML = `
-      <div><span>RELICS / COLLECTION</span><h1>ARCHIVE</h1></div>
-      <p>${Object.keys(this.mothership.archive.records).length} recovered records stored in mothership memory.</p>
-    `
-    const back = document.createElement('button')
-    back.className = 'vector-button secondary'
-    back.type = 'button'
-    back.textContent = 'Back'
-    back.addEventListener('click', () => this.showTitle())
-    header.append(back)
-    shell.append(header, this.renderCollectionScreen())
-    this.ui.collection.append(shell)
-    this.showOnly('collection')
-    this.restoreFrontScreenScroll('collection', options.scrollTop)
+    uiShowCollection(this, options)
   }
 
   private showPowerUps(options: { scrollTop?: number } = {}) {
-    this.state = 'powerups'
-    this.ui.powerups.innerHTML = ''
-    this.ui.powerups.className = 'screen powerups-route-screen'
-    const shell = document.createElement('div')
-    shell.className = 'front-subscreen powerups-subscreen'
-    const header = document.createElement('header')
-    header.className = 'front-subscreen-head'
-    header.innerHTML = `
-      <div><span>POWER UP</span><h1>META SYSTEMS</h1></div>
-      <p>Spend recovered cargo on permanent mothership departments before launching.</p>
-    `
-    const resources = document.createElement('div')
-    resources.className = 'mothership-resources front-subscreen-resources'
-    resources.innerHTML = `
-      <span><b>Scrap</b>${this.mothership.resources.scrap}</span>
-      <span><b>Crystals</b>${this.mothership.resources.crystal}</span>
-      <span><b>Cores</b>${this.mothership.resources.cores}</span>
-    `
-    const back = document.createElement('button')
-    back.className = 'vector-button secondary'
-    back.type = 'button'
-    back.textContent = 'Back'
-    back.addEventListener('click', () => this.showTitle())
-    header.append(resources, back)
-    shell.append(header, uiRenderMothershipMetaSystems(this))
-    this.ui.powerups.append(shell)
-    this.showOnly('powerups')
-    this.restoreFrontScreenScroll('powerups', options.scrollTop)
+    uiShowPowerUps(this, options)
   }
 
   private showScores() {
