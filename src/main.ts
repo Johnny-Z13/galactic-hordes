@@ -35,6 +35,7 @@ import { planetNameFor } from './planet-names'
 import { pickupMagnetRange, pickupMagnetStrength } from './pickup-magnet'
 import { planetRadius } from './planet-sizing'
 import { runBalance } from './run-balance'
+import { createScorePopup, scorePopupScreenPoint, type ScorePopupModel } from './score-popups'
 import {
   evolutions,
   limitBreakChoices,
@@ -216,15 +217,6 @@ interface Particle {
   sides?: number
   length?: number
   glow?: number
-}
-
-interface ScorePopup {
-  x: number
-  y: number
-  vy: number
-  life: number
-  totalLife: number
-  text: string
 }
 
 interface Shockwave {
@@ -692,7 +684,7 @@ export class VectorShooter {
   }
   private pickups: Pickup[] = []
   private particles: Particle[] = []
-  private scorePopups: ScorePopup[] = []
+  private scorePopups: ScorePopupModel[] = []
   private shockwaves: Shockwave[] = []
   private impactPulses: ImpactPulse[] = []
   private playerDamageFlash: PlayerDamageFlash | null = null
@@ -2910,15 +2902,14 @@ export class VectorShooter {
       this.collisionFxCooldown = highLoad ? 0.04 : 0
     }
     if (reward) {
-      if (this.scorePopups.length >= introHookConfig.popup.cap) this.scorePopups.shift()
-      this.scorePopups.push({
+      this.pushScorePopup(createScorePopup({
         x: e.x,
         y: e.y,
-        vy: -introHookConfig.popup.riseSpeed,
-        life: introHookConfig.popup.lifeSeconds,
-        totalLife: introHookConfig.popup.lifeSeconds,
-        text: `+${Math.round(e.value)}`
-      })
+        value: e.value,
+        layer: 'space',
+        riseSpeed: introHookConfig.popup.riseSpeed,
+        lifeSeconds: introHookConfig.popup.lifeSeconds
+      }))
       if (introHookConfig.hitstop.giantKindsOnly && isGiantEnemyKind(e.kind)) {
         this.hitstopUntil = performance.now() / 1000 + introHookConfig.hitstop.durationSeconds
       }
@@ -3948,9 +3939,19 @@ export class VectorShooter {
         this.burst(this.surface.pilot.x, this.surface.pilot.y, '#ff5d73', 10, 160)
       }
       if (threat.hp <= 0) {
+        const scoreValue = threat.boss ? runBalance.scoring.surfaceBossScore : runBalance.scoring.surfaceThreatScore
         this.burst(threat.x, threat.y, threat.color, threat.boss ? 42 : 24, threat.boss ? 360 : 260)
         this.audio.boom(threat.boss ? 'heavy' : 'surface')
-        this.stats.score += threat.boss ? runBalance.scoring.surfaceBossScore : runBalance.scoring.surfaceThreatScore
+        this.stats.kills += 1
+        this.stats.score += scoreValue
+        this.pushScorePopup(createScorePopup({
+          x: threat.x,
+          y: threat.y,
+          value: scoreValue,
+          layer: 'surface',
+          riseSpeed: introHookConfig.popup.riseSpeed,
+          lifeSeconds: introHookConfig.popup.lifeSeconds
+        }))
         if (threat.behavior === 'splitter' && !threat.splitChild) {
           this.surface.threats.push(...spawnSurfaceSplitterChildren({
             threat,
@@ -4469,6 +4470,11 @@ export class VectorShooter {
     }
   }
 
+  private pushScorePopup(popup: ScorePopupModel) {
+    if (this.scorePopups.length >= introHookConfig.popup.cap) this.scorePopups.shift()
+    this.scorePopups.push(popup)
+  }
+
   private screenToWorld(x: number, y: number): Vec {
     return spaceScreenToWorld({ x, y }, this.camera, this.spaceScale())
   }
@@ -4614,7 +4620,10 @@ export class VectorShooter {
     ctx.textAlign = 'center'
     ctx.fillStyle = introHookConfig.popup.color
     for (const sp of this.scorePopups) {
-      const screen = this.worldToScreen(sp.x, sp.y)
+      const screen = scorePopupScreenPoint(sp, {
+        worldToScreen: (x, y) => this.worldToScreen(x, y),
+        surfaceToScreen: (x, y) => this.surfaceToScreen(x, y)
+      })
       ctx.globalAlpha = Math.max(0, sp.life / sp.totalLife)
       ctx.fillText(sp.text, screen.x, screen.y)
     }
@@ -4721,8 +4730,6 @@ export class VectorShooter {
     this.renderShockwaves(ctx)
     this.renderParticles(ctx)
     this.renderSurfaceHud(ctx, s)
-    // NOTE: renderScorePopups uses worldToScreen; surface kills will render at an incorrect
-    // screen position. Accepted for V1 — most kills happen in space. Fix in a later pass.
     this.renderScorePopups(ctx)
     ctx.restore()
   }
