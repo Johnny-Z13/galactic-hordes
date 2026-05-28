@@ -98,6 +98,7 @@ import { renderParticles as drawParticles, renderParticlesSimple as drawParticle
 import { renderShockwaves as drawShockwaves } from './render/shockwaves'
 import { renderOrbitals as drawOrbitals } from './render/orbitals'
 import { renderBullets as drawBullets, renderBulletsSimple as drawBulletsSimple } from './render/bullets'
+import { renderAutopilot as drawAutopilot, renderReturnBeacon as drawReturnBeacon } from './render/navigation-aids'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
 import { advancedRewardEnemyKinds, spaceEnemyBehavior } from './space-enemy-behavior'
 import {
@@ -5611,141 +5612,40 @@ export class VectorShooter {
   }
 
   private renderReturnBeacon(ctx: CanvasRenderingContext2D) {
-    if (!this.returnBeacon) return
-    const p = this.worldToScreen(this.returnBeacon.x, this.returnBeacon.y)
-    const distance = Math.floor(Math.sqrt(dist2(this.returnBeacon, this.player)))
-    const margin = 34
-    const topMargin = 92
-    const onScreen = p.x >= margin && p.x <= this.width - margin && p.y >= topMargin && p.y <= this.height - margin
-    if (!onScreen) {
-      const edge = {
-        x: clamp(p.x, margin, this.width - margin),
-        y: clamp(p.y, topMargin, this.height - margin)
-      }
-      const angle = Math.atan2(p.y - this.height / 2, p.x - this.width / 2)
-      ctx.save()
-      ctx.translate(edge.x, edge.y)
-      ctx.rotate(angle)
-      ctx.fillStyle = '#fff27a'
-      ctx.strokeStyle = '#111827'
-      ctx.shadowColor = '#fff27a'
-      ctx.shadowBlur = this.allowGlow() ? 14 : 0
-      ctx.lineWidth = 3
-      ctx.beginPath()
-      ctx.moveTo(18, 0)
-      ctx.lineTo(-10, -12)
-      ctx.lineTo(-5, 0)
-      ctx.lineTo(-10, 12)
-      ctx.closePath()
-      ctx.stroke()
-      ctx.fill()
-      ctx.restore()
-
-      ctx.save()
-      ctx.fillStyle = '#fff27a'
-      ctx.font = '12px Courier New'
-      ctx.textAlign = edge.x > this.width - 120 ? 'right' : edge.x < 120 ? 'left' : 'center'
-      const labelX = clamp(edge.x, 64, this.width - 64)
-      const labelY = clamp(edge.y - 20, topMargin, this.height - 52)
-      ctx.fillText(`STATION ${distance}`, labelX, labelY)
-      ctx.restore()
-      return
-    }
-    const pulse = Math.sin(this.returnBeacon.phase * 4) * 0.5 + 0.5
-    const radius = this.returnBeacon.radius * this.spaceScale()
-    const stationRadius = radius * 0.72
-    const dockRadius = radius * 0.34
-    ctx.save()
-    ctx.translate(p.x, p.y)
-    ctx.strokeStyle = '#fff27a'
-    ctx.fillStyle = 'rgba(87,255,243,0.12)'
-    ctx.shadowColor = '#fff27a'
-    ctx.shadowBlur = this.allowGlow() ? 24 : 8
-    ctx.lineWidth = 2 + pulse
-    ctx.beginPath()
-    for (let i = 0; i < 8; i += 1) {
-      const a = -Math.PI / 8 + (i / 8) * TAU
-      if (i === 0) ctx.moveTo(Math.cos(a) * stationRadius, Math.sin(a) * stationRadius)
-      else ctx.lineTo(Math.cos(a) * stationRadius, Math.sin(a) * stationRadius)
-    }
-    ctx.closePath()
-    ctx.fill()
-    ctx.stroke()
-    ctx.strokeStyle = '#57fff3'
-    ctx.lineWidth = 1.5
-    ctx.beginPath()
-    for (let i = 0; i < 6; i += 1) {
-      const a = Math.PI / 6 + (i / 6) * TAU
-      if (i === 0) ctx.moveTo(Math.cos(a) * dockRadius, Math.sin(a) * dockRadius)
-      else ctx.lineTo(Math.cos(a) * dockRadius, Math.sin(a) * dockRadius)
-    }
-    ctx.closePath()
-    ctx.stroke()
-    ctx.strokeStyle = '#fff27a'
-    ctx.beginPath()
-    ctx.moveTo(-stationRadius * 1.12, 0)
-    ctx.lineTo(-dockRadius, 0)
-    ctx.moveTo(dockRadius, 0)
-    ctx.lineTo(stationRadius * 1.12, 0)
-    ctx.moveTo(0, -stationRadius * 1.12)
-    ctx.lineTo(0, -dockRadius)
-    ctx.moveTo(0, dockRadius)
-    ctx.lineTo(0, stationRadius * 1.12)
-    ctx.stroke()
-    ctx.strokeStyle = '#57fff3'
-    ctx.beginPath()
-    ctx.arc(0, 0, radius * clamp(this.returnBeacon.hold / BEACON_HOLD_SECONDS, 0, 1), 0, TAU)
-    ctx.stroke()
-    ctx.shadowBlur = 0
-    ctx.fillStyle = '#fff27a'
-    ctx.font = '12px Courier New'
-    ctx.textAlign = 'center'
-    ctx.fillText(`STATION ${distance}`, 0, -radius - 16)
-    ctx.fillText('DOCKING', 0, radius + 24)
-    ctx.restore()
+    drawReturnBeacon({
+      ctx,
+      beacon: this.returnBeacon,
+      player: this.player,
+      width: this.width,
+      height: this.height,
+      glow: this.allowGlow(),
+      scale: this.spaceScale(),
+      holdSeconds: BEACON_HOLD_SECONDS,
+      worldToScreen: (x, y) => this.worldToScreen(x, y)
+    })
   }
 
   private renderAutopilot(ctx: CanvasRenderingContext2D) {
-    if (this.state !== 'playing' || !this.autoNavActive) return
-    const p = this.worldToScreen(this.player.x, this.player.y)
-    const target = this.autoNavTargetPlanetId ? this.planets.find((planet) => planet.id === this.autoNavTargetPlanetId) : null
+    const target = this.autoNavTargetPlanetId ? this.planets.find((planet) => planet.id === this.autoNavTargetPlanetId) ?? null : null
     const beaconTarget = this.autoNavTargetBeacon ? this.returnBeacon : null
     const level = this.navigationCruiseLevel()
     const scale = this.spaceScale()
     const color = beaconTarget ? '#fff27a' : this.build.nav <= 0 ? '#57fff3' : this.build.nav >= 6 ? '#fff27a' : '#70a8ff'
-    ctx.save()
-    ctx.strokeStyle = color
-    ctx.shadowColor = color
-    ctx.shadowBlur = this.graphicsMode === 'LOW' ? 0 : 14
-    ctx.lineWidth = 1.2
-    ctx.globalAlpha = this.build.nav <= 0 ? 0.34 : 0.62
-    ctx.setLineDash([10, 10])
-    ctx.beginPath()
-    ctx.moveTo(p.x, p.y)
-    if (target) {
-      const t = this.worldToScreen(target.x, target.y)
-      ctx.lineTo(t.x, t.y)
-      ctx.stroke()
-      ctx.setLineDash([])
-      ctx.globalAlpha = 0.78
-      ctx.beginPath()
-      ctx.arc(t.x, t.y, target.radius * scale + 16 * scale + Math.sin(this.stats.time * 5) * 3 * scale, 0, TAU)
-      ctx.stroke()
-    } else if (beaconTarget) {
-      const t = this.worldToScreen(beaconTarget.x, beaconTarget.y)
-      ctx.lineTo(t.x, t.y)
-      ctx.stroke()
-      ctx.setLineDash([])
-      ctx.globalAlpha = 0.78
-      ctx.beginPath()
-      ctx.arc(t.x, t.y, beaconTarget.radius * scale + 12 * scale + Math.sin(this.stats.time * 5) * 4 * scale, 0, TAU)
-      ctx.stroke()
-    } else {
-      const length = (62 + level * 13) * scale
-      ctx.lineTo(p.x + Math.cos(this.autoNavHeading) * length, p.y + Math.sin(this.autoNavHeading) * length)
-      ctx.stroke()
-    }
-    ctx.restore()
+    drawAutopilot({
+      ctx,
+      active: this.state === 'playing' && this.autoNavActive,
+      player: this.player,
+      target,
+      beaconTarget,
+      level,
+      scale,
+      color,
+      glow: this.graphicsMode !== 'LOW',
+      alpha: this.build.nav <= 0 ? 0.34 : 0.62,
+      heading: this.autoNavHeading,
+      worldToScreen: (x, y) => this.worldToScreen(x, y),
+      time: this.stats.time
+    })
   }
 
   private renderPlayer(ctx: CanvasRenderingContext2D) {

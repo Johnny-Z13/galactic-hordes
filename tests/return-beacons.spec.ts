@@ -69,8 +69,7 @@ test('route station is reinforced by HUD distance reminder and docking assist', 
 })
 
 test('route station renders as a large octagonal docking structure', () => {
-  const main = source()
-  const renderStation = main.slice(main.indexOf('private renderReturnBeacon'), main.indexOf('private renderAutopilot'))
+  const renderStation = readFileSync('src/render/navigation-aids.ts', 'utf8')
 
   expect(renderStation).toContain('for (let i = 0; i < 8; i += 1)')
   expect(renderStation).toContain('ctx.lineTo(Math.cos(a) * stationRadius')
