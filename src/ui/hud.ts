@@ -47,9 +47,11 @@ export function updateHud(self: VectorShooter) {
     elapsed: self['stats'].time,
     nextReturnBeaconAt: self['nextReturnBeaconAt'],
     returnBeaconDistance,
-    surfaceEvent: self['surface']?.event ?? null
+    surfaceEvent: self['surface']?.event ?? null,
+    pendingUpgrades: self['pendingUpgrades']
   })
   const objectiveLabel = self['ui'].objective.parentElement?.querySelector('.hud-label')
+  self['ui'].objective.parentElement?.classList.toggle('signal-ready', objectiveReadout.label === 'SIGNAL')
   if (objectiveLabel) objectiveLabel.textContent = objectiveReadout.label
   self['ui'].objective.textContent = objectiveReadout.text
   const beaconText = self['returnBeacon']

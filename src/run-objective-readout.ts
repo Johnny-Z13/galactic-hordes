@@ -8,6 +8,7 @@ export interface RunObjectiveReadoutInput {
   nextReturnBeaconAt: number
   returnBeaconDistance: number | null
   surfaceEvent: SurfaceObjectiveKind
+  pendingUpgrades: number
 }
 
 export interface RunObjectiveReadout {
@@ -23,9 +24,16 @@ export function runObjectiveReadout(input: RunObjectiveReadoutInput): RunObjecti
     }
   }
   if (input.returnBeaconDistance !== null) {
+    const signalText = signalReadyText(input.pendingUpgrades)
     return {
       label: 'DOCK',
-      text: `Station signal ${Math.max(0, Math.floor(input.returnBeaconDistance))}m`
+      text: `Station signal ${Math.max(0, Math.floor(input.returnBeaconDistance))}m${signalText ? ` // ${signalText}` : ''}`
+    }
+  }
+  if (input.pendingUpgrades > 0) {
+    return {
+      label: 'SIGNAL',
+      text: `${input.pendingUpgrades} mutation signal${input.pendingUpgrades === 1 ? '' : 's'} ready // dock or land to install`
     }
   }
   const secondsUntilStation = Math.max(0, Math.ceil(input.nextReturnBeaconAt - input.elapsed))
@@ -33,6 +41,11 @@ export function runObjectiveReadout(input: RunObjectiveReadoutInput): RunObjecti
     label: 'ROUTE',
     text: `${input.routeObjective} // STATION ${secondsUntilStation}s`
   }
+}
+
+function signalReadyText(count: number) {
+  if (count <= 0) return ''
+  return `${count} signal${count === 1 ? '' : 's'} ready`
 }
 
 function surfaceObjectiveText(event: SurfaceObjectiveKind) {

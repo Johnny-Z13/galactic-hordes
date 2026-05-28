@@ -9,7 +9,8 @@ test('run objective readout keeps the current route objective visible during fli
     elapsed: 42,
     nextReturnBeaconAt: 90,
     returnBeaconDistance: null,
-    surfaceEvent: null
+    surfaceEvent: null,
+    pendingUpgrades: 0
   })).toEqual({
     label: 'ROUTE',
     text: 'Recover, scout, and reach the next route branch. // STATION 48s'
@@ -23,10 +24,41 @@ test('run objective readout prioritizes dock distance once a station beacon is a
     elapsed: 125,
     nextReturnBeaconAt: 90,
     returnBeaconDistance: 734,
-    surfaceEvent: null
+    surfaceEvent: null,
+    pendingUpgrades: 0
   })).toEqual({
     label: 'DOCK',
     text: 'Station signal 734m'
+  })
+})
+
+test('run objective readout surfaces banked mutation signals during flight', () => {
+  expect(runObjectiveReadout({
+    state: 'playing',
+    routeObjective: 'Recover, scout, and reach the next route branch.',
+    elapsed: 44,
+    nextReturnBeaconAt: 90,
+    returnBeaconDistance: null,
+    surfaceEvent: null,
+    pendingUpgrades: 2
+  })).toEqual({
+    label: 'SIGNAL',
+    text: '2 mutation signals ready // dock or land to install'
+  })
+})
+
+test('run objective readout keeps dock guidance while noting ready mutation signals', () => {
+  expect(runObjectiveReadout({
+    state: 'playing',
+    routeObjective: 'Clear a hunter patrol lane and cash in combat rewards.',
+    elapsed: 125,
+    nextReturnBeaconAt: 90,
+    returnBeaconDistance: 734,
+    surfaceEvent: null,
+    pendingUpgrades: 1
+  })).toEqual({
+    label: 'DOCK',
+    text: 'Station signal 734m // 1 signal ready'
   })
 })
 
@@ -37,7 +69,8 @@ test('run objective readout switches to surface objective while on foot', () => 
     elapsed: 160,
     nextReturnBeaconAt: 220,
     returnBeaconDistance: null,
-    surfaceEvent: 'cache'
+    surfaceEvent: 'cache',
+    pendingUpgrades: 3
   })).toEqual({
     label: 'SURFACE',
     text: 'Collect cache signals, then return to ship'
@@ -53,8 +86,11 @@ test('hud wires route objective readout through a dedicated chip', () => {
   expect(hud).toContain("import { runObjectiveReadout } from '../run-objective-readout'")
   expect(hud).toContain("const objective = chip('ROUTE', self['ui'].objective, 'objective wide')")
   expect(hud).toContain('const objectiveReadout = runObjectiveReadout({')
+  expect(hud).toContain("pendingUpgrades: self['pendingUpgrades']")
   expect(hud).toContain("self['ui'].objective.parentElement?.querySelector('.hud-label')")
+  expect(hud).toContain("classList.toggle('signal-ready', objectiveReadout.label === 'SIGNAL')")
   expect(css).toContain('.hud-chip.objective')
+  expect(css).toContain('.hud-chip.objective.signal-ready')
   expect(css).toContain('.hud-chip.objective .hud-value')
   expect(css).toContain('@media (max-width: 920px)')
   expect(css).toContain('.hud-chip.objective {')
