@@ -1,5 +1,5 @@
 import { dist2, norm } from './math-utils'
-import { pickupMagnetRange, pickupMagnetStrength, type PickupMagnetKind } from './pickup-magnet'
+import { pickupMagnetRange, pickupMagnetStrength, type PickupMagnetInput, type PickupMagnetKind } from './pickup-magnet'
 
 export type PickupKind = PickupMagnetKind
 
@@ -21,12 +21,6 @@ interface PickupPlayer {
   x: number
   y: number
   radius: number
-}
-
-interface PickupMagnetInput {
-  magnetLevel: number
-  limitMagnet: number
-  hasHungryCompass: boolean
 }
 
 interface UpdatePickupsPhysicsInput {
@@ -53,7 +47,7 @@ export function updatePickupsPhysics(input: UpdatePickupsPhysicsInput): UpdatePi
     const magnet = pickupMagnetRange(pickup.kind, input.magnetInput)
     if (d < magnet || pickup.kind === 'magnet') {
       const pull = norm(input.player.x - pickup.x, input.player.y - pickup.y)
-      const strength = pickupMagnetStrength(pickup.kind)
+      const strength = pickupMagnetStrength(pickup.kind, input.magnetInput)
       pickup.vx += pull.x * strength * input.dt
       pickup.vy += pull.y * strength * input.dt
       pickup.glintFrame = (pickup.glintFrame ?? 0) + 1

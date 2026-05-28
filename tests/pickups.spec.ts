@@ -5,6 +5,12 @@ import { pickupBalance } from '../src/powerup-balance'
 import { updatePickupsPhysics, type Pickup } from '../src/pickups'
 
 const mainSource = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+const mainUpdatePickupsSource = () => {
+  const main = mainSource()
+  const start = main.indexOf('private updatePickups(dt: number)')
+  const end = main.indexOf('private updateParticles(dt: number)', start)
+  return main.slice(start, end)
+}
 
 const xpDrop = (overrides: Partial<Pickup> = {}): Pickup => ({
   kind: 'xp',
@@ -54,10 +60,35 @@ test('pickup physics emits magnet glints while pulling drops', () => {
   expect(pickup.glintFrame).toBe(6)
 })
 
+test('opening xp assist pulls early drops from farther away only during the opening', () => {
+  const openingPickup = xpDrop({ x: 400 })
+  const latePickup = xpDrop({ x: 400 })
+
+  updatePickupsPhysics({
+    pickups: [openingPickup],
+    dt: 0.016,
+    player: { x: 0, y: 0, radius: 18 },
+    magnetInput: { magnetLevel: 0, limitMagnet: 0, hasHungryCompass: false, elapsed: 20 },
+    glintEvery: 6
+  })
+  updatePickupsPhysics({
+    pickups: [latePickup],
+    dt: 0.016,
+    player: { x: 0, y: 0, radius: 18 },
+    magnetInput: { magnetLevel: 0, limitMagnet: 0, hasHungryCompass: false, elapsed: 70 },
+    glintEvery: 6
+  })
+
+  expect(openingPickup.vx).toBeLessThan(0)
+  expect(latePickup.vx).toBe(0)
+})
+
 test('main delegates pickup physics to the focused pickup module', () => {
   const main = mainSource()
+  const updatePickups = mainUpdatePickupsSource()
 
   expect(main).toContain("from './pickups'")
-  expect(main).toContain('updatePickupsPhysics({')
-  expect(main).not.toContain('const magnet = pickupMagnetRange(p.kind, magnetInput)')
+  expect(updatePickups).toContain('updatePickupsPhysics({')
+  expect(updatePickups).toContain('elapsed: this.stats.time')
+  expect(updatePickups).not.toContain('const magnet = pickupMagnetRange(p.kind, magnetInput)')
 })

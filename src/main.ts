@@ -2273,7 +2273,8 @@ export class VectorShooter {
       magnetInput: {
         magnetLevel: this.build.magnet,
         limitMagnet: this.limitBreaks.magnet,
-        hasHungryCompass: this.relics.has('hungryCompass')
+        hasHungryCompass: this.relics.has('hungryCompass'),
+        elapsed: this.stats.time
       },
       glintEvery: introHookConfig.magnetGlint.frameInterval
     })
