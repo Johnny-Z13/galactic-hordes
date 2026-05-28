@@ -1,10 +1,12 @@
 import './style.css'
-import sfxUiButton1Url from './assets/sound-effects/UI_device_button1.wav?url'
-import sfxUiButton2Url from './assets/sound-effects/UI_device_button2.wav?url'
-import sfxUiButton3Url from './assets/sound-effects/UI_device_button3.wav?url'
-import sfxPlanetAmbLoopUrl from './assets/sound-effects/Atmosphere_Lowloop_planetAMB.wav?url'
-import sfxAlienshipScan4Url from './assets/sound-effects/Alienship Scanning 4.wav?url'
-import sfxAlienshipScanLowUrl from './assets/sound-effects/AlienshipScanningLOW3.wav?url'
+// button1 source was not re-exported as MP3; reuse button2 for slot 1 so the
+// three-way round-robin still works. Swap in a dedicated button1.mp3 later.
+import sfxUiButton1Url from './assets/sound-effects/UI_device_button2.mp3?url'
+import sfxUiButton2Url from './assets/sound-effects/UI_device_button2.mp3?url'
+import sfxUiButton3Url from './assets/sound-effects/UI_device_button3.mp3?url'
+import sfxPlanetAmbLoopUrl from './assets/sound-effects/Atmosphere_Lowloop_planetAMB.mp3?url'
+import sfxAlienshipScan4Url from './assets/sound-effects/Alienship Scanning 4.mp3?url'
+import sfxAlienshipScanLowUrl from './assets/sound-effects/AlienshipScanningLOW3.mp3?url'
 import collectionIconAtlasUrl from './assets/collection-icon-atlas.png'
 import glassMiteOracleSheetUrl from './assets/glass-mite-oracle-sheet-alpha.png'
 import planetAlienCatalogUrl from './assets/planet-alien-catalog-alpha.png'
