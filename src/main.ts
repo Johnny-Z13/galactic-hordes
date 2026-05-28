@@ -3,6 +3,7 @@ import { AudioDirector, type PlanetAudioMood } from './audio/audio-director'
 import { sfxSamples } from './audio/sfx-samples'
 import { damageFeedbackConfig } from './combat/damage-feedback'
 import { advanceImpactPulses, createImpactPulse, type ImpactPulse } from './combat/impact-feedback'
+import { advancePlayerDamageFlash, createPlayerDamageFlash, type PlayerDamageFlash } from './combat/player-damage-feedback'
 import { weaponSoundKindFor } from './combat/weapon-sound'
 import collectionIconAtlasUrl from './assets/collection-icon-atlas.png'
 import glassMiteOracleSheetUrl from './assets/glass-mite-oracle-sheet-alpha.png'
@@ -688,6 +689,7 @@ export class VectorShooter {
   private scorePopups: ScorePopup[] = []
   private shockwaves: Shockwave[] = []
   private impactPulses: ImpactPulse[] = []
+  private playerDamageFlash: PlayerDamageFlash | null = null
   private spawnEntryPings: SpawnEntryPing[] = []
   private spaceHazards: SpaceHazardAsteroid[] = []
   private asteroidFieldTimer = 0
@@ -2386,6 +2388,7 @@ export class VectorShooter {
     }
     advanceSpawnEntryPings({ pings: this.spawnEntryPings, dt })
     advanceImpactPulses({ pulses: this.impactPulses, dt })
+    this.playerDamageFlash = advancePlayerDamageFlash(this.playerDamageFlash, dt)
   }
 
   private tryDashRam(e: Enemy) {
@@ -3039,12 +3042,22 @@ export class VectorShooter {
     this.player.invuln = 0.42
     this.player.shieldDelay = 2.4
     let remaining = Math.max(1, amount * (1 - this.build.phase * powerupBalance.upgradeApply.phaseShipDamageReductionPerRank))
+    let shieldDamage = 0
     if (this.player.shield > 0) {
       const used = Math.min(this.player.shield, remaining)
       this.player.shield -= used
       remaining -= used
+      shieldDamage = used
     }
-    this.player.hull -= remaining
+    const hullDamage = remaining
+    this.player.hull -= hullDamage
+    const flash = createPlayerDamageFlash({
+      hullRatio: this.player.hull / this.player.maxHull,
+      hullDamage,
+      shieldDamage,
+      surface: false
+    })
+    this.playerDamageFlash = flash
     this.audio.hit()
     this.camera.shake = Math.max(this.camera.shake, 12)
     this.burst(this.player.x, this.player.y, '#ff5d73', 16, 210)
@@ -3054,7 +3067,15 @@ export class VectorShooter {
     if (!this.surface || this.surface.pilot.invuln > 0) return
     const pilot = this.surface.pilot
     pilot.invuln = 0.65
-    pilot.health = Math.max(0, pilot.health - Math.max(1, amount * (1 - this.build.phase * powerupBalance.upgradeApply.phaseSurfaceDamageReductionPerRank)))
+    const hullDamage = Math.max(1, amount * (1 - this.build.phase * powerupBalance.upgradeApply.phaseSurfaceDamageReductionPerRank))
+    pilot.health = Math.max(0, pilot.health - hullDamage)
+    const flash = createPlayerDamageFlash({
+      hullRatio: pilot.health / pilot.maxHealth,
+      hullDamage,
+      shieldDamage: 0,
+      surface: true
+    })
+    this.playerDamageFlash = flash
     this.audio.hit()
     this.camera.shake = Math.max(this.camera.shake, 10)
     this.burst(pilot.x, pilot.y, '#ff5d73', 12, 180)
@@ -4523,9 +4544,11 @@ export class VectorShooter {
     const handler = this.stateHandlers[this.state]
     if (handler?.render) {
       handler.render(ctx)
+      this.renderPlayerDamageFlash(ctx)
       return
     }
     this.renderSpaceScene(ctx)
+    this.renderPlayerDamageFlash(ctx)
   }
 
   private renderSpaceScene(ctx: CanvasRenderingContext2D) {
@@ -4550,6 +4573,33 @@ export class VectorShooter {
     this.renderMinimap()
     this.renderIntroWaypoint(ctx)
     this.renderScorePopups(ctx)
+  }
+
+  private renderPlayerDamageFlash(ctx: CanvasRenderingContext2D) {
+    const flash = this.playerDamageFlash
+    if (!flash) return
+    const alpha = clamp(flash.life / flash.maxLife, 0, 1) * flash.alpha
+    const edge = Math.max(this.width, this.height) * (flash.kind === 'critical' ? 0.22 : 0.16)
+    const color = flash.kind === 'shield' ? '87,255,243' : '255,93,115'
+    const gradient = ctx.createRadialGradient(
+      this.width / 2,
+      this.height / 2,
+      Math.max(24, Math.min(this.width, this.height) * 0.32),
+      this.width / 2,
+      this.height / 2,
+      Math.max(this.width, this.height) * 0.72
+    )
+    gradient.addColorStop(0, 'rgba(0,0,0,0)')
+    gradient.addColorStop(0.55, 'rgba(0,0,0,0)')
+    gradient.addColorStop(1, `rgba(${color},${alpha})`)
+    ctx.save()
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, this.width, this.height)
+    ctx.globalAlpha = alpha * 0.72
+    ctx.strokeStyle = flash.color
+    ctx.lineWidth = edge
+    ctx.strokeRect(-edge / 2, -edge / 2, this.width + edge, this.height + edge)
+    ctx.restore()
   }
 
   private renderIntroWaypoint(ctx: CanvasRenderingContext2D) {
@@ -7276,6 +7326,7 @@ export class VectorShooter {
     this.particles = []
     this.shockwaves = []
     this.impactPulses = []
+    this.playerDamageFlash = null
     this.spawnEntryPings = []
     this.spaceHazards = []
     this.asteroidFieldTimer = 0
@@ -7373,6 +7424,7 @@ export class VectorShooter {
     this.particles = []
     this.shockwaves = []
     this.impactPulses = []
+    this.playerDamageFlash = null
     this.spawnEntryPings = []
     this.spaceHazards = []
     this.asteroidFieldTimer = 0
