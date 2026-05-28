@@ -16,6 +16,7 @@ let lastSummary: SimBatchSummary | null = null
 const presets = {
   quick10: { runs: 10, maxSeconds: 900, policy: 'balanced', difficulty: 'normal' },
   balance50: { runs: 50, maxSeconds: 1200, policy: 'balanced', difficulty: 'normal' },
+  fullArc: { runs: 100, maxSeconds: 1800, policy: 'balanced', difficulty: 'normal' },
   planetVariety: { runs: 30, maxSeconds: 1200, policy: 'planetHunter', difficulty: 'normal' },
   economySweep: { runs: 30, maxSeconds: 1200, policy: 'greedyCache', difficulty: 'normal' },
   latePressure: { runs: 20, maxSeconds: 1800, policy: 'stress', difficulty: 'stress' }
