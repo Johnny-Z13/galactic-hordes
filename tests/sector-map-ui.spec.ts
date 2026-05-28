@@ -93,6 +93,16 @@ test('route launch toast uses authored node objective copy', () => {
   expect(main).not.toContain('DOCK AT STATION TO CLEAR ROUTE')
 })
 
+test('route launch refreshes hud after selecting the sector node', () => {
+  const main = mainSource()
+  const launchStart = main.indexOf('private launchSectorNode(')
+  const launchEnd = main.indexOf('private recordStationVisit(', launchStart)
+  const launchMethod = main.slice(launchStart, launchEnd)
+
+  expect(launchMethod).toContain('this.sectorMap = selectSectorNode(this.sectorMap, nodeId)')
+  expect(launchMethod.indexOf('this.updateHud()')).toBeGreaterThan(launchMethod.indexOf('this.showOnly(null)'))
+})
+
 test('station docking opens a master command menu with collapsible sections and route map', () => {
   const main = mainSource()
   const stationDock = stationDockSource()

@@ -6201,6 +6201,7 @@ export class VectorShooter {
     this.prepareSectorNode(selected)
     this.state = 'playing'
     this.showOnly(null)
+    this.updateHud()
     this.toast(`${selected.label}: ${selected.config.objective}`)
   }
 
