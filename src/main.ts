@@ -1,7 +1,7 @@
 import './style.css'
 import { AudioDirector, type PlanetAudioMood } from './audio/audio-director'
 import { sfxSamples } from './audio/sfx-samples'
-import { damageFeedbackConfig, hitFlashColor } from './combat/damage-feedback'
+import { damageFeedbackConfig } from './combat/damage-feedback'
 import { weaponSoundKindFor } from './combat/weapon-sound'
 import collectionIconAtlasUrl from './assets/collection-icon-atlas.png'
 import glassMiteOracleSheetUrl from './assets/glass-mite-oracle-sheet-alpha.png'
@@ -79,6 +79,7 @@ import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemyS
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { norm, dist2, len, TAU } from './math-utils'
 import { renderSurfaceBiomeMotifs as drawSurfaceBiomeMotifs } from './render/surface-biomes'
+import { renderSurfaceThreats } from './surface/render-threats'
 import { renderPlayer as drawPlayer } from './render/player'
 import { renderEnemies as drawEnemies } from './render/enemies'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
@@ -487,8 +488,6 @@ const ENEMY_PRESSURE_RADIUS = 1250
 
 export const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
 const rand = (min: number, max: number) => min + Math.random() * (max - min)
-const BOSS_CATALOG_ROWS = planetBossCatalogVariants.length
-const BOSS_CATALOG_FRAMES = 4
 const ALIEN_CATALOG_ROWS = planetAlienCatalogVariants.length
 const ALIEN_CATALOG_FRAMES = 4
 const angleLerp = (a: number, b: number, t: number) => {
@@ -3643,7 +3642,7 @@ export class VectorShooter {
 
   private createPlanetBossThreat(planet: Planet, crowded: boolean, keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>): SurfaceThreat {
     const seed = hashString(planet.id, this.stats.planets + Math.floor(this.stats.time / 60))
-    const row = seed % BOSS_CATALOG_ROWS
+    const row = seed % planetBossCatalogVariants.length
     const variant = planetBossCatalogVariants[row]
     const angle = ((seed >>> 4) / 0xfffffff) * TAU
     const distance = crowded ? rand(280, 420) : rand(170, 320)
@@ -4662,7 +4661,15 @@ export class VectorShooter {
     this.renderSurfaceLoreSites(ctx, s)
     this.renderSurfaceAliens(ctx, s)
     this.renderSurfaceBullets(ctx, s)
-    this.renderSurfaceThreats(ctx, s)
+    renderSurfaceThreats({
+      ctx,
+      threats: s.threats,
+      time: this.stats.time,
+      allowGlow: this.allowGlow(),
+      glassMiteOracleSheet: this.glassMiteOracleSheet,
+      planetBossCatalog: this.planetBossCatalog,
+      surfaceToScreen: (x, y) => this.surfaceToScreen(x, y)
+    })
     this.renderSurfacePilot(ctx, s)
     this.renderShockwaves(ctx)
     this.renderParticles(ctx)
@@ -4822,126 +4829,6 @@ export class VectorShooter {
       ctx.stroke()
       ctx.restore()
     }
-  }
-
-  private renderSurfaceThreats(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
-    for (const threat of s.threats) {
-      if (threat.sprite === 'glassMiteOracle') {
-        this.renderGlassMiteOracleThreat(ctx, threat)
-        continue
-      }
-      if (threat.sprite === 'bossCatalog') {
-        this.renderCatalogBossThreat(ctx, threat)
-        continue
-      }
-      const p = this.surfaceToScreen(threat.x, threat.y)
-      ctx.save()
-      ctx.translate(p.x, p.y)
-      ctx.rotate(threat.phase)
-      ctx.strokeStyle = hitFlashColor(threat.hit > 0, threat.color)
-      ctx.shadowColor = threat.color
-      ctx.shadowBlur = 18
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      for (let i = 0; i < 7; i += 1) {
-        const a = (i / 7) * TAU
-        const radius = i % 2 ? threat.radius * 0.45 : threat.radius
-        const x = Math.cos(a) * radius
-        const y = Math.sin(a) * radius
-        if (i === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
-      }
-      ctx.closePath()
-      ctx.stroke()
-      ctx.restore()
-    }
-  }
-
-  private renderGlassMiteOracleThreat(ctx: CanvasRenderingContext2D, threat: SurfaceThreat) {
-    const p = this.surfaceToScreen(threat.x, threat.y)
-    const sheet = this.glassMiteOracleSheet
-    if (!sheet.complete || sheet.naturalWidth === 0) {
-      this.renderFallbackMite(ctx, threat, p)
-      return
-    }
-    const frameCount = 5
-    const frame = Math.floor((this.stats.time * 8 + threat.phase) % frameCount)
-    const sw = sheet.naturalWidth / frameCount
-    const sh = sheet.naturalHeight
-    const bob = Math.sin(this.stats.time * 5 + threat.phase) * 3
-    const scale = threat.hit > 0 ? 0.475 : 0.46
-    const dw = sw * scale
-    const dh = sh * scale
-    ctx.save()
-    ctx.globalCompositeOperation = 'lighter'
-    ctx.globalAlpha = threat.hit > 0 ? 0.96 : 0.92
-    ctx.shadowColor = '#57fff3'
-    ctx.shadowBlur = this.allowGlow() ? 20 : 8
-    ctx.drawImage(sheet, frame * sw, 0, sw, sh, p.x - dw / 2, p.y - dh * 0.54 + bob, dw, dh)
-    if (threat.hit > 0) {
-      ctx.globalCompositeOperation = 'screen'
-      ctx.globalAlpha = 0.16
-      ctx.fillStyle = damageFeedbackConfig.hitFlash.color
-      ctx.beginPath()
-      ctx.arc(p.x, p.y - 14 + bob, threat.radius + 14, 0, TAU)
-      ctx.fill()
-    }
-    ctx.restore()
-  }
-
-  private renderCatalogBossThreat(ctx: CanvasRenderingContext2D, threat: SurfaceThreat) {
-    const p = this.surfaceToScreen(threat.x, threat.y)
-    const sheet = this.planetBossCatalog
-    if (!sheet.complete || sheet.naturalWidth === 0) {
-      this.renderFallbackMite(ctx, threat, p)
-      return
-    }
-    const row = clamp(Math.floor(threat.spriteRow ?? 0), 0, BOSS_CATALOG_ROWS - 1)
-    const frame = Math.floor((this.stats.time * 6 + threat.phase) % BOSS_CATALOG_FRAMES)
-    const sw = sheet.naturalWidth / BOSS_CATALOG_FRAMES
-    const sh = sheet.naturalHeight / BOSS_CATALOG_ROWS
-    const bob = Math.sin(this.stats.time * 3.2 + threat.phase) * 4
-    const scale = threat.hit > 0 ? 0.56 : 0.54
-    const dw = sw * scale
-    const dh = sh * scale
-    ctx.save()
-    ctx.globalCompositeOperation = 'lighter'
-    ctx.globalAlpha = threat.hit > 0 ? 0.98 : 0.94
-    ctx.shadowColor = threat.color
-    ctx.shadowBlur = this.allowGlow() ? 24 : 8
-    ctx.drawImage(sheet, frame * sw, row * sh, sw, sh, p.x - dw / 2, p.y - dh * 0.55 + bob, dw, dh)
-    ctx.globalAlpha = 0.45
-    ctx.strokeStyle = threat.color
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.arc(p.x, p.y + bob, threat.radius + 9 + Math.sin(this.stats.time * 4 + threat.phase) * 4, 0, TAU)
-    ctx.stroke()
-    ctx.restore()
-  }
-
-  private renderFallbackMite(ctx: CanvasRenderingContext2D, threat: SurfaceThreat, p: Vec) {
-    ctx.save()
-    ctx.translate(p.x, p.y)
-    ctx.strokeStyle = hitFlashColor(threat.hit > 0, '#57fff3')
-    ctx.shadowColor = '#57fff3'
-    ctx.shadowBlur = 16
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.moveTo(0, -34)
-    ctx.lineTo(22, -2)
-    ctx.lineTo(10, 25)
-    ctx.lineTo(-12, 24)
-    ctx.lineTo(-22, -2)
-    ctx.closePath()
-    ctx.stroke()
-    ctx.strokeStyle = hitFlashColor(threat.hit > 0, '#fff27a')
-    ctx.beginPath()
-    ctx.moveTo(-14, 16)
-    ctx.lineTo(-34, 34)
-    ctx.moveTo(14, 16)
-    ctx.lineTo(34, 34)
-    ctx.stroke()
-    ctx.restore()
   }
 
   private renderSurfaceAliens(ctx: CanvasRenderingContext2D, s: SurfaceRun) {

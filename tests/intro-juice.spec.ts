@@ -5,8 +5,7 @@ const HARNESS_URL = 'http://127.0.0.1:5176/?harness=1'
 const READY_TIMEOUT = 10_000
 
 test('surface threat renderers use the shared red hit-flash color', () => {
-  const main = readFileSync('src/main.ts', 'utf8')
-  const surfaceThreats = main.slice(main.indexOf('private renderSurfaceThreats'), main.indexOf('private renderSurfaceAliens'))
+  const surfaceThreats = readFileSync('src/surface/render-threats.ts', 'utf8')
 
   expect(surfaceThreats).toContain('hitFlashColor(threat.hit > 0')
   expect(surfaceThreats).not.toContain("threat.hit > 0 ? '#fff27a'")
