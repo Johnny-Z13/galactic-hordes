@@ -172,6 +172,8 @@ interface Pickup {
   radius: number
   life: number
   color: string
+  /** Frames spent in magnet pull range; drives glint emit cadence. */
+  glintFrame?: number
 }
 
 interface Particle {
@@ -2601,6 +2603,11 @@ export class VectorShooter {
         const strength = pickupMagnetStrength(p.kind)
         p.vx += pull.x * strength * dt
         p.vy += pull.y * strength * dt
+        // glint cadence: counter not reset on range-exit; steady rhythm is intentional
+        p.glintFrame = (p.glintFrame ?? 0) + 1
+        if (p.glintFrame % introHookConfig.magnetGlint.frameInterval === 0) {
+          this.burst(p.x, p.y, p.color, 1, introHookConfig.magnetGlint.particleSpeed)
+        }
       }
       p.x += p.vx * dt
       p.y += p.vy * dt
