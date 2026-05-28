@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
 const audioSource = () => readFileSync(resolve(process.cwd(), 'src/audio/audio-director.ts'), 'utf8')
 const sfxSamplesSource = () => readFileSync(resolve(process.cwd(), 'src/audio/sfx-samples.ts'), 'utf8')
+const uiClickCuesSource = () => readFileSync(resolve(process.cwd(), 'src/audio/ui-click-cues.ts'), 'utf8')
 const workbenchSource = () => readFileSync(resolve(process.cwd(), 'src/ui/workbench.ts'), 'utf8')
 
 test('audio director has distinct planet ambience and weapon cue profiles', () => {
@@ -23,7 +24,7 @@ test('main wires audio through focused modules', () => {
 
   expect(main).toContain("import { AudioDirector")
   expect(main).toContain("from './audio/audio-director'")
-  expect(main).toContain("import { sfxSamples, uiButtonSampleNames } from './audio/sfx-samples'")
+  expect(main).toContain("import { sfxSamples } from './audio/sfx-samples'")
   expect(main).toContain('this.audio.registerSamples(sfxSamples)')
   expect(main).not.toContain('class AudioDirector')
   expect(samples).toContain('export const sfxSamples')
@@ -32,8 +33,26 @@ test('main wires audio through focused modules', () => {
   expect(samples).toContain('UI_device_button5.mp3?url')
   expect(samples).toContain('UI_device_button6.mp3?url')
   expect(samples).toContain('export const uiButtonSampleNames = [')
-  expect(main).toContain('const sample = uiButtonSampleNames[this.uiClickSampleIndex % uiButtonSampleNames.length]')
+  expect(samples).toContain('export const uiButtonNavigationSampleNames = [')
+  expect(samples).toContain('export const uiButtonConfirmSampleNames = [')
+  expect(samples).toContain('export const uiButtonDangerSampleNames = [')
+  expect(main).toContain("import { uiClickSoundForButton } from './audio/ui-click-cues'")
+  expect(main).toContain('const cue = uiClickSoundForButton(button, this.uiClickSampleIndex)')
+  expect(main).toContain('this.audio.playSample(cue.sample, { gain: cue.gain, rate: cue.rate })')
   expect(samples).toContain('Atmosphere_Lowloop_planetAMB.mp3?url')
+})
+
+test('ui click audio routes button intent to semantic sample pools', () => {
+  const cues = uiClickCuesSource()
+
+  expect(cues).toContain("export type UiClickSoundKind = 'navigation' | 'confirm' | 'danger'")
+  expect(cues).toContain('uiButtonNavigationSampleNames')
+  expect(cues).toContain('uiButtonConfirmSampleNames')
+  expect(cues).toContain('uiButtonDangerSampleNames')
+  expect(cues).toContain("button.dataset.uiSound === 'confirm'")
+  expect(cues).toContain("button.classList.contains('workbench-install-choice')")
+  expect(cues).toContain("button.classList.contains('start-button')")
+  expect(cues).toContain("button.classList.contains('danger')")
 })
 
 test('gameplay events route to specialized audio cues', () => {

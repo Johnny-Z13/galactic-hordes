@@ -19,6 +19,21 @@ export const uiButtonSampleNames = [
   'ui-button-6'
 ] as const
 
+export const uiButtonNavigationSampleNames = [
+  'ui-button-1',
+  'ui-button-2',
+  'ui-button-3'
+] as const
+
+export const uiButtonConfirmSampleNames = [
+  'ui-button-4',
+  'ui-button-6'
+] as const
+
+export const uiButtonDangerSampleNames = [
+  'ui-button-5'
+] as const
+
 export const sfxSamples = {
   'ui-button-1': sfxUiButton1Url,
   'ui-button-2': sfxUiButton2Url,

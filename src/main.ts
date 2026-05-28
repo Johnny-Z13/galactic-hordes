@@ -1,6 +1,7 @@
 import './style.css'
 import { AudioDirector, type PlanetAudioMood } from './audio/audio-director'
-import { sfxSamples, uiButtonSampleNames } from './audio/sfx-samples'
+import { sfxSamples } from './audio/sfx-samples'
+import { uiClickSoundForButton } from './audio/ui-click-cues'
 import { damageFeedbackConfig } from './combat/damage-feedback'
 import { advanceImpactPulses, createImpactPulse, type ImpactPulse } from './combat/impact-feedback'
 import { advancePlayerDamageFlash, createPlayerDamageFlash, type PlayerDamageFlash } from './combat/player-damage-feedback'
@@ -1052,9 +1053,9 @@ export class VectorShooter {
       // Without this, the very first menu clicks make no sound because unlock()
       // is only otherwise called from in-game input paths.
       this.audio.unlock()
-      const sample = uiButtonSampleNames[this.uiClickSampleIndex % uiButtonSampleNames.length]
+      const cue = uiClickSoundForButton(button, this.uiClickSampleIndex)
       this.uiClickSampleIndex += 1
-      this.audio.playSample(sample, { gain: 0.45 })
+      this.audio.playSample(cue.sample, { gain: cue.gain, rate: cue.rate })
     }, true)
     const preventBrowserGesture = (event: Event) => event.preventDefault()
     document.addEventListener('gesturestart', preventBrowserGesture, { passive: false } as AddEventListenerOptions)
