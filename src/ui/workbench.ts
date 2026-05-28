@@ -2,6 +2,7 @@ import type { VectorShooter, WorkbenchChoice, AudioUpgradeCue } from '../main'
 import { evolutions, relics, upgrades, workbenchBalance, type Upgrade, type UpgradeId } from '../powerup-balance'
 import { workbenchUnlockEdges, workbenchUpgradeRows, type WorkbenchUpgradeRow } from '../workbench-rolls'
 import { workbenchBayDefinitions, workbenchBayForUpgrade, type WorkbenchBayDefinition } from '../workbench-bays'
+import { weaponHudReadout } from '../weapon-signatures'
 export function renderLevelUp(self: VectorShooter, title: string, copy: string) {
   self['levelUpTitle'] = title
   self['levelUpCopy'] = copy
@@ -215,6 +216,27 @@ export function choiceCategoryLabel(self: VectorShooter, choice: WorkbenchChoice
   return 'LIMIT BREAK'
 }
 
+export function choiceWeaponPreview(self: VectorShooter, choice: WorkbenchChoice) {
+  const nextBuild = { ...self['build'] }
+  const nextEvolved = new Set(self['evolved'])
+
+  if (choice.kind === 'upgrade') {
+    if (choice.upgrade.bucket !== 'weapons') return ''
+    const currentLevel = self['build'][choice.upgrade.id]
+    if (currentLevel >= choice.upgrade.max) return ''
+    nextBuild[choice.upgrade.id] = Math.min(currentLevel + 1, choice.upgrade.max)
+  } else if (choice.kind === 'evolution') {
+    if (nextEvolved.has(choice.evolution.weapon)) return ''
+    nextEvolved.add(choice.evolution.weapon)
+  } else {
+    return ''
+  }
+
+  const current = weaponHudReadout({ build: self['build'], evolved: self['evolved'] })
+  const next = weaponHudReadout({ build: nextBuild, evolved: nextEvolved })
+  return current.text === next.text ? '' : `NEXT: ${next.text}`
+}
+
 export function isWorkbenchUpgradeUnlocked(self: VectorShooter, id: UpgradeId) {
   const rows = workbenchUpgradeRows(upgrades, self['build'], [], workbenchExtraUnlockedIds(self))
   return rows.some((row) => row.upgrade.id === id && row.status !== 'locked')
@@ -288,6 +310,7 @@ export function renderWorkbenchChoiceChip(self: VectorShooter, choice: Workbench
   chip.type = 'button'
   const level = choice.kind === 'upgrade' ? self['build'][choice.upgrade.id] : 0
   const kindClass = choice.kind === 'upgrade' ? choice.upgrade.bucket : choice.kind
+  const weaponPreview = choiceWeaponPreview(self, choice)
   chip.className = `manifest-chip available workbench-install-choice ${kindClass}`
   chip.addEventListener('click', () => beginWorkbenchInstall(self, choice, chip))
   chip.innerHTML = `
@@ -297,6 +320,7 @@ export function renderWorkbenchChoiceChip(self: VectorShooter, choice: Workbench
       <b>${self['escape'](workbenchChoiceRoute(self, choice, level))}</b>
     </div>
     <span>${self['escape'](choiceDetail(self, choice))}</span>
+    ${weaponPreview ? `<small class="workbench-weapon-preview">${self['escape'](weaponPreview)}</small>` : ''}
     <em>${self['escape'](choiceCategoryLabel(self, choice))}</em>
   `
   return chip
@@ -315,6 +339,7 @@ export function renderWorkbenchUpgradeChip(self: VectorShooter, upgrade: Upgrade
   const chip = document.createElement('button')
   chip.type = 'button'
   const next = Math.min(self['build'][upgrade.id] + 1, upgrade.max)
+  const weaponPreview = choiceWeaponPreview(self, { kind: 'upgrade', upgrade })
   chip.className = `manifest-chip available workbench-install-choice offer-ready ${upgrade.bucket}`
   chip.addEventListener('click', () => beginWorkbenchInstall(self, { kind: 'upgrade', upgrade }, chip))
   chip.innerHTML = `
@@ -324,6 +349,7 @@ export function renderWorkbenchUpgradeChip(self: VectorShooter, upgrade: Upgrade
       <b>${self['build'][upgrade.id]}/${upgrade.max}</b>
     </div>
     <span>${self['escape'](`INSTALL RANK ${next}/${upgrade.max} // ${self['upgradeLevelDetail'](upgrade, next)}`)}</span>
+    ${weaponPreview ? `<small class="workbench-weapon-preview">${self['escape'](weaponPreview)}</small>` : ''}
     <em>${self['bucketLabel'](upgrade.bucket)}</em>
   `
   return chip

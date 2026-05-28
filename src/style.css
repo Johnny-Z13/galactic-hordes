@@ -3508,8 +3508,21 @@ button.manifest-chip:disabled {
   font-style: normal;
 }
 
+.workbench-weapon-preview {
+  display: block;
+  overflow: hidden;
+  color: rgba(255, 242, 122, 0.82);
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .manifest-chip:has(.manifest-chip-node) span,
-.manifest-chip:has(.manifest-chip-node) em {
+.manifest-chip:has(.manifest-chip-node) em,
+.manifest-chip:has(.manifest-chip-node) .workbench-weapon-preview {
   grid-column: 2;
 }
 

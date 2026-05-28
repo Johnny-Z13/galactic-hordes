@@ -110,7 +110,7 @@ export const weaponHudReadout = ({ build, evolved }: WeaponHudReadoutInput): Wea
   const name = evolvedName ?? branch?.name ?? 'Pulse Cannon'
   const primaryTag = branch?.tag ?? null
   const tags = weaponHudTags(build, evolved, primaryTag)
-  const safeTags = tags.length ? tags : ['BASE']
+  const safeTags = tags.length ? tags : [branch || evolvedName ? 'ONLINE' : 'BASE']
   return {
     name,
     tags: safeTags,
