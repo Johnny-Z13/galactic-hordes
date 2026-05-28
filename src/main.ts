@@ -80,6 +80,7 @@ import { applyOptionOrbDamage, deployMineWake as deployMineWakeWeapon, fireOptio
 import { applyDashRam } from './space-dash-combat'
 import { createEnemyTrailParticle } from './space-enemy-trails'
 import { EnemySpatialGrid } from './space-enemy-grid'
+import { damageSpaceHazard as damageSpaceHazardCombat } from './space-hazard-combat'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { clamp, norm, dist2, hash32, len, rngFrom, TAU } from './math-utils'
@@ -1901,7 +1902,14 @@ export class VectorShooter {
         const rr = hazard.radius + b.radius
         if ((hazard.x - b.x) ** 2 + (hazard.y - b.y) ** 2 < rr * rr) {
           this.playBulletImpact(b.rail ? 1.25 : 0.9)
-          this.damageSpaceHazard(hazard, b.damage, b.color)
+          const hazardDamage = damageSpaceHazardCombat({
+            hazards: this.spaceHazards,
+            hazard,
+            amount: b.damage,
+            color: b.color
+          })
+          this.burst(hazardDamage.burst.x, hazardDamage.burst.y, hazardDamage.burst.color, hazardDamage.burst.count, hazardDamage.burst.speed)
+          this.stats.score += hazardDamage.score
           b.pierce -= 1
           hitAsteroid = true
           if (b.pierce < 0) {
@@ -1945,37 +1953,6 @@ export class VectorShooter {
     if (this.bulletImpactCooldown > 0) return
     this.audio.impact(power)
     this.bulletImpactCooldown = this.isHighLoad() ? 0.075 : 0.032
-  }
-
-  private damageSpaceHazard(hazard: SpaceHazardAsteroid, amount: number, color: string) {
-    const previousRadius = hazard.radius
-    hazard.radius -= amount * 0.72
-    hazard.vx += rand(-18, 18)
-    hazard.vy += rand(-18, 18)
-    this.burst(hazard.x, hazard.y, color, previousRadius > 42 ? 8 : 4, previousRadius > 42 ? 145 : 90)
-    if (hazard.radius > 22) return
-
-    const index = this.spaceHazards.indexOf(hazard)
-    if (index >= 0) this.spaceHazards.splice(index, 1)
-    this.stats.score += Math.max(2, Math.round(previousRadius / 12))
-    if (previousRadius <= 46 || this.spaceHazards.length > 70) return
-
-    for (let split = 0; split < 2; split += 1) {
-      const a = Math.random() * TAU
-      const speed = rand(70, 135)
-      this.spaceHazards.push({
-        x: hazard.x + Math.cos(a) * previousRadius * 0.32,
-        y: hazard.y + Math.sin(a) * previousRadius * 0.32,
-        vx: hazard.vx * 0.55 + Math.cos(a) * speed,
-        vy: hazard.vy * 0.55 + Math.sin(a) * speed,
-        radius: previousRadius * 0.44,
-        spin: rand(-2.2, 2.2),
-        life: Math.max(9, hazard.life * 0.72),
-        phase: Math.random() * TAU,
-        hitCooldown: 0,
-        damageMultiplier: hazard.damageMultiplier
-      })
-    }
   }
 
   private rebuildEnemyGrid() {

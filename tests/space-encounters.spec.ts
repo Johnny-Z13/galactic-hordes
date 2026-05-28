@@ -106,7 +106,7 @@ test('main space loop wires encounter events into update render and reset', () =
   expect(main).toContain('asteroidFieldAsteroids')
   expect(main).toContain('this.asteroidFieldTimer = 24')
   expect(main).toContain('this.seedAsteroidField')
-  expect(main).toContain('private damageSpaceHazard')
+  expect(main).toContain('damageSpaceHazardCombat({')
   expect(main).toContain('drawSpaceHazards({')
   expect(main).toContain('drawDerelictSignals({')
   expect(main).toContain('this.spaceHazards = []')
