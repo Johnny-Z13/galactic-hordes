@@ -46,11 +46,30 @@ test('score popups project through the matching camera layer', async () => {
   })).toEqual({ x: 1012, y: 1018 })
 })
 
+test('score popup aging advances and removes expired rewards in place', async () => {
+  const mod = await import('../src/score-popups')
+  const popups = [
+    mod.createScorePopup({ x: 0, y: 20, value: 10, layer: 'space', riseSpeed: 12, lifeSeconds: 0.6 }),
+    mod.createScorePopup({ x: 0, y: 40, value: 20, layer: 'surface', riseSpeed: 10, lifeSeconds: 0.25 })
+  ]
+
+  mod.advanceScorePopups(popups, 0.3)
+
+  expect(popups).toHaveLength(1)
+  expect(popups[0]).toMatchObject({
+    text: '+10',
+    y: 16.4,
+    life: 0.3,
+    layer: 'space'
+  })
+})
+
 test('surface threat kills create surface-layer score feedback', () => {
   const main = readFileSync('src/main.ts', 'utf8')
   const updateSurfaceThreats = main.slice(main.indexOf('private updateSurfaceThreats'), main.indexOf('private updateSurfaceWaves'))
 
-  expect(main).toContain("import { createScorePopup, scorePopupScreenPoint")
+  expect(main).toContain("import { advanceScorePopups, createScorePopup, scorePopupScreenPoint")
+  expect(main).toContain('advanceScorePopups(this.scorePopups, dt)')
   expect(updateSurfaceThreats).toContain('this.pushScorePopup(createScorePopup({')
   expect(updateSurfaceThreats).toContain("layer: 'surface'")
   expect(updateSurfaceThreats).toContain('this.stats.kills += 1')

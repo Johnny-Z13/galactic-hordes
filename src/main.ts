@@ -35,7 +35,7 @@ import { planetNameFor } from './planet-names'
 import { pickupMagnetRange, pickupMagnetStrength } from './pickup-magnet'
 import { planetRadius } from './planet-sizing'
 import { runBalance } from './run-balance'
-import { createScorePopup, scorePopupScreenPoint, type ScorePopupModel } from './score-popups'
+import { advanceScorePopups, createScorePopup, scorePopupScreenPoint, type ScorePopupModel } from './score-popups'
 import {
   evolutions,
   limitBreakChoices,
@@ -1182,12 +1182,7 @@ export class VectorShooter {
     this.updateSpaceEncounters(dt)
     this.updatePickups(dt)
     this.updateParticles(dt)
-    for (let i = this.scorePopups.length - 1; i >= 0; i -= 1) {
-      const sp = this.scorePopups[i]
-      sp.life -= dt
-      sp.y += sp.vy * dt
-      if (sp.life <= 0) this.scorePopups.splice(i, 1)
-    }
+    advanceScorePopups(this.scorePopups, dt)
     this.updateOrbitals(dt)
     this.updateSpawning()
     this.updateSectorWaves()
@@ -6946,14 +6941,7 @@ export class VectorShooter {
       count: this.scorePopups.length,
       texts: this.scorePopups.map((sp) => sp.text)
     })
-    window.debugStepScorePopups = (dt: number) => {
-      for (let i = this.scorePopups.length - 1; i >= 0; i -= 1) {
-        const sp = this.scorePopups[i]
-        sp.life -= dt
-        sp.y += sp.vy * dt
-        if (sp.life <= 0) this.scorePopups.splice(i, 1)
-      }
-    }
+    window.debugStepScorePopups = (dt: number) => advanceScorePopups(this.scorePopups, dt)
     window.debugHitstopUntil = () => this.hitstopUntil
     window.debugForceKillNearestEnemy = (giant: boolean) => {
       let target: Enemy | null = null

@@ -42,3 +42,12 @@ export function scorePopupScreenPoint(
     ? projectors.surfaceToScreen(popup.x, popup.y)
     : projectors.worldToScreen(popup.x, popup.y)
 }
+
+export function advanceScorePopups(popups: ScorePopupModel[], dt: number) {
+  for (let i = popups.length - 1; i >= 0; i -= 1) {
+    const popup = popups[i]
+    popup.life -= dt
+    popup.y += popup.vy * dt
+    if (popup.life <= 0) popups.splice(i, 1)
+  }
+}
