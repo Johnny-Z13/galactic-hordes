@@ -7,17 +7,22 @@ const cssSource = () => readFileSync('src/style.css', 'utf8')
 
 test('hud owns a shield fill and attaches it to the hull meter', () => {
   const main = mainSource()
+  const hud = hudSource()
 
   expect(main).toContain('shieldFill: document.createElement')
-  expect(main).toContain("this.meter('HULL', this.ui.hull, this.ui.hullFill, 'health', this.ui.hullLabel, this.ui.shieldFill)")
-  expect(main).toContain("shieldFill.className = 'hud-meter-shield-fill'")
+  expect(main).toContain("import { makeHud as uiMakeHud, updateHud as uiUpdateHud } from './ui/hud'")
+  expect(main).toContain('uiMakeHud(this)')
+  expect(main).not.toContain('private meter(')
+  expect(hud).toContain('export function makeHud(self: VectorShooter)')
+  expect(hud).toContain("meter('HULL', self['ui'].hull, self['ui'].hullFill, 'health', self['ui'].hullLabel, self['ui'].shieldFill)")
+  expect(hud).toContain("shieldFill.className = 'hud-meter-shield-fill'")
 })
 
 test('hud updates shield strip only during ship flight', () => {
   const main = mainSource()
   const hud = hudSource()
 
-  expect(main).toContain("import { updateHud as uiUpdateHud } from './ui/hud'")
+  expect(main).toContain("import { makeHud as uiMakeHud, updateHud as uiUpdateHud } from './ui/hud'")
   expect(main).toContain('uiUpdateHud(this)')
   expect(hud).toContain('export function updateHud(self: VectorShooter)')
   expect(hud).toContain("self['ui'].shieldFill.style.width =")

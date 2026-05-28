@@ -12,7 +12,7 @@ test('main toggles critical health on ship and surface hud fills', () => {
   const main = readFileSync('src/main.ts', 'utf8')
   const hud = readFileSync('src/ui/hud.ts', 'utf8')
 
-  expect(main).toContain("import { updateHud as uiUpdateHud } from './ui/hud'")
+  expect(main).toContain("import { makeHud as uiMakeHud, updateHud as uiUpdateHud } from './ui/hud'")
   expect(main).toContain('uiUpdateHud(this)')
   expect(hud).toContain('vitalCriticalClass')
   expect(hud).toContain("self['ui'].hullFill.classList.toggle(")

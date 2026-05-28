@@ -165,7 +165,7 @@ import { showMothership as uiShowMothership } from './ui/mothership-console'
 import { renderDebrief as uiRenderDebrief } from './ui/debrief'
 import { showScores as uiShowScores } from './ui/scores'
 import { showTitle as uiShowTitle } from './ui/title-screen'
-import { updateHud as uiUpdateHud } from './ui/hud'
+import { makeHud as uiMakeHud, updateHud as uiUpdateHud } from './ui/hud'
 import { renderIntroArrow } from './ui/intro-waypoint'
 import {
   introHookConfig,
@@ -831,40 +831,7 @@ export class VectorShooter {
   }
 
   private makeHud() {
-    const hud = document.createElement('div')
-    hud.className = 'hud'
-    const top = document.createElement('div')
-    top.className = 'topbar'
-    const meters = document.createElement('div')
-    meters.className = 'hud-meters'
-    meters.append(this.meter('HULL', this.ui.hull, this.ui.hullFill, 'health', this.ui.hullLabel, this.ui.shieldFill), this.meter('XP', this.ui.level, this.ui.xpFill, 'xp', this.ui.xpLabel))
-    const left = document.createElement('div')
-    left.className = 'hud-cluster hud-cluster-left'
-    left.append(this.chip('TIME', this.ui.time), this.chip('SCORE', this.ui.score))
-    const weapon = this.chip('WEAPON', this.ui.weapon, 'weapon wide')
-    this.ui.toast.className = 'toast'
-    this.ui.perf.className = 'perf'
-    hud.append(top, this.ui.toast, this.makeTouchControls())
-    top.append(meters, left, weapon)
-    return hud
-  }
-
-  private meter(label: string, value: HTMLElement, fill: HTMLElement, tone: string, labelEl = document.createElement('span'), shieldFill?: HTMLElement) {
-    const meter = document.createElement('div')
-    meter.className = `hud-meter ${tone}`
-    const meta = document.createElement('div')
-    meta.className = 'hud-meter-meta'
-    labelEl.textContent = label
-    value.className = 'hud-meter-value'
-    meta.append(labelEl, value)
-    const bar = document.createElement('div')
-    bar.className = 'hud-meter-bar'
-    fill.className = `hud-meter-fill ${tone}`
-    if (shieldFill) shieldFill.className = 'hud-meter-shield-fill'
-    bar.append(fill)
-    if (shieldFill) bar.append(shieldFill)
-    meter.append(meta, bar)
-    return meter
+    return uiMakeHud(this)
   }
 
   private makeTouchControls() {
@@ -1020,17 +987,6 @@ export class VectorShooter {
       { x: 0.42, y: 0.78 }
     ]
     return slots[(index + existingCount) % slots.length]
-  }
-
-  private chip(label: string, value: HTMLElement, tone = '') {
-    const chip = document.createElement('div')
-    chip.className = `hud-chip ${tone}`.trim()
-    const l = document.createElement('span')
-    l.className = 'hud-label'
-    l.textContent = label
-    value.className = 'hud-value'
-    chip.append(l, value)
-    return chip
   }
 
   private makeScreens() {

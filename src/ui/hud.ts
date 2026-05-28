@@ -3,6 +3,28 @@ import { dist2 } from '../math-utils'
 import { weaponHudReadout } from '../weapon-signatures'
 import { vitalCriticalClass } from './vital-meter'
 
+export function makeHud(self: VectorShooter) {
+  const hud = document.createElement('div')
+  hud.className = 'hud'
+  const top = document.createElement('div')
+  top.className = 'topbar'
+  const meters = document.createElement('div')
+  meters.className = 'hud-meters'
+  meters.append(
+    meter('HULL', self['ui'].hull, self['ui'].hullFill, 'health', self['ui'].hullLabel, self['ui'].shieldFill),
+    meter('XP', self['ui'].level, self['ui'].xpFill, 'xp', self['ui'].xpLabel)
+  )
+  const left = document.createElement('div')
+  left.className = 'hud-cluster hud-cluster-left'
+  left.append(chip('TIME', self['ui'].time), chip('SCORE', self['ui'].score))
+  const weapon = chip('WEAPON', self['ui'].weapon, 'weapon wide')
+  self['ui'].toast.className = 'toast'
+  self['ui'].perf.className = 'perf'
+  hud.append(top, self['ui'].toast, self['makeTouchControls']())
+  top.append(meters, left, weapon)
+  return hud
+}
+
 export function updateHud(self: VectorShooter) {
   self['ui'].score.textContent = Math.floor(self['stats'].score).toString()
   self['ui'].time.textContent = formatTime(self['stats'].time)
@@ -51,4 +73,33 @@ export function updateHud(self: VectorShooter) {
   }
   self['updateTouchHud']()
   self['updatePerfHud']()
+}
+
+function meter(label: string, value: HTMLElement, fill: HTMLElement, tone: string, labelEl = document.createElement('span'), shieldFill?: HTMLElement) {
+  const meter = document.createElement('div')
+  meter.className = `hud-meter ${tone}`
+  const meta = document.createElement('div')
+  meta.className = 'hud-meter-meta'
+  labelEl.textContent = label
+  value.className = 'hud-meter-value'
+  meta.append(labelEl, value)
+  const bar = document.createElement('div')
+  bar.className = 'hud-meter-bar'
+  fill.className = `hud-meter-fill ${tone}`
+  if (shieldFill) shieldFill.className = 'hud-meter-shield-fill'
+  bar.append(fill)
+  if (shieldFill) bar.append(shieldFill)
+  meter.append(meta, bar)
+  return meter
+}
+
+function chip(label: string, value: HTMLElement, tone = '') {
+  const chip = document.createElement('div')
+  chip.className = `hud-chip ${tone}`.trim()
+  const l = document.createElement('span')
+  l.className = 'hud-label'
+  l.textContent = label
+  value.className = 'hud-value'
+  chip.append(l, value)
+  return chip
 }
