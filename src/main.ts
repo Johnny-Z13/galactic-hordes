@@ -152,8 +152,9 @@ import {
 import { renderCollectionScreen as uiRenderCollectionScreen } from './ui/collection'
 import { showMothership as uiShowMothership, renderMothershipMetaSystems as uiRenderMothershipMetaSystems } from './ui/mothership-console'
 import { renderDebrief as uiRenderDebrief } from './ui/debrief'
+import type { StateHandlers } from './game-states'
 
-type GameState = 'title' | 'mothership' | 'collection' | 'powerups' | 'sectorMap' | 'station' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
+export type GameState = 'title' | 'mothership' | 'collection' | 'powerups' | 'sectorMap' | 'station' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
 type PickupKind = 'xp' | 'repair' | 'magnet' | 'core' | 'chest'
 type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
 export type ArtifactKind = 'relic' | 'alien' | 'lore' | 'planet' | 'cache' | 'enemy'
@@ -844,6 +845,40 @@ export class VectorShooter {
   private last = performance.now()
   private state: GameState = 'title'
   private previousState: GameState = 'title'
+  private readonly stateHandlers: StateHandlers = {
+    landing: {
+      update: (dt) => this.updateLanding(dt),
+      render: (ctx) => {
+        const t = clamp(this.transitionTimer / this.transitionDuration, 0, 1)
+        if (t < 0.58) this.renderSpaceScene(ctx)
+        else this.renderSurface(ctx)
+        this.renderTransitionOverlay(ctx, t, 'LANDING')
+      }
+    },
+    surface: {
+      update: (dt) => this.updateSurface(dt),
+      render: (ctx) => {
+        this.mini.style.display = 'none'
+        this.renderSurface(ctx)
+      }
+    },
+    takeoff: {
+      update: (dt) => this.updateTakeoff(dt),
+      render: (ctx) => {
+        const t = clamp(this.transitionTimer / this.transitionDuration, 0, 1)
+        if (t < 0.5) this.renderSurface(ctx)
+        else this.renderSpaceScene(ctx)
+        this.renderTransitionOverlay(ctx, t, 'TAKEOFF')
+      }
+    },
+    dying: {
+      update: (dt) => this.updateDying(dt),
+      render: (ctx) => {
+        this.renderSpaceScene(ctx)
+        this.renderDeathOverlay(ctx)
+      }
+    }
+  }
   private graphicsMode: GraphicsMode = (localStorage.getItem('vector_shooter_graphics') as GraphicsMode) || 'LOW'
   private perf: PerfStats = { updateMs: 0, renderMs: 0, frameMs: 16.7, fps: 60 }
   private keys = new Set<string>()
@@ -1418,10 +1453,6 @@ export class VectorShooter {
   private update(dt: number) {
     const intensity = this.state === 'surface' ? 0.18 : clamp(this.stats.time / 360 + this.enemies.length / 120, 0, 1)
     this.audio.update(dt, intensity, this.audioMood())
-    if (this.state === 'landing') {
-      this.updateLanding(dt)
-      return
-    }
     if ((this.state === 'alien' || this.state === 'lore') && this.surface) {
       this.stats.time += dt * 0.08
       this.toastTimer -= dt
@@ -1430,16 +1461,9 @@ export class VectorShooter {
       this.updateHud()
       return
     }
-    if (this.state === 'surface') {
-      this.updateSurface(dt)
-      return
-    }
-    if (this.state === 'takeoff') {
-      this.updateTakeoff(dt)
-      return
-    }
-    if (this.state === 'dying') {
-      this.updateDying(dt)
+    const handler = this.stateHandlers[this.state]
+    if (handler?.update) {
+      handler.update(dt)
       return
     }
     if (this.state !== 'playing') {
@@ -1450,7 +1474,10 @@ export class VectorShooter {
       this.drawTitleDrift(dt)
       return
     }
+    this.updatePlaying(dt)
+  }
 
+  private updatePlaying(dt: number) {
     this.stats.time += dt
     this.spawnTimer -= dt
     this.bossTimer -= dt
@@ -4719,28 +4746,9 @@ export class VectorShooter {
       this.renderSurface(ctx)
       return
     }
-    if (this.state === 'surface') {
-      this.mini.style.display = 'none'
-      this.renderSurface(ctx)
-      return
-    }
-    if (this.state === 'landing') {
-      const t = clamp(this.transitionTimer / this.transitionDuration, 0, 1)
-      if (t < 0.58) this.renderSpaceScene(ctx)
-      else this.renderSurface(ctx)
-      this.renderTransitionOverlay(ctx, t, 'LANDING')
-      return
-    }
-    if (this.state === 'takeoff') {
-      const t = clamp(this.transitionTimer / this.transitionDuration, 0, 1)
-      if (t < 0.5) this.renderSurface(ctx)
-      else this.renderSpaceScene(ctx)
-      this.renderTransitionOverlay(ctx, t, 'TAKEOFF')
-      return
-    }
-    if (this.state === 'dying') {
-      this.renderSpaceScene(ctx)
-      this.renderDeathOverlay(ctx)
+    const handler = this.stateHandlers[this.state]
+    if (handler?.render) {
+      handler.render(ctx)
       return
     }
     this.renderSpaceScene(ctx)
