@@ -29,11 +29,12 @@ import {
   surfaceThreatBalance
 } from './game-balance'
 import { navigationCruiseScalar, navigationTrailProfile } from './navigation-cruise'
+import { applyMutationXp } from './mutation-progress'
 import { selectPlanetBiome, type PlanetBiomeProfile } from './planet-biomes'
 import { planetNameFor } from './planet-names'
 import { pickupMagnetRange, pickupMagnetStrength } from './pickup-magnet'
 import { planetRadius } from './planet-sizing'
-import { nextXpThreshold, runBalance } from './run-balance'
+import { runBalance } from './run-balance'
 import {
   evolutions,
   limitBreakChoices,
@@ -3075,14 +3076,9 @@ export class VectorShooter {
     this.audio.pickup(p.kind)
     this.player.pickupAbsorbPulse = Math.max(this.player.pickupAbsorbPulse, 0.34)
     if (p.kind === 'xp') {
-      this.stats.xp += p.value
       this.stats.score += p.value
-      while (this.stats.xp >= this.stats.nextXp) {
-        this.stats.xp -= this.stats.nextXp
-        this.stats.level += 1
-        this.stats.nextXp = nextXpThreshold(this.stats.nextXp)
-        this.bankUpgrade('MUTATION SIGNAL BANKED. LAND TO INSTALL IT.')
-      }
+      const levelsGained = applyMutationXp(this.stats, p.value)
+      for (let i = 0; i < levelsGained; i += 1) this.bankUpgrade('MUTATION SIGNAL BANKED. LAND TO INSTALL IT.')
     } else if (p.kind === 'repair') {
       this.player.hull = clamp(this.player.hull + p.value, 0, this.player.maxHull)
     } else if (p.kind === 'magnet') {
@@ -3863,14 +3859,9 @@ export class VectorShooter {
       if (resource.kind === 'crystal') {
         const gained = Math.ceil(resource.value * (1 + this.build.cargo * powerupBalance.upgradeApply.cargoResourceBonusPerRank))
         this.resources.crystal += gained
-        this.stats.xp += resource.value
         this.stats.score += resource.value * 12
-        while (this.stats.xp >= this.stats.nextXp) {
-          this.stats.xp -= this.stats.nextXp
-          this.stats.level += 1
-          this.stats.nextXp = nextXpThreshold(this.stats.nextXp)
-          this.bankSurfaceUpgrade()
-        }
+        const levelsGained = applyMutationXp(this.stats, resource.value)
+        for (let i = 0; i < levelsGained; i += 1) this.bankSurfaceUpgrade()
       } else if (resource.kind === 'scrap') {
         const gained = Math.ceil(resource.value * (1 + this.build.cargo * powerupBalance.upgradeApply.cargoResourceBonusPerRank))
         this.resources.scrap += gained

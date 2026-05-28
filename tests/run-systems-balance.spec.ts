@@ -11,6 +11,7 @@ import {
 } from '../src/surface-balance'
 
 const mainSource = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+const mutationProgressSource = () => readFileSync(resolve(process.cwd(), 'src/mutation-progress.ts'), 'utf8')
 const surfaceRunSetupSource = () => readFileSync(resolve(process.cwd(), 'src/surface/run-setup.ts'), 'utf8')
 
 test('run-level player xp timers and station values are named balance data', () => {
@@ -25,7 +26,8 @@ test('run-level player xp timers and station values are named balance data', () 
   expect(runBalance.timers.introSectorBeaconSeconds).toBeLessThan(runBalance.timers.startingBossSeconds + 30)
   expect(runBalance.station.repairHull).toBeGreaterThan(0)
   expect(main).toContain('runBalance.player.baseHull')
-  expect(main).toContain('nextXpThreshold(this.stats.nextXp)')
+  expect(main).toContain("import { applyMutationXp } from './mutation-progress'")
+  expect(mutationProgressSource()).toContain('nextXpThreshold(progress.nextXp)')
   expect(main).toContain('runBalance.station.repairHull')
 })
 

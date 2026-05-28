@@ -1,0 +1,29 @@
+import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { nextXpThreshold, runBalance } from '../src/run-balance'
+import { applyMutationXp } from '../src/mutation-progress'
+
+test('mutation xp progression banks every crossed level threshold', () => {
+  const progress = {
+    level: 1,
+    xp: runBalance.xp.startingNext - 2,
+    nextXp: runBalance.xp.startingNext
+  }
+
+  const levelsGained = applyMutationXp(progress, nextXpThreshold(runBalance.xp.startingNext) + 10)
+
+  expect(levelsGained).toBe(2)
+  expect(progress.level).toBe(3)
+  expect(progress.xp).toBe(8)
+  expect(progress.nextXp).toBeGreaterThan(runBalance.xp.startingNext)
+})
+
+test('main delegates mutation xp thresholds through a shared progression helper', () => {
+  const main = readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+
+  expect(main).toContain("import { applyMutationXp } from './mutation-progress'")
+  expect(main).toContain('const levelsGained = applyMutationXp(this.stats, p.value)')
+  expect(main).toContain('const levelsGained = applyMutationXp(this.stats, resource.value)')
+  expect(main).not.toContain('while (this.stats.xp >= this.stats.nextXp)')
+})
