@@ -55,6 +55,7 @@ function renderSummary(summary: SimBatchSummary) {
     ${metricCard('First Landing', formatSeconds(summary.firstMinute.medianFirstLandingSec))}
     ${metricCard('Avg Nodes', summary.route.averageNodesCleared.toFixed(1))}
     ${metricCard('Final Reached', `${summary.route.finalReached}/${summary.options.runs}`)}
+    ${metricCard('Median Final Clear', summary.route.medianFinalClearSeconds === null ? 'none' : formatSeconds(summary.route.medianFinalClearSeconds))}
     ${metricCard('Avg Planets', summary.planets.averageLandings.toFixed(1))}
     ${metricCard('Zero-Planet', `${Math.round(summary.planets.zeroLandingRate * 100)}%`)}
     ${metricCard('Avg Scrap', summary.economy.averageScrap.toFixed(0))}
