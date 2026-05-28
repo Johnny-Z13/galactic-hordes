@@ -77,6 +77,7 @@ import {
   worldToScreen as spaceWorldToScreen
 } from './space-camera'
 import { fireOptionOrbs as fireOptionOrbWeapons, firePrimaryWeapon, fireRearGun as fireRearGunWeapons, optionOrbAngle, optionOrbWorldPosition, spawnChainBolt as spawnChainBoltWeapon } from './space-player-weapons'
+import { applyDashRam } from './space-dash-combat'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { clamp, norm, dist2, hash32, len, rngFrom, TAU } from './math-utils'
@@ -2067,7 +2068,17 @@ export class VectorShooter {
 
       const rr = e.radius + this.player.radius
       if (dist2(e, this.player) < rr * rr) {
-        if (this.tryDashRam(e)) continue
+        const dashRam = applyDashRam({
+          enemy: e,
+          player: this.player,
+          phaseRank: this.build.phase,
+          engineRank: this.build.engine
+        })
+        if (dashRam) {
+          this.burst(dashRam.burst.x, dashRam.burst.y, dashRam.burst.color, dashRam.burst.count, dashRam.burst.speed)
+          if (dashRam.killed) this.killEnemy(e, true)
+          continue
+        }
         this.damagePlayer(enemyBalance.contactDamage)
         if (e.kind === 'brute' || e.kind === 'bulwark' || isGiantEnemyKind(e.kind)) {
           e.vx -= toP.x * behavior.global.contactKnockback
@@ -2114,21 +2125,6 @@ export class VectorShooter {
     advanceSpawnEntryPings({ pings: this.spawnEntryPings, dt })
     advanceImpactPulses({ pulses: this.impactPulses, dt })
     this.playerDamageFlash = advancePlayerDamageFlash(this.playerDamageFlash, dt)
-  }
-
-  private tryDashRam(e: Enemy) {
-    if (this.player.dashTime <= 0 || this.build.phase <= 0) return false
-    const force = powerupBalance.dash.ramForceBase + this.build.phase * powerupBalance.dash.ramForcePerPhaseRank
-    const damage = powerupBalance.dash.ramDamageBase
-      + this.build.phase * powerupBalance.dash.ramDamagePerPhaseRank
-      + this.build.engine * powerupBalance.dash.ramDamagePerEngineRank
-    e.hp -= damage
-    e.flash = Math.max(e.flash, damageFeedbackConfig.hitFlash.dashRamDurationSeconds)
-    e.vx += this.player.dashX * force
-    e.vy += this.player.dashY * force
-    this.burst(e.x, e.y, '#b990ff', 5 + this.build.phase, 130 + this.build.phase * 20)
-    if (e.hp <= 0) this.killEnemy(e, true)
-    return true
   }
 
   private emitEnemyTrail(e: Enemy, color: string, intensity = 1) {
