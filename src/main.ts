@@ -80,9 +80,10 @@ import {
 } from './space-camera'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
-import { norm, dist2, len, TAU } from './math-utils'
+import { norm, dist2, hash32, len, rngFrom, TAU } from './math-utils'
 import { renderScorePopups as drawScorePopups } from './render/score-popups'
 import { renderSectorWaveWarning as drawSectorWaveWarning } from './render/sector-wave-warning'
+import { renderSpaceBackground as drawSpaceBackground } from './render/space-background'
 import { renderSurfaceHud as drawSurfaceHud } from './surface/render-hud'
 import { renderSurfaceAliens as drawSurfaceAliens, renderSurfaceLoreSites as drawSurfaceLoreSites, renderSurfaceResources as drawSurfaceResources } from './surface/render-interactables'
 import { renderSurfacePilot as drawSurfacePilot } from './surface/render-pilot'
@@ -464,11 +465,6 @@ const angleLerp = (a: number, b: number, t: number) => {
   const diff = Math.atan2(Math.sin(b - a), Math.cos(b - a))
   return a + diff * t
 }
-const hash32 = (x: number, y: number, salt = 0) => {
-  let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(salt, 2246822519)
-  h = Math.imul(h ^ (h >>> 13), 1274126177)
-  return (h ^ (h >>> 16)) >>> 0
-}
 export const hashString = (value: string, salt = 0) => {
   let h = 2166136261 ^ salt
   for (let i = 0; i < value.length; i += 1) {
@@ -476,15 +472,6 @@ export const hashString = (value: string, salt = 0) => {
     h = Math.imul(h, 16777619)
   }
   return h >>> 0
-}
-const rngFrom = (seed: number) => {
-  let t = seed >>> 0
-  return () => {
-    t += 0x6d2b79f5
-    let r = Math.imul(t ^ (t >>> 15), 1 | t)
-    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r)
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296
-  }
 }
 export const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60)
@@ -4420,7 +4407,18 @@ export class VectorShooter {
 
   private renderSpaceScene(ctx: CanvasRenderingContext2D) {
     this.mini.style.display = this.state === 'dying' ? 'none' : ''
-    this.renderBackground(ctx)
+    drawSpaceBackground({
+      ctx,
+      width: this.width,
+      height: this.height,
+      camera: this.camera,
+      stars: this.stars,
+      sector: this.currentChunk(),
+      chunkSize: CHUNK_SIZE,
+      spaceScale: this.spaceScale(),
+      glow: this.allowGlow(),
+      worldToScreen: (x, y) => this.worldToScreen(x, y)
+    })
     this.renderPlanets(ctx)
     this.renderSpaceHazards(ctx)
     this.renderDerelictSignals(ctx)
@@ -4725,214 +4723,6 @@ export class VectorShooter {
     ctx.strokeRect(x, y, barWidth, 7)
     ctx.fillStyle = '#57fff3'
     ctx.fillRect(x, y, barWidth * t, 7)
-    ctx.restore()
-  }
-
-  private renderBackground(ctx: CanvasRenderingContext2D) {
-    ctx.save()
-    this.renderNebulaBands(ctx)
-    this.renderSectorLandmarks(ctx)
-    ctx.strokeStyle = 'rgba(87,255,243,0.08)'
-    ctx.lineWidth = 1
-    const grid = 240
-    const scale = this.spaceScale()
-    const viewRight = this.camera.x + this.width / scale
-    const viewBottom = this.camera.y + this.height / scale
-    const startX = Math.floor(this.camera.x / grid) * grid
-    const startY = Math.floor(this.camera.y / grid) * grid
-    for (let x = startX; x < viewRight + grid; x += grid) {
-      const sx = (x - this.camera.x) * scale
-      ctx.beginPath()
-      ctx.moveTo(sx, 0)
-      ctx.lineTo(sx, this.height)
-      ctx.stroke()
-    }
-    for (let y = startY; y < viewBottom + grid; y += grid) {
-      const sy = (y - this.camera.y) * scale
-      ctx.beginPath()
-      ctx.moveTo(0, sy)
-      ctx.lineTo(this.width, sy)
-      ctx.stroke()
-    }
-    ctx.strokeStyle = 'rgba(255,242,122,0.16)'
-    ctx.fillStyle = 'rgba(255,242,122,0.42)'
-    ctx.font = '11px Courier New'
-    const chunkStartX = Math.floor(this.camera.x / CHUNK_SIZE) * CHUNK_SIZE
-    const chunkStartY = Math.floor(this.camera.y / CHUNK_SIZE) * CHUNK_SIZE
-    for (let x = chunkStartX; x < viewRight + CHUNK_SIZE; x += CHUNK_SIZE) {
-      const sx = (x - this.camera.x) * scale
-      ctx.beginPath()
-      ctx.moveTo(sx, 0)
-      ctx.lineTo(sx, this.height)
-      ctx.stroke()
-    }
-    for (let y = chunkStartY; y < viewBottom + CHUNK_SIZE; y += CHUNK_SIZE) {
-      const sy = (y - this.camera.y) * scale
-      ctx.beginPath()
-      ctx.moveTo(0, sy)
-      ctx.lineTo(this.width, sy)
-      ctx.stroke()
-    }
-    const sector = this.currentChunk()
-    ctx.fillText(`SECTOR ${sector.x}:${sector.y}`, 14, this.height - 18)
-    for (const s of this.stars) {
-      const p = this.worldToScreen(s.x, s.y)
-      if (p.x < -10 || p.x > this.width + 10 || p.y < -10 || p.y > this.height + 10) continue
-      const h = hash32(Math.floor(s.x), Math.floor(s.y), 23)
-      const alpha = 0.34 + (h % 50) / 100
-      const size = h % 17 === 0 ? 2.2 : h % 7 === 0 ? 1.7 : 1.15
-      const palette = h % 11 === 0 ? '255,242,122' : h % 5 === 0 ? '185,144,255' : h % 3 === 0 ? '143,255,125' : '215,255,247'
-      ctx.fillStyle = `rgba(${palette},${alpha})`
-      ctx.fillRect(p.x, p.y, size, size)
-    }
-    ctx.restore()
-  }
-
-  private renderSectorLandmarks(ctx: CanvasRenderingContext2D) {
-    const colors = [
-      [87, 255, 243],
-      [143, 255, 125],
-      [185, 144, 255],
-      [255, 242, 122],
-      [112, 168, 255],
-      [255, 93, 115]
-    ]
-    const landmarkGrid = 820
-    const scale = this.spaceScale()
-    const viewRight = this.camera.x + this.width / scale
-    const viewBottom = this.camera.y + this.height / scale
-    const minX = Math.floor((this.camera.x - landmarkGrid) / landmarkGrid)
-    const maxX = Math.floor((viewRight + landmarkGrid) / landmarkGrid)
-    const minY = Math.floor((this.camera.y - landmarkGrid) / landmarkGrid)
-    const maxY = Math.floor((viewBottom + landmarkGrid) / landmarkGrid)
-    const glow = this.allowGlow()
-    ctx.save()
-    ctx.globalCompositeOperation = glow ? 'screen' : 'source-over'
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-    for (let gx = minX; gx <= maxX; gx += 1) {
-      for (let gy = minY; gy <= maxY; gy += 1) {
-        const rng = rngFrom(hash32(gx, gy, 177))
-        if (rng() < 0.16) continue
-        const color = colors[Math.floor(rng() * colors.length)]
-        const accent = colors[Math.floor(rng() * colors.length)]
-        const alpha = glow ? 0.22 : 0.13
-        const landmarkCount = 1 + Math.floor(rng() * 2)
-        for (let i = 0; i < landmarkCount; i += 1) {
-          const worldX = gx * landmarkGrid + rng() * landmarkGrid
-          const worldY = gy * landmarkGrid + rng() * landmarkGrid
-          const p = this.worldToScreen(worldX, worldY)
-          const x = p.x
-          const y = p.y
-          const kind = Math.floor(rng() * 4)
-          ctx.save()
-          ctx.translate(x, y)
-          ctx.rotate(rng() * TAU)
-          ctx.shadowColor = `rgba(${color[0]},${color[1]},${color[2]},0.34)`
-          ctx.shadowBlur = glow ? 12 : 0
-          if (kind === 0) {
-            const radius = 62 + rng() * 110
-            ctx.strokeStyle = `rgba(${color[0]},${color[1]},${color[2]},${alpha * 0.72})`
-            ctx.lineWidth = 1.2
-            ctx.beginPath()
-            ctx.ellipse(0, 0, radius * (1.3 + rng() * 0.7), radius * (0.18 + rng() * 0.18), 0, 0, TAU)
-            ctx.stroke()
-            ctx.strokeStyle = `rgba(${accent[0]},${accent[1]},${accent[2]},${alpha * 0.42})`
-            ctx.beginPath()
-            ctx.arc(0, 0, radius * 0.32, rng() * TAU, rng() * TAU + TAU * (0.34 + rng() * 0.3))
-            ctx.stroke()
-          } else if (kind === 1) {
-            const length = 160 + rng() * 280
-            ctx.strokeStyle = `rgba(${color[0]},${color[1]},${color[2]},${alpha * 0.62})`
-            ctx.lineWidth = 1 + rng() * 1.4
-            ctx.beginPath()
-            ctx.moveTo(-length / 2, 0)
-            ctx.lineTo(length / 2, 0)
-            ctx.stroke()
-            ctx.strokeStyle = `rgba(${accent[0]},${accent[1]},${accent[2]},${alpha * 0.36})`
-            ctx.lineWidth = 1
-            ctx.beginPath()
-            ctx.moveTo(-length * 0.36, 16)
-            ctx.lineTo(length * 0.42, 16)
-            ctx.stroke()
-          } else if (kind === 2) {
-            const radius = 54 + rng() * 88
-            ctx.strokeStyle = `rgba(${color[0]},${color[1]},${color[2]},${alpha * 0.54})`
-            ctx.lineWidth = 1
-            for (let j = 0; j < 3; j += 1) {
-              ctx.beginPath()
-              ctx.arc(0, 0, radius * (0.48 + j * 0.24), rng() * TAU, rng() * TAU + TAU * (0.18 + rng() * 0.24))
-              ctx.stroke()
-            }
-          } else {
-            const points = 7 + Math.floor(rng() * 8)
-            ctx.fillStyle = `rgba(${color[0]},${color[1]},${color[2]},${alpha * 0.56})`
-            for (let j = 0; j < points; j += 1) {
-              const a = rng() * TAU
-              const d = rng() * 90
-              const size = 1 + rng() * 1.8
-              ctx.fillRect(Math.cos(a) * d, Math.sin(a) * d, size, size)
-            }
-          }
-          ctx.restore()
-        }
-      }
-    }
-    ctx.restore()
-  }
-
-  private renderNebulaBands(ctx: CanvasRenderingContext2D) {
-    const colors = [
-      [87, 255, 243],
-      [143, 255, 125],
-      [185, 144, 255],
-      [255, 242, 122],
-      [112, 168, 255],
-      [255, 93, 115]
-    ]
-    const scale = this.spaceScale()
-    const viewRight = this.camera.x + this.width / scale
-    const viewBottom = this.camera.y + this.height / scale
-    const minX = Math.floor((this.camera.x - CHUNK_SIZE) / CHUNK_SIZE)
-    const maxX = Math.floor((viewRight + CHUNK_SIZE) / CHUNK_SIZE)
-    const minY = Math.floor((this.camera.y - CHUNK_SIZE) / CHUNK_SIZE)
-    const maxY = Math.floor((viewBottom + CHUNK_SIZE) / CHUNK_SIZE)
-    const glow = this.allowGlow()
-    ctx.save()
-    ctx.globalCompositeOperation = glow ? 'screen' : 'source-over'
-    for (let cx = minX; cx <= maxX; cx += 1) {
-      for (let cy = minY; cy <= maxY; cy += 1) {
-        const rng = rngFrom(hash32(cx, cy, 91))
-        if (rng() < 0.46) continue
-        const color = colors[Math.floor(rng() * colors.length)]
-        const accent = colors[Math.floor(rng() * colors.length)]
-        const worldX = cx * CHUNK_SIZE + rng() * CHUNK_SIZE
-        const worldY = cy * CHUNK_SIZE + rng() * CHUNK_SIZE
-        const p = this.worldToScreen(worldX, worldY)
-        const x = p.x
-        const y = p.y
-        const length = CHUNK_SIZE * (0.8 + rng() * 0.75)
-        const breadth = 150 + rng() * 260
-        const angle = rng() * TAU
-        ctx.save()
-        ctx.translate(x, y)
-        ctx.rotate(angle)
-        ctx.filter = `blur(${glow ? 34 : 24}px)`
-        const gradient = ctx.createLinearGradient(-length / 2, 0, length / 2, 0)
-        const alpha = glow ? 0.075 : 0.045
-        gradient.addColorStop(0, `rgba(${color[0]},${color[1]},${color[2]},0)`)
-        gradient.addColorStop(0.36, `rgba(${color[0]},${color[1]},${color[2]},${alpha})`)
-        gradient.addColorStop(0.62, `rgba(${accent[0]},${accent[1]},${accent[2]},${alpha * 0.55})`)
-        gradient.addColorStop(1, `rgba(${accent[0]},${accent[1]},${accent[2]},0)`)
-        ctx.fillStyle = gradient
-        ctx.fillRect(-length / 2, -breadth / 2, length, breadth)
-        if (glow && rng() > 0.55) {
-          ctx.globalAlpha = 0.24
-          ctx.fillRect(-length * 0.35, -breadth * 0.06, length * 0.72, breadth * 0.12)
-        }
-        ctx.restore()
-      }
-    }
     ctx.restore()
   }
 

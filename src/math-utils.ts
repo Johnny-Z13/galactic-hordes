@@ -17,3 +17,19 @@ export const norm = (x: number, y: number): Vec => {
   const l = len(x, y) || 1
   return { x: x / l, y: y / l }
 }
+
+export const hash32 = (x: number, y: number, salt = 0) => {
+  let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(salt, 2246822519)
+  h = Math.imul(h ^ (h >>> 13), 1274126177)
+  return (h ^ (h >>> 16)) >>> 0
+}
+
+export const rngFrom = (seed: number) => {
+  let t = seed >>> 0
+  return () => {
+    t += 0x6d2b79f5
+    let r = Math.imul(t ^ (t >>> 15), 1 | t)
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r)
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296
+  }
+}
