@@ -295,6 +295,15 @@ canvas {
   min-width: 138px;
 }
 
+.hud-chip.kills {
+  min-width: 86px;
+  border-color: rgba(143, 255, 125, 0.46);
+}
+
+.hud-chip.kills .hud-value {
+  color: #8fff7d;
+}
+
 .hud-chip.vital {
   border-color: rgba(143, 255, 125, 0.5);
   box-shadow: inset 0 1px 0 rgba(215, 255, 247, 0.08), 0 0 18px rgba(143, 255, 125, 0.09);
@@ -358,6 +367,10 @@ canvas {
 
 @media (max-width: 920px) {
   .hud-chip.objective {
+    display: none;
+  }
+
+  .hud-chip.kills {
     display: none;
   }
 }

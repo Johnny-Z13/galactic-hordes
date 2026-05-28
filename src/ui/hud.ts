@@ -21,7 +21,7 @@ export function makeHud(self: VectorShooter) {
   )
   const left = document.createElement('div')
   left.className = 'hud-cluster hud-cluster-left'
-  left.append(chip('TIME', self['ui'].time), chip('SCORE', self['ui'].score))
+  left.append(chip('TIME', self['ui'].time), chip('SCORE', self['ui'].score), chip('KILLS', self['ui'].wave, 'kills'))
   const objective = chip('ROUTE', self['ui'].objective, 'objective wide')
   const weapon = chip('WEAPON', self['ui'].weapon, 'weapon wide')
   self['ui'].toast.className = 'toast'
