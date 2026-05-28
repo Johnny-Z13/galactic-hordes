@@ -152,7 +152,7 @@ import {
 import { renderCollectionScreen as uiRenderCollectionScreen } from './ui/collection'
 import { showMothership as uiShowMothership, renderMothershipMetaSystems as uiRenderMothershipMetaSystems } from './ui/mothership-console'
 import { renderDebrief as uiRenderDebrief } from './ui/debrief'
-import { introHookConfig } from './intro-hook'
+import { introHookConfig, isFirstEverRun, pickWaypointTarget } from './intro-hook'
 import type { StateHandlers } from './game-states'
 
 export type GameState = 'title' | 'mothership' | 'collection' | 'powerups' | 'sectorMap' | 'station' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
@@ -913,6 +913,8 @@ export class VectorShooter {
   private toastText = ''
   private mothership: MothershipState = defaultMothershipState()
   private debrief: DebriefReport | null = null
+  // Activated once per first-ever run; deactivated by timer expiry or first landing.
+  private introWaypoint: { active: boolean; timer: number; targetPlanetId: string | null } | null = null
   private upgradeChoices: WorkbenchChoice[] = []
   private workbenchInstalling = false
   private workbenchRerolls = 0
@@ -1494,6 +1496,8 @@ export class VectorShooter {
   }
 
   private updatePlaying(dt: number) {
+    this.tryStartIntroWaypoint()
+    this.tickIntroWaypoint(dt)
     this.stats.time += dt
     this.spawnTimer -= dt
     this.bossTimer -= dt
@@ -1536,6 +1540,39 @@ export class VectorShooter {
     this.updateCamera(dt)
     this.updateHud()
     if (this.player.hull <= 0) this.gameOver()
+  }
+
+  private tryStartIntroWaypoint() {
+    if (this.introWaypoint !== null) return
+    if (!isFirstEverRun({ planets: this.stats.planets, hasDebrief: this.debrief !== null })) return
+    const target = pickWaypointTarget(this.planets, this.player)
+    if (!target) return
+    this.introWaypoint = {
+      active: true,
+      timer: introHookConfig.waypoint.durationSeconds,
+      targetPlanetId: target.id
+    }
+  }
+
+  private tickIntroWaypoint(dt: number) {
+    const wp = this.introWaypoint
+    if (!wp || !wp.active) return
+    wp.timer -= dt
+    if (wp.timer <= 0) {
+      wp.active = false
+      return
+    }
+    // If the target planet has been chunk-unloaded, try to re-pick.
+    const stillExists = this.planets.some((p) => p.id === wp.targetPlanetId)
+    if (!stillExists) {
+      const next = pickWaypointTarget(this.planets, this.player)
+      wp.targetPlanetId = next ? next.id : null
+      if (!next) wp.active = false
+    }
+  }
+
+  private stopIntroWaypoint() {
+    if (this.introWaypoint?.active) this.introWaypoint.active = false
   }
 
   private freezesGameplayCamera() {
@@ -3688,6 +3725,7 @@ export class VectorShooter {
   }
 
   private startLanding(planet: Planet) {
+    this.stopIntroWaypoint()
     this.state = 'landing'
     this.planetChoice = planet
     this.autoNavTargetPlanetId = null
@@ -4083,6 +4121,7 @@ export class VectorShooter {
   }
 
   private confirmLanding() {
+    this.stopIntroWaypoint()
     if (!this.planetChoice) return
     const p = this.planetChoice
     const first = !p.visited
