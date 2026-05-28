@@ -167,6 +167,7 @@ import { showScores as uiShowScores } from './ui/scores'
 import { showTitle as uiShowTitle } from './ui/title-screen'
 import { makeHud as uiMakeHud, updateHud as uiUpdateHud } from './ui/hud'
 import { makeScreens as uiMakeScreens, showOnly as uiShowOnly } from './ui/screens'
+import { renderPlanet as uiRenderPlanet } from './ui/planet-screen'
 import { renderIntroArrow } from './ui/intro-waypoint'
 import {
   introHookConfig,
@@ -236,7 +237,7 @@ interface Shockwave {
   jag: number
 }
 
-interface Planet {
+export interface Planet {
   id: string
   name: string
   x: number
@@ -6436,47 +6437,7 @@ export class VectorShooter {
   }
 
   private renderPlanet(p: Planet) {
-    this.ui.planet.innerHTML = ''
-    const panel = document.createElement('div')
-    panel.className = 'panel planet-panel'
-    const h = document.createElement('h1')
-    h.className = 'title'
-    h.textContent = p.name
-    const copy = document.createElement('p')
-    copy.className = 'copy'
-    const scanner = this.mothership.departments.scanner
-    const risk = this.planetRiskLabel(p)
-    copy.textContent = p.visited
-      ? `${p.biome.label}. The dock remembers you. It offers a small repair and a moment of quiet.`
-      : scanner >= 3
-        ? `${p.biome.label}. ${p.reward} Risk: ${risk}.`
-        : scanner >= 1
-          ? `${p.biome.label.toUpperCase()} // ${p.archetype.toUpperCase()} SIGNAL // ${p.reward}`
-          : `${p.biome.label}. ${p.reward}`
-    const row = document.createElement('div')
-    row.className = 'button-row'
-    const land = document.createElement('button')
-    land.className = 'vector-button'
-    land.textContent = p.visited ? 'Dock' : 'Land and Salvage'
-    land.addEventListener('click', () => this.confirmLanding())
-    const leave = document.createElement('button')
-    leave.className = 'vector-button secondary'
-    leave.textContent = 'Break Orbit'
-    leave.addEventListener('click', () => {
-      this.state = 'playing'
-      this.showOnly(null)
-    })
-    row.append(land, leave)
-    panel.append(h, copy, row)
-    this.ui.planet.append(panel)
-    this.showOnly('planet')
-  }
-
-  private planetRiskLabel(p: Planet) {
-    if (p.archetype === 'horde') return 'EXTREME'
-    if (p.archetype === 'hostile' || p.archetype === 'strange') return 'HOSTILE'
-    if (p.archetype === 'relic' || p.archetype === 'cache') return 'UNSTABLE'
-    return 'QUIET'
+    uiRenderPlanet(this, p)
   }
 
   private showTitle() {
