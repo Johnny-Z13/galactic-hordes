@@ -4,7 +4,8 @@ import { sfxSamples } from './audio/sfx-samples'
 import { uiClickSoundForButton } from './audio/ui-click-cues'
 import { damageFeedbackConfig } from './combat/damage-feedback'
 import { advanceImpactPulses, createImpactPulse, type ImpactPulse } from './combat/impact-feedback'
-import { advancePlayerDamageFlash, createPlayerDamageFlash, type PlayerDamageFlash } from './combat/player-damage-feedback'
+import { damageShipPlayer, damageSurfacePilot as damageSuitPilot } from './combat/player-damage-resolution'
+import { advancePlayerDamageFlash, type PlayerDamageFlash } from './combat/player-damage-feedback'
 import { weaponSoundKindFor } from './combat/weapon-sound'
 import collectionIconAtlasUrl from './assets/collection-icon-atlas.png'
 import glassMiteOracleSheetUrl from './assets/glass-mite-oracle-sheet-alpha.png'
@@ -2454,48 +2455,32 @@ export class VectorShooter {
       this.damageSurfacePilot(amount)
       return
     }
-    if (this.player.invuln > 0) return
-    this.player.invuln = 0.42
-    this.player.shieldDelay = 2.4
-    let remaining = Math.max(1, amount * (1 - this.build.phase * powerupBalance.upgradeApply.phaseShipDamageReductionPerRank))
-    let shieldDamage = 0
-    if (this.player.shield > 0) {
-      const used = Math.min(this.player.shield, remaining)
-      this.player.shield -= used
-      remaining -= used
-      shieldDamage = used
-    }
-    const hullDamage = remaining
-    this.player.hull -= hullDamage
-    const flash = createPlayerDamageFlash({
-      hullRatio: this.player.hull / this.player.maxHull,
-      hullDamage,
-      shieldDamage,
-      surface: false
+    const damage = damageShipPlayer({
+      player: this.player,
+      amount,
+      phaseRank: this.build.phase
     })
-    this.playerDamageFlash = flash
+    if (!damage) return
+    this.playerDamageFlash = damage.flash
     this.audio.hit()
     this.camera.shake = Math.max(this.camera.shake, 12)
     this.burst(this.player.x, this.player.y, '#ff5d73', 16, 210)
   }
 
   private damageSurfacePilot(amount: number) {
-    if (!this.surface || this.surface.pilot.invuln > 0) return
+    if (!this.surface) return
     const pilot = this.surface.pilot
-    pilot.invuln = 0.65
-    const hullDamage = Math.max(1, amount * (1 - this.build.phase * powerupBalance.upgradeApply.phaseSurfaceDamageReductionPerRank))
-    pilot.health = Math.max(0, pilot.health - hullDamage)
-    const flash = createPlayerDamageFlash({
-      hullRatio: pilot.health / pilot.maxHealth,
-      hullDamage,
-      shieldDamage: 0,
-      surface: true
+    const damage = damageSuitPilot({
+      pilot,
+      amount,
+      phaseRank: this.build.phase
     })
-    this.playerDamageFlash = flash
+    if (!damage) return
+    this.playerDamageFlash = damage.flash
     this.audio.hit()
     this.camera.shake = Math.max(this.camera.shake, 10)
     this.burst(pilot.x, pilot.y, '#ff5d73', 12, 180)
-    if (pilot.health <= 0) {
+    if (damage.suitCritical) {
       this.surface.message = 'SUIT CRITICAL - RETURNING TO SHIP'
       this.toast('SUIT CRITICAL - RETURNING TO SHIP')
       this.startTakeoff()
