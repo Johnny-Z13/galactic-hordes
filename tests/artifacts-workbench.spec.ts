@@ -483,6 +483,20 @@ test('workbench install refresh keeps the current bay set and scroll position', 
   expect(beginInstall).not.toContain('this.upgradeChoices = this.rollUpgrades')
 })
 
+test('surface workbench install preserves payoff through takeoff handoff', () => {
+  const main = source()
+  const applyChoice = main.slice(main.indexOf('private applyWorkbenchChoice'), main.indexOf('private applyUpgrade'))
+  const finishTakeoff = main.slice(main.indexOf('private finishTakeoff'), main.indexOf('private updateCamera'))
+
+  expect(main).toContain('private surfaceInstallCompleted = false')
+  expect(main).toContain('createInstallPopup({')
+  expect(applyChoice).toContain('this.surfaceInstallCompleted = true')
+  expect(applyChoice).toContain('this.startTakeoff()')
+  expect(applyChoice.indexOf('this.surfaceInstallCompleted = true')).toBeLessThan(applyChoice.indexOf('this.startTakeoff()'))
+  expect(finishTakeoff).toContain('const installedBeforeTakeoff = this.surfaceInstallCompleted')
+  expect(finishTakeoff).toContain('SIGNAL INSTALLED // ROUTE RESUMED')
+})
+
 test('planet discoveries unlock the first spacesuit workbench path', () => {
   const main = source()
 

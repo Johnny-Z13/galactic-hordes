@@ -38,7 +38,7 @@ import { updatePickupsPhysics, type Pickup, type PickupKind } from './pickups'
 import { planetRadius } from './planet-sizing'
 import { runBalance } from './run-balance'
 import { scoreEntryFromRun, type ScoreEntry } from './score-history'
-import { advanceScorePopups, appendScorePopup, createScorePopup, createSignalPopup, type ScorePopupModel } from './score-popups'
+import { advanceScorePopups, appendScorePopup, createInstallPopup, createScorePopup, createSignalPopup, type ScorePopupModel } from './score-popups'
 import {
   evolutions,
   limitBreakChoices,
@@ -169,6 +169,7 @@ import {
   currentLevelUpScrollTop as uiCurrentLevelUpScrollTop,
   restoreLevelUpScroll as uiRestoreLevelUpScroll,
   canApplyWorkbenchChoice as uiCanApplyWorkbenchChoice,
+  choiceTitle as uiChoiceTitle,
   renderManifestSummary as uiRenderManifestSummary,
   renderManifestRelicLine as uiRenderManifestRelicLine,
   workbenchExtraUnlockedIds as uiWorkbenchExtraUnlockedIds,
@@ -586,6 +587,7 @@ export class VectorShooter {
   private introWaypoint: { active: boolean; timer: number; targetPlanetId: string | null } | null = null
   private upgradeChoices: WorkbenchChoice[] = []
   private workbenchInstalling = false
+  private surfaceInstallCompleted = false
   private workbenchRerolls = 0
   private selectedWorkbenchBay: WorkbenchBayId = 'weapons'
   private expandedWorkbenchBay: WorkbenchBayId | null = null
@@ -3200,6 +3202,15 @@ export class VectorShooter {
     else if (choice.kind === 'evolution') this.applyEvolution(choice.evolution)
     else if (choice.kind === 'relic') this.acquireRelic(choice.relic, 'WORKBENCH RELIC INSTALLED')
     else this.applyLimitBreak(choice)
+    const anchor = this.fxAnchor()
+    appendScorePopup(this.scorePopups, createInstallPopup({
+      x: anchor.x,
+      y: anchor.y - 42,
+      label: uiChoiceTitle(this, choice),
+      layer: this.surface ? 'surface' : 'space',
+      riseSpeed: introHookConfig.popup.riseSpeed,
+      lifeSeconds: introHookConfig.popup.lifeSeconds
+    }), introHookConfig.popup.cap)
     if (choice.kind === 'upgrade' && choice.upgrade.bucket === 'spacesuit') this.discoverySuitOffer = false
     this.pendingUpgrades = Math.max(0, this.pendingUpgrades - 1)
     if (this.pendingUpgrades > 0) {
@@ -3208,6 +3219,7 @@ export class VectorShooter {
     }
     this.showOnly(null)
     if (this.takeoffAfterWorkbench) {
+      this.surfaceInstallCompleted = true
       this.takeoffAfterWorkbench = false
       this.startTakeoff()
     } else if (this.returnToSectorMapAfterWorkbench) {
@@ -4332,6 +4344,8 @@ export class VectorShooter {
   private finishTakeoff() {
     if (!this.surface) return
     this.snapToOrbitReturnPoint()
+    const installedBeforeTakeoff = this.surfaceInstallCompleted
+    this.surfaceInstallCompleted = false
     const first = !this.surface.planet.visited
     this.surface.planet.visited = true
     this.visitedPlanets.add(this.surface.planet.id)
@@ -4355,6 +4369,9 @@ export class VectorShooter {
       this.summonReturnBeaconAfterTakeoff = false
       this.spawnReturnBeacon()
       this.toast(`${planetName}: SPACE STATION WOKEN`)
+    } else if (installedBeforeTakeoff) {
+      this.summonReturnBeaconAfterTakeoff = false
+      this.toast(`${planetName}: SIGNAL INSTALLED // ROUTE RESUMED`)
     } else {
       this.summonReturnBeaconAfterTakeoff = false
       this.toast(`${planetName}: SURFACE CACHE EXTRACTED`)
@@ -6431,6 +6448,7 @@ export class VectorShooter {
     this.pendingUpgrades = 0
     this.workbenchInstalling = false
     this.takeoffAfterWorkbench = false
+    this.surfaceInstallCompleted = false
     this.returnToSectorMapAfterWorkbench = false
     this.discoverySuitOffer = false
     this.summonReturnBeaconAfterTakeoff = false

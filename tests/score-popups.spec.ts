@@ -45,6 +45,29 @@ test('signal popups carry explicit decision text and color', async () => {
   })
 })
 
+test('install popups make workbench payoff readable', async () => {
+  const mod = await import('../src/score-popups')
+  const popup = mod.createInstallPopup({
+    x: 56,
+    y: 78,
+    label: 'Pulse Cannon',
+    layer: 'surface',
+    riseSpeed: 24,
+    lifeSeconds: 1.1
+  })
+
+  expect(popup).toMatchObject({
+    x: 56,
+    y: 78,
+    vy: -24,
+    life: 1.1,
+    totalLife: 1.1,
+    text: 'PULSE CANNON ONLINE',
+    color: '#8fff7d',
+    layer: 'surface'
+  })
+})
+
 test('score popups project through the matching camera layer', async () => {
   const mod = await import('../src/score-popups')
   const surfacePopup = mod.createScorePopup({
@@ -108,7 +131,7 @@ test('surface threat kills create surface-layer score feedback', () => {
   const renderer = readFileSync('src/render/score-popups.ts', 'utf8')
   const updateSurfaceThreats = main.slice(main.indexOf('private updateSurfaceThreats'), main.indexOf('private updateSurfaceWaves'))
 
-  expect(main).toContain("import { advanceScorePopups, appendScorePopup, createScorePopup")
+  expect(main).toContain("import { advanceScorePopups, appendScorePopup, createInstallPopup, createScorePopup")
   expect(main).toContain("from './render/score-popups'")
   expect(main).toContain('advanceScorePopups(this.scorePopups, dt)')
   expect(main).toContain('drawScorePopups({')

@@ -51,6 +51,26 @@ export function createSignalPopup(input: {
   }
 }
 
+export function createInstallPopup(input: {
+  x: number
+  y: number
+  label: string
+  layer: ScorePopupLayer
+  riseSpeed: number
+  lifeSeconds: number
+}): ScorePopupModel {
+  return {
+    x: input.x,
+    y: input.y,
+    vy: -input.riseSpeed,
+    life: input.lifeSeconds,
+    totalLife: input.lifeSeconds,
+    text: `${input.label.toUpperCase()} ONLINE`,
+    layer: input.layer,
+    color: '#8fff7d'
+  }
+}
+
 export function scorePopupScreenPoint(
   popup: ScorePopupModel,
   projectors: {
