@@ -2,6 +2,7 @@ import './style.css'
 import { AudioDirector, type PlanetAudioMood } from './audio/audio-director'
 import { sfxSamples } from './audio/sfx-samples'
 import { damageFeedbackConfig } from './combat/damage-feedback'
+import { advanceImpactPulses, createImpactPulse, type ImpactPulse } from './combat/impact-feedback'
 import { weaponSoundKindFor } from './combat/weapon-sound'
 import collectionIconAtlasUrl from './assets/collection-icon-atlas.png'
 import glassMiteOracleSheetUrl from './assets/glass-mite-oracle-sheet-alpha.png'
@@ -686,6 +687,7 @@ export class VectorShooter {
   private particles: Particle[] = []
   private scorePopups: ScorePopup[] = []
   private shockwaves: Shockwave[] = []
+  private impactPulses: ImpactPulse[] = []
   private spawnEntryPings: SpawnEntryPing[] = []
   private spaceHazards: SpaceHazardAsteroid[] = []
   private asteroidFieldTimer = 0
@@ -2381,6 +2383,7 @@ export class VectorShooter {
       if (p.life <= 0) this.particles.splice(i, 1)
     }
     advanceSpawnEntryPings({ pings: this.spawnEntryPings, dt })
+    advanceImpactPulses({ pulses: this.impactPulses, dt })
   }
 
   private tryDashRam(e: Enemy) {
@@ -2899,7 +2902,21 @@ export class VectorShooter {
   private damageEnemy(e: Enemy, amount: number, color: string) {
     e.hp -= amount
     e.flash = damageFeedbackConfig.hitFlash.durationSeconds
-    if (!this.isHighLoad() && this.particles.length < MAX_PARTICLES && Math.random() < 0.2) {
+    const highLoad = this.isHighLoad()
+    const pulse = createImpactPulse({
+      kind: 'hit',
+      x: e.x,
+      y: e.y,
+      color,
+      amount,
+      giant: isGiantEnemyKind(e.kind),
+      highLoad
+    })
+    if (pulse) {
+      this.impactPulses.push(pulse)
+      if (this.impactPulses.length > 96) this.impactPulses.shift()
+    }
+    if (!highLoad && this.particles.length < MAX_PARTICLES && Math.random() < 0.2) {
       this.particles.push({ x: e.x, y: e.y, vx: rand(-80, 80), vy: rand(-80, 80), life: 0.22, maxLife: 0.22, color, size: 2, glow: 10 })
     }
     if (e.hp <= 0) this.killEnemy(e, true)
@@ -2909,6 +2926,19 @@ export class VectorShooter {
     this.removeEnemy(e)
     const big = e.kind === 'warden' || e.kind === 'brute' || e.kind === 'bulwark' || isGiantEnemyKind(e.kind)
     const highLoad = this.isHighLoad()
+    const pulse = createImpactPulse({
+      kind: 'kill',
+      x: e.x,
+      y: e.y,
+      color: e.color,
+      amount: e.value,
+      giant: big,
+      highLoad
+    })
+    if (pulse) {
+      this.impactPulses.push(pulse)
+      if (this.impactPulses.length > 96) this.impactPulses.shift()
+    }
     if (big || !highLoad || this.collisionFxCooldown <= 0) {
       this.audio.boom(big ? 'heavy' : 'small')
       this.camera.shake = Math.max(this.camera.shake, big ? 16 : highLoad ? 2 : 5)
@@ -4512,6 +4542,7 @@ export class VectorShooter {
     if (this.state !== 'dying' || this.deathTimer < 0.16) this.renderPlayer(ctx)
     this.renderShockwaves(ctx)
     this.renderParticles(ctx)
+    this.renderImpactPulses(ctx)
     this.renderLandingPrompt(ctx)
     this.renderSectorWaveWarning(ctx)
     this.renderMinimap()
@@ -5906,6 +5937,36 @@ export class VectorShooter {
     ctx.restore()
   }
 
+  private renderImpactPulses(ctx: CanvasRenderingContext2D) {
+    if (this.impactPulses.length === 0) return
+    ctx.save()
+    ctx.globalCompositeOperation = this.allowGlow() ? 'lighter' : 'source-over'
+    for (const pulse of this.impactPulses) {
+      const screen = this.worldToScreen(pulse.x, pulse.y)
+      if (screen.x < -120 || screen.x > this.width + 120 || screen.y < -120 || screen.y > this.height + 120) continue
+      const alpha = clamp(pulse.life / pulse.maxLife, 0, 1)
+      const progress = 1 - alpha
+      const radius = pulse.radius * this.spaceScale() * (0.62 + progress * 0.72)
+      ctx.save()
+      ctx.globalAlpha = alpha * (pulse.kind === 'kill' ? 0.86 : 0.58)
+      ctx.strokeStyle = pulse.kind === 'kill' ? '#ffedf1' : pulse.color
+      ctx.shadowColor = pulse.color
+      ctx.shadowBlur = this.allowGlow() ? (pulse.kind === 'kill' ? 24 : 12) : 0
+      ctx.lineWidth = pulse.lineWidth
+      ctx.beginPath()
+      ctx.arc(screen.x, screen.y, radius, 0, TAU)
+      ctx.stroke()
+      if (pulse.kind === 'kill') {
+        ctx.globalAlpha *= 0.5
+        ctx.beginPath()
+        ctx.arc(screen.x, screen.y, Math.max(8, radius * 0.42), 0, TAU)
+        ctx.stroke()
+      }
+      ctx.restore()
+    }
+    ctx.restore()
+  }
+
   private renderPickups(ctx: CanvasRenderingContext2D) {
     const highLoad = this.isHighLoad()
     const scale = this.spaceScale()
@@ -7207,6 +7268,7 @@ export class VectorShooter {
     this.pickups = []
     this.particles = []
     this.shockwaves = []
+    this.impactPulses = []
     this.spawnEntryPings = []
     this.spaceHazards = []
     this.asteroidFieldTimer = 0
@@ -7303,6 +7365,7 @@ export class VectorShooter {
     this.pickups = []
     this.particles = []
     this.shockwaves = []
+    this.impactPulses = []
     this.spawnEntryPings = []
     this.spaceHazards = []
     this.asteroidFieldTimer = 0
