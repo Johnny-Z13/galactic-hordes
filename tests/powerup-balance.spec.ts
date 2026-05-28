@@ -97,8 +97,10 @@ test('workbench upgrade cards distinguish next rank from current manifest rank',
 
   const workbench = workbenchSource()
 
+  const mothership = readFileSync(resolve(process.cwd(), 'src/ui/mothership-console.ts'), 'utf8')
+
   expect(main).toContain('INSTALL RANK ${level}/${choice.upgrade.max}')
-  expect(main).toContain('upgradeLevelDetail(upgrade, level)')
+  expect(mothership).toContain("self['upgradeLevelDetail'](upgrade, level)")
   expect(main).toContain('workbenchRollableUpgrades(upgrades, this.build, uiWorkbenchExtraUnlockedIds(this))')
   expect(workbench).toContain('renderWorkbenchBayDetail')
   expect(workbench).toContain('renderWorkbenchUpgradeChip')
