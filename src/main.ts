@@ -81,7 +81,6 @@ import {
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { norm, dist2, len, TAU } from './math-utils'
-import { renderSurfaceBiomeMotifs as drawSurfaceBiomeMotifs } from './render/surface-biomes'
 import { renderScorePopups as drawScorePopups } from './render/score-popups'
 import { renderSectorWaveWarning as drawSectorWaveWarning } from './render/sector-wave-warning'
 import { renderSurfaceAliens as drawSurfaceAliens, renderSurfaceLoreSites as drawSurfaceLoreSites, renderSurfaceResources as drawSurfaceResources } from './surface/render-interactables'
@@ -89,6 +88,7 @@ import { renderSurfacePilot as drawSurfacePilot } from './surface/render-pilot'
 import { renderSurfaceBullets as drawSurfaceBullets, renderSurfaceWaveTelegraphs as drawSurfaceWaveTelegraphs } from './surface/render-projectiles'
 import { renderSurfaceShip as drawSurfaceShip } from './surface/render-ship'
 import { renderSurfaceThreats } from './surface/render-threats'
+import { renderSurfaceWorld as drawSurfaceWorld } from './surface/render-world'
 import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurfaceBulletsAndThreatDamage } from './surface/bullet-combat'
 import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction, surfaceTakeoffRequest, surfaceTransitionProgress } from './surface/lifecycle'
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
@@ -4549,47 +4549,18 @@ export class VectorShooter {
     const s = this.surface
     const biome = s.planet.biome
     ctx.save()
-    const sky = ctx.createLinearGradient(0, 0, 0, this.height)
-    sky.addColorStop(0, biome.skyTop)
-    sky.addColorStop(0.52, biome.skyMid)
-    sky.addColorStop(1, biome.skyBottom)
-    ctx.fillStyle = sky
-    ctx.fillRect(0, 0, this.width, this.height)
-
-    ctx.strokeStyle = biome.gridColor
-    ctx.lineWidth = 1
-    const grid = 90
-    for (let x = -s.camera.x % grid; x < this.width + grid; x += grid) {
-      ctx.beginPath()
-      ctx.moveTo(x, 0)
-      ctx.lineTo(x + Math.sin((x + s.camera.x) * 0.004) * 24, this.height)
-      ctx.stroke()
-    }
-    for (let y = -s.camera.y % grid; y < this.height + grid; y += grid) {
-      ctx.beginPath()
-      ctx.moveTo(0, y)
-      ctx.lineTo(this.width, y + Math.sin((y + s.camera.y) * 0.005) * 18)
-      ctx.stroke()
-    }
-
-    this.renderSurfaceBiomeMotifs(ctx, s)
-
-    const horizon = this.surfaceToScreen(s.width / 2, s.height + 520)
-    ctx.strokeStyle = biome.horizonColor
-    ctx.shadowColor = biome.horizonColor
-    ctx.shadowBlur = 20
-    ctx.lineWidth = 3
-    ctx.beginPath()
-    ctx.arc(horizon.x, horizon.y, 860, Math.PI * 1.12, Math.PI * 1.88)
-    ctx.stroke()
-    ctx.globalAlpha = 0.26
-    for (let i = 0; i < 5; i += 1) {
-      ctx.beginPath()
-      ctx.arc(horizon.x, horizon.y, 720 - i * 62, Math.PI * 1.2, Math.PI * 1.8)
-      ctx.stroke()
-    }
-    ctx.globalAlpha = 1
-    ctx.shadowBlur = 0
+    drawSurfaceWorld({
+      ctx,
+      biome,
+      seed: hashString(s.planet.id, 83),
+      glow: this.allowGlow(),
+      camera: s.camera,
+      surfaceWidth: s.width,
+      surfaceHeight: s.height,
+      viewWidth: this.width,
+      viewHeight: this.height,
+      surfaceToScreen: (x, y) => this.surfaceToScreen(x, y)
+    })
 
     drawSurfaceShip({
       ctx,
@@ -4654,20 +4625,6 @@ export class VectorShooter {
     this.renderSurfaceHud(ctx, s)
     this.renderScorePopups(ctx)
     ctx.restore()
-  }
-
-  private renderSurfaceBiomeMotifs(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
-    drawSurfaceBiomeMotifs({
-      ctx,
-      biome: s.planet.biome,
-      seed: hashString(s.planet.id, 83),
-      glow: this.allowGlow(),
-      surfaceWidth: s.width,
-      surfaceHeight: s.height,
-      viewWidth: this.width,
-      viewHeight: this.height,
-      surfaceToScreen: (x, y) => this.surfaceToScreen(x, y)
-    })
   }
 
   private renderSurfaceHud(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
