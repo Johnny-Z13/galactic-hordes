@@ -59,12 +59,10 @@ import {
   currentSectorNode,
   sectorNodeRunProfile,
   selectSectorNode,
-  type SectorHazardTag,
   type SectorMap,
   type SectorNode,
   type SectorNodeRunProfile,
-  type SectorStationService,
-  type SectorWaveOrder
+  type SectorStationService
 } from './sector-map'
 import { pressurePackSize, shouldRecycleEnemy } from './spawn-pressure'
 import { buildStationVisitRecord, journeyDistanceLy, stationNameForNode as stationMemoryNameForNode, type StationVisitRecord } from './station-memory'
@@ -168,6 +166,7 @@ import { showTitle as uiShowTitle } from './ui/title-screen'
 import { makeHud as uiMakeHud, updateHud as uiUpdateHud } from './ui/hud'
 import { makeScreens as uiMakeScreens, showOnly as uiShowOnly } from './ui/screens'
 import { renderPlanet as uiRenderPlanet } from './ui/planet-screen'
+import { showSectorMap as uiShowSectorMap } from './ui/sector-map-screen'
 import { showStationDock as uiShowStationDock } from './ui/station-dock'
 import { renderIntroArrow } from './ui/intro-waypoint'
 import {
@@ -6570,235 +6569,7 @@ export class VectorShooter {
   }
 
   private showSectorMap(message = 'Choose the next jump. Route progress resets on death; mothership upgrades persist.') {
-    this.state = 'sectorMap'
-    this.ui.sectorMap.innerHTML = ''
-    this.ui.sectorMap.className = 'screen sector-map-screen'
-    const panel = document.createElement('div')
-    panel.className = 'sector-map-panel'
-    const top = document.createElement('div')
-    top.className = 'sector-map-top'
-    const titleBlock = document.createElement('div')
-    titleBlock.className = 'sector-map-title'
-    titleBlock.innerHTML = `<span>RUN ROUTE</span><h1>SECTOR MAP</h1><p>${this.escape(message)}</p>`
-    const status = document.createElement('div')
-    status.className = 'sector-map-status'
-    status.innerHTML = `
-      <span><b>${this.sectorMap.nodes.filter((node) => node.completed && node.kind !== 'mothership').length}</b> CLEARED</span>
-      <span><b>${availableSectorChoices(this.sectorMap).length}</b> ROUTES</span>
-      <span><b>${this.resources.scrap}</b> SCRAP</span>
-    `
-    top.append(titleBlock, status)
-
-    const body = document.createElement('div')
-    body.className = 'sector-map-body'
-    const choices = availableSectorChoices(this.sectorMap)
-    const graph = document.createElement('div')
-    graph.className = 'sector-map-graph sector-map-starchart'
-    const graphHeader = document.createElement('div')
-    graphHeader.className = 'sector-map-graph-header'
-    graphHeader.innerHTML = `<span>LOCAL STARCHART</span><b>${choices.length} ROUTES OPEN</b>`
-    graph.append(graphHeader)
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-    svg.classList.add('sector-map-lines')
-    svg.setAttribute('viewBox', '0 0 100 100')
-    for (const edge of this.sectorMap.edges) {
-      const from = this.sectorMap.nodes.find((node) => node.id === edge.from)
-      const to = this.sectorMap.nodes.find((node) => node.id === edge.to)
-      if (!from || !to) continue
-      const a = this.sectorNodePosition(from)
-      const b = this.sectorNodePosition(to)
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
-      line.setAttribute('x1', `${a.x}`)
-      line.setAttribute('y1', `${a.y}`)
-      line.setAttribute('x2', `${b.x}`)
-      line.setAttribute('y2', `${b.y}`)
-      line.classList.add(from.completed && to.completed ? 'completed' : from.id === this.sectorMap.currentNodeId ? 'available' : 'locked')
-      svg.append(line)
-    }
-    graph.append(svg)
-    for (const node of this.sectorMap.nodes) {
-      const pos = this.sectorNodePosition(node)
-      const isAvailable = choices.some((choice) => choice.id === node.id)
-      const stationVisit = this.stationVisits.find((visit) => visit.nodeId === node.id)
-      const stateLabel = stationVisit ? 'DOCKED' : node.completed ? 'DONE' : node.id === this.sectorMap.currentNodeId ? 'HERE' : isAvailable ? 'OPEN' : 'LOCK'
-      const button = document.createElement('button')
-      button.type = 'button'
-      button.className = this.sectorNodeClass(node, choices)
-      button.style.left = `${pos.x}%`
-      button.style.top = `${pos.y}%`
-      button.dataset.label = node.label
-      button.setAttribute('aria-label', `${this.sectorKindLabel(node.kind)}: ${node.label}`)
-      button.innerHTML = `
-        <span class="sector-node-core"><span class="sector-node-glyph">${this.sectorNodeGlyph(node.kind)}</span></span>
-        <span class="sector-node-label">${this.escape(node.label.replace(/\s+\d+-\d+$/, ''))}</span>
-        <span class="sector-node-state">${stateLabel}</span>
-      `
-      button.title = stationVisit ? `${stationVisit.stationName}: ${stationVisit.contactName}, ${stationVisit.contactRole}` : `${node.label}: ${node.description}`
-      button.disabled = !isAvailable
-      button.addEventListener('click', () => this.launchSectorNode(node.id))
-      graph.append(button)
-    }
-    const legend = document.createElement('div')
-    legend.className = 'sector-map-legend'
-    legend.innerHTML = `
-      <span><i class="legend-swatch planet"></i>Planet</span>
-      <span><i class="legend-swatch hostile"></i>Combat</span>
-      <span><i class="legend-swatch anomaly"></i>Hazard</span>
-      <span><i class="legend-swatch station"></i>Station</span>
-    `
-    graph.append(legend)
-
-    const details = document.createElement('div')
-    details.className = 'sector-map-details'
-    const current = currentSectorNode(this.sectorMap)
-    const currentStationVisit = this.stationVisits.find((visit) => visit.nodeId === current.id)
-    const heading = document.createElement('div')
-    heading.className = 'sector-map-current'
-    heading.innerHTML = currentStationVisit
-      ? `<span>CURRENT NODE // DOCKED</span><h2>${this.escape(currentStationVisit.stationName)}</h2><p>${this.escape(`${currentStationVisit.contactName}, ${currentStationVisit.contactRole}: ${currentStationVisit.rumor}`)}</p>`
-      : `<span>CURRENT NODE</span><h2>${this.escape(current.label)}</h2><p>${this.escape(current.description)}</p>`
-    const list = document.createElement('div')
-    list.className = 'sector-choice-list'
-    for (const choice of choices) {
-      const profile = sectorNodeRunProfile(choice)
-      const hazards = this.sectorHazardsLabel(choice.config.hazards)
-      const planets = this.sectorPlanetLabel(choice.config.planets.countMin, choice.config.planets.countMax)
-      const option = document.createElement('button')
-      option.type = 'button'
-      option.className = `sector-choice ${choice.kind}`
-      option.innerHTML = `
-        <span class="sector-choice-head">
-          <span class="sector-choice-kind">${this.escape(this.sectorKindLabel(choice.kind))}</span>
-          <b class="sector-choice-title">${this.escape(choice.label)}</b>
-        </span>
-        <small>${this.escape(choice.config.readout)}</small>
-        <span class="sector-choice-metrics" aria-label="Route metrics">
-          <span><b>${planets}</b><em>PLANETS</em></span>
-          <span><b>${choice.config.waves.length}</b><em>${this.sectorWaveLabel(choice.config.waveOrder)}</em></span>
-          <span><b>x${profile.spawnMultiplier.toFixed(2)}</b><em>PRESSURE</em></span>
-          <span><b>${this.escape(hazards)}</b><em>HAZARDS</em></span>
-        </span>
-        <i class="sector-choice-readout">${this.escape(this.sectorNodeConfigSummary(choice, profile))}</i>
-      `
-      option.addEventListener('click', () => this.launchSectorNode(choice.id))
-      list.append(option)
-    }
-    if (!choices.length) {
-      const empty = document.createElement('p')
-      empty.className = 'copy small'
-      empty.textContent = 'No forward route is open yet.'
-      list.append(empty)
-    }
-    list.append(this.sectorMapDebugReadout())
-    details.append(heading, list)
-    body.append(graph, details)
-    panel.append(top, body)
-    this.ui.sectorMap.append(panel)
-    this.showOnly('sectorMap')
-  }
-
-  private sectorNodePosition(node: SectorNode) {
-    const x = 8 + (node.column / Math.max(1, this.sectorMap.columns - 1)) * 84
-    const y = node.id === 'mothership' ? 48 : node.kind === 'final' ? 48 : 18 + node.row * 20
-    return { x, y }
-  }
-
-  private sectorNodeClass(node: SectorNode, choices: SectorNode[]) {
-    const classes = ['sector-node', node.kind]
-    if (node.completed) classes.push('completed')
-    if (node.id === this.sectorMap.currentNodeId) classes.push('current')
-    if (choices.some((choice) => choice.id === node.id)) classes.push('available')
-    if (!node.completed && node.id !== this.sectorMap.currentNodeId && !choices.some((choice) => choice.id === node.id)) classes.push('locked')
-    return classes.join(' ')
-  }
-
-  private sectorNodeGlyph(kind: SectorNode['kind']) {
-    return {
-      mothership: 'M',
-      hostile: 'H',
-      planet: 'P',
-      station: 'S',
-      anomaly: 'A',
-      boss: 'B',
-      final: 'F'
-    }[kind]
-  }
-
-  private sectorKindLabel(kind: SectorNode['kind']) {
-    return {
-      mothership: 'MOTHERSHIP',
-      hostile: 'COMBAT',
-      planet: 'PLANET',
-      station: 'STATION',
-      anomaly: 'ANOMALY',
-      boss: 'BOSS',
-      final: 'FINAL'
-    }[kind]
-  }
-
-  private sectorWaveLabel(wave: SectorWaveOrder) {
-    return {
-      scouts: 'SCOUTS',
-      swarm: 'SWARM',
-      ambush: 'AMBUSH',
-      bulwark: 'BULWARK',
-      cathedral: 'CATHEDRAL'
-    }[wave]
-  }
-
-  private sectorNodeConfigSummary(node: SectorNode, profile: SectorNodeRunProfile) {
-    if (node.kind === 'station') return 'REPAIR / WORKBENCH / SCAN'
-    const modifierSummary = [
-      profile.enemyPacket.id === 'baseline' ? '' : profile.enemyPacket.label,
-      profile.rewardShape.id === 'balanced' ? '' : profile.rewardShape.label,
-      ...profile.modifiers.map((modifier) => modifier.label)
-    ].filter(Boolean).slice(0, 3).join(' + ')
-    return [
-      `PLANETS ${this.sectorPlanetLabel(node.config.planets.countMin, node.config.planets.countMax)}`,
-      `WAVES ${node.config.waves.length} ${this.sectorWaveLabel(node.config.waveOrder)}`,
-      `HAZARDS ${this.sectorHazardsLabel(node.config.hazards)}`,
-      `PRESSURE x${profile.spawnMultiplier.toFixed(2)}`,
-      modifierSummary
-    ].filter(Boolean).join(' / ')
-  }
-
-  private sectorMapDebugReadout() {
-    const wrap = document.createElement('details')
-    wrap.className = 'sector-debug-readout'
-    const rows = this.sectorMap.nodes
-      .filter((node) => node.kind !== 'mothership')
-      .sort((a, b) => a.column - b.column || a.row - b.row)
-      .map((node) => {
-        const profile = sectorNodeRunProfile(node)
-        const waveSummary = node.config.waves.map((wave) => `${wave.atSeconds}s:${wave.label}`).join(', ')
-        return `
-          <div class="sector-debug-row ${this.escape(node.kind)}">
-            <b>${this.escape(node.label)}</b>
-            <span>${this.escape(node.config.templateId)} / d${node.config.depth.toFixed(2)} / ${this.escape(node.config.pace)}</span>
-            <span>${this.escape(node.config.enemyPacket.label)} / ${this.escape(node.config.rewardShape.label)} / ${this.escape(node.config.modifiers.map((modifier) => modifier.label).join(' + '))}</span>
-            <span>PLANETS ${this.sectorPlanetLabel(node.config.planets.countMin, node.config.planets.countMax)} / ${this.escape(node.config.planets.density)} / ${this.escape(this.sectorHazardsLabel(node.config.hazards))}</span>
-            <span>PRESSURE x${profile.spawnMultiplier.toFixed(2)} / REWARD x${profile.rewardMultiplier.toFixed(2)} / WAVES ${this.escape(waveSummary)}</span>
-          </div>
-        `
-      })
-      .join('')
-    wrap.innerHTML = `<summary>ROUTE DEBUG</summary>${rows}`
-    return wrap
-  }
-
-  private sectorPlanetLabel(min: number, max: number) {
-    return min === max ? `${min}` : `${min}-${max}`
-  }
-
-  private sectorHazardsLabel(hazards: SectorHazardTag[]) {
-    const labels: Record<SectorHazardTag, string> = {
-      clear: 'CLEAR',
-      asteroids: 'ASTEROIDS',
-      hunterWing: 'HUNTER WING',
-      derelictCache: 'DERELICT CACHE',
-      nebula: 'NEBULA'
-    }
-    return hazards.map((hazard) => labels[hazard]).join(' + ')
+    uiShowSectorMap(this, message)
   }
 
   private launchSectorNode(nodeId: string) {

@@ -11,6 +11,7 @@ import { availableSectorChoices, currentSectorNode } from '../sector-map'
 import { clamp, type MothershipConsoleView, type VectorShooter } from '../main'
 import { renderManifestRelicLine, renderManifestSummary } from './workbench'
 import { renderCollectionScreen } from './collection'
+import { sectorNodeGlyph } from './sector-map-screen'
 export function renderBuildManifest(self: VectorShooter) {
   const wrap = document.createElement('div')
   wrap.className = 'build-manifest overview'
@@ -145,7 +146,7 @@ export function renderMothershipRoutePreview(self: VectorShooter) {
   const nodeMarkup = [
     { label: 'M', x: 8, y: 52, className: 'current', text: 'MOTHERSHIP' },
     ...choices.slice(0, 3).map((node, index) => ({
-      label: self['sectorNodeGlyph'](node.kind),
+      label: sectorNodeGlyph(node.kind),
       x: 28,
       y: [24, 52, 78][index],
       className: `available ${node.kind}`,

@@ -1,6 +1,7 @@
 import type { SectorStationService } from '../sector-map'
 import { availableSectorChoices } from '../sector-map'
 import type { StationDockReport, VectorShooter } from '../main'
+import { sectorNodeGlyph } from './sector-map-screen'
 
 export function showStationDock(self: VectorShooter, report: StationDockReport) {
   self['stationDockReport'] = report
@@ -105,7 +106,7 @@ function stationRouteMap(self: VectorShooter, report: StationDockReport) {
           ? 'available'
           : 'locked'
     marker.className = `station-route-node ${state}`
-    marker.textContent = self['sectorNodeGlyph'](node.kind)
+    marker.textContent = sectorNodeGlyph(node.kind)
     marker.title = node.id === report.nodeId ? report.stationName : node.label
     map.append(marker)
   }
