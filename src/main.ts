@@ -79,6 +79,7 @@ import {
 import { applyOptionOrbDamage, deployMineWake as deployMineWakeWeapon, fireOptionOrbs as fireOptionOrbWeapons, firePrimaryWeapon, fireRearGun as fireRearGunWeapons, optionOrbAngle, optionOrbWorldPosition, spawnChainBolt as spawnChainBoltWeapon } from './space-player-weapons'
 import { applyDashRam } from './space-dash-combat'
 import { createEnemyTrailParticle } from './space-enemy-trails'
+import { EnemySpatialGrid } from './space-enemy-grid'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { clamp, norm, dist2, hash32, len, rngFrom, TAU } from './math-utils'
@@ -450,8 +451,6 @@ const LEGACY_SCORE_STORAGE_KEYS = ['vector_shooter_high_scores']
 const GRAPHICS_STORAGE_KEY = 'galactic_hordes_graphics_v1'
 const LEGACY_GRAPHICS_STORAGE_KEYS = ['vector_shooter_graphics']
 const MOTHERSHIP_STORAGE_KEY = 'galactic_hordes_mothership_v2'
-const GRID_CELL = 180
-const GRID_STRIDE = 1000
 const MAX_PARTICLES = 300
 const MAX_SHOCKWAVES = 12
 const MAX_BULLETS = 220
@@ -624,8 +623,7 @@ export class VectorShooter {
   private player: PlayerState = this.makePlayer()
   private bullets: Bullet[] = []
   private enemies: Enemy[] = []
-  private enemyGrid = new Map<number, Enemy[]>()
-  private nearbyEnemyScratch: Enemy[] = []
+  private enemyGrid = new EnemySpatialGrid()
   // Reused per-frame context for the extracted enemy-behaviors strategy table.
   // playerX/playerY/time/hunger are refreshed once at the top of updateEnemies
   // (mutable backing fields) to avoid per-enemy allocation; the rest are stable
@@ -1981,35 +1979,11 @@ export class VectorShooter {
   }
 
   private rebuildEnemyGrid() {
-    this.enemyGrid.clear()
-    for (const enemy of this.enemies) {
-      if (enemy.hp <= 0) continue
-      const key = this.gridKey(enemy.x, enemy.y)
-      let bucket = this.enemyGrid.get(key)
-      if (!bucket) {
-        bucket = []
-        this.enemyGrid.set(key, bucket)
-      }
-      bucket.push(enemy)
-    }
-  }
-
-  private gridKey(x: number, y: number) {
-    return Math.floor(x / GRID_CELL) * GRID_STRIDE + Math.floor(y / GRID_CELL)
+    this.enemyGrid.rebuild(this.enemies)
   }
 
   private getNearbyEnemies(x: number, y: number) {
-    const cx = Math.floor(x / GRID_CELL)
-    const cy = Math.floor(y / GRID_CELL)
-    const result = this.nearbyEnemyScratch
-    result.length = 0
-    for (let gx = cx - 1; gx <= cx + 1; gx += 1) {
-      for (let gy = cy - 1; gy <= cy + 1; gy += 1) {
-        const bucket = this.enemyGrid.get(gx * GRID_STRIDE + gy)
-        if (bucket) result.push(...bucket)
-      }
-    }
-    return result
+    return this.enemyGrid.nearby(x, y)
   }
 
   private updateEnemies(dt: number) {
