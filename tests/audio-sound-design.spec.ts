@@ -3,16 +3,32 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+const audioSource = () => readFileSync(resolve(process.cwd(), 'src/audio/audio-director.ts'), 'utf8')
+const sfxSamplesSource = () => readFileSync(resolve(process.cwd(), 'src/audio/sfx-samples.ts'), 'utf8')
 const workbenchSource = () => readFileSync(resolve(process.cwd(), 'src/ui/workbench.ts'), 'utf8')
 
 test('audio director has distinct planet ambience and weapon cue profiles', () => {
-  const main = source()
+  const audio = audioSource()
 
-  expect(main).toContain("type PlanetAudioMood = Planet['archetype'] | 'deepSpace' | 'title'")
-  expect(main).toContain("type WeaponSoundKind = 'pulse' | 'prism' | 'rail' | 'needle' | 'surface'")
-  expect(main).toContain('private planetMoods: Record<PlanetAudioMood,')
-  expect(main).toContain('private weaponProfiles: Record<WeaponSoundKind,')
-  expect(main).toContain('update(dt: number, intensity: number, mood: PlanetAudioMood)')
+  expect(audio).toContain("export type PlanetAudioMood = PlanetArchetype | 'deepSpace' | 'title'")
+  expect(audio).toContain("export type WeaponSoundKind = 'pulse' | 'prism' | 'rail' | 'needle' | 'surface'")
+  expect(audio).toContain('private planetMoods: Record<PlanetAudioMood,')
+  expect(audio).toContain('private weaponProfiles: Record<WeaponSoundKind,')
+  expect(audio).toContain('update(dt: number, intensity: number, mood: PlanetAudioMood)')
+})
+
+test('main wires audio through focused modules', () => {
+  const main = source()
+  const samples = sfxSamplesSource()
+
+  expect(main).toContain("import { AudioDirector")
+  expect(main).toContain("from './audio/audio-director'")
+  expect(main).toContain("import { sfxSamples } from './audio/sfx-samples'")
+  expect(main).toContain('this.audio.registerSamples(sfxSamples)')
+  expect(main).not.toContain('class AudioDirector')
+  expect(samples).toContain('export const sfxSamples')
+  expect(samples).toContain('UI_device_button2.mp3?url')
+  expect(samples).toContain('Atmosphere_Lowloop_planetAMB.mp3?url')
 })
 
 test('gameplay events route to specialized audio cues', () => {
@@ -30,7 +46,8 @@ test('gameplay events route to specialized audio cues', () => {
 
 test('bullet impacts use an electric shield arc cue with cooldown', () => {
   const main = source()
-  const impactCue = main.slice(main.indexOf('impact(power = 1)'), main.indexOf('pickup(kind: PickupSoundKind'))
+  const audio = audioSource()
+  const impactCue = audio.slice(audio.indexOf('impact(power = 1)'), audio.indexOf('pickup(kind: PickupSoundKind'))
   const playBulletImpact = main.slice(main.indexOf('private playBulletImpact'), main.indexOf('private damageSpaceHazard'))
 
   expect(impactCue).toContain("type: 'highpass'")
@@ -38,7 +55,7 @@ test('bullet impacts use an electric shield arc cue with cooldown', () => {
   expect(impactCue).toContain('filter: 6400')
   expect(impactCue).toContain("this.tone(spark, 0.038, 'square'")
   expect(impactCue).toContain('setTimeout(() => this.tone(spark * 1.48')
-  expect(main).toContain('this.impact(1.2)')
+  expect(audio).toContain('this.impact(1.2)')
   expect(main).toContain('private bulletImpactCooldown = 0')
   expect(main).toContain('this.bulletImpactCooldown -= dt')
   expect(playBulletImpact).toContain('if (this.bulletImpactCooldown > 0) return')
@@ -46,21 +63,21 @@ test('bullet impacts use an electric shield arc cue with cooldown', () => {
 })
 
 test('weapon pulse audio uses a slow flanger path', () => {
-  const main = source()
+  const audio = audioSource()
 
-  expect(main).toContain('private weaponBus: GainNode | null = null')
-  expect(main).toContain('private setupWeaponFlanger()')
-  expect(main).toContain('flangerLfo.frequency.value = 0.16')
-  expect(main).toContain('flangerDepth.gain.value = 0.0038')
-  expect(main).toContain('const destination = this.weaponDestination(kind)')
+  expect(audio).toContain('private weaponBus: GainNode | null = null')
+  expect(audio).toContain('private setupWeaponFlanger()')
+  expect(audio).toContain('flangerLfo.frequency.value = 0.16')
+  expect(audio).toContain('flangerDepth.gain.value = 0.0038')
+  expect(audio).toContain('const destination = this.weaponDestination(kind)')
 })
 
 test('ambient pulse is an explicit heartbeat clock for synced cues', () => {
-  const main = source()
+  const audio = audioSource()
 
-  expect(main).toContain('private beatTimer = 0')
-  expect(main).toContain('private beatInterval = 0.7')
-  expect(main).toContain('private updateBeatClock(dt: number, intensity: number, mood: PlanetAudioMood)')
-  expect(main).toContain('private nextBeatDelay(subdivision = 1)')
-  expect(main).toContain('this.syncToBeat(() => this.tone')
+  expect(audio).toContain('private beatTimer = 0')
+  expect(audio).toContain('private beatInterval = 0.7')
+  expect(audio).toContain('private updateBeatClock(dt: number, intensity: number, mood: PlanetAudioMood)')
+  expect(audio).toContain('private nextBeatDelay(subdivision = 1)')
+  expect(audio).toContain('this.syncToBeat(() => this.tone')
 })
