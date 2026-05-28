@@ -2462,6 +2462,40 @@ canvas {
   max-width: 760px;
 }
 
+.debrief-log {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 4px;
+  padding: 14px 16px;
+  border: 1px solid rgba(87, 255, 243, 0.24);
+  background: linear-gradient(90deg, rgba(87, 255, 243, 0.1), rgba(6, 18, 26, 0.7));
+  text-align: left;
+}
+
+.debrief-log span {
+  color: var(--cyan);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.debrief-log b {
+  color: var(--yellow);
+  font-size: 18px;
+  font-family: 'Orbitron', sans-serif;
+  text-transform: uppercase;
+}
+
+.debrief-log ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
+  color: rgba(215, 255, 247, 0.82);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .debrief-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -4900,6 +4934,27 @@ button.manifest-chip:disabled {
     line-height: 1.22;
   }
 
+  .gameover-screen .debrief-log {
+    width: min(100%, 580px);
+    gap: 5px;
+    margin: 0;
+    padding: 8px 10px;
+  }
+
+  .gameover-screen .debrief-log span {
+    font-size: clamp(8px, 2.4vw, 10px);
+  }
+
+  .gameover-screen .debrief-log b {
+    font-size: clamp(12px, 3.4vw, 15px);
+  }
+
+  .gameover-screen .debrief-log ul {
+    gap: 3px;
+    font-size: clamp(8px, 2.5vw, 10px);
+    line-height: 1.18;
+  }
+
   .gameover-screen .debrief-grid {
     width: min(100%, 580px);
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -5311,6 +5366,30 @@ button.manifest-chip:disabled {
   .gameover-screen .copy.small {
     font-size: 9px;
     line-height: 1.12;
+  }
+
+  .gameover-screen .debrief-log {
+    width: min(100%, 760px);
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 3px 12px;
+    align-items: start;
+    margin: 0;
+    padding: 6px 9px;
+  }
+
+  .gameover-screen .debrief-log span {
+    font-size: 8px;
+  }
+
+  .gameover-screen .debrief-log b {
+    font-size: 12px;
+  }
+
+  .gameover-screen .debrief-log ul {
+    grid-column: 1 / -1;
+    gap: 2px;
+    font-size: 8px;
+    line-height: 1.08;
   }
 
   .gameover-screen .debrief-grid {

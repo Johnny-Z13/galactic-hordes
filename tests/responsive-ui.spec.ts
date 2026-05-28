@@ -122,6 +122,16 @@ const gameOverMarkup = (css: string) => `
       <div class="panel debrief-panel">
         <h1 class="title">BLACK BOX RECOVERED</h1>
         <p class="copy">The scout ship was lost. The mothership recovered partial cargo and all transmitted discoveries.</p>
+        <section class="debrief-log">
+          <span>EXPEDITION LOG</span>
+          <b>LATHE RELAY DEEP ROUTE</b>
+          <ul>
+            <li>187 LY travelled across 4 route nodes.</li>
+            <li>2 planets surveyed with 3 discoveries logged.</li>
+            <li>Docked at LATHE RELAY.</li>
+            <li>Skipped 2 station beacons for deep-route recovery.</li>
+          </ul>
+        </section>
         <div class="debrief-grid">
           <div><b>320</b><span>Scrap Recovered</span></div>
           <div><b>24</b><span>Crystals Recovered</span></div>

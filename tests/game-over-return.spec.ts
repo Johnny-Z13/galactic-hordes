@@ -23,6 +23,8 @@ test('game over and debrief actions return to the title screen', () => {
   expect(screens).toContain("self['ui'].gameover.className = 'screen gameover-screen'")
   expect(main).toContain('private returnToTitleFromGameOver(')
   expect(debrief).toContain("continueButton.textContent = 'Return to Title'")
+  expect(debrief).toContain("logTitle.textContent = self['debrief'].journeyTitle")
+  expect(debrief).toContain("item.textContent = highlight")
   expect(debrief).toContain("self['returnToTitleFromGameOver'](input)")
   expect(debrief).toContain("retry.textContent = 'Title Screen'")
   expect(debrief).not.toContain("continueButton.textContent = 'Return to Mothership'")

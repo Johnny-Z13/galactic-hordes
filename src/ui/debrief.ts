@@ -11,6 +11,19 @@ export function renderDebrief(self: VectorShooter) {
   const copy = document.createElement('p')
   copy.className = 'copy'
   copy.textContent = self['debrief'].copy
+  const log = document.createElement('section')
+  log.className = 'debrief-log'
+  const logEyebrow = document.createElement('span')
+  logEyebrow.textContent = 'EXPEDITION LOG'
+  const logTitle = document.createElement('b')
+  logTitle.textContent = self['debrief'].journeyTitle
+  const logList = document.createElement('ul')
+  for (const highlight of self['debrief'].highlights) {
+    const item = document.createElement('li')
+    item.textContent = highlight
+    logList.append(item)
+  }
+  log.append(logEyebrow, logTitle, logList)
   const resources = document.createElement('div')
   resources.className = 'debrief-grid'
   resources.innerHTML = `
@@ -66,7 +79,7 @@ export function renderDebrief(self: VectorShooter) {
     self['showScores']()
   })
   row.append(continueButton, scores)
-  panel.append(h, copy, resources, discoveries, stationRoute, bonus, input, row)
+  panel.append(h, copy, log, resources, discoveries, stationRoute, bonus, input, row)
   self['ui'].gameover.append(panel)
   self['showOnly']('gameover')
 }

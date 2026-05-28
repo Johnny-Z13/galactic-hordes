@@ -30,3 +30,43 @@ test('builds a destroyed-run debrief from recovery and journey inputs', () => {
   expect(report.stationVisits).toEqual([])
   expect(report.lightYears).toBe(88)
 })
+
+test('names the journey and summarizes player-readable run highlights', () => {
+  const report = buildDebriefReport({
+    outcome: 'deepExtraction',
+    earnedResources: resources(260, 38, 3),
+    recoveredResources: resources(286, 41, 3),
+    discoveries: [
+      { id: 'planet:red-ossuary', kind: 'planet', title: 'RED OSSUARY' },
+      { id: 'lore:choir', kind: 'lore', title: 'CHOIR GRAVE' },
+      { id: 'relic:mirror', kind: 'relic', title: 'MIRROR KEEL' }
+    ],
+    nodesCleared: 4,
+    planetsVisited: 2,
+    skippedBeacons: 2,
+    stationVisits: [
+      {
+        nodeId: 'node-a',
+        nodeLabel: 'A',
+        stationName: 'LATHE RELAY',
+        dockedAtSeconds: 180,
+        services: ['repair'],
+        repaired: 12,
+        workbenchSignals: 0,
+        scrap: 0,
+        crystal: 0,
+        contactName: 'Mara Venn',
+        contactRole: 'Dockmaster',
+        rumor: 'Quiet lane ahead.'
+      }
+    ]
+  })
+
+  expect(report.journeyTitle).toBe('LATHE RELAY DEEP ROUTE')
+  expect(report.highlights).toEqual([
+    '187 LY travelled across 4 route nodes.',
+    '2 planets surveyed with 3 discoveries logged.',
+    'Docked at LATHE RELAY.',
+    'Skipped 2 station beacons for deep-route recovery.'
+  ])
+})
