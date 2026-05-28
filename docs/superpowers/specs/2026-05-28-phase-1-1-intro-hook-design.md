@@ -70,9 +70,9 @@ One new pure module owns the rules; surgical hooks elsewhere wire effects. Mirro
   - New `hitstopUntil: number` field.
   - Hooks in `updatePlaying`, `update`, `updateBullets` (collision), `updateEnemies` tail, `killEnemy`, `updatePickups`, `confirmLanding`/`startLanding`, `renderSpaceScene`. Each hook is ≤ 5 lines.
 
-- **`src/main-types.ts`** — add `hitFlash?: number` to `Enemy`; add `glintFrame?: number` to `Pickup`. Optional fields, undefined by default, no existing-call-site impact.
+- **`src/main-types.ts`** — no change. `Enemy.flash` already exists; `Pickup` is declared in `main.ts:164` (not main-types.ts). Add `glintFrame?: number` to that local `Pickup` interface instead.
 
-- **`src/render/enemies.ts`** — one-line color override at the top of per-enemy block: `if (e.hitFlash && e.hitFlash > 0) ctx.fillStyle = introHookConfig.hitFlash.color`.
+- **`src/render/enemies.ts`** — replace the four existing `'#ffffff'` references (the current white hit-flash) with `introHookConfig.hitFlash.color`. They override `strokeStyle`, not `fillStyle`.
 
 - **`src/sector-map.ts`** — at first-node construction, if template `safeDrift` and this is the first node of a new run, apply `introHookConfig.safeDriftFirstNode` overrides to `enemies.startingSpawns` / `enemies.spawnMultiplier`.
 
@@ -99,12 +99,13 @@ One new pure module owns the rules; surgical hooks elsewhere wire effects. Mirro
 - **Update:** in `updatePlaying`, decrement `life` by `dt`; increment `y` by `vy * dt`; drop expired entries.
 - **Render:** called from `renderSpaceScene` (and `renderSurface` for surface kills). Drawn after particles, before HUD. Alpha = `life / totalLife`.
 
-### 3. `EnemyHitFlash` (your addition)
+### 3. `EnemyHitFlash` (your addition) — **REVISED: existing system, change color + tune duration**
 
-- **Type extension:** `hitFlash?: number` added to `Enemy` in `main-types.ts`.
-- **Stamp:** in the bullet→enemy damage path in `updateBullets`, after `e.hp -= b.damage` and *only* when `e.hp > 0` (i.e. non-fatal hit), set `e.hitFlash = introHookConfig.hitFlash.durationSeconds`. Kills already burst; hit-flash is the non-kill case.
-- **Tick:** in the shared tail of `updateEnemies`, decrement `e.hitFlash` by `dt` if > 0.
-- **Render:** in `src/render/enemies.ts`, per-enemy block — `if (e.hitFlash && e.hitFlash > 0) ctx.fillStyle = introHookConfig.hitFlash.color` before the existing fill calls.
+Verified during planning: a hit-flash system **already exists** on `Enemy`. There's a `flash: number` field on the `Enemy` interface (`main-types.ts:41`), stamped at `main.ts:3121` inside `damageEnemy(e, amount, color)` (the centralized bullet → enemy damage entry point) with duration `0.05s`, and ticked down in the enemy-update tail (`main.ts:2537`). The renderer (`src/render/enemies.ts:38, 152, 154, 371`) currently overrides `strokeStyle` to `'#ffffff'` (white) while `flash > 0`. The asks reduce to:
+
+- **Tune duration:** bump `e.flash = 0.05` to `e.flash = introHookConfig.hitFlash.durationSeconds` (default `0.08`) at `main.ts:3121`. Also bump the dash-ram path at `main.ts:2623` for consistency (`Math.max(e.flash, 0.12)` → `Math.max(e.flash, introHookConfig.hitFlash.durationSeconds)`).
+- **Change color:** replace the four `'#ffffff'` references in `src/render/enemies.ts` with `introHookConfig.hitFlash.color` (default `'#ff5d73'`). Note: this affects `strokeStyle` (the enemy outline), not `fillStyle` — enemies are stroked vector shapes, not filled.
+- **No type changes, no new tick code, no new stamp code.**
 
 ### 4. `Hitstop` (thread B)
 
@@ -157,13 +158,13 @@ All manual tuning happens by editing this object.
 | --- | --- |
 | `updatePlaying` (`main.ts`) | start / tick / stop waypoint state |
 | `update` (`main.ts`) | early-return on `hitstopUntil` |
-| Bullet-enemy collision (`updateBullets`) | stamp `e.hitFlash` on non-fatal hit |
-| `updateEnemies` shared tail | decrement `e.hitFlash` |
+| `damageEnemy` (`main.ts:3119`) | tune `e.flash` duration from `0.05` to `introHookConfig.hitFlash.durationSeconds` (existing stamp site) |
+| `tryDashRam` (`main.ts:2622`) | matching tune on the dash-ram damage path's `e.flash` stamp |
 | `killEnemy` (`main.ts`) | push score popup; if giant, set `hitstopUntil` |
 | `updatePickups` magnet branch | conditional glint `this.burst` |
 | `confirmLanding` / `startLanding` | deactivate waypoint |
 | `renderSpaceScene` (`main.ts`) | call score-popup render + waypoint render |
-| `src/render/enemies.ts` per-enemy block | hit-flash color override |
+| `src/render/enemies.ts` (4 sites) | replace `'#ffffff'` with `introHookConfig.hitFlash.color` |
 | `src/sector-map.ts` first-node ctor | apply `safeDriftFirstNode` overrides |
 | `surface-encounters.ts` / `surface-balance.ts` first-landing branches | apply `firstPlanetPayoff` multipliers |
 
@@ -202,7 +203,7 @@ Six-point checklist played at `npm run dev` (see Success Criteria). Tuning durin
 1. **Sim telemetry gap.** `sim-runner.ts` may not currently track `firstWorkbenchSec` or `kills_first_60s`. Confirmed plan: instrument it as part of the slice if missing. Worth a 30-minute spike at plan-execution start.
 2. **Tuning lift.** Hitting `avgKills ≥ 18` in 60s may require more aggressive `safeDrift` spawn changes than the modest `1.25× multiplier + 2 extra starting spawns` proposes. The manual tuning pass adjusts the config table until both layers pass.
 3. **First-ever-run detection.** `stats.planets === 0 && !debrief` is the working definition. If the mothership state has a `runsCompleted` counter, prefer that. To be confirmed at implementation start.
-4. **Hit-flash visibility on giant enemies.** Giants are rendered via sprite atlases, not flat-fill — the per-enemy color override in `src/render/enemies.ts` may not visibly tint a sprite. If so, alternative: render a flat color polygon on top during the flash. To be verified during implementation.
+4. **Hit-flash visibility on sprite enemies.** Vector enemies are stroked (the color override works directly). Sprite-rendered enemies (`isSpriteEnemyKind`) use a sheet — the current `flash` system may already dim them via `ctx.globalAlpha` (see `src/render/enemies.ts:152`) rather than tinting. If the red tint isn't visible on sprite kinds in playtest, a tasteful alternative is to add a brief brighter outline/glow burst around the sprite. To be verified during the manual tuning pass.
 5. **Score popup overload.** In dense combat, hundreds of popups could overlap and add render cost. Cap the array length (e.g. drop oldest at 60 active) — cheap insurance.
 
 ## Non-architectural decisions captured during brainstorm
