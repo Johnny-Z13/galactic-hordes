@@ -73,6 +73,7 @@ import {
 import { pressurePackSize, shouldRecycleEnemy } from './spawn-pressure'
 import { buildStationVisitRecord, type StationVisitRecord } from './station-memory'
 import { buildRouteStationDockReport, buildServiceStationDockReport, type StationDockReport } from './station-dock-report'
+import { resolveStationServices } from './station-services'
 import { advanceSpawnEntryPings, createSpawnEntryPing, type SpawnEntryPing } from './spawn-entry-feedback'
 import {
   cameraTargetFor,
@@ -4422,36 +4423,27 @@ export class VectorShooter {
 
   private applySectorStationServices(node: SectorNode) {
     // Station services are run-only; permanent mothership meta upgrades remain game-over/mothership decisions.
-    let repaired = 0
-    let workbenchSignals = 0
-    let scrap = 0
-    let crystal = 0
-    if (node.stationServices.includes('repair')) {
-      const before = this.player.hull
-      this.player.hull = clamp(this.player.hull + runBalance.station.repairHull, 0, this.player.maxHull)
-      repaired = Math.round(this.player.hull - before)
-    }
-    if (node.stationServices.includes('workbench')) {
-      const before = this.pendingUpgrades
-      this.pendingUpgrades = Math.max(this.pendingUpgrades, runBalance.station.workbenchSignals)
-      this.workbenchRerolls = Math.max(this.workbenchRerolls, runBalance.station.rerolls)
-      workbenchSignals = Math.max(0, this.pendingUpgrades - before)
-    }
-    if (node.stationServices.includes('trade')) {
-      scrap = runBalance.station.tradeScrap
-      crystal = runBalance.station.tradeCrystal
-      this.resources.scrap += scrap
-      this.resources.crystal += crystal
-    }
+    const result = resolveStationServices({
+      services: node.stationServices,
+      hull: this.player.hull,
+      maxHull: this.player.maxHull,
+      pendingUpgrades: this.pendingUpgrades,
+      workbenchRerolls: this.workbenchRerolls
+    })
+    this.player.hull = result.nextHull
+    this.pendingUpgrades = result.nextPendingUpgrades
+    this.workbenchRerolls = result.nextWorkbenchRerolls
+    this.resources.scrap += result.scrap
+    this.resources.crystal += result.crystal
     this.audio.pickup('nav')
-    const visit = this.recordStationVisit(node, repaired, workbenchSignals, scrap, crystal)
+    const visit = this.recordStationVisit(node, result.repaired, result.workbenchSignals, result.scrap, result.crystal)
     return buildServiceStationDockReport({
       node,
       visit,
-      repaired,
-      workbenchSignals,
-      scrap,
-      crystal
+      repaired: result.repaired,
+      workbenchSignals: result.workbenchSignals,
+      scrap: result.scrap,
+      crystal: result.crystal
     })
   }
 

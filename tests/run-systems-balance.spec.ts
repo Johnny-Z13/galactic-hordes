@@ -14,6 +14,7 @@ const mainSource = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'ut
 const spaceEnemyAttacksSource = () => readFileSync(resolve(process.cwd(), 'src/space-enemy-attacks.ts'), 'utf8')
 const mutationProgressSource = () => readFileSync(resolve(process.cwd(), 'src/mutation-progress.ts'), 'utf8')
 const surfaceRunSetupSource = () => readFileSync(resolve(process.cwd(), 'src/surface/run-setup.ts'), 'utf8')
+const stationServicesSource = () => readFileSync(resolve(process.cwd(), 'src/station-services.ts'), 'utf8')
 
 test('run-level player xp timers and station values are named balance data', () => {
   const main = mainSource()
@@ -29,7 +30,7 @@ test('run-level player xp timers and station values are named balance data', () 
   expect(main).toContain('runBalance.player.baseHull')
   expect(main).toContain("import { applyMutationXp } from './mutation-progress'")
   expect(mutationProgressSource()).toContain('nextXpThreshold(progress.nextXp)')
-  expect(main).toContain('runBalance.station.repairHull')
+  expect(stationServicesSource()).toContain('runBalance.station.repairHull')
 })
 
 test('space enemy behavior tuning is centralized outside the main game loop', () => {

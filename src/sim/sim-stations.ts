@@ -1,5 +1,6 @@
 import { runBalance } from '../run-balance'
 import type { SectorNode } from '../sector-map'
+import { resolveStationServices } from '../station-services'
 import type { SimEconomyState } from './sim-types'
 
 export interface SimStationDockResult {
@@ -13,15 +14,21 @@ export function simulateStationDock(input: {
   currentDamage: number
 }): SimStationDockResult {
   const services = input.node.stationServices
-  const repaired = services.includes('repair') ? Math.min(input.currentDamage, runBalance.station.repairHull) : 0
+  const serviceResult = resolveStationServices({
+    services,
+    hull: Math.max(0, runBalance.player.baseHull - input.currentDamage),
+    maxHull: runBalance.player.baseHull,
+    pendingUpgrades: 0,
+    workbenchRerolls: 0
+  })
   return {
-    repaired,
+    repaired: serviceResult.repaired,
     services,
     resources: {
-      scrap: services.includes('trade') ? runBalance.station.tradeScrap : 0,
-      crystal: services.includes('trade') ? runBalance.station.tradeCrystal : 0,
+      scrap: serviceResult.scrap,
+      crystal: serviceResult.crystal,
       cores: 0,
-      mutationSignals: services.includes('workbench') ? runBalance.station.workbenchSignals : 0
+      mutationSignals: serviceResult.workbenchSignals
     }
   }
 }
