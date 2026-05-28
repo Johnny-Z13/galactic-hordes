@@ -21,10 +21,12 @@ test('mutation xp progression banks every crossed level threshold', () => {
 
 test('main delegates mutation xp thresholds through a shared progression helper', () => {
   const main = readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+  const pickups = readFileSync(resolve(process.cwd(), 'src/pickups.ts'), 'utf8')
   const hud = readFileSync(resolve(process.cwd(), 'src/ui/hud.ts'), 'utf8')
 
   expect(main).toContain("import { applyMutationXp } from './mutation-progress'")
-  expect(main).toContain('const levelsGained = applyMutationXp(this.stats, p.value)')
+  expect(pickups).toContain("import { applyMutationXp } from './mutation-progress'")
+  expect(pickups).toContain('result.bankedSignals = applyMutationXp(stats, input.pickup.value)')
   expect(main).toContain('const levelsGained = applyMutationXp(this.stats, resource.value)')
   expect(main).not.toContain('while (this.stats.xp >= this.stats.nextXp)')
   expect(hud).toContain("import { mutationSignalAlmostReady, mutationXpReadout } from '../mutation-progress'")

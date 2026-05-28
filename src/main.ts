@@ -31,7 +31,7 @@ import { canLockPlanetCourse, nearestPlanetCourseTarget, planetCourseLockToast }
 import { applyMutationXp } from './mutation-progress'
 import { selectPlanetBiome, type PlanetBiomeProfile } from './planet-biomes'
 import { planetNameFor } from './planet-names'
-import { dropPickup, updatePickupsPhysics, type Pickup, type PickupKind } from './pickups'
+import { collectPickup, dropPickup, updatePickupsPhysics, type Pickup, type PickupKind } from './pickups'
 import { planetRadius } from './planet-sizing'
 import { runBalance } from './run-balance'
 import { scoreEntryFromRun, type ScoreEntry } from './score-history'
@@ -2516,30 +2516,26 @@ export class VectorShooter {
 
   private collect(p: Pickup) {
     this.audio.pickup(p.kind)
-    this.player.pickupAbsorbPulse = Math.max(this.player.pickupAbsorbPulse, 0.34)
-    if (p.kind === 'xp') {
-      this.stats.score += p.value
-      const levelsGained = applyMutationXp(this.stats, p.value)
-      for (let i = 0; i < levelsGained; i += 1) this.bankUpgrade('MUTATION SIGNAL BANKED. LAND TO INSTALL IT.')
-    } else if (p.kind === 'repair') {
-      this.player.hull = clamp(this.player.hull + p.value, 0, this.player.maxHull)
-    } else if (p.kind === 'magnet') {
-      for (const drop of this.pickups) drop.life = Math.max(drop.life, 2)
-      this.build.magnet = clamp(this.build.magnet + powerupBalance.upgradeApply.temporaryMagnetRanks, 0, upgradeMaxRank('magnet'))
-      this.toast('SIGNAL MAGNET TEMPORARILY OVERCHARGED')
-    } else if (p.kind === 'chest') {
-      this.recordArtifact({
-        id: 'cache:treasure-core',
-        kind: 'cache',
-        title: 'Treasure Core',
-        detail: 'A space broadcast cache carrying concentrated rewards.',
-        source: 'Space cache telemetry',
-        color: '#70a8ff',
-        icon: 73
-      })
-      this.bankUpgrade('TREASURE CORE BANKED. INSTALL IT WHEN YOU BOARD.')
-      this.stats.score += runBalance.scoring.treasureCoreBase + this.stats.level * runBalance.scoring.treasureCorePerLevel
+    const collection = collectPickup({
+      pickup: p,
+      stats: this.stats,
+      player: this.player,
+      magnetRank: this.build.magnet,
+      maxMagnetRank: upgradeMaxRank('magnet')
+    })
+    this.stats.score = collection.stats.score
+    this.stats.level = collection.stats.level
+    this.stats.xp = collection.stats.xp
+    this.stats.nextXp = collection.stats.nextXp
+    this.player.hull = collection.player.hull
+    this.player.pickupAbsorbPulse = collection.player.pickupAbsorbPulse
+    this.build.magnet = collection.magnetRank
+    if (collection.extendPickupLifeSeconds !== undefined) {
+      for (const drop of this.pickups) drop.life = Math.max(drop.life, collection.extendPickupLifeSeconds)
     }
+    if (collection.toast) this.toast(collection.toast)
+    if (collection.artifact) this.recordArtifact(collection.artifact)
+    for (let i = 0; i < collection.bankedSignals; i += 1) this.bankUpgrade(collection.bankMessage)
   }
 
   private bankUpgrade(message?: string) {

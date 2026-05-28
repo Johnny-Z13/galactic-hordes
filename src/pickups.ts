@@ -1,4 +1,6 @@
-import { pickupBalance } from './powerup-balance'
+import { applyMutationXp } from './mutation-progress'
+import { pickupBalance, powerupBalance } from './powerup-balance'
+import { runBalance } from './run-balance'
 import { clamp, dist2, norm, TAU } from './math-utils'
 import { pickupMagnetRange, pickupMagnetStrength, type PickupMagnetInput, type PickupMagnetKind } from './pickup-magnet'
 
@@ -27,6 +29,48 @@ export interface DropPickupInput {
   highLoad: boolean
   maxPickups: number
   random?: () => number
+}
+
+export interface PickupCollectionStats {
+  score: number
+  level: number
+  xp: number
+  nextXp: number
+}
+
+export interface PickupCollectionPlayer {
+  hull: number
+  maxHull: number
+  pickupAbsorbPulse: number
+}
+
+export interface PickupCollectionArtifact {
+  id: string
+  kind: 'cache'
+  title: string
+  detail: string
+  source: string
+  color: string
+  icon: number
+}
+
+export interface CollectPickupInput {
+  pickup: Pickup
+  stats: PickupCollectionStats
+  player: PickupCollectionPlayer
+  magnetRank: number
+  maxMagnetRank: number
+}
+
+export interface CollectPickupResult {
+  stats: PickupCollectionStats
+  player: PickupCollectionPlayer
+  magnetRank: number
+  bankedSignals: number
+  bankMessage?: string
+  toast?: string
+  extendPickupLifeSeconds?: number
+  artifact?: PickupCollectionArtifact
 }
 
 const pickupColor = (kind: PickupKind) => (
@@ -75,6 +119,51 @@ export function dropPickup(input: DropPickupInput) {
     life: input.kind === 'xp' ? pickupBalance.xp.lifeSeconds : pickupBalance.persistentLifeSeconds,
     color: pickupColor(input.kind)
   })
+}
+
+export function collectPickup(input: CollectPickupInput): CollectPickupResult {
+  const stats = { ...input.stats }
+  const player = {
+    ...input.player,
+    pickupAbsorbPulse: Math.max(input.player.pickupAbsorbPulse, 0.34)
+  }
+  const result: CollectPickupResult = {
+    stats,
+    player,
+    magnetRank: input.magnetRank,
+    bankedSignals: 0
+  }
+
+  if (input.pickup.kind === 'xp') {
+    stats.score += input.pickup.value
+    result.bankedSignals = applyMutationXp(stats, input.pickup.value)
+    if (result.bankedSignals > 0) result.bankMessage = 'MUTATION SIGNAL BANKED. LAND TO INSTALL IT.'
+  } else if (input.pickup.kind === 'repair') {
+    player.hull = clamp(player.hull + input.pickup.value, 0, player.maxHull)
+  } else if (input.pickup.kind === 'magnet') {
+    result.extendPickupLifeSeconds = 2
+    result.magnetRank = clamp(
+      input.magnetRank + powerupBalance.upgradeApply.temporaryMagnetRanks,
+      0,
+      input.maxMagnetRank
+    )
+    result.toast = 'SIGNAL MAGNET TEMPORARILY OVERCHARGED'
+  } else if (input.pickup.kind === 'chest') {
+    result.artifact = {
+      id: 'cache:treasure-core',
+      kind: 'cache',
+      title: 'Treasure Core',
+      detail: 'A space broadcast cache carrying concentrated rewards.',
+      source: 'Space cache telemetry',
+      color: '#70a8ff',
+      icon: 73
+    }
+    result.bankedSignals = 1
+    result.bankMessage = 'TREASURE CORE BANKED. INSTALL IT WHEN YOU BOARD.'
+    stats.score += runBalance.scoring.treasureCoreBase + stats.level * runBalance.scoring.treasureCorePerLevel
+  }
+
+  return result
 }
 
 interface PickupPlayer {
