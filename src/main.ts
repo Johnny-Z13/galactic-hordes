@@ -952,6 +952,7 @@ export class VectorShooter {
   private spawnTimer = 0
   private bossTimer: number = runBalance.timers.startingBossSeconds
   private chestTimer: number = runBalance.timers.defaultChestSeconds
+  private hitstopUntil = 0
   private nextSpaceEncounterAt = nextSpaceEncounterTime(0)
   private chunks = new Map<string, SpaceChunk>()
   private stars: Vec[] = []
@@ -1464,6 +1465,8 @@ export class VectorShooter {
   private update(dt: number) {
     const intensity = this.state === 'surface' ? 0.18 : clamp(this.stats.time / 360 + this.enemies.length / 120, 0, 1)
     this.audio.update(dt, intensity, this.audioMood())
+    // hitstop: freeze gameplay update for the configured duration; audio + render continue
+    if (performance.now() / 1000 < this.hitstopUntil) return
     if ((this.state === 'alien' || this.state === 'lore') && this.surface) {
       this.stats.time += dt * 0.08
       this.toastTimer -= dt
@@ -3162,6 +3165,9 @@ export class VectorShooter {
         totalLife: introHookConfig.popup.lifeSeconds,
         text: `+${Math.round(e.value)}`
       })
+      if (introHookConfig.hitstop.giantKindsOnly && isGiantEnemyKind(e.kind)) {
+        this.hitstopUntil = performance.now() / 1000 + introHookConfig.hitstop.durationSeconds
+      }
       this.stats.kills += 1
       this.stats.score += e.value
       const xpCount = isGiantEnemyKind(e.kind)
