@@ -35,7 +35,7 @@ import { planetNameFor } from './planet-names'
 import { pickupMagnetRange, pickupMagnetStrength } from './pickup-magnet'
 import { planetRadius } from './planet-sizing'
 import { runBalance } from './run-balance'
-import { advanceScorePopups, appendScorePopup, createScorePopup, scorePopupScreenPoint, type ScorePopupModel } from './score-popups'
+import { advanceScorePopups, appendScorePopup, createScorePopup, type ScorePopupModel } from './score-popups'
 import {
   evolutions,
   limitBreakChoices,
@@ -80,6 +80,7 @@ import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemyS
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { norm, dist2, len, TAU } from './math-utils'
 import { renderSurfaceBiomeMotifs as drawSurfaceBiomeMotifs } from './render/surface-biomes'
+import { renderScorePopups as drawScorePopups } from './render/score-popups'
 import { renderSectorWaveWarning as drawSectorWaveWarning } from './render/sector-wave-warning'
 import { renderSurfaceThreats } from './surface/render-threats'
 import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurfaceBulletsAndThreatDamage } from './surface/bullet-combat'
@@ -4589,21 +4590,12 @@ export class VectorShooter {
   }
 
   private renderScorePopups(ctx: CanvasRenderingContext2D) {
-    if (this.scorePopups.length === 0) return
-    ctx.save()
-    ctx.font = `${introHookConfig.popup.fontPx}px Courier New`
-    ctx.textAlign = 'center'
-    ctx.fillStyle = introHookConfig.popup.color
-    for (const sp of this.scorePopups) {
-      const screen = scorePopupScreenPoint(sp, {
-        worldToScreen: (x, y) => this.worldToScreen(x, y),
-        surfaceToScreen: (x, y) => this.surfaceToScreen(x, y)
-      })
-      ctx.globalAlpha = Math.max(0, sp.life / sp.totalLife)
-      ctx.fillText(sp.text, screen.x, screen.y)
-    }
-    ctx.globalAlpha = 1
-    ctx.restore()
+    drawScorePopups({
+      ctx,
+      popups: this.scorePopups,
+      worldToScreen: (x, y) => this.worldToScreen(x, y),
+      surfaceToScreen: (x, y) => this.surfaceToScreen(x, y)
+    })
   }
 
   private surfaceToScreen(x: number, y: number): Vec {

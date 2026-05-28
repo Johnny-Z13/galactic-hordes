@@ -83,10 +83,15 @@ test('score popup insertion enforces the shared visible cap', async () => {
 
 test('surface threat kills create surface-layer score feedback', () => {
   const main = readFileSync('src/main.ts', 'utf8')
+  const renderer = readFileSync('src/render/score-popups.ts', 'utf8')
   const updateSurfaceThreats = main.slice(main.indexOf('private updateSurfaceThreats'), main.indexOf('private updateSurfaceWaves'))
 
-  expect(main).toContain("import { advanceScorePopups, appendScorePopup, createScorePopup, scorePopupScreenPoint")
+  expect(main).toContain("import { advanceScorePopups, appendScorePopup, createScorePopup")
+  expect(main).toContain("from './render/score-popups'")
   expect(main).toContain('advanceScorePopups(this.scorePopups, dt)')
+  expect(main).toContain('drawScorePopups({')
+  expect(renderer).toContain('export function renderScorePopups')
+  expect(renderer).toContain('scorePopupScreenPoint')
   expect(updateSurfaceThreats).toContain('appendScorePopup(this.scorePopups, createScorePopup({')
   expect(updateSurfaceThreats).toContain("layer: 'surface'")
   expect(updateSurfaceThreats).toContain('this.stats.kills += 1')
