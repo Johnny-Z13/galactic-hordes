@@ -5169,12 +5169,12 @@ button.manifest-chip:disabled {
   }
 
   .mothership-route-preview {
-    min-height: 252px;
+    min-height: 236px;
     padding: 10px;
   }
 
   .mothership-route-map {
-    min-height: 190px;
+    min-height: 174px;
   }
 
   .mothership-route-node {

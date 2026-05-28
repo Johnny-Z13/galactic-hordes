@@ -241,6 +241,25 @@ test('title launch action stays readable across app breakpoints', async ({ brows
   }
 })
 
+test('mothership launch deck keeps route preview inside phone viewport', async ({ browser }) => {
+  const viewport = { name: 'iPhone portrait', width: 390, height: 844, isMobile: true }
+  const { context, page } = await renderShell(browser, viewport, true)
+  await page.goto('http://127.0.0.1:5176/?harness=1&resetProgress=1&mothershipResponsive=1', { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: 'Launch Expedition', exact: true }).click()
+  await page.waitForTimeout(800)
+
+  const routePreviewBox = await page.locator('.mothership-route-preview').boundingBox()
+  const launchBox = await page.locator('.mothership-launch').boundingBox()
+
+  expect(launchBox, 'launch action should render').not.toBeNull()
+  expect(routePreviewBox, 'route preview should render').not.toBeNull()
+  expect(routePreviewBox!.y, 'route preview top').toBeGreaterThanOrEqual(0)
+  expect(routePreviewBox!.y + routePreviewBox!.height, 'route preview bottom').toBeLessThanOrEqual(viewport.height)
+  expect(launchBox!.x + launchBox!.width, 'launch action right edge').toBeLessThanOrEqual(viewport.width)
+
+  await context.close()
+})
+
 test('game over black box fills mobile viewport without document scrolling', async ({ browser }) => {
   for (const viewport of [
     { name: 'iPhone portrait', width: 390, height: 844, isMobile: true },
