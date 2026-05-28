@@ -76,7 +76,7 @@ import {
   spaceViewportScale,
   worldToScreen as spaceWorldToScreen
 } from './space-camera'
-import { fireOptionOrbs as fireOptionOrbWeapons, firePrimaryWeapon, fireRearGun as fireRearGunWeapons, optionOrbAngle, optionOrbWorldPosition, spawnChainBolt as spawnChainBoltWeapon } from './space-player-weapons'
+import { applyOptionOrbDamage, fireOptionOrbs as fireOptionOrbWeapons, firePrimaryWeapon, fireRearGun as fireRearGunWeapons, optionOrbAngle, optionOrbWorldPosition, spawnChainBolt as spawnChainBoltWeapon } from './space-player-weapons'
 import { applyDashRam } from './space-dash-combat'
 import { createEnemyTrailParticle } from './space-enemy-trails'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
@@ -2144,28 +2144,17 @@ export class VectorShooter {
   }
 
   private updateOrbitals(dt: number) {
-    const gravity = this.evolved.has('orbit')
-    const profile = optionOrbProfile({ orbitRank: this.build.orbit, fireSerial: this.fireSerial, evolved: gravity })
-    const count = profile.count
-    if (count <= 0) return
-    const radius = powerupBalance.orbit.radiusBase + this.build.orbit * powerupBalance.orbit.radiusPerRank
-    const damage = (
-      powerupBalance.orbit.damageBase
-      + this.build.orbit * powerupBalance.orbit.damagePerRank
-      + this.limitBreaks.might * powerupBalance.orbit.limitMightDamagePerRank
-    ) * (gravity ? powerupBalance.orbit.gravityDamageMultiplier : 1) * dt
-    for (const e of this.enemies) {
-      if (gravity && (e.x - this.player.x) ** 2 + (e.y - this.player.y) ** 2 < (radius + powerupBalance.orbit.gravityPullRadiusBonus) ** 2) {
-        const pull = norm(this.player.x - e.x, this.player.y - e.y)
-        e.vx += pull.x * powerupBalance.orbit.gravityPullForce * dt
-        e.vy += pull.y * powerupBalance.orbit.gravityPullForce * dt
-      }
-      for (let i = 0; i < count; i += 1) {
-        const orb = optionOrbWorldPosition(this.player, this.stats.time, i, count, radius)
-        const rr = e.radius + 12
-        if ((e.x - orb.x) ** 2 + (e.y - orb.y) ** 2 < rr * rr) this.damageEnemy(e, damage, gravity ? '#fff27a' : '#8fff7d')
-      }
-    }
+    const result = applyOptionOrbDamage({
+      enemies: this.enemies,
+      player: this.player,
+      orbitRank: this.build.orbit,
+      fireSerial: this.fireSerial,
+      evolvedOrbit: this.evolved.has('orbit'),
+      limitMight: this.limitBreaks.might,
+      time: this.stats.time,
+      dt
+    })
+    for (const hit of result.hits) this.damageEnemy(hit.enemy, hit.damage, hit.color)
   }
 
   private updateSpawning() {

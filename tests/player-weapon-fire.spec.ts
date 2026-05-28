@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { fireOptionOrbs, firePrimaryWeapon, fireRearGun, spawnChainBolt } from '../src/space-player-weapons'
+import { applyOptionOrbDamage, fireOptionOrbs, firePrimaryWeapon, fireRearGun, optionOrbWorldPosition, spawnChainBolt } from '../src/space-player-weapons'
 import type { Bullet, Enemy } from '../src/main-types'
 
 const player = { x: 100, y: 50, vx: 10, vy: -4, aimAngle: 0 }
@@ -126,10 +126,50 @@ test('primary weapon helper emits pulse volleys, rail shots, and needles', () =>
   expect(bullets[4]).toMatchObject({ rail: true, color: '#b990ff', pierce: 6, chain: 2 })
 })
 
+test('option orb damage helper reports enemies overlapped by orbiting satellites', () => {
+  const time = 0
+  const orbitRank = 1
+  const radius = 66 + orbitRank * 8
+  const orb = optionOrbWorldPosition(player, time, 0, 1, radius)
+  const target = enemy(1, orb.x, orb.y)
+
+  const result = applyOptionOrbDamage({
+    enemies: [target],
+    player,
+    orbitRank,
+    fireSerial: 2,
+    evolvedOrbit: false,
+    limitMight: 0,
+    time,
+    dt: 0.5
+  })
+
+  expect(result.hits).toHaveLength(1)
+  expect(result.hits[0]).toMatchObject({ enemy: target, damage: 11.5, color: '#8fff7d' })
+})
+
+test('gravity halo option orbs pull nearby enemies toward the player', () => {
+  const target = enemy(1, player.x + 50, player.y)
+
+  applyOptionOrbDamage({
+    enemies: [target],
+    player,
+    orbitRank: 6,
+    fireSerial: 1,
+    evolvedOrbit: true,
+    limitMight: 0,
+    time: 0,
+    dt: 1
+  })
+
+  expect(target.vx).toBeLessThan(0)
+})
+
 test('secondary player weapon firing lives outside the main game class', () => {
   const main = readFileSync('src/main.ts', 'utf8')
   const weapons = readFileSync('src/space-player-weapons.ts', 'utf8')
 
+  expect(weapons).toContain('export function applyOptionOrbDamage')
   expect(weapons).toContain('export function firePrimaryWeapon')
   expect(weapons).toContain('export function optionOrbAngle')
   expect(weapons).toContain('export function optionOrbWorldPosition')
@@ -137,6 +177,7 @@ test('secondary player weapon firing lives outside the main game class', () => {
   expect(weapons).toContain('export function fireRearGun')
   expect(weapons).toContain('export function spawnChainBolt')
   expect(main).toContain("from './space-player-weapons'")
+  expect(main).toContain('applyOptionOrbDamage({')
   expect(main).toContain('firePrimaryWeapon(')
   expect(main).not.toContain('private optionOrbAngle(')
   expect(main).not.toContain('private optionOrbWorldPosition(')

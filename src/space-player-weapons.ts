@@ -1,5 +1,5 @@
 import type { Bullet, Enemy } from './main-types'
-import { clamp } from './math-utils'
+import { clamp, norm } from './math-utils'
 import { powerupBalance, type UpgradeId } from './powerup-balance'
 import { spaceProjectileLifeForOffscreenTravel } from './space-camera'
 import { optionOrbProfile, pulseVolleyCount, rearGunProfile } from './weapon-signatures'
@@ -50,6 +50,27 @@ export interface ChainBoltInput {
   maxBullets: number
 }
 
+export interface OptionOrbDamageInput {
+  enemies: Enemy[]
+  player: WeaponPlayerState
+  orbitRank: number
+  fireSerial: number
+  evolvedOrbit: boolean
+  limitMight: number
+  time: number
+  dt: number
+}
+
+export interface OptionOrbDamageHit {
+  enemy: Enemy
+  damage: number
+  color: string
+}
+
+export interface OptionOrbDamageResult {
+  hits: OptionOrbDamageHit[]
+}
+
 export type PrimaryWeaponBuildState = Pick<Record<UpgradeId, number>, 'rapid' | 'split' | 'rail' | 'rift' | 'heat' | 'echo' | 'pierce' | 'chain'>
 
 export interface WeaponLimitBreakState {
@@ -94,6 +115,37 @@ export function optionOrbWorldPosition(player: WeaponPlayerState, time: number, 
     y: player.y + Math.sin(a) * radius,
     angle: a
   }
+}
+
+export function applyOptionOrbDamage(input: OptionOrbDamageInput): OptionOrbDamageResult {
+  const profile = optionOrbProfile({ orbitRank: input.orbitRank, fireSerial: input.fireSerial, evolved: input.evolvedOrbit })
+  const count = profile.count
+  const hits: OptionOrbDamageHit[] = []
+  if (count <= 0) return { hits }
+
+  const radius = powerupBalance.orbit.radiusBase + input.orbitRank * powerupBalance.orbit.radiusPerRank
+  const damage = (
+    powerupBalance.orbit.damageBase
+    + input.orbitRank * powerupBalance.orbit.damagePerRank
+    + input.limitMight * powerupBalance.orbit.limitMightDamagePerRank
+  ) * (input.evolvedOrbit ? powerupBalance.orbit.gravityDamageMultiplier : 1) * input.dt
+
+  for (const enemy of input.enemies) {
+    if (input.evolvedOrbit && (enemy.x - input.player.x) ** 2 + (enemy.y - input.player.y) ** 2 < (radius + powerupBalance.orbit.gravityPullRadiusBonus) ** 2) {
+      const pull = norm(input.player.x - enemy.x, input.player.y - enemy.y)
+      enemy.vx += pull.x * powerupBalance.orbit.gravityPullForce * input.dt
+      enemy.vy += pull.y * powerupBalance.orbit.gravityPullForce * input.dt
+    }
+    for (let index = 0; index < count; index += 1) {
+      const orb = optionOrbWorldPosition(input.player, input.time, index, count, radius)
+      const rr = enemy.radius + 12
+      if ((enemy.x - orb.x) ** 2 + (enemy.y - orb.y) ** 2 < rr * rr) {
+        hits.push({ enemy, damage, color: input.evolvedOrbit ? '#fff27a' : '#8fff7d' })
+      }
+    }
+  }
+
+  return { hits }
 }
 
 export function fireOptionOrbs(input: OptionOrbFireInput) {
