@@ -31,6 +31,17 @@ export interface SurfaceWaveSpawnAnchor {
   spawnCount: number
 }
 
+export type SurfaceWavePressureLabel = 'QUIET' | 'RISING' | 'INCOMING' | 'SATURATED' | 'RETURN'
+
+export interface SurfaceWavePressureReadout {
+  label: SurfaceWavePressureLabel
+  progress: number
+  seconds: number
+  activeThreats: number
+  queuedThreats: number
+  threatCap: number
+}
+
 export function createSurfaceWaveState(input: {
   event: SurfaceEventKind
   scenario: SurfaceScenarioKind
@@ -98,8 +109,44 @@ export function advanceSurfaceWaveTelegraphs(input: {
   return ready
 }
 
+export function surfaceWavePressureReadout(input: {
+  wave: SurfaceWaveState
+  event: SurfaceEventKind
+  scenario: SurfaceScenarioKind
+  activeThreats: number
+  queuedThreats: number
+  o2Returning: boolean
+}): SurfaceWavePressureReadout {
+  const threatCap = activeThreatCapFor(input.event, input.scenario)
+  const seconds = Math.max(0, input.wave.timer)
+  const progress = clamp01(1 - seconds / intervalFor(input.event, input.scenario))
+  const totalPressure = input.activeThreats + input.queuedThreats
+  const label: SurfaceWavePressureLabel = input.o2Returning
+    ? 'RETURN'
+    : input.queuedThreats > 0
+      ? 'INCOMING'
+      : totalPressure >= threatCap
+        ? 'SATURATED'
+        : progress >= surfaceWaveDirectorBalance.pressure.risingProgress
+          ? 'RISING'
+          : 'QUIET'
+
+  return {
+    label,
+    progress: input.queuedThreats > 0 ? 1 : progress,
+    seconds,
+    activeThreats: input.activeThreats,
+    queuedThreats: input.queuedThreats,
+    threatCap
+  }
+}
+
 function noSurfaceWaveSpawn(): SurfaceWaveResult {
   return { spawnCount: 0, telegraph: null }
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value))
 }
 
 function initialDelayFor(event: SurfaceEventKind, scenario: SurfaceScenarioKind): number {

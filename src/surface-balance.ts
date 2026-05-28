@@ -92,6 +92,9 @@ export const surfaceWaveDirectorBalance = {
     warningSeconds: 1.15,
     radius: 54,
     pulseRadius: 18
+  },
+  pressure: {
+    risingProgress: 0.66
   }
 } as const
 

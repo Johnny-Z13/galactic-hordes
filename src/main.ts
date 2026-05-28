@@ -83,7 +83,7 @@ import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction,
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
 import { createSurfaceResourceNodes, surfaceEventMessage } from './surface/run-setup'
 import { spawnSurfaceSplitterChildren, updateSurfaceThreatMotion } from './surface/threat-behavior'
-import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, updateSurfaceWaveDirector, type SurfaceWaveState, type SurfaceWaveTelegraph } from './surface/wave-director'
+import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, surfaceWavePressureReadout, updateSurfaceWaveDirector, type SurfaceWaveState, type SurfaceWaveTelegraph } from './surface/wave-director'
 import { renderPlayer as drawPlayer } from './render/player'
 import { renderEnemies as drawEnemies } from './render/enemies'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
@@ -4983,10 +4983,50 @@ export class VectorShooter {
     } else {
       ctx.fillText(`${s.planet.name} // ${this.surfaceScenarioLabel(s.scenario)} // ${this.surfaceEventLabel(s.event)} // ${s.collected}/${s.resources.length} SIGNALS`, this.width / 2, 86, this.width - 16)
     }
+    this.renderSurfacePressureHud(ctx, s)
     const actionInset = this.width < 560 ? 132 : 0
     const messageX = actionInset ? (this.width - actionInset) / 2 : this.width / 2
     ctx.font = this.width < 560 ? '11px Courier New' : '14px Courier New'
     ctx.fillText(message, messageX, this.width < 560 ? this.height - 72 : this.height - 42, this.width - actionInset - 18)
+    ctx.restore()
+  }
+
+  private renderSurfacePressureHud(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
+    const queuedThreats = s.waveTelegraphs.reduce((total, telegraph) => total + telegraph.spawnCount, 0)
+    const readout = surfaceWavePressureReadout({
+      wave: s.wave,
+      event: s.event,
+      scenario: s.scenario,
+      activeThreats: s.threats.length,
+      queuedThreats,
+      o2Returning: s.o2Returning
+    })
+    const color = readout.label === 'INCOMING' || readout.label === 'SATURATED'
+      ? '#ff5d73'
+      : readout.label === 'RISING'
+        ? '#ff9f4a'
+        : readout.label === 'RETURN'
+          ? '#57fff3'
+          : '#8fff7d'
+    const barWidth = this.width < 560 ? Math.max(132, Math.min(220, this.width - 154)) : 300
+    const barHeight = this.width < 560 ? 4 : 5
+    const x = this.width / 2 - barWidth / 2
+    const y = this.width < 560 ? 108 : 101
+    const label = readout.queuedThreats > 0
+      ? `PRESSURE ${readout.label} x${readout.queuedThreats}`
+      : `PRESSURE ${readout.label} ${readout.activeThreats}/${readout.threatCap}`
+
+    ctx.save()
+    ctx.font = this.width < 560 ? '10px Courier New' : '11px Courier New'
+    ctx.textAlign = 'center'
+    ctx.shadowColor = color
+    ctx.shadowBlur = this.allowGlow() ? 10 : 0
+    ctx.fillStyle = color
+    ctx.fillText(label, this.width / 2, y, barWidth + 24)
+    ctx.globalAlpha = 0.26
+    ctx.fillRect(x, y + 6, barWidth, barHeight)
+    ctx.globalAlpha = 0.92
+    ctx.fillRect(x, y + 6, barWidth * readout.progress, barHeight)
     ctx.restore()
   }
 

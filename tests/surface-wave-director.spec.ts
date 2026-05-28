@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { surfaceWaveDirectorBalance } from '../src/surface-balance'
-import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, updateSurfaceWaveDirector } from '../src/surface/wave-director'
+import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, surfaceWavePressureReadout, updateSurfaceWaveDirector } from '../src/surface/wave-director'
 
 test('friendly surface waves wait through the opening grace window', () => {
   const wave = createSurfaceWaveState({ event: 'relic', scenario: 'friendly' })
@@ -108,6 +108,47 @@ test('surface wave telegraphs expire into spawn anchors', () => {
   expect(telegraphs).toEqual([{ x: 400, y: 500, spawnCount: 1, life: 0.95, maxLife: 1.2 }])
 })
 
+test('surface wave pressure readout rises as the next wave approaches', () => {
+  const wave = createSurfaceWaveState({ event: 'standard', scenario: 'salvage' })
+  wave.timer = surfaceWaveDirectorBalance.interval.default * 0.25
+
+  const readout = surfaceWavePressureReadout({
+    wave,
+    event: 'standard',
+    scenario: 'salvage',
+    activeThreats: 2,
+    queuedThreats: 0,
+    o2Returning: false
+  })
+
+  expect(readout.label).toBe('RISING')
+  expect(readout.progress).toBeCloseTo(0.75)
+  expect(readout.threatCap).toBe(surfaceWaveDirectorBalance.activeThreatCap.default)
+})
+
+test('surface wave pressure readout distinguishes queued and capped states', () => {
+  const queued = createSurfaceWaveState({ event: 'swarm', scenario: 'boss' })
+  const capped = createSurfaceWaveState({ event: 'swarm', scenario: 'boss' })
+
+  expect(surfaceWavePressureReadout({
+    wave: queued,
+    event: 'swarm',
+    scenario: 'boss',
+    activeThreats: 3,
+    queuedThreats: 2,
+    o2Returning: false
+  }).label).toBe('INCOMING')
+
+  expect(surfaceWavePressureReadout({
+    wave: capped,
+    event: 'swarm',
+    scenario: 'boss',
+    activeThreats: surfaceWaveDirectorBalance.activeThreatCap.swarm,
+    queuedThreats: 0,
+    o2Returning: false
+  }).label).toBe('SATURATED')
+})
+
 test('surface wave director ramps pack size as surface time and collection pressure rise', () => {
   const early = createSurfaceWaveState({ event: 'volatile', scenario: 'mixed' })
   const late = createSurfaceWaveState({ event: 'volatile', scenario: 'mixed' })
@@ -145,8 +186,11 @@ test('main delegates surface wave timing to the surface module', () => {
   expect(main).toContain('createSurfaceWaveState({')
   expect(main).toContain('updateSurfaceWaveDirector({')
   expect(main).toContain('advanceSurfaceWaveTelegraphs({')
+  expect(main).toContain('surfaceWavePressureReadout({')
   expect(main).toContain('renderSurfaceWaveTelegraphs(ctx, s)')
+  expect(main).toContain('renderSurfacePressureHud(ctx, s)')
   expect(main).toContain('private updateSurfaceWaves(')
   expect(main).toContain('private renderSurfaceWaveTelegraphs(')
+  expect(main).toContain('private renderSurfacePressureHud(')
   expect(director).toContain('surfaceWaveDirectorBalance')
 })
