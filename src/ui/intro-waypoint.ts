@@ -34,7 +34,16 @@ export function introWaypointLabelAnchor(input: IntroWaypointLabelAnchorInput) {
   const longest = Math.max(input.label.length, input.sublabel.length)
   const maxTextWidth = Math.min(input.width - 16, Math.max(96, longest * input.fontPx * 0.68))
   const textX = Math.max(maxTextWidth / 2 + 8, Math.min(input.width - maxTextWidth / 2 - 8, arrowX))
-  return { arrowX, arrowY, textX, textY: arrowY + 22, angle, maxTextWidth }
+  const lineGap = input.fontPx + 2
+  const descent = Math.max(4, input.fontPx * 0.3)
+  const bottomLimit = input.height - 18
+  const minTextY = input.fontPx + 8
+  const maxTextY = bottomLimit - lineGap - descent
+  const preferredTextY = sin > 0.45
+    ? arrowY - 22 - lineGap
+    : arrowY + 22
+  const textY = Math.max(minTextY, Math.min(maxTextY, preferredTextY))
+  return { arrowX, arrowY, textX, textY, textBottom: textY + lineGap + descent, angle, maxTextWidth }
 }
 
 export function renderIntroArrow(view: IntroWaypointView): void {
@@ -73,8 +82,8 @@ export function renderIntroArrow(view: IntroWaypointView): void {
     ctx.closePath()
     ctx.fill()
     ctx.restore()
-    ctx.fillText('LAND HERE', anchor.textX - anchor.arrowX, 22, anchor.maxTextWidth)
-    ctx.fillText(planetName, anchor.textX - anchor.arrowX, 22 + introHookConfig.waypoint.fontPx + 2, anchor.maxTextWidth)
+    ctx.fillText('LAND HERE', anchor.textX - anchor.arrowX, anchor.textY - anchor.arrowY, anchor.maxTextWidth)
+    ctx.fillText(planetName, anchor.textX - anchor.arrowX, anchor.textY - anchor.arrowY + introHookConfig.waypoint.fontPx + 2, anchor.maxTextWidth)
   }
   ctx.restore()
 }

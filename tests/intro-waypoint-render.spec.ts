@@ -24,3 +24,18 @@ test('intro waypoint label anchor stays inside narrow mobile viewport edges', ()
   expect(left.arrowX).toBeGreaterThanOrEqual(28)
   expect(right.arrowX).toBeLessThanOrEqual(390 - 28)
 })
+
+test('intro waypoint label anchor keeps bottom-edge desktop labels inside the viewport', () => {
+  const anchor = introWaypointLabelAnchor({
+    width: 1280,
+    height: 720,
+    targetScreen: { x: 318, y: 940 },
+    fontPx: 14,
+    label: 'LAND HERE',
+    sublabel: 'MERCY FOSSIL SEA'
+  })
+
+  expect(anchor.textX).toBeGreaterThanOrEqual(anchor.maxTextWidth / 2 + 12)
+  expect(anchor.textBottom).toBeLessThanOrEqual(720 - 18)
+  expect(anchor.textY).toBeLessThan(anchor.arrowY)
+})
