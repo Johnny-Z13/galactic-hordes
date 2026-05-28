@@ -23,11 +23,16 @@ test('main wires audio through focused modules', () => {
 
   expect(main).toContain("import { AudioDirector")
   expect(main).toContain("from './audio/audio-director'")
-  expect(main).toContain("import { sfxSamples } from './audio/sfx-samples'")
+  expect(main).toContain("import { sfxSamples, uiButtonSampleNames } from './audio/sfx-samples'")
   expect(main).toContain('this.audio.registerSamples(sfxSamples)')
   expect(main).not.toContain('class AudioDirector')
   expect(samples).toContain('export const sfxSamples')
   expect(samples).toContain('UI_device_button2.mp3?url')
+  expect(samples).toContain('UI_device_button4.mp3?url')
+  expect(samples).toContain('UI_device_button5.mp3?url')
+  expect(samples).toContain('UI_device_button6.mp3?url')
+  expect(samples).toContain('export const uiButtonSampleNames = [')
+  expect(main).toContain('const sample = uiButtonSampleNames[this.uiClickSampleIndex % uiButtonSampleNames.length]')
   expect(samples).toContain('Atmosphere_Lowloop_planetAMB.mp3?url')
 })
 

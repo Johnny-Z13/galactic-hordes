@@ -1,6 +1,6 @@
 import './style.css'
 import { AudioDirector, type PlanetAudioMood } from './audio/audio-director'
-import { sfxSamples } from './audio/sfx-samples'
+import { sfxSamples, uiButtonSampleNames } from './audio/sfx-samples'
 import { damageFeedbackConfig } from './combat/damage-feedback'
 import { advanceImpactPulses, createImpactPulse, type ImpactPulse } from './combat/impact-feedback'
 import { advancePlayerDamageFlash, createPlayerDamageFlash, type PlayerDamageFlash } from './combat/player-damage-feedback'
@@ -1052,7 +1052,7 @@ export class VectorShooter {
       // Without this, the very first menu clicks make no sound because unlock()
       // is only otherwise called from in-game input paths.
       this.audio.unlock()
-      const sample = `ui-button-${(this.uiClickSampleIndex % 3) + 1}`
+      const sample = uiButtonSampleNames[this.uiClickSampleIndex % uiButtonSampleNames.length]
       this.uiClickSampleIndex += 1
       this.audio.playSample(sample, { gain: 0.45 })
     }, true)
