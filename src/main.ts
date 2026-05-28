@@ -85,6 +85,7 @@ import { renderSurfaceBiomeMotifs as drawSurfaceBiomeMotifs } from './render/sur
 import { renderScorePopups as drawScorePopups } from './render/score-popups'
 import { renderSectorWaveWarning as drawSectorWaveWarning } from './render/sector-wave-warning'
 import { renderSurfaceAliens as drawSurfaceAliens, renderSurfaceLoreSites as drawSurfaceLoreSites, renderSurfaceResources as drawSurfaceResources } from './surface/render-interactables'
+import { renderSurfacePilot as drawSurfacePilot } from './surface/render-pilot'
 import { renderSurfaceBullets as drawSurfaceBullets, renderSurfaceWaveTelegraphs as drawSurfaceWaveTelegraphs } from './surface/render-projectiles'
 import { renderSurfaceThreats } from './surface/render-threats'
 import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurfaceBulletsAndThreatDamage } from './surface/bullet-combat'
@@ -118,7 +119,7 @@ import {
   type SpaceEncounterKind
 } from './space-encounters'
 import { nextSpaceWaveWarning, spaceWaveId } from './space-wave-director'
-import { SURFACE_PILOT_SIZE_SCALE, surfacePilotMuzzleOffset, surfacePilotSpawnKeepout, surfacePilotSpriteScale } from './surface-pilot'
+import { surfacePilotMuzzleOffset, surfacePilotSpawnKeepout } from './surface-pilot'
 import {
   planetAlienCatalogVariants,
   planetBossCatalogVariants,
@@ -4634,7 +4635,14 @@ export class VectorShooter {
       planetBossCatalog: this.planetBossCatalog,
       surfaceToScreen: (x, y) => this.surfaceToScreen(x, y)
     })
-    this.renderSurfacePilot(ctx, s)
+    drawSurfacePilot({
+      ctx,
+      pilot: s.pilot,
+      time: this.stats.time,
+      allowGlow: this.allowGlow(),
+      surfaceSpacemanSheet: this.surfaceSpacemanSheet,
+      surfaceToScreen: (x, y) => this.surfaceToScreen(x, y)
+    })
     this.renderShockwaves(ctx)
     this.renderParticles(ctx)
     this.renderSurfaceHud(ctx, s)
@@ -4694,68 +4702,6 @@ export class VectorShooter {
     ctx.lineTo(46, 50)
     ctx.moveTo(-32, 50)
     ctx.lineTo(32, 50)
-    ctx.stroke()
-    ctx.restore()
-  }
-
-  private renderSurfacePilot(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
-    const p = this.surfaceToScreen(s.pilot.x, s.pilot.y)
-    const sheet = this.surfaceSpacemanSheet
-    if (sheet.complete && sheet.naturalWidth > 0) {
-      const frameCount = 8
-      const moving = len(s.pilot.vx, s.pilot.vy) > 12
-      const frame = moving ? Math.floor(this.stats.time * 11) % frameCount : 0
-      const sw = sheet.naturalWidth / frameCount
-      const sh = sheet.naturalHeight
-      const scale = surfacePilotSpriteScale(s.pilot.invuln > 0 ? 0.45 : 0.42)
-      const dw = sw * scale
-      const dh = sh * scale
-      const flip = Math.cos(s.pilot.facing) < 0 ? -1 : 1
-      const bob = moving ? Math.sin(this.stats.time * 18) * 1.5 : Math.sin(this.stats.time * 3) * 0.8
-      ctx.save()
-      ctx.translate(p.x, p.y + bob)
-      ctx.scale(flip, 1)
-      ctx.globalCompositeOperation = 'lighter'
-      ctx.globalAlpha = s.pilot.invuln > 0 ? 1 : 0.96
-      ctx.shadowColor = s.pilot.invuln > 0 ? '#fff27a' : '#57fff3'
-      ctx.shadowBlur = this.allowGlow() ? 14 : 5
-      ctx.drawImage(sheet, frame * sw, 0, sw, sh, -dw / 2, -dh * 0.62, dw, dh)
-      ctx.restore()
-      return
-    }
-    this.renderFallbackSurfacePilot(ctx, s, p)
-  }
-
-  private renderFallbackSurfacePilot(ctx: CanvasRenderingContext2D, s: SurfaceRun, p: Vec) {
-    const step = Math.sin(this.stats.time * 11) * 4
-    const facing = Math.sign(Math.cos(s.pilot.facing)) || 1
-    const aim = s.pilot.facing
-    const gunKick = Math.max(0, s.pilot.gunCd) * 18
-    ctx.save()
-    ctx.translate(p.x, p.y)
-    ctx.scale(SURFACE_PILOT_SIZE_SCALE, SURFACE_PILOT_SIZE_SCALE)
-    ctx.strokeStyle = s.pilot.invuln > 0 ? '#fff27a' : '#d7fff7'
-    ctx.shadowColor = '#57fff3'
-    ctx.shadowBlur = 10
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.arc(0, -16, 5, 0, TAU)
-    ctx.moveTo(0, -11)
-    ctx.lineTo(0, 6)
-    ctx.moveTo(0, -5)
-    ctx.lineTo(Math.cos(aim) * 11, Math.sin(aim) * 11 - 3)
-    ctx.moveTo(0, -4)
-    ctx.lineTo(facing * -8, 2)
-    ctx.moveTo(0, 6)
-    ctx.lineTo(-7, 20 + step)
-    ctx.moveTo(0, 6)
-    ctx.lineTo(7, 20 - step)
-    ctx.stroke()
-    ctx.strokeStyle = '#fff27a'
-    ctx.shadowColor = '#fff27a'
-    ctx.beginPath()
-    ctx.moveTo(Math.cos(aim) * 8, Math.sin(aim) * 8 - 3)
-    ctx.lineTo(Math.cos(aim) * (22 - gunKick), Math.sin(aim) * (22 - gunKick) - 3)
     ctx.stroke()
     ctx.restore()
   }
