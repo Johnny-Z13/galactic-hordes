@@ -7723,6 +7723,35 @@ export class VectorShooter {
       this.startLanding(nearest)
       return true
     }
+    window.debugScorePopupsSnapshot = () => ({
+      count: this.scorePopups.length,
+      texts: this.scorePopups.map((sp) => sp.text)
+    })
+    window.debugStepScorePopups = (dt: number) => {
+      for (let i = this.scorePopups.length - 1; i >= 0; i -= 1) {
+        const sp = this.scorePopups[i]
+        sp.life -= dt
+        sp.y += sp.vy * dt
+        if (sp.life <= 0) this.scorePopups.splice(i, 1)
+      }
+    }
+    window.debugHitstopUntil = () => this.hitstopUntil
+    window.debugForceKillNearestEnemy = (giant: boolean) => {
+      let target: Enemy | null = null
+      if (giant) {
+        target = this.enemies.find((e) => isGiantEnemyKind(e.kind)) ?? null
+      } else {
+        let best = Infinity
+        for (const e of this.enemies) {
+          if (isGiantEnemyKind(e.kind)) continue
+          const d = dist2(e, this.player)
+          if (d < best) { best = d; target = e }
+        }
+      }
+      if (!target) return false
+      this.killEnemy(target, true)
+      return true
+    }
   }
 
   private debugSpawnSingleEnemy(kind: EnemyKind, dx: number, dy: number) {
@@ -7830,6 +7859,10 @@ declare global {
     debugForceFirstEverRun?: () => void
     debugIntroWaypointState?: () => { active: boolean; timer: number; targetPlanetId: string | null } | null
     debugLandOnNearestPlanet?: () => boolean
+    debugScorePopupsSnapshot?: () => { count: number; texts: string[] }
+    debugStepScorePopups?: (dt: number) => void
+    debugHitstopUntil?: () => number
+    debugForceKillNearestEnemy?: (giant: boolean) => boolean
   }
 }
 
