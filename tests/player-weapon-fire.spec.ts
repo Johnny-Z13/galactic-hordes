@@ -54,9 +54,13 @@ test('secondary player weapon firing lives outside the main game class', () => {
   const main = readFileSync('src/main.ts', 'utf8')
   const weapons = readFileSync('src/space-player-weapons.ts', 'utf8')
 
+  expect(weapons).toContain('export function optionOrbAngle')
+  expect(weapons).toContain('export function optionOrbWorldPosition')
   expect(weapons).toContain('export function fireOptionOrbs')
   expect(weapons).toContain('export function fireRearGun')
   expect(main).toContain("from './space-player-weapons'")
+  expect(main).not.toContain('private optionOrbAngle(')
+  expect(main).not.toContain('private optionOrbWorldPosition(')
   expect(main).not.toContain('private fireOptionOrbs(')
   expect(main).not.toContain('private fireRearGun(')
 })

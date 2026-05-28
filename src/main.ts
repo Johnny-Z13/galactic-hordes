@@ -77,7 +77,7 @@ import {
   spaceViewportScale,
   worldToScreen as spaceWorldToScreen
 } from './space-camera'
-import { fireOptionOrbs as fireOptionOrbWeapons, fireRearGun as fireRearGunWeapons } from './space-player-weapons'
+import { fireOptionOrbs as fireOptionOrbWeapons, fireRearGun as fireRearGunWeapons, optionOrbAngle, optionOrbWorldPosition } from './space-player-weapons'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { clamp, norm, dist2, hash32, len, rngFrom, TAU } from './math-utils'
@@ -1840,19 +1840,6 @@ export class VectorShooter {
     }
   }
 
-  private optionOrbAngle(index: number, count: number) {
-    return this.stats.time * (2.4 + count * 0.18) + (index / count) * TAU
-  }
-
-  private optionOrbWorldPosition(index: number, count: number, radius: number) {
-    const a = this.optionOrbAngle(index, count)
-    return {
-      x: this.player.x + Math.cos(a) * radius,
-      y: this.player.y + Math.sin(a) * radius,
-      angle: a
-    }
-  }
-
   private fire() {
     if (this.bullets.length > MAX_BULLETS) this.bullets.splice(0, this.bullets.length - MAX_BULLETS)
     const rapid = this.build.rapid
@@ -2305,7 +2292,7 @@ export class VectorShooter {
         e.vy += pull.y * powerupBalance.orbit.gravityPullForce * dt
       }
       for (let i = 0; i < count; i += 1) {
-        const orb = this.optionOrbWorldPosition(i, count, radius)
+        const orb = optionOrbWorldPosition(this.player, this.stats.time, i, count, radius)
         const rr = e.radius + 12
         if ((e.x - orb.x) ** 2 + (e.y - orb.y) ** 2 < rr * rr) this.damageEnemy(e, damage, gravity ? '#fff27a' : '#8fff7d')
       }
@@ -4722,7 +4709,7 @@ export class VectorShooter {
       evolved,
       glow,
       highLoad: this.isHighLoad(),
-      angleForOrb: (index, total) => this.optionOrbAngle(index, total)
+      angleForOrb: (index, total) => optionOrbAngle(this.stats.time, index, total)
     })
   }
 
