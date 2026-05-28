@@ -87,6 +87,7 @@ import { renderSectorWaveWarning as drawSectorWaveWarning } from './render/secto
 import { renderSurfaceAliens as drawSurfaceAliens, renderSurfaceLoreSites as drawSurfaceLoreSites, renderSurfaceResources as drawSurfaceResources } from './surface/render-interactables'
 import { renderSurfacePilot as drawSurfacePilot } from './surface/render-pilot'
 import { renderSurfaceBullets as drawSurfaceBullets, renderSurfaceWaveTelegraphs as drawSurfaceWaveTelegraphs } from './surface/render-projectiles'
+import { renderSurfaceShip as drawSurfaceShip } from './surface/render-ship'
 import { renderSurfaceThreats } from './surface/render-threats'
 import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurfaceBulletsAndThreatDamage } from './surface/bullet-combat'
 import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction, surfaceTakeoffRequest, surfaceTransitionProgress } from './surface/lifecycle'
@@ -4590,7 +4591,12 @@ export class VectorShooter {
     ctx.globalAlpha = 1
     ctx.shadowBlur = 0
 
-    this.renderSurfaceShip(ctx, s)
+    drawSurfaceShip({
+      ctx,
+      ship: s.ship,
+      time: this.stats.time,
+      surfaceToScreen: (x, y) => this.surfaceToScreen(x, y)
+    })
     drawSurfaceResources({
       ctx,
       resources: s.resources,
@@ -4662,48 +4668,6 @@ export class VectorShooter {
       viewHeight: this.height,
       surfaceToScreen: (x, y) => this.surfaceToScreen(x, y)
     })
-  }
-
-  private renderSurfaceShip(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
-    const p = this.surfaceToScreen(s.ship.x, s.ship.y)
-    const pulse = Math.sin(this.stats.time * 3) * 0.06
-    ctx.save()
-    ctx.translate(p.x, p.y)
-    ctx.strokeStyle = '#57fff3'
-    ctx.shadowColor = '#57fff3'
-    ctx.shadowBlur = 20
-    ctx.lineWidth = 2
-    ctx.rotate(-Math.PI / 2)
-    ctx.scale(2.35 + pulse, 2.35 + pulse)
-    ctx.beginPath()
-    ctx.moveTo(24, 0)
-    ctx.lineTo(-15, -13)
-    ctx.lineTo(-8, 0)
-    ctx.lineTo(-15, 13)
-    ctx.closePath()
-    ctx.stroke()
-    ctx.beginPath()
-    ctx.moveTo(-16, -8)
-    ctx.lineTo(-30, 0)
-    ctx.lineTo(-16, 8)
-    ctx.stroke()
-    ctx.restore()
-
-    ctx.save()
-    ctx.translate(p.x, p.y)
-    ctx.strokeStyle = '#fff27a'
-    ctx.shadowColor = '#fff27a'
-    ctx.shadowBlur = 14
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.moveTo(-22, 28)
-    ctx.lineTo(-46, 50)
-    ctx.moveTo(22, 28)
-    ctx.lineTo(46, 50)
-    ctx.moveTo(-32, 50)
-    ctx.lineTo(32, 50)
-    ctx.stroke()
-    ctx.restore()
   }
 
   private renderSurfaceHud(ctx: CanvasRenderingContext2D, s: SurfaceRun) {
