@@ -6491,10 +6491,20 @@ export class VectorShooter {
       snapshot: () => ({
         state: this.state,
         time: this.stats.time,
+        kills: this.stats.kills,
+        level: this.stats.level,
+        xp: this.stats.xp,
+        nextXp: this.stats.nextXp,
         hull: this.player.hull,
         maxHull: this.player.maxHull,
         score: this.stats.score,
         planets: this.stats.planets,
+        pendingUpgrades: this.pendingUpgrades,
+        lockedPlanetId: this.autoNavTargetPlanetId,
+        objective: {
+          label: this.ui.objective.parentElement?.querySelector('.hud-label')?.textContent ?? '',
+          text: this.ui.objective.textContent ?? ''
+        },
         resources: { ...this.resources },
         enemies: this.enemies.length,
         pickups: this.pickups.length,
@@ -6644,10 +6654,17 @@ declare global {
       snapshot: () => {
         state: GameState
         time: number
+        kills: number
+        level: number
+        xp: number
+        nextXp: number
         hull: number
         maxHull: number
         score: number
         planets: number
+        pendingUpgrades: number
+        lockedPlanetId: string | null
+        objective: { label: string; text: string }
         resources: { scrap: number; crystal: number; cores: number }
         enemies: number
         pickups: number
