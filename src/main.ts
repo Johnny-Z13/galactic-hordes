@@ -6642,6 +6642,7 @@ export class VectorShooter {
 
 declare global {
   interface Window {
+    __galacticHordes?: VectorShooter
     __vectorShooter?: VectorShooter
     __galacticHarness?: {
       snapshot: () => {
@@ -6673,4 +6674,5 @@ declare global {
   }
 }
 
-window.__vectorShooter = new VectorShooter()
+window.__galacticHordes = new VectorShooter()
+window.__vectorShooter = window.__galacticHordes
