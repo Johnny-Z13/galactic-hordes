@@ -86,6 +86,7 @@ import { renderScorePopups as drawScorePopups } from './render/score-popups'
 import { renderSectorWaveWarning as drawSectorWaveWarning } from './render/sector-wave-warning'
 import { renderSpaceBackground as drawSpaceBackground } from './render/space-background'
 import { renderDerelictSignals as drawDerelictSignals, renderSpaceHazards as drawSpaceHazards } from './render/space-hazards'
+import { renderLandingPrompt as drawLandingPrompt } from './render/landing-prompt'
 import { renderMinimap as drawMinimap } from './render/minimap'
 import { renderSpacePlanets as drawSpacePlanets } from './render/space-planets'
 import { renderSurfaceHud as drawSurfaceHud } from './surface/render-hud'
@@ -4462,7 +4463,17 @@ export class VectorShooter {
     this.renderShockwaves(ctx)
     this.renderParticles(ctx)
     this.renderImpactPulses(ctx)
-    this.renderLandingPrompt(ctx)
+    if (this.state === 'playing') {
+      const landingPlanet = this.planets.find((planet) => Math.sqrt(dist2(planet, this.player)) < planet.radius + 86)
+      if (landingPlanet) {
+        drawLandingPrompt({
+          ctx,
+          width: this.width,
+          planetName: landingPlanet.name,
+          anchor: this.worldToScreen(landingPlanet.x, landingPlanet.y - landingPlanet.radius - 42)
+        })
+      }
+    }
     this.renderSectorWaveWarning(ctx)
     drawMinimap({
       ctx: this.miniCtx,
@@ -4985,27 +4996,6 @@ export class VectorShooter {
       highLoad: this.isHighLoad(),
       angleForOrb: (index, total) => this.optionOrbAngle(index, total)
     })
-  }
-
-  private renderLandingPrompt(ctx: CanvasRenderingContext2D) {
-    if (this.state !== 'playing') return
-    const planet = this.planets.find((p) => Math.sqrt(dist2(p, this.player)) < p.radius + 86)
-    if (!planet) return
-    const s = this.worldToScreen(planet.x, planet.y - planet.radius - 42)
-    ctx.save()
-    ctx.fillStyle = '#fff27a'
-    ctx.font = this.width < 560 ? '11px Courier New' : '13px Courier New'
-    ctx.textAlign = 'center'
-    ctx.shadowColor = '#fff27a'
-    ctx.shadowBlur = 12
-    const x = clamp(s.x, this.width < 560 ? 86 : 18, this.width - (this.width < 560 ? 86 : 18))
-    if (this.width < 560) {
-      ctx.fillText('PRESS E / Y TO LAND', x, s.y - 7, this.width - 24)
-      ctx.fillText(planet.name, x, s.y + 8, this.width - 24)
-    } else {
-      ctx.fillText(`PRESS E / Y TO LAND: ${planet.name}`, x, s.y, this.width - 24)
-    }
-    ctx.restore()
   }
 
   private updateHud() {
