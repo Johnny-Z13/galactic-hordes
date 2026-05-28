@@ -6,6 +6,7 @@ import { collectionCatalog, collectionCatalogById, collectionIconAtlasColumns, c
 
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
 const frontSubscreensSource = () => readFileSync(resolve(process.cwd(), 'src/ui/front-subscreens.ts'), 'utf8')
+const titleSource = () => readFileSync(resolve(process.cwd(), 'src/ui/title-screen.ts'), 'utf8')
 const workbenchSource = () => readFileSync(resolve(process.cwd(), 'src/ui/workbench.ts'), 'utf8')
 const collectionSource = () => readFileSync(resolve(process.cwd(), 'src/ui/collection.ts'), 'utf8')
 const mothershipSource = () => readFileSync(resolve(process.cwd(), 'src/ui/mothership-console.ts'), 'utf8')
@@ -15,17 +16,36 @@ const styles = () => readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8
 test('shipboard workbench keeps discoveries in the front end collection', () => {
   const main = source()
   const front = frontSubscreensSource()
+  const title = titleSource()
 
   expect(main).not.toContain('type WorkbenchView')
   expect(main).not.toContain("artifactsTab.textContent = 'Artifacts'")
   expect(main).not.toContain('this.workbenchView')
-  expect(main).toContain("collection.textContent = 'Collection'")
+  expect(title).toContain("collection.textContent = 'Collection'")
   expect(main).toContain("import { showCollection as uiShowCollection, showPowerUps as uiShowPowerUps } from './ui/front-subscreens'")
   expect(main).toContain('private showCollection(options: { scrollTop?: number } = {})')
   expect(main).toContain('uiShowCollection(this, options)')
   expect(main).not.toContain('private renderCollectionScreen()')
   expect(front).toContain('export function showCollection(self: VectorShooter')
   expect(front).toContain('renderCollectionScreen(self)')
+})
+
+test('title screen rendering lives in a focused ui module', () => {
+  const main = source()
+  const title = titleSource()
+
+  expect(main).toContain("import { showTitle as uiShowTitle } from './ui/title-screen'")
+  expect(main).toContain('private showTitle() {')
+  expect(main).toContain('uiShowTitle(this)')
+  expect(main).not.toContain("import titleLogoMarkUrl from './assets/title-logo-mark.png'")
+  expect(main).not.toContain("wordmark.innerHTML = '<span>GALACTIC</span><span>HORDES</span>'")
+  expect(title).toContain("import titleLogoMarkUrl from '../assets/title-logo-mark.png'")
+  expect(title).toContain('export function showTitle(self: VectorShooter)')
+  expect(title).toContain("self['state'] = 'title'")
+  expect(title).toContain("quit.textContent = 'Quit'")
+  expect(title).toContain("start.textContent = 'Start'")
+  expect(title).toContain("self['showMothership']()")
+  expect(title).toContain("self['showOnly']('title')")
 })
 
 test('shipboard workbench installs directly from bay detail', () => {
@@ -99,11 +119,12 @@ test('shipboard workbench can be skipped without spending every signal', () => {
 test('front end integrates standalone collection and power up screens', () => {
   const main = source()
   const front = frontSubscreensSource()
+  const title = titleSource()
   const css = styles()
 
   expect(main).toContain("type GameState = 'title' | 'mothership' | 'collection' | 'powerups'")
-  expect(main).toContain("collection.textContent = 'Collection'")
-  expect(main).toContain("powerups.textContent = 'Power Up'")
+  expect(title).toContain("collection.textContent = 'Collection'")
+  expect(title).toContain("powerups.textContent = 'Power Up'")
   expect(front).toContain("self['ui'].collection.className = 'screen collection-route-screen'")
   expect(front).toContain("self['ui'].powerups.className = 'screen powerups-route-screen'")
   expect(front).toContain('shell.append(header, renderCollectionScreen(self))')
@@ -149,10 +170,11 @@ test('first mothership visit keeps command systems out of the launch deck', () =
   const main = source()
   const front = frontSubscreensSource()
   const mothership = mothershipSource()
+  const title = titleSource()
 
   expect(mothership).toContain('shell.append(header, flight)')
   expect(mothership).not.toContain('shell.append(header, flight, systemsHeader, renderMothershipMetaSystems(self))')
-  expect(main).toContain("powerups.textContent = 'Power Up'")
+  expect(title).toContain("powerups.textContent = 'Power Up'")
   expect(main).toContain('private showPowerUps(options: { scrollTop?: number } = {})')
   expect(front).toContain('front-subscreen powerups-subscreen')
 })

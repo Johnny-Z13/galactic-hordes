@@ -12,7 +12,6 @@ import planetAlienCatalogUrl from './assets/planet-alien-catalog-alpha.png'
 import planetBossCatalogUrl from './assets/planet-boss-catalog-alpha.png'
 import spaceEnemyCatalogUrl from './assets/space-enemy-catalog-alpha.png'
 import surfaceSpacemanSheetUrl from './assets/surface-spaceman-sheet-alpha.png'
-import titleLogoMarkUrl from './assets/title-logo-mark.png'
 import { orderArtifactArchiveCards } from './artifact-archive'
 import { collectionCatalog, collectionCatalogById, collectionIconAtlasColumns, collectionIconAtlasRows } from './collection-catalog'
 import {
@@ -165,6 +164,7 @@ import { showCollection as uiShowCollection, showPowerUps as uiShowPowerUps } fr
 import { showMothership as uiShowMothership } from './ui/mothership-console'
 import { renderDebrief as uiRenderDebrief } from './ui/debrief'
 import { showScores as uiShowScores } from './ui/scores'
+import { showTitle as uiShowTitle } from './ui/title-screen'
 import { renderIntroArrow } from './ui/intro-waypoint'
 import { vitalCriticalClass } from './ui/vital-meter'
 import {
@@ -6576,75 +6576,7 @@ export class VectorShooter {
   }
 
   private showTitle() {
-    this.state = 'title'
-    this.ui.title.innerHTML = ''
-    this.ui.title.className = 'screen title-screen'
-    const recordCount = Object.keys(this.mothership.archive.records).length
-    const maxedDepartments = Object.values(this.mothership.departments).filter((tier) => tier > 0).length
-    const panel = document.createElement('div')
-    panel.className = 'title-panel'
-    const top = document.createElement('div')
-    top.className = 'front-menu-top'
-    const quit = document.createElement('button')
-    quit.className = 'front-menu-pill danger'
-    quit.type = 'button'
-    quit.textContent = 'Quit'
-    quit.addEventListener('click', () => this.toast('SIGNAL HELD'))
-    const cargo = document.createElement('div')
-    cargo.className = 'front-menu-cargo'
-    cargo.innerHTML = `<img src="${titleLogoMarkUrl}" alt=""><b>${this.mothership.resources.cores}</b>`
-    const options = document.createElement('button')
-    options.className = 'front-menu-pill'
-    options.type = 'button'
-    options.textContent = 'Options'
-    options.addEventListener('click', () => this.cycleGraphicsMode())
-    top.append(quit, cargo, options)
-
-    const wordmark = document.createElement('h1')
-    wordmark.className = 'title-wordmark'
-    wordmark.innerHTML = '<span>GALACTIC</span><span>HORDES</span>'
-    const spacer = document.createElement('div')
-    spacer.className = 'front-menu-spacer'
-    const row = document.createElement('div')
-    row.className = 'title-actions'
-    const start = document.createElement('button')
-    start.className = 'vector-button start-button'
-    start.textContent = 'Start'
-    start.addEventListener('click', () => this.showMothership())
-    const collection = document.createElement('button')
-    collection.className = 'vector-button secondary'
-    collection.textContent = 'Collection'
-    collection.addEventListener('click', () => this.showCollection())
-    const powerups = document.createElement('button')
-    powerups.className = 'vector-button'
-    powerups.textContent = 'Power Up'
-    powerups.addEventListener('click', () => this.showPowerUps())
-    const scores = document.createElement('button')
-    scores.className = 'vector-button secondary'
-    scores.textContent = 'Scores'
-    scores.addEventListener('click', () => this.showScores())
-    const reset = document.createElement('button')
-    reset.className = 'vector-button secondary danger tiny'
-    reset.textContent = 'Reset Progress'
-    reset.addEventListener('click', () => {
-      if (reset.dataset.confirm === 'true') {
-        this.resetPersistentProgress()
-        return
-      }
-      reset.dataset.confirm = 'true'
-      reset.textContent = 'Confirm Reset'
-    })
-    const footer = document.createElement('div')
-    footer.className = 'front-menu-footer'
-    footer.innerHTML = `
-      <span><b>${recordCount}</b> discoveries</span>
-      <span><b>${maxedDepartments}</b> systems</span>
-      <span><b>${this.highs[0]?.score ?? 0}</b> best</span>
-    `
-    row.append(start, collection, powerups, scores, reset)
-    panel.append(top, wordmark, spacer, row, footer)
-    this.ui.title.append(panel)
-    this.showOnly('title')
+    uiShowTitle(this)
   }
 
   private showMothership(options: { scrollTop?: number } = {}) {
