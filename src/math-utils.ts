@@ -11,6 +11,8 @@ export const dist2 = (a: Vec, b: Vec) => {
   return dx * dx + dy * dy
 }
 
+export const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
+
 export const len = (x: number, y: number) => Math.hypot(x, y)
 
 export const norm = (x: number, y: number): Vec => {

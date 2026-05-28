@@ -80,10 +80,12 @@ import {
 } from './space-camera'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
-import { norm, dist2, hash32, len, rngFrom, TAU } from './math-utils'
+import { clamp, norm, dist2, hash32, len, rngFrom, TAU } from './math-utils'
+export { clamp } from './math-utils'
 import { renderScorePopups as drawScorePopups } from './render/score-popups'
 import { renderSectorWaveWarning as drawSectorWaveWarning } from './render/sector-wave-warning'
 import { renderSpaceBackground as drawSpaceBackground } from './render/space-background'
+import { renderDerelictSignals as drawDerelictSignals, renderSpaceHazards as drawSpaceHazards } from './render/space-hazards'
 import { renderSurfaceHud as drawSurfaceHud } from './surface/render-hud'
 import { renderSurfaceAliens as drawSurfaceAliens, renderSurfaceLoreSites as drawSurfaceLoreSites, renderSurfaceResources as drawSurfaceResources } from './surface/render-interactables'
 import { renderSurfacePilot as drawSurfacePilot } from './surface/render-pilot'
@@ -452,7 +454,6 @@ const MAX_PICKUPS = 220
 const ENEMY_RECYCLE_RADIUS = 2200
 const ENEMY_PRESSURE_RADIUS = 1250
 
-export const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
 const rand = (min: number, max: number) => min + Math.random() * (max - min)
 
 const localStorageWithFallback = (primaryKey: string, legacyKeys: string[]) => (
@@ -4420,8 +4421,24 @@ export class VectorShooter {
       worldToScreen: (x, y) => this.worldToScreen(x, y)
     })
     this.renderPlanets(ctx)
-    this.renderSpaceHazards(ctx)
-    this.renderDerelictSignals(ctx)
+    drawSpaceHazards({
+      ctx,
+      hazards: this.spaceHazards,
+      width: this.width,
+      height: this.height,
+      scale: this.spaceScale(),
+      glow: this.allowGlow(),
+      worldToScreen: (x, y) => this.worldToScreen(x, y)
+    })
+    drawDerelictSignals({
+      ctx,
+      signals: this.derelictSignals,
+      width: this.width,
+      height: this.height,
+      scale: this.spaceScale(),
+      glow: this.allowGlow(),
+      worldToScreen: (x, y) => this.worldToScreen(x, y)
+    })
     this.renderReturnBeacon(ctx)
     this.renderPickups(ctx)
     this.renderBullets(ctx)
@@ -4817,115 +4834,6 @@ export class VectorShooter {
       ctx.fillText(biome.label.toUpperCase(), s.x, s.y + radius + 38 * scale)
       ctx.restore()
     }
-  }
-
-  private renderSpaceHazards(ctx: CanvasRenderingContext2D) {
-    if (!this.spaceHazards.length) return
-    const scale = this.spaceScale()
-    ctx.save()
-    ctx.lineJoin = 'round'
-    for (const hazard of this.spaceHazards) {
-      const p = this.worldToScreen(hazard.x, hazard.y)
-      const radius = hazard.radius * scale
-      if (p.x < -radius - 80 || p.x > this.width + radius + 80 || p.y < -radius - 80 || p.y > this.height + radius + 80) continue
-      const points = 10
-      ctx.save()
-      ctx.translate(p.x, p.y)
-      ctx.rotate(hazard.phase)
-      ctx.shadowColor = '#fff27a'
-      ctx.shadowBlur = this.allowGlow() ? 18 : 4
-      ctx.strokeStyle = 'rgba(255,242,122,0.82)'
-      ctx.fillStyle = 'rgba(88,62,38,0.42)'
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      for (let i = 0; i < points; i += 1) {
-        const a = (i / points) * TAU
-        const wobble = 0.82 + ((hash32(Math.floor(hazard.x), Math.floor(hazard.y), i) % 34) / 100)
-        const x = Math.cos(a) * radius * wobble
-        const y = Math.sin(a) * radius * wobble
-        if (i === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
-      }
-      ctx.closePath()
-      ctx.fill()
-      ctx.stroke()
-      ctx.globalAlpha = 0.34
-      ctx.beginPath()
-      ctx.arc(0, 0, radius * 1.28, 0, TAU)
-      ctx.stroke()
-      ctx.restore()
-    }
-    ctx.restore()
-  }
-
-  private renderDerelictSignals(ctx: CanvasRenderingContext2D) {
-    if (!this.derelictSignals.length) return
-    const scale = this.spaceScale()
-    ctx.save()
-    for (const signal of this.derelictSignals) {
-      const p = this.worldToScreen(signal.x, signal.y)
-      if (p.x < 34 || p.x > this.width - 34 || p.y < 92 || p.y > this.height - 34) {
-        const edge = {
-          x: clamp(p.x, 34, this.width - 34),
-          y: clamp(p.y, 92, this.height - 34)
-        }
-        const angle = Math.atan2(p.y - this.height / 2, p.x - this.width / 2)
-        ctx.save()
-        ctx.translate(edge.x, edge.y)
-        ctx.rotate(angle)
-        ctx.strokeStyle = '#fff27a'
-        ctx.fillStyle = 'rgba(255,242,122,0.2)'
-        ctx.shadowColor = '#fff27a'
-        ctx.shadowBlur = this.allowGlow() ? 14 : 0
-        ctx.lineWidth = 2
-        ctx.beginPath()
-        ctx.moveTo(18, 0)
-        ctx.lineTo(-10, -10)
-        ctx.lineTo(-4, 0)
-        ctx.lineTo(-10, 10)
-        ctx.closePath()
-        ctx.fill()
-        ctx.stroke()
-        ctx.restore()
-        ctx.save()
-        ctx.fillStyle = '#fff27a'
-        ctx.font = '12px Courier New'
-        ctx.textAlign = edge.x > this.width - 140 ? 'right' : edge.x < 140 ? 'left' : 'center'
-        ctx.fillText('DERELICT', clamp(edge.x, 62, this.width - 62), clamp(edge.y - 18, 92, this.height - 48))
-        ctx.restore()
-        continue
-      }
-      const pulse = 1 + Math.sin(signal.phase * 5) * 0.08
-      ctx.save()
-      ctx.translate(p.x, p.y)
-      ctx.rotate(signal.phase * 0.45)
-      ctx.strokeStyle = '#fff27a'
-      ctx.fillStyle = 'rgba(255,242,122,0.1)'
-      ctx.shadowColor = '#fff27a'
-      ctx.shadowBlur = this.allowGlow() ? 22 : 6
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      ctx.rect(-34 * scale * pulse, -18 * scale * pulse, 68 * scale * pulse, 36 * scale * pulse)
-      ctx.moveTo(-46 * scale * pulse, 0)
-      ctx.lineTo(-70 * scale * pulse, -16 * scale * pulse)
-      ctx.moveTo(46 * scale * pulse, 0)
-      ctx.lineTo(70 * scale * pulse, 16 * scale * pulse)
-      ctx.fill()
-      ctx.stroke()
-      ctx.setLineDash([7, 7])
-      ctx.beginPath()
-      ctx.arc(0, 0, 96 * scale, 0, TAU)
-      ctx.stroke()
-      ctx.restore()
-
-      ctx.save()
-      ctx.fillStyle = '#fff27a'
-      ctx.font = '12px Courier New'
-      ctx.textAlign = 'center'
-      ctx.fillText('DERELICT CACHE', p.x, p.y - 78 * scale)
-      ctx.restore()
-    }
-    ctx.restore()
   }
 
   private renderReturnBeacon(ctx: CanvasRenderingContext2D) {
