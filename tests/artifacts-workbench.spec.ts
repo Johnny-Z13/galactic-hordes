@@ -60,13 +60,19 @@ test('screen shell construction lives in a focused ui module', () => {
   const main = source()
   const screens = screensSource()
 
-  expect(main).toContain("import { makeScreens as uiMakeScreens } from './ui/screens'")
+  expect(main).toContain("import { makeScreens as uiMakeScreens, showOnly as uiShowOnly } from './ui/screens'")
   expect(main).toContain('uiMakeScreens(this)')
   expect(main).not.toContain('const screenList = [this.ui.title')
   expect(screens).toContain('export function makeScreens(self: VectorShooter)')
   expect(screens).toContain('const screenList = [')
   expect(screens).toContain("self['ui'].title")
   expect(screens).toContain("self['ui'].gameover.className = 'screen gameover-screen'")
+  expect(main).toContain('private showOnly(which: GameState | null) {')
+  expect(main).toContain('uiShowOnly(this, which)')
+  expect(main).not.toContain('const screens: Partial<Record<GameState, HTMLElement>> = {')
+  expect(screens).toContain('export function showOnly(self: VectorShooter, which: GameState | null)')
+  expect(screens).toContain('const screens: Partial<Record<GameState, HTMLElement>> = {')
+  expect(screens).toContain("el?.classList.toggle('visible', name === which)")
 })
 
 test('shipboard workbench installs directly from bay detail', () => {

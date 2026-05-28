@@ -166,7 +166,7 @@ import { renderDebrief as uiRenderDebrief } from './ui/debrief'
 import { showScores as uiShowScores } from './ui/scores'
 import { showTitle as uiShowTitle } from './ui/title-screen'
 import { makeHud as uiMakeHud, updateHud as uiUpdateHud } from './ui/hud'
-import { makeScreens as uiMakeScreens } from './ui/screens'
+import { makeScreens as uiMakeScreens, showOnly as uiShowOnly } from './ui/screens'
 import { renderIntroArrow } from './ui/intro-waypoint'
 import {
   introHookConfig,
@@ -7268,20 +7268,7 @@ export class VectorShooter {
   }
 
   private showOnly(which: GameState | null) {
-    const screens: Partial<Record<GameState, HTMLElement>> = {
-      title: this.ui.title,
-      collection: this.ui.collection,
-      powerups: this.ui.powerups,
-      sectorMap: this.ui.sectorMap,
-      station: this.ui.station,
-      levelup: this.ui.levelup,
-      planet: this.ui.planet,
-      gameover: this.ui.gameover,
-      scores: this.ui.scores
-    }
-    for (const [name, el] of Object.entries(screens)) {
-      el?.classList.toggle('visible', name === which)
-    }
+    uiShowOnly(this, which)
   }
 
   private installHarnessIfRequested() {
