@@ -81,6 +81,14 @@ test('stress sweep is allowed to be fully destructive without flagging normal ba
   expect(summary.balanceFlags.some((flag) => flag.includes('Destroyed rate'))).toBe(false)
 })
 
+test('balanced reference batch keeps asteroid deaths from dominating outcomes', () => {
+  const options = { seed: 9700, runs: 40, policy: 'balanced' as const, maxSeconds: 1800, difficulty: 'normal' as const }
+  const runs = Array.from({ length: options.runs }, (_, index) => runSimPlaythrough({ ...options, seed: options.seed + index }))
+  const summary = summarizeSimBatch(options, runs)
+
+  expect(summary.balanceFlags.some((flag) => flag.includes('hazard causes'))).toBe(false)
+})
+
 test('formatSeconds carries rounded seconds into the minute', () => {
   expect(formatSeconds(659.7)).toBe('11:00')
 })

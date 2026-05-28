@@ -27,6 +27,8 @@ const difficultyPressure = {
 } as const satisfies Record<SimDifficulty, number>
 
 const postIntroStationWindowFloor = BEACON_INTERVAL - 30
+const asteroidDeathAttributionChance = 0.48
+const asteroidDeathRngGate = 0.55
 
 export function simulateSpaceNode(input: {
   node: SectorNode
@@ -71,13 +73,18 @@ export function simulateSpaceNode(input: {
     ? Math.max(0, Math.round((config.enemies.startingSpawns.length * 1.8 + earlyWaveKills * 0.55) * difficultyPressure[input.difficulty] * (0.9 + policy.riskTolerance * 0.18)))
     : 0
   const kills = Math.max(0, Math.round(nodeSeconds * pressure * (0.24 + policy.riskTolerance * 0.1)) + frontLoadedKills)
-  const deathCause: SimSpaceNodeResult['deathCause'] = damageTaken <= 0
-    ? 'none'
-    : config.hazards.includes('asteroids') && hazardPressure > 0.35 && rng.chance(0.55)
-      ? 'hazard'
-      : pressure > 1.45 && rng.chance(0.34)
-        ? 'projectile'
-        : 'contact'
+  let deathCause: SimSpaceNodeResult['deathCause'] = 'none'
+  if (damageTaken > 0) {
+    const asteroidDeathEligible = config.hazards.includes('asteroids') && hazardPressure > 0.35
+    const asteroidDeathRoll = asteroidDeathEligible ? rng.next() : 1
+    if (asteroidDeathRoll < asteroidDeathAttributionChance) {
+      deathCause = 'hazard'
+    } else if (asteroidDeathRoll < asteroidDeathRngGate) {
+      deathCause = 'contact'
+    } else {
+      deathCause = pressure > 1.45 && rng.chance(0.34) ? 'projectile' : 'contact'
+    }
+  }
 
   return { nodeSeconds, kills, frontLoadedKills, damageTaken, deathCause }
 }
