@@ -88,6 +88,7 @@ import { renderSpaceBackground as drawSpaceBackground } from './render/space-bac
 import { renderDerelictSignals as drawDerelictSignals, renderSpaceHazards as drawSpaceHazards } from './render/space-hazards'
 import { renderLandingPrompt as drawLandingPrompt } from './render/landing-prompt'
 import { renderMinimap as drawMinimap } from './render/minimap'
+import { renderDeathOverlay as drawDeathOverlay, renderTransitionOverlay as drawTransitionOverlay } from './render/overlays'
 import { renderSpacePlanets as drawSpacePlanets } from './render/space-planets'
 import { renderSurfaceHud as drawSurfaceHud } from './surface/render-hud'
 import { renderSurfaceAliens as drawSurfaceAliens, renderSurfaceLoreSites as drawSurfaceLoreSites, renderSurfaceResources as drawSurfaceResources } from './surface/render-interactables'
@@ -502,7 +503,7 @@ export class VectorShooter {
         const t = clamp(this.transitionTimer / this.transitionDuration, 0, 1)
         if (t < 0.58) this.renderSpaceScene(ctx)
         else this.renderSurface(ctx)
-        this.renderTransitionOverlay(ctx, t, 'LANDING')
+        drawTransitionOverlay({ ctx, width: this.width, height: this.height, t, label: 'LANDING' })
       }
     },
     surface: {
@@ -518,14 +519,20 @@ export class VectorShooter {
         const t = clamp(this.transitionTimer / this.transitionDuration, 0, 1)
         if (t < 0.5) this.renderSurface(ctx)
         else this.renderSpaceScene(ctx)
-        this.renderTransitionOverlay(ctx, t, 'TAKEOFF')
+        drawTransitionOverlay({ ctx, width: this.width, height: this.height, t, label: 'TAKEOFF' })
       }
     },
     dying: {
       update: (dt) => this.updateDying(dt),
       render: (ctx) => {
         this.renderSpaceScene(ctx)
-        this.renderDeathOverlay(ctx)
+        drawDeathOverlay({
+          ctx,
+          width: this.width,
+          height: this.height,
+          deathTimer: this.deathTimer,
+          playerScreen: this.worldToScreen(this.player.x, this.player.y)
+        })
       }
     }
   }
@@ -4689,86 +4696,6 @@ export class VectorShooter {
       allowGlow: this.allowGlow()
     })
     this.renderScorePopups(ctx)
-    ctx.restore()
-  }
-
-  private renderTransitionOverlay(ctx: CanvasRenderingContext2D, t: number, label: string) {
-    const pulse = Math.sin(t * Math.PI)
-    ctx.save()
-    ctx.globalCompositeOperation = 'lighter'
-    ctx.strokeStyle = '#57fff3'
-    ctx.shadowColor = '#57fff3'
-    ctx.shadowBlur = 24
-    ctx.lineWidth = 2
-    for (let i = 0; i < 9; i += 1) {
-      const r = (i + 1) * 70 + pulse * 120
-      ctx.beginPath()
-      ctx.arc(this.width / 2, this.height / 2, r, 0, TAU)
-      ctx.stroke()
-    }
-    ctx.fillStyle = `rgba(0,0,0,${0.18 + pulse * 0.32})`
-    ctx.fillRect(0, 0, this.width, this.height)
-    ctx.fillStyle = '#d7fff7'
-    ctx.font = '18px Courier New'
-    ctx.textAlign = 'center'
-    ctx.fillText(label, this.width / 2, this.height / 2)
-    ctx.restore()
-  }
-
-  private renderDeathOverlay(ctx: CanvasRenderingContext2D) {
-    const t = clamp(this.deathTimer / 2.35, 0, 1)
-    const flash = Math.max(0, 1 - this.deathTimer * 2.6)
-    const p = this.worldToScreen(this.player.x, this.player.y)
-    ctx.save()
-    ctx.fillStyle = `rgba(0,0,0,${0.2 + t * 0.52})`
-    ctx.fillRect(0, 0, this.width, this.height)
-    ctx.globalCompositeOperation = 'lighter'
-    const boom = clamp(this.deathTimer / 1.1, 0, 1)
-    for (let i = 0; i < 4; i += 1) {
-      const ring = boom * (70 + i * 38)
-      const alpha = Math.max(0, 0.52 - boom * 0.42 - i * 0.06)
-      ctx.strokeStyle = i % 2 === 0 ? `rgba(255,93,115,${alpha})` : `rgba(255,242,122,${alpha})`
-      ctx.shadowColor = i % 2 === 0 ? '#ff5d73' : '#fff27a'
-      ctx.shadowBlur = 22
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, ring, 0, TAU)
-      ctx.stroke()
-    }
-    for (let i = 0; i < 12; i += 1) {
-      const a = (i / 12) * TAU + this.deathTimer * 0.9
-      const length = 54 + boom * 120
-      ctx.strokeStyle = i % 3 === 0 ? 'rgba(255,242,122,0.46)' : 'rgba(87,255,243,0.34)'
-      ctx.beginPath()
-      ctx.moveTo(p.x + Math.cos(a) * 18, p.y + Math.sin(a) * 18)
-      ctx.lineTo(p.x + Math.cos(a) * length, p.y + Math.sin(a) * length)
-      ctx.stroke()
-    }
-    ctx.globalCompositeOperation = 'source-over'
-    if (flash > 0) {
-      ctx.globalCompositeOperation = 'lighter'
-      ctx.fillStyle = `rgba(255,242,122,${flash * 0.42})`
-      ctx.fillRect(0, 0, this.width, this.height)
-    }
-    ctx.globalCompositeOperation = 'source-over'
-    ctx.textAlign = 'center'
-    ctx.shadowColor = '#ff5d73'
-    ctx.shadowBlur = 26
-    ctx.fillStyle = '#ffedf1'
-    ctx.font = '24px Courier New'
-    ctx.fillText('YOU DIED', this.width / 2, this.height * 0.42)
-    ctx.shadowColor = '#57fff3'
-    ctx.shadowBlur = 18
-    ctx.fillStyle = '#d7fff7'
-    ctx.font = '13px Courier New'
-    ctx.fillText('BLACK BOX TRANSMITTING TO MOTHERSHIP', this.width / 2, this.height * 0.42 + 34)
-    const barWidth = Math.min(320, this.width - 52)
-    const x = (this.width - barWidth) / 2
-    const y = this.height * 0.42 + 58
-    ctx.strokeStyle = 'rgba(87,255,243,0.62)'
-    ctx.strokeRect(x, y, barWidth, 7)
-    ctx.fillStyle = '#57fff3'
-    ctx.fillRect(x, y, barWidth * t, 7)
     ctx.restore()
   }
 

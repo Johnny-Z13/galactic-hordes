@@ -41,13 +41,17 @@ test('browser playthrough harness exposes a compact runtime snapshot', () => {
 })
 
 test('browser playthrough harness is live during a launched expedition', async ({ page }) => {
+  test.setTimeout(60_000)
   await page.goto(HARNESS_URL, { waitUntil: 'domcontentloaded' })
   await page.waitForFunction(() => typeof window.__galacticHarness?.snapshot === 'function')
 
   await page.getByRole('button', { name: 'Launch Expedition', exact: true }).click()
   await page.getByRole('button', { name: 'Launch Expedition', exact: true }).click()
   await page.locator('.sector-choice').first().click()
-  await page.waitForTimeout(1200)
+  await page.waitForFunction(() => {
+    const snapshot = window.__galacticHarness?.snapshot()
+    return snapshot?.state === 'playing' && snapshot.time > 0
+  })
 
   const snapshot = await page.evaluate(() => window.__galacticHarness?.snapshot())
 
