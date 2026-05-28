@@ -48,12 +48,15 @@ test('spawn entry ping screen point clamps offscreen markers to the viewport edg
 
 test('main wires spawn entry pings through spawn update and render', () => {
   const main = readFileSync('src/main.ts', 'utf8')
+  const renderer = readFileSync('src/render/spawn-entry-pings.ts', 'utf8')
 
   expect(main).toContain("from './spawn-entry-feedback'")
+  expect(main).toContain("from './render/spawn-entry-pings'")
   expect(main).toContain('private spawnEntryPings: SpawnEntryPing[] = []')
   expect(main).toContain('this.spawnEntryPings.push(createSpawnEntryPing({')
   expect(main).toContain('advanceSpawnEntryPings({ pings: this.spawnEntryPings, dt })')
   expect(main).toContain('this.renderSpawnEntryPings(ctx)')
-  expect(main).toContain('private renderSpawnEntryPings(')
-  expect(main).toContain('spawnEntryPingScreenPoint({')
+  expect(main).toContain('drawSpawnEntryPings({')
+  expect(renderer).toContain('export function renderSpawnEntryPings')
+  expect(renderer).toContain('spawnEntryPingScreenPoint({')
 })
