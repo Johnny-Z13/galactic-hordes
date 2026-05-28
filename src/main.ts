@@ -96,6 +96,7 @@ import { renderImpactPulses as drawImpactPulses } from './render/impact-pulses'
 import { renderPickups as drawPickups } from './render/pickups'
 import { renderParticles as drawParticles, renderParticlesSimple as drawParticlesSimple } from './render/particles'
 import { renderShockwaves as drawShockwaves } from './render/shockwaves'
+import { renderOrbitals as drawOrbitals } from './render/orbitals'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
 import { advancedRewardEnemyKinds, spaceEnemyBehavior } from './space-enemy-behavior'
 import {
@@ -5972,46 +5973,17 @@ export class VectorShooter {
     const worldRadius = powerupBalance.orbit.radiusBase + this.build.orbit * powerupBalance.orbit.radiusPerRank
     const radius = worldRadius * scale
     const glow = this.allowGlow()
-    const color = evolved ? '#fff27a' : '#8fff7d'
-    ctx.save()
-    ctx.globalCompositeOperation = glow ? 'lighter' : 'source-over'
-    ctx.strokeStyle = color
-    ctx.shadowColor = color
-    ctx.shadowBlur = glow ? 28 : this.isHighLoad() ? 0 : 14
-    ctx.globalAlpha = this.isHighLoad() ? 0.18 : 0.26
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.arc(center.x, center.y, radius, 0, TAU)
-    ctx.stroke()
-    ctx.globalAlpha = 1
-    for (let i = 0; i < count; i += 1) {
-      const a = this.optionOrbAngle(i, count)
-      const x = center.x + Math.cos(a) * radius
-      const y = center.y + Math.sin(a) * radius
-      const orbRadius = (evolved ? 7.2 : 6.2) * scale
-      const coreRadius = (evolved ? 2.8 : 2.2) * scale
-      const side = { x: -Math.sin(a), y: Math.cos(a) }
-      ctx.beginPath()
-      ctx.arc(center.x, center.y, radius, a - 0.52, a - 0.12)
-      ctx.stroke()
-      ctx.beginPath()
-      ctx.arc(x, y, orbRadius, 0, TAU)
-      ctx.moveTo(x - side.x * orbRadius * 1.45, y - side.y * orbRadius * 1.45)
-      ctx.lineTo(x + side.x * orbRadius * 1.45, y + side.y * orbRadius * 1.45)
-      ctx.moveTo(x + Math.cos(a) * coreRadius, y + Math.sin(a) * coreRadius)
-      ctx.arc(x, y, coreRadius, 0, TAU)
-      ctx.stroke()
-      if (glow) {
-        ctx.globalAlpha = 0.28
-        ctx.lineWidth = 6
-        ctx.beginPath()
-        ctx.arc(x, y, orbRadius * 1.18, 0, TAU)
-        ctx.stroke()
-        ctx.globalAlpha = 1
-        ctx.lineWidth = 1
-      }
-    }
-    ctx.restore()
+    drawOrbitals({
+      ctx,
+      center,
+      count,
+      radius,
+      scale,
+      evolved,
+      glow,
+      highLoad: this.isHighLoad(),
+      angleForOrb: (index, total) => this.optionOrbAngle(index, total)
+    })
   }
 
   private renderLandingPrompt(ctx: CanvasRenderingContext2D) {
