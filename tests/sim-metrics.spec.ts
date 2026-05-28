@@ -12,6 +12,8 @@ test('batch summary aggregates survival route planets economy and combat', () =>
   expect(summary.route.averageNodesCleared).toBeGreaterThan(0)
   expect(Object.values(summary.route.templateCounts).reduce((sum, count) => sum + count, 0)).toBeGreaterThan(0)
   expect(summary.combat.averageKills).toBeGreaterThanOrEqual(0)
+  expect(summary.firstMinute.averageKillsFirst60Sec).toBeGreaterThanOrEqual(0)
+  expect(summary.firstMinute.medianFirstKillSec).toBeGreaterThanOrEqual(0)
 })
 
 test('batch summary flags destructive median survival', () => {

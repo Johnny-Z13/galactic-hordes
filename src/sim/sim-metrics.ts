@@ -12,6 +12,10 @@ function median(values: number[]) {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
 }
 
+function nullableMedian(values: Array<number | null>) {
+  return median(values.filter((value): value is number => value !== null))
+}
+
 function mergeCounts(records: Array<Record<string, number>>) {
   const merged: Record<string, number> = {}
   for (const record of records) {
@@ -96,6 +100,12 @@ export function summarizeSimBatch(options: SimBatchOptions, runs: SimRunResult[]
       averageKills: average(runs.map((run) => run.kills)),
       averageDamageTaken: average(runs.map((run) => run.damageTaken)),
       deathCauseCounts: deathCounts
+    },
+    firstMinute: {
+      averageKillsFirst60Sec: average(runs.map((run) => run.firstMinute.killsFirst60Sec)),
+      medianFirstKillSec: nullableMedian(runs.map((run) => run.firstMinute.firstKillSec)),
+      medianFirstLandingSec: nullableMedian(runs.map((run) => run.firstMinute.firstLandingSec)),
+      medianFirstWorkbenchSec: nullableMedian(runs.map((run) => run.firstMinute.firstWorkbenchSec))
     },
     upgrades: {
       chosenCounts: mergeCounts(runs.map((run) => run.coverage.upgradesChosen))

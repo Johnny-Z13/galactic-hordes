@@ -17,6 +17,17 @@ test('simulation runner records route planet economy and ending events', () => {
   expect(result.economy.scrap + result.economy.crystal + result.economy.cores).toBeGreaterThanOrEqual(0)
 })
 
+test('simulation runner records first-minute engagement telemetry', () => {
+  const result = runSimPlaythrough({ seed: 101, policy: 'planetHunter', maxSeconds: 900, difficulty: 'normal' })
+
+  expect(result.firstMinute.killsFirst60Sec).toBeGreaterThanOrEqual(0)
+  expect(result.firstMinute.firstKillSec).not.toBeNull()
+  expect(result.firstMinute.firstKillSec).toBeGreaterThanOrEqual(0)
+  expect(result.firstMinute.firstKillSec).toBeLessThanOrEqual(60)
+  expect(result.firstMinute.firstLandingSec).not.toBeNull()
+  expect(result.firstMinute.firstWorkbenchSec === null || result.firstMinute.firstWorkbenchSec >= 0).toBe(true)
+})
+
 test('survival policy takes less damage than greedy cache policy across the same seeds', () => {
   const seeds = [200, 201, 202, 203, 204]
   const survivalDamage = seeds.reduce((sum, seed) => sum + runSimPlaythrough({ seed, policy: 'survival', maxSeconds: 600, difficulty: 'normal' }).damageTaken, 0)

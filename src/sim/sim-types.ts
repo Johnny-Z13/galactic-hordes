@@ -31,6 +31,13 @@ export interface SimEconomyState {
   mutationSignals: number
 }
 
+export interface SimFirstMinuteState {
+  firstKillSec: number | null
+  killsFirst60Sec: number
+  firstLandingSec: number | null
+  firstWorkbenchSec: number | null
+}
+
 export interface SimCoverageState {
   routeTemplates: Record<string, number>
   planetArchetypes: Record<string, number>
@@ -53,6 +60,7 @@ export interface SimRunResult {
   stationsDocked: number
   kills: number
   damageTaken: number
+  firstMinute: SimFirstMinuteState
   economy: SimEconomyState
   build: SimBuildState
   coverage: SimCoverageState
@@ -102,6 +110,12 @@ export interface SimBatchSummary {
     averageKills: number
     averageDamageTaken: number
     deathCauseCounts: Record<string, number>
+  }
+  firstMinute: {
+    averageKillsFirst60Sec: number
+    medianFirstKillSec: number
+    medianFirstLandingSec: number
+    medianFirstWorkbenchSec: number
   }
   upgrades: {
     chosenCounts: Record<string, number>
