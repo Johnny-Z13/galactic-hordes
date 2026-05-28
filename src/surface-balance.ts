@@ -58,6 +58,38 @@ export const surfaceThreatMotionBalance = {
   }
 } as const
 
+export const surfaceWaveDirectorBalance = {
+  initialDelay: {
+    friendly: 34,
+    lore: 28,
+    default: 16,
+    swarm: 9,
+    horde: 6
+  },
+  interval: {
+    friendly: 24,
+    lore: 22,
+    default: 16,
+    swarm: 9,
+    horde: 7
+  },
+  activeThreatCap: {
+    friendly: 7,
+    lore: 8,
+    default: 14,
+    swarm: 22,
+    horde: 32
+  },
+  pack: {
+    defaultBase: 1,
+    swarmBase: 2,
+    hordeBase: 3,
+    max: 7,
+    rampEverySeconds: 45,
+    collectedPressureEvery: 6
+  }
+} as const
+
 export const surfaceRunBalance = {
   world: {
     width: 1600,

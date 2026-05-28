@@ -83,6 +83,7 @@ import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction,
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
 import { createSurfaceResourceNodes, surfaceEventMessage } from './surface/run-setup'
 import { spawnSurfaceSplitterChildren, updateSurfaceThreatMotion } from './surface/threat-behavior'
+import { createSurfaceWaveState, updateSurfaceWaveDirector, type SurfaceWaveState } from './surface/wave-director'
 import { renderPlayer as drawPlayer } from './render/player'
 import { renderEnemies as drawEnemies } from './render/enemies'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
@@ -338,6 +339,7 @@ interface SurfaceRun {
   bullets: SurfaceBullet[]
   aliens: SurfaceAlien[]
   loreSites: SurfaceLoreSite[]
+  wave: SurfaceWaveState
   collected: number
   pendingUpgrade: boolean
   bankedSignals: number
@@ -1691,6 +1693,7 @@ export class VectorShooter {
     this.collectSurfaceResources()
     this.updateSurfaceBullets(dt)
     this.updateSurfaceThreats(dt)
+    this.updateSurfaceWaves(dt)
 
     const nearShip = Math.sqrt(dist2(this.surface.pilot, this.surface.ship)) < 64
     const lore = this.findNearbyLoreSite()
@@ -3512,6 +3515,7 @@ export class VectorShooter {
       bullets: [],
       aliens,
       loreSites,
+      wave: createSurfaceWaveState({ event, scenario }),
       collected: 0,
       pendingUpgrade: false,
       bankedSignals: 0,
@@ -3941,6 +3945,27 @@ export class VectorShooter {
         if (threat.boss) this.dropSurfaceBossCache(threat)
         this.surface.threats.splice(i, 1)
       }
+    }
+  }
+
+  private updateSurfaceWaves(dt: number) {
+    if (!this.surface) return
+    const result = updateSurfaceWaveDirector({
+      wave: this.surface.wave,
+      event: this.surface.event,
+      scenario: this.surface.scenario,
+      dt,
+      activeThreats: this.surface.threats.length,
+      o2Returning: this.surface.o2Returning,
+      collected: this.surface.collected,
+      totalResources: this.surface.resources.length
+    })
+    if (result.spawnCount <= 0) return
+    const keepouts = this.surfaceThreatKeepouts(this.surface.pilot, this.surface.ship)
+    const start = this.surface.threats.length
+    const total = Math.max(1, start + result.spawnCount)
+    for (let i = 0; i < result.spawnCount; i += 1) {
+      this.surface.threats.push(this.createGenericSurfaceThreat(this.surface.planet, this.surface.event, start + i, total, keepouts))
     }
   }
 

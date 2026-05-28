@@ -1,0 +1,116 @@
+import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { surfaceWaveDirectorBalance } from '../src/surface-balance'
+import { createSurfaceWaveState, updateSurfaceWaveDirector } from '../src/surface/wave-director'
+
+test('friendly surface waves wait through the opening grace window', () => {
+  const wave = createSurfaceWaveState({ event: 'relic', scenario: 'friendly' })
+
+  const result = updateSurfaceWaveDirector({
+    wave,
+    event: 'relic',
+    scenario: 'friendly',
+    dt: surfaceWaveDirectorBalance.initialDelay.friendly - 1,
+    activeThreats: 0,
+    o2Returning: false,
+    collected: 0,
+    totalResources: 10
+  })
+
+  expect(result.spawnCount).toBe(0)
+})
+
+test('horde waves spawn faster and larger than standard waves', () => {
+  const horde = createSurfaceWaveState({ event: 'horde', scenario: 'horde' })
+  const standard = createSurfaceWaveState({ event: 'standard', scenario: 'salvage' })
+
+  const hordeResult = updateSurfaceWaveDirector({
+    wave: horde,
+    event: 'horde',
+    scenario: 'horde',
+    dt: surfaceWaveDirectorBalance.initialDelay.horde,
+    activeThreats: 0,
+    o2Returning: false,
+    collected: 10,
+    totalResources: 30
+  })
+  const standardResult = updateSurfaceWaveDirector({
+    wave: standard,
+    event: 'standard',
+    scenario: 'salvage',
+    dt: surfaceWaveDirectorBalance.initialDelay.default,
+    activeThreats: 0,
+    o2Returning: false,
+    collected: 0,
+    totalResources: 10
+  })
+
+  expect(hordeResult.spawnCount).toBeGreaterThan(standardResult.spawnCount)
+})
+
+test('surface wave director respects active threat cap and oxygen return pause', () => {
+  const capped = createSurfaceWaveState({ event: 'swarm', scenario: 'boss' })
+  const returning = createSurfaceWaveState({ event: 'swarm', scenario: 'boss' })
+
+  expect(updateSurfaceWaveDirector({
+    wave: capped,
+    event: 'swarm',
+    scenario: 'boss',
+    dt: surfaceWaveDirectorBalance.initialDelay.swarm,
+    activeThreats: surfaceWaveDirectorBalance.activeThreatCap.swarm,
+    o2Returning: false,
+    collected: 0,
+    totalResources: 12
+  }).spawnCount).toBe(0)
+
+  expect(updateSurfaceWaveDirector({
+    wave: returning,
+    event: 'swarm',
+    scenario: 'boss',
+    dt: surfaceWaveDirectorBalance.initialDelay.swarm,
+    activeThreats: 0,
+    o2Returning: true,
+    collected: 0,
+    totalResources: 12
+  }).spawnCount).toBe(0)
+})
+
+test('surface wave director ramps pack size as surface time and collection pressure rise', () => {
+  const early = createSurfaceWaveState({ event: 'volatile', scenario: 'mixed' })
+  const late = createSurfaceWaveState({ event: 'volatile', scenario: 'mixed' })
+  late.elapsed = surfaceWaveDirectorBalance.pack.rampEverySeconds * 2
+
+  const earlyResult = updateSurfaceWaveDirector({
+    wave: early,
+    event: 'volatile',
+    scenario: 'mixed',
+    dt: surfaceWaveDirectorBalance.initialDelay.default,
+    activeThreats: 0,
+    o2Returning: false,
+    collected: 0,
+    totalResources: 18
+  })
+  const lateResult = updateSurfaceWaveDirector({
+    wave: late,
+    event: 'volatile',
+    scenario: 'mixed',
+    dt: surfaceWaveDirectorBalance.initialDelay.default,
+    activeThreats: 0,
+    o2Returning: false,
+    collected: 12,
+    totalResources: 18
+  })
+
+  expect(lateResult.spawnCount).toBeGreaterThan(earlyResult.spawnCount)
+})
+
+test('main delegates surface wave timing to the surface module', () => {
+  const main = readFileSync('src/main.ts', 'utf8')
+  const director = readFileSync('src/surface/wave-director.ts', 'utf8')
+
+  expect(main).toContain("from './surface/wave-director'")
+  expect(main).toContain('createSurfaceWaveState({')
+  expect(main).toContain('updateSurfaceWaveDirector({')
+  expect(main).toContain('private updateSurfaceWaves(')
+  expect(director).toContain('surfaceWaveDirectorBalance')
+})
