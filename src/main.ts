@@ -108,6 +108,7 @@ import { renderSurfaceBullets as drawSurfaceBullets, renderSurfaceWaveTelegraphs
 import { renderSurfaceShip as drawSurfaceShip } from './surface/render-ship'
 import { renderSurfaceThreats } from './surface/render-threats'
 import { renderSurfaceWorld as drawSurfaceWorld } from './surface/render-world'
+import { alienGiftOfferCopy, createBadAlienGiftThreats } from './surface/alien-gifts'
 import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurfaceBulletsAndThreatDamage } from './surface/bullet-combat'
 import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction, surfaceTakeoffRequest, surfaceTransitionProgress } from './surface/lifecycle'
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
@@ -3361,7 +3362,7 @@ export class VectorShooter {
     h.textContent = alien.name
     const copy = document.createElement('p')
     copy.className = 'copy'
-    copy.textContent = this.alienOfferCopy(alien)
+    copy.textContent = alienGiftOfferCopy(alien.gift)
     const row = document.createElement('div')
     row.className = 'button-row'
     const take = document.createElement('button')
@@ -3376,16 +3377,6 @@ export class VectorShooter {
     panel.append(h, copy, row)
     this.ui.planet.append(panel)
     this.showOnly('planet')
-  }
-
-  private alienOfferCopy(alien: SurfaceAlien) {
-    return {
-      herb: 'It unfolds a luminous herb in both hands. The suit reads medicine, poison, and prayer in equal measure.',
-      idol: 'It offers a tiny idol made of cooled lightning. The object is either a charm or a trap pretending to be polite.',
-      map: 'It draws a living map in the dust. The route keeps changing when you blink.',
-      coin: 'It flips a black coin into the air and waits for your glove to open.',
-      beacon: 'It holds up a cracked docking charter. The station signature inside is alive, frightened, and already calling your ship.'
-    }[alien.gift]
   }
 
   private resolveAlienGift(take: boolean) {
@@ -3463,19 +3454,13 @@ export class VectorShooter {
       this.surface.message = 'THE HERB BITES BACK. YOUR SUIT HATES IT.'
     } else if (alien.gift === 'idol') {
       this.damagePlayer(gift.idolDamage)
-      for (let i = 0; i < gift.idolThreatCount; i += 1) {
-        this.surface.threats.push({
-          x: clamp(alien.x + rand(-gift.idolThreatScatter, gift.idolThreatScatter), 60, this.surface.width - 60),
-          y: clamp(alien.y + rand(-gift.idolThreatScatter, gift.idolThreatScatter), 60, this.surface.height - 60),
-          vx: 0,
-          vy: 0,
-          hp: gift.idolThreatHpBase + this.stats.time * gift.idolThreatHpPerSecond,
-          radius: gift.idolThreatRadius,
-          phase: rand(0, TAU),
-          color: '#ff5d73',
-          hit: 0
-        })
-      }
+      this.surface.threats.push(...createBadAlienGiftThreats({
+        gift: alien.gift,
+        origin: alien,
+        surface: this.surface,
+        time: this.stats.time,
+        randomRange: rand
+      }))
       this.surface.message = 'THE IDOL OPENS. SMALL HUNGRY THINGS FALL OUT.'
     } else if (alien.gift === 'map') {
       this.resources.crystal = Math.max(0, this.resources.crystal - gift.mapCrystalLoss)
@@ -3487,19 +3472,13 @@ export class VectorShooter {
     } else {
       this.damagePlayer(gift.beaconDamage)
       this.surface.pilot.oxygen = Math.max(gift.beaconMinOxygen, this.surface.pilot.oxygen - gift.beaconOxygenLoss)
-      for (let i = 0; i < gift.beaconThreatCount; i += 1) {
-        this.surface.threats.push({
-          x: clamp(alien.x + rand(-gift.beaconThreatScatter, gift.beaconThreatScatter), 60, this.surface.width - 60),
-          y: clamp(alien.y + rand(-gift.beaconThreatScatter, gift.beaconThreatScatter), 60, this.surface.height - 60),
-          vx: 0,
-          vy: 0,
-          hp: gift.beaconThreatHpBase + this.stats.time * gift.beaconThreatHpPerSecond,
-          radius: gift.beaconThreatRadius,
-          phase: rand(0, TAU),
-          color: '#70a8ff',
-          hit: 0
-        })
-      }
+      this.surface.threats.push(...createBadAlienGiftThreats({
+        gift: alien.gift,
+        origin: alien,
+        surface: this.surface,
+        time: this.stats.time,
+        randomRange: rand
+      }))
       this.surface.message = 'THE DOCKING CHARTER SCREAMS. SOMETHING ANSWERS FROM UNDER THE DUST.'
     }
     this.audio.boom('surface')
