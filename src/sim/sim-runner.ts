@@ -267,7 +267,7 @@ export function runSimPlaythrough(options: SimRunOptions): SimRunResult {
     nodesCleared += 1
     events.push({ t: seconds, kind: 'nodeCleared', templateId: selected.config.templateId, secondsInNode: space.nodeSeconds })
 
-    const hullLimit = options.difficulty === 'testEasy' ? 240 : options.difficulty === 'stress' ? 190 : 210
+    const hullLimit = options.difficulty === 'testEasy' ? 240 : options.difficulty === 'stress' ? 190 : 213
     if (damageTaken >= hullLimit) {
       outcome = 'destroyed'
       deathCause = planetVisits.damageTaken > space.damageTaken && planetVisits.damageTaken > 0 ? 'surface' : space.deathCause === 'none' ? 'attrition' : space.deathCause

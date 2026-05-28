@@ -15,3 +15,11 @@ test('balanced simulation batch stays inside fast CI envelope', () => {
   expect(Object.keys(summary.planets.archetypeCounts).length).toBeGreaterThanOrEqual(target.planetArchetypeVarietyMin)
   expect(summary.balanceFlags).toEqual([])
 })
+
+test('balanced full-arc simulation preset stays inside published envelope', () => {
+  const options = { seed: 5000, runs: 100, policy: 'balanced' as const, maxSeconds: 1800, difficulty: 'normal' as const }
+  const runs = Array.from({ length: options.runs }, (_, index) => runSimPlaythrough({ ...options, seed: options.seed + index }))
+  const summary = summarizeSimBatch(options, runs)
+
+  expect(summary.balanceFlags).toEqual([])
+})
