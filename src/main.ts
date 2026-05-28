@@ -14,6 +14,7 @@ import spaceEnemyCatalogUrl from './assets/space-enemy-catalog-alpha.png'
 import surfaceSpacemanSheetUrl from './assets/surface-spaceman-sheet-alpha.png'
 import { orderArtifactArchiveCards } from './artifact-archive'
 import { collectionCatalog, collectionCatalogById, collectionIconAtlasColumns, collectionIconAtlasRows } from './collection-catalog'
+import { buildDebriefReport, type DebriefReport } from './debrief-report'
 import {
   activeBalanceProfile,
   balancedSpaceEnemyDefinition,
@@ -67,7 +68,7 @@ import {
   type SectorStationService
 } from './sector-map'
 import { pressurePackSize, shouldRecycleEnemy } from './spawn-pressure'
-import { buildStationVisitRecord, journeyDistanceLy, stationNameForNode as stationMemoryNameForNode, type StationVisitRecord } from './station-memory'
+import { buildStationVisitRecord, stationNameForNode as stationMemoryNameForNode, type StationVisitRecord } from './station-memory'
 import { advanceSpawnEntryPings, createSpawnEntryPing, type SpawnEntryPing } from './spawn-entry-feedback'
 import {
   cameraTargetFor,
@@ -357,20 +358,6 @@ export interface ArtifactRecord {
   color: string
   icon: number
   count: number
-}
-
-interface DebriefReport {
-  outcome: RunOutcomeKind
-  title: string
-  copy: string
-  resources: {
-    earned: { scrap: number; crystal: number; cores: number }
-    recovered: { scrap: number; crystal: number; cores: number }
-  }
-  discoveries: PersistentArchiveRecord[]
-  skippedBeacons: number
-  stationVisits: StationVisitRecord[]
-  lightYears: number
 }
 
 interface ReturnBeacon {
@@ -6098,12 +6085,6 @@ export class VectorShooter {
     const archiveRecords = this.currentRunArchiveRecords()
     const discoveries = Object.values(archiveRecords)
     const nodesCleared = this.sectorMap.nodes.filter((node) => node.completed && node.kind !== 'mothership').length
-    const lightYears = journeyDistanceLy({
-      nodesCleared,
-      planetsVisited: this.stats.planets,
-      stationsDocked: this.stationVisits.length,
-      skippedStations: this.skippedReturnBeacons
-    })
     this.mothership = applyRunRecovery(this.mothership, {
       outcome,
       resources: this.resources,
@@ -6116,21 +6097,16 @@ export class VectorShooter {
       crystal: this.mothership.resources.crystal - before.crystal,
       cores: this.mothership.resources.cores - before.cores
     }
-    this.debrief = {
+    this.debrief = buildDebriefReport({
       outcome,
-      title: outcome === 'destroyed' ? 'BLACK BOX RECOVERED' : outcome === 'deepExtraction' ? 'DEEP EXPEDITION EXTRACTED' : 'EXPEDITION EXTRACTED',
-      copy: outcome === 'destroyed'
-        ? 'The scout ship was lost. The mothership recovered partial cargo and all transmitted discoveries.'
-        : 'The scout ship docked at a route station. Cargo, signals, and discoveries were processed cleanly.',
-      resources: {
-        earned: { ...this.resources },
-        recovered
-      },
+      earnedResources: this.resources,
+      recoveredResources: recovered,
       discoveries,
+      nodesCleared,
+      planetsVisited: this.stats.planets,
       skippedBeacons: this.skippedReturnBeacons,
-      stationVisits: [...this.stationVisits],
-      lightYears
-    }
+      stationVisits: this.stationVisits
+    })
     this.returnBeacon = null
     this.autoNavTargetBeacon = false
     this.state = 'debrief'
