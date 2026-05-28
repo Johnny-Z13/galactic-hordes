@@ -95,6 +95,7 @@ import { renderSpawnEntryPings as drawSpawnEntryPings } from './render/spawn-ent
 import { renderImpactPulses as drawImpactPulses } from './render/impact-pulses'
 import { renderPickups as drawPickups } from './render/pickups'
 import { renderParticles as drawParticles, renderParticlesSimple as drawParticlesSimple } from './render/particles'
+import { renderShockwaves as drawShockwaves } from './render/shockwaves'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
 import { advancedRewardEnemyKinds, spaceEnemyBehavior } from './space-enemy-behavior'
 import {
@@ -5945,50 +5946,20 @@ export class VectorShooter {
   }
 
   private renderShockwaves(ctx: CanvasRenderingContext2D) {
-    ctx.save()
-    ctx.globalCompositeOperation = this.allowGlow() ? 'lighter' : 'source-over'
+    const surfaceMode = this.surface && (this.state === 'surface' || this.state === 'takeoff' || (this.state === 'landing' && this.transitionTimer / this.transitionDuration > 0.58))
     const highLoad = this.isHighLoad()
     const glow = this.allowGlow()
-    for (const w of this.shockwaves) {
-      const s = this.effectToScreen(w.x, w.y)
-      const radius = w.radius * (this.surface && (this.state === 'surface' || this.state === 'takeoff' || (this.state === 'landing' && this.transitionTimer / this.transitionDuration > 0.58)) ? 1 : this.spaceScale())
-      if (s.x + radius < -120 || s.x - radius > this.width + 120 || s.y + radius < -120 || s.y - radius > this.height + 120) continue
-      const alpha = clamp(w.life / w.maxLife, 0, 1)
-      const points = highLoad ? 10 : glow ? 28 : 18
-      ctx.save()
-      ctx.globalAlpha = alpha * 0.92
-      ctx.strokeStyle = w.color
-      ctx.shadowColor = w.color
-      ctx.shadowBlur = glow ? 42 : highLoad ? 0 : 22
-      ctx.lineWidth = (glow ? 2.6 : 2) + alpha * (glow ? 4.6 : 3)
-      ctx.beginPath()
-      for (let i = 0; i <= points; i += 1) {
-        const a = (i / points) * TAU
-        const wobble = Math.sin(a * 5 + w.jag) * 0.12 + Math.sin(a * 9 - w.jag) * 0.06
-        const r = radius * (1 + wobble)
-        const x = s.x + Math.cos(a) * r
-        const y = s.y + Math.sin(a) * r
-        if (i === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
-      }
-      ctx.stroke()
-      ctx.globalAlpha = alpha * (glow ? 0.42 : 0.25)
-      ctx.lineWidth = glow ? 12 : 8
-      ctx.stroke()
-      if (glow) {
-        ctx.globalAlpha = alpha * 0.2
-        ctx.lineWidth = 1
-        ctx.beginPath()
-        for (let i = 0; i < 10; i += 1) {
-          const a = (i / 10) * TAU + w.jag
-          ctx.moveTo(s.x + Math.cos(a) * radius * 0.18, s.y + Math.sin(a) * radius * 0.18)
-          ctx.lineTo(s.x + Math.cos(a) * radius * 0.96, s.y + Math.sin(a) * radius * 0.96)
-        }
-        ctx.stroke()
-      }
-      ctx.restore()
-    }
-    ctx.restore()
+    drawShockwaves({
+      ctx,
+      shockwaves: this.shockwaves,
+      width: this.width,
+      height: this.height,
+      glow,
+      highLoad,
+      surfaceMode: Boolean(surfaceMode),
+      scale: this.spaceScale(),
+      effectToScreen: (x, y) => this.effectToScreen(x, y)
+    })
   }
 
   private renderOrbitals(ctx: CanvasRenderingContext2D) {
