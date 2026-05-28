@@ -5,6 +5,14 @@ import { orderArtifactArchiveCards } from '../src/artifact-archive'
 import { collectionCatalog, collectionCatalogById, collectionIconAtlasColumns, collectionIconAtlasRows } from '../src/collection-catalog'
 
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+const optionalSource = (path: string) => {
+  try {
+    return readFileSync(resolve(process.cwd(), path), 'utf8')
+  } catch {
+    return ''
+  }
+}
+const screensSource = () => optionalSource('src/ui/screens.ts')
 const frontSubscreensSource = () => readFileSync(resolve(process.cwd(), 'src/ui/front-subscreens.ts'), 'utf8')
 const titleSource = () => readFileSync(resolve(process.cwd(), 'src/ui/title-screen.ts'), 'utf8')
 const workbenchSource = () => readFileSync(resolve(process.cwd(), 'src/ui/workbench.ts'), 'utf8')
@@ -46,6 +54,19 @@ test('title screen rendering lives in a focused ui module', () => {
   expect(title).toContain("start.textContent = 'Start'")
   expect(title).toContain("self['showMothership']()")
   expect(title).toContain("self['showOnly']('title')")
+})
+
+test('screen shell construction lives in a focused ui module', () => {
+  const main = source()
+  const screens = screensSource()
+
+  expect(main).toContain("import { makeScreens as uiMakeScreens } from './ui/screens'")
+  expect(main).toContain('uiMakeScreens(this)')
+  expect(main).not.toContain('const screenList = [this.ui.title')
+  expect(screens).toContain('export function makeScreens(self: VectorShooter)')
+  expect(screens).toContain('const screenList = [')
+  expect(screens).toContain("self['ui'].title")
+  expect(screens).toContain("self['ui'].gameover.className = 'screen gameover-screen'")
 })
 
 test('shipboard workbench installs directly from bay detail', () => {

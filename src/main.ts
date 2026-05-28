@@ -166,6 +166,7 @@ import { renderDebrief as uiRenderDebrief } from './ui/debrief'
 import { showScores as uiShowScores } from './ui/scores'
 import { showTitle as uiShowTitle } from './ui/title-screen'
 import { makeHud as uiMakeHud, updateHud as uiUpdateHud } from './ui/hud'
+import { makeScreens as uiMakeScreens } from './ui/screens'
 import { renderIntroArrow } from './ui/intro-waypoint'
 import {
   introHookConfig,
@@ -990,14 +991,7 @@ export class VectorShooter {
   }
 
   private makeScreens() {
-    const wrap = document.createElement('div')
-    const screenList = [this.ui.title, this.ui.collection, this.ui.powerups, this.ui.sectorMap, this.ui.station, this.ui.levelup, this.ui.planet, this.ui.gameover, this.ui.scores]
-    for (const s of screenList) {
-      s.className = 'screen'
-      wrap.append(s)
-    }
-    this.ui.gameover.className = 'screen gameover-screen'
-    return wrap
+    return uiMakeScreens(this)
   }
 
   private bind() {
