@@ -6,6 +6,7 @@ import { collectionCatalog, collectionCatalogById, collectionIconAtlasColumns, c
 
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
 const workbenchSource = () => readFileSync(resolve(process.cwd(), 'src/ui/workbench.ts'), 'utf8')
+const collectionSource = () => readFileSync(resolve(process.cwd(), 'src/ui/collection.ts'), 'utf8')
 const styles = () => readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8')
 
 test('shipboard workbench keeps discoveries in the front end collection', () => {
@@ -99,8 +100,8 @@ test('front end integrates standalone collection and power up screens', () => {
   expect(main).toContain('shell.append(header, this.renderMothershipMetaSystems())')
   expect(main).toContain("type MothershipConsoleView = 'workbench' | 'manifest'")
   expect(main).toContain("type MothershipCollectionFilter = 'all' | 'found' | 'locked' | ArtifactKind")
-  expect(main).toContain('this.collectionCards()')
-  expect(main).toContain('collectionCatalog.length')
+  expect(collectionSource()).toContain('collectionCards(self)')
+  expect(collectionSource()).toContain('collectionCatalog.length')
   expect(main).toContain("const MOTHERSHIP_STORAGE_KEY = 'galactic_hordes_mothership_v2'")
   expect(main).not.toContain('private showMothershipConsole')
   expect(css).toContain('font-family: "Rajdhani", "Oxanium"')
@@ -184,8 +185,8 @@ test('artifacts track relics aliens lore and planet finds with generated icons',
   expect(main).toContain('interface ArtifactRecord')
   expect(main).toContain('private artifacts = new Map<string, ArtifactRecord>()')
   expect(main).toContain('this.recordArtifact(')
-  expect(main).toContain('private artifactIcon(')
-  expect(main).toContain('private collectionIcon(')
+  expect(collectionSource()).toContain('export function artifactIcon(self: VectorShooter')
+  expect(collectionSource()).toContain('export function collectionIcon(self: VectorShooter')
   expect(css).toContain('.artifact-icon')
   expect(css).toContain('.artifact-grid')
   expect(css).toContain('.collection-icon-grid')
@@ -221,21 +222,21 @@ test('collection atlas has enough unique cells for every catalog entry', () => {
   expect(atlas.toString('ascii', 1, 4)).toBe('PNG')
   expect(atlas.readUInt32BE(16)).toBe(collectionIconAtlasColumns * 96)
   expect(atlas.readUInt32BE(20)).toBe(collectionIconAtlasRows * 96)
-  expect(source()).toContain('collectionIconAtlasColumns')
-  expect(source()).toContain('collectionIconAtlasRows')
-  expect(source()).toContain('icon.style.backgroundSize')
+  expect(collectionSource()).toContain('collectionIconAtlasColumns')
+  expect(collectionSource()).toContain('collectionIconAtlasRows')
+  expect(collectionSource()).toContain('icon.style.backgroundSize')
 })
 
 test('collection screen supports Vampire Survivors style category filters and detail footer', () => {
-  const main = source()
+  const collection = collectionSource()
   const css = styles()
 
-  expect(main).toContain("this.collectionFilterButton('all')")
-  expect(main).toContain("this.collectionFilterButton('enemy')")
-  expect(main).toContain("this.collectionFilterButton('planet')")
-  expect(main).toContain("if (this.mothershipCollectionFilter !== 'all')")
-  expect(main).toContain('private collectionKindLabel')
-  expect(main).toContain("selected.locked ? 'LOCKED' : 'DISCOVERED'")
+  expect(collection).toContain("collectionFilterButton(self, 'all')")
+  expect(collection).toContain("collectionFilterButton(self, 'enemy')")
+  expect(collection).toContain("collectionFilterButton(self, 'planet')")
+  expect(collection).toContain("if (self['mothershipCollectionFilter'] !== 'all')")
+  expect(collection).toContain('export function collectionKindLabel')
+  expect(collection).toContain("selected.locked ? 'LOCKED' : 'DISCOVERED'")
   expect(css).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))')
   expect(css).toContain('.collection-detail small')
 })
@@ -245,8 +246,8 @@ test('collection screen uses canonical catalog icons for found records', () => {
 
   expect(main).toContain('collectionCatalogById.get(record.id)')
   expect(main).toContain('icon: collectionEntry.icon')
-  expect(main).toContain('icon: entry.icon')
-  expect(main).toContain('color: entry.color')
+  expect(collectionSource()).toContain('icon: entry.icon')
+  expect(collectionSource()).toContain('color: entry.color')
 })
 
 test('artifact archive lists found cards before locked unknowns', () => {
