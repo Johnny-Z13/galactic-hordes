@@ -1,4 +1,5 @@
-import { dist2, norm } from './math-utils'
+import { pickupBalance } from './powerup-balance'
+import { clamp, dist2, norm, TAU } from './math-utils'
 import { pickupMagnetRange, pickupMagnetStrength, type PickupMagnetInput, type PickupMagnetKind } from './pickup-magnet'
 
 export type PickupKind = PickupMagnetKind
@@ -15,6 +16,65 @@ export interface Pickup {
   color: string
   /** Frames spent in magnet pull range; drives glint emit cadence. */
   glintFrame?: number
+}
+
+export interface DropPickupInput {
+  pickups: Pickup[]
+  kind: PickupKind
+  x: number
+  y: number
+  value: number
+  highLoad: boolean
+  maxPickups: number
+  random?: () => number
+}
+
+const pickupColor = (kind: PickupKind) => (
+  kind === 'xp' ? '#57fff3' : kind === 'repair' ? '#8fff7d' : kind === 'chest' ? '#fff27a' : '#b990ff'
+)
+
+const pickupRadius = (kind: PickupKind) => (
+  kind === 'chest' ? pickupBalance.chestRadius : kind === 'xp' ? pickupBalance.xp.radius : pickupBalance.defaultRadius
+)
+
+const randomBetween = (min: number, max: number, random: () => number) => min + random() * (max - min)
+
+export function dropPickup(input: DropPickupInput) {
+  const random = input.random ?? Math.random
+  if (input.kind === 'xp' && input.highLoad) {
+    for (const pickup of input.pickups) {
+      if (pickup.kind !== 'xp') continue
+      const dx = pickup.x - input.x
+      const dy = pickup.y - input.y
+      if (dx * dx + dy * dy > pickupBalance.xp.mergeDistance * pickupBalance.xp.mergeDistance) continue
+      pickup.value += input.value
+      pickup.life = Math.max(pickup.life, 22)
+      pickup.radius = clamp(pickup.radius + pickupBalance.xp.mergeRadiusStep, pickupBalance.xp.radius, pickupBalance.xp.mergeRadiusMax)
+      pickup.vx += randomBetween(-18, 18, random)
+      pickup.vy += randomBetween(-18, 18, random)
+      return
+    }
+  }
+
+  if (input.pickups.length >= input.maxPickups) {
+    const xpIndex = input.pickups.findIndex((pickup) => pickup.kind === 'xp')
+    if (xpIndex >= 0) input.pickups.splice(xpIndex, 1)
+    else input.pickups.shift()
+  }
+
+  const angle = random() * TAU
+  const speed = randomBetween(pickupBalance.scatterSpeedMin, pickupBalance.scatterSpeedMax, random)
+  input.pickups.push({
+    kind: input.kind,
+    x: input.x,
+    y: input.y,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    value: input.value,
+    radius: pickupRadius(input.kind),
+    life: input.kind === 'xp' ? pickupBalance.xp.lifeSeconds : pickupBalance.persistentLifeSeconds,
+    color: pickupColor(input.kind)
+  })
 }
 
 interface PickupPlayer {

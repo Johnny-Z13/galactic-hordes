@@ -31,7 +31,7 @@ import { canLockPlanetCourse, nearestPlanetCourseTarget, planetCourseLockToast }
 import { applyMutationXp } from './mutation-progress'
 import { selectPlanetBiome, type PlanetBiomeProfile } from './planet-biomes'
 import { planetNameFor } from './planet-names'
-import { updatePickupsPhysics, type Pickup, type PickupKind } from './pickups'
+import { dropPickup, updatePickupsPhysics, type Pickup, type PickupKind } from './pickups'
 import { planetRadius } from './planet-sizing'
 import { runBalance } from './run-balance'
 import { scoreEntryFromRun, type ScoreEntry } from './score-history'
@@ -2503,30 +2503,15 @@ export class VectorShooter {
   }
 
   private drop(kind: PickupKind, x: number, y: number, value: number) {
-    if (kind === 'xp' && this.isHighLoad()) {
-      for (const pickup of this.pickups) {
-        if (pickup.kind !== 'xp') continue
-        const dx = pickup.x - x
-        const dy = pickup.y - y
-        if (dx * dx + dy * dy > pickupBalance.xp.mergeDistance * pickupBalance.xp.mergeDistance) continue
-        pickup.value += value
-        pickup.life = Math.max(pickup.life, 22)
-        pickup.radius = clamp(pickup.radius + pickupBalance.xp.mergeRadiusStep, pickupBalance.xp.radius, pickupBalance.xp.mergeRadiusMax)
-        pickup.vx += rand(-18, 18)
-        pickup.vy += rand(-18, 18)
-        return
-      }
-    }
-    if (this.pickups.length >= MAX_PICKUPS) {
-      const xpIndex = this.pickups.findIndex((pickup) => pickup.kind === 'xp')
-      if (xpIndex >= 0) this.pickups.splice(xpIndex, 1)
-      else this.pickups.shift()
-    }
-    const a = Math.random() * TAU
-    const speed = rand(pickupBalance.scatterSpeedMin, pickupBalance.scatterSpeedMax)
-    const color = kind === 'xp' ? '#57fff3' : kind === 'repair' ? '#8fff7d' : kind === 'chest' ? '#fff27a' : '#b990ff'
-    const radius = kind === 'chest' ? pickupBalance.chestRadius : kind === 'xp' ? pickupBalance.xp.radius : pickupBalance.defaultRadius
-    this.pickups.push({ kind, x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, value, radius, life: kind === 'xp' ? pickupBalance.xp.lifeSeconds : pickupBalance.persistentLifeSeconds, color })
+    dropPickup({
+      pickups: this.pickups,
+      kind,
+      x,
+      y,
+      value,
+      highLoad: this.isHighLoad(),
+      maxPickups: MAX_PICKUPS
+    })
   }
 
   private collect(p: Pickup) {

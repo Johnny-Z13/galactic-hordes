@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pickupBalance } from '../src/powerup-balance'
-import { updatePickupsPhysics, type Pickup } from '../src/pickups'
+import { dropPickup, updatePickupsPhysics, type Pickup } from '../src/pickups'
 
 const mainSource = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
 const mainUpdatePickupsSource = () => {
@@ -24,6 +24,11 @@ const xpDrop = (overrides: Partial<Pickup> = {}): Pickup => ({
   color: '#57fff3',
   ...overrides
 })
+
+const sequence = (...values: number[]) => {
+  let index = 0
+  return () => values[index++ % values.length]
+}
 
 test('pickup physics collects touched drops and removes expired drops', () => {
   const touched = xpDrop({ x: 8, y: 0 })
@@ -60,6 +65,58 @@ test('pickup physics emits magnet glints while pulling drops', () => {
   expect(pickup.glintFrame).toBe(6)
 })
 
+test('drop helper merges nearby high-load xp drops', () => {
+  const existing = xpDrop({ x: 10, y: 0, value: 2, life: 1 })
+  const pickups = [existing]
+
+  dropPickup({
+    pickups,
+    kind: 'xp',
+    x: 0,
+    y: 0,
+    value: 3,
+    highLoad: true,
+    maxPickups: 8,
+    random: sequence(0.5, 0.5)
+  })
+
+  expect(pickups).toEqual([existing])
+  expect(existing.value).toBe(5)
+  expect(existing.life).toBe(22)
+  expect(existing.radius).toBe(pickupBalance.xp.radius + pickupBalance.xp.mergeRadiusStep)
+  expect(existing.vx).toBe(0)
+  expect(existing.vy).toBe(0)
+})
+
+test('drop helper evicts xp first and scatters new pickups deterministically at cap', () => {
+  const kept = xpDrop({ kind: 'chest', color: '#fff27a', value: 1 })
+  const pickups = [xpDrop(), kept]
+
+  dropPickup({
+    pickups,
+    kind: 'repair',
+    x: 5,
+    y: 7,
+    value: 12,
+    highLoad: false,
+    maxPickups: 2,
+    random: sequence(0, 0.5)
+  })
+
+  expect(pickups[0]).toBe(kept)
+  expect(pickups[1]).toMatchObject({
+    kind: 'repair',
+    x: 5,
+    y: 7,
+    value: 12,
+    radius: pickupBalance.defaultRadius,
+    life: pickupBalance.persistentLifeSeconds,
+    color: '#8fff7d'
+  })
+  expect(pickups[1].vx).toBeCloseTo((pickupBalance.scatterSpeedMin + pickupBalance.scatterSpeedMax) / 2)
+  expect(pickups[1].vy).toBeCloseTo(0)
+})
+
 test('opening xp assist pulls early drops from farther away only during the opening', () => {
   const openingPickup = xpDrop({ x: 400 })
   const latePickup = xpDrop({ x: 400 })
@@ -91,4 +148,11 @@ test('main delegates pickup physics to the focused pickup module', () => {
   expect(updatePickups).toContain('updatePickupsPhysics({')
   expect(updatePickups).toContain('elapsed: this.stats.time')
   expect(updatePickups).not.toContain('const magnet = pickupMagnetRange(p.kind, magnetInput)')
+})
+
+test('main delegates pickup drops to the focused pickup module', () => {
+  const main = mainSource()
+
+  expect(main).toContain('dropPickup({')
+  expect(main).not.toContain("const color = kind === 'xp' ? '#57fff3'")
 })
