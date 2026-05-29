@@ -184,7 +184,6 @@ import {
   isMothershipDepartmentUnlocked,
   mothershipDepartments,
   mothershipDepartmentUnlockText,
-  normalizeMothershipState,
   purchaseMothershipTier,
   type MothershipDepartmentId,
   type MothershipState,
@@ -202,6 +201,11 @@ import {
   returnBeaconReadyForRoute,
   type ReturnBeaconState
 } from './return-beacons'
+import {
+  MOTHERSHIP_STORAGE_KEY,
+  loadMothershipState,
+  saveMothershipState
+} from './mothership-storage'
 import {
   workbenchUnlockEdges,
   workbenchUpgradeRows,
@@ -428,7 +432,6 @@ const CHUNK_LOAD_RADIUS = 1
 const CHUNK_KEEP_RADIUS = 3
 const GRAPHICS_STORAGE_KEY = 'galactic_hordes_graphics_v1'
 const LEGACY_GRAPHICS_STORAGE_KEYS = ['vector_shooter_graphics']
-const MOTHERSHIP_STORAGE_KEY = 'galactic_hordes_mothership_v2'
 const MAX_PARTICLES = 300
 const MAX_SHOCKWAVES = 12
 const MAX_BULLETS = 220
@@ -4652,15 +4655,11 @@ export class VectorShooter {
   }
 
   private loadMothership() {
-    try {
-      return normalizeMothershipState(JSON.parse(localStorage.getItem(MOTHERSHIP_STORAGE_KEY) || 'null'))
-    } catch {
-      return defaultMothershipState()
-    }
+    return loadMothershipState(localStorage)
   }
 
   private saveMothership() {
-    localStorage.setItem(MOTHERSHIP_STORAGE_KEY, JSON.stringify(this.mothership))
+    saveMothershipState(localStorage, this.mothership)
   }
 
   private saveScore() {

@@ -21,6 +21,7 @@ const collectionSource = () => readFileSync(resolve(process.cwd(), 'src/ui/colle
 const artifactArchiveSource = () => readFileSync(resolve(process.cwd(), 'src/artifact-archive.ts'), 'utf8')
 const mothershipSource = () => readFileSync(resolve(process.cwd(), 'src/ui/mothership-console.ts'), 'utf8')
 const scoresSource = () => readFileSync(resolve(process.cwd(), 'src/ui/scores.ts'), 'utf8')
+const mothershipStorageSource = () => readFileSync(resolve(process.cwd(), 'src/mothership-storage.ts'), 'utf8')
 const styles = () => readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8')
 
 test('shipboard workbench keeps discoveries in the front end collection', () => {
@@ -181,7 +182,7 @@ test('front end integrates standalone collection and power up screens', () => {
   expect(main).toContain("type MothershipCollectionFilter = 'all' | 'found' | 'locked' | ArtifactKind")
   expect(collectionSource()).toContain('collectionCards(self)')
   expect(collectionSource()).toContain('collectionCatalog.length')
-  expect(main).toContain("const MOTHERSHIP_STORAGE_KEY = 'galactic_hordes_mothership_v2'")
+  expect(mothershipStorageSource()).toContain("export const MOTHERSHIP_STORAGE_KEY = 'galactic_hordes_mothership_v2'")
   expect(main).not.toContain('private showMothershipConsole')
   expect(css).toContain('font-family: "Rajdhani", "Oxanium"')
   expect(css).toContain('.collection-route-screen')
