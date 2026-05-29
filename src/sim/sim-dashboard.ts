@@ -54,6 +54,7 @@ function renderSummary(summary: SimBatchSummary) {
     ${metricCard('First Kill', formatSeconds(summary.firstMinute.medianFirstKillSec))}
     ${metricCard('Kills 0-60s', summary.firstMinute.averageKillsFirst60Sec.toFixed(1))}
     ${metricCard('First Landing', formatSeconds(summary.firstMinute.medianFirstLandingSec))}
+    ${metricCard('First Workbench', formatSeconds(summary.firstMinute.medianFirstWorkbenchSec))}
     ${metricCard('Avg Nodes', summary.route.averageNodesCleared.toFixed(1))}
     ${metricCard('Final Reached', `${summary.route.finalReached}/${summary.options.runs}`)}
     ${metricCard('Median Final Clear', summary.route.medianFinalClearSeconds === null ? 'none' : formatSeconds(summary.route.medianFinalClearSeconds))}
@@ -81,6 +82,8 @@ function renderSummary(summary: SimBatchSummary) {
           <th>Outcome</th>
           <th>Time</th>
           <th>First Kill</th>
+          <th>First Landing</th>
+          <th>First Workbench</th>
           <th>Nodes</th>
           <th>Planets</th>
           <th>Damage</th>
@@ -96,6 +99,8 @@ function renderSummary(summary: SimBatchSummary) {
             <td>${escapeHtml(run.outcome)}</td>
             <td>${formatSeconds(run.seconds)}</td>
             <td>${run.firstMinute.firstKillSec === null ? '-' : formatSeconds(run.firstMinute.firstKillSec)}</td>
+            <td>${run.firstMinute.firstLandingSec === null ? '-' : formatSeconds(run.firstMinute.firstLandingSec)}</td>
+            <td>${run.firstMinute.firstWorkbenchSec === null ? '-' : formatSeconds(run.firstMinute.firstWorkbenchSec)}</td>
             <td>${run.nodesCleared}</td>
             <td>${run.planetsLanded}</td>
             <td>${run.damageTaken}</td>
