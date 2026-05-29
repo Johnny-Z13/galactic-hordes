@@ -46,12 +46,16 @@ import { runBalance } from './run-balance'
 import { resolveFinishedRun } from './run/finish-run'
 import type { ScoreEntry } from './score-history'
 import {
-  LEGACY_SCORE_STORAGE_KEYS,
-  SCORE_STORAGE_KEY,
   loadScoreEntries,
   sanitizeScoreName,
   saveScoreEntry
 } from './score-storage'
+import {
+  GRAPHICS_STORAGE_KEY,
+  LEGACY_GRAPHICS_STORAGE_KEYS,
+  clearPersistentProgressStorage as clearStoredPersistentProgress,
+  storageValueWithFallback
+} from './persistent-progress-storage'
 import { advanceScorePopups, appendScorePopup, createInstallPopup, createScorePopup, createSignalPopup, type ScorePopupModel } from './score-popups'
 import { resolveShipFlightStats } from './ship-flight-stats'
 import { rollWorkbenchChoices, type WorkbenchChoice } from './workbench-choices'
@@ -202,7 +206,6 @@ import {
   type ReturnBeaconState
 } from './return-beacons'
 import {
-  MOTHERSHIP_STORAGE_KEY,
   loadMothershipState,
   saveMothershipState
 } from './mothership-storage'
@@ -430,8 +433,6 @@ interface PerfStats {
 const CHUNK_SIZE = 3600
 const CHUNK_LOAD_RADIUS = 1
 const CHUNK_KEEP_RADIUS = 3
-const GRAPHICS_STORAGE_KEY = 'galactic_hordes_graphics_v1'
-const LEGACY_GRAPHICS_STORAGE_KEYS = ['vector_shooter_graphics']
 const MAX_PARTICLES = 300
 const MAX_SHOCKWAVES = 12
 const MAX_BULLETS = 220
@@ -442,11 +443,7 @@ const ENEMY_PRESSURE_RADIUS = 1250
 
 const rand = (min: number, max: number) => min + Math.random() * (max - min)
 
-const localStorageWithFallback = (primaryKey: string, legacyKeys: string[]) => (
-  localStorage.getItem(primaryKey) ?? legacyKeys.map((key) => localStorage.getItem(key)).find((value) => value !== null) ?? null
-)
-
-const savedGraphicsMode = (): GraphicsMode => (localStorageWithFallback(GRAPHICS_STORAGE_KEY, LEGACY_GRAPHICS_STORAGE_KEYS) as GraphicsMode | null) || 'LOW'
+const savedGraphicsMode = (): GraphicsMode => (storageValueWithFallback(localStorage, GRAPHICS_STORAGE_KEY, LEGACY_GRAPHICS_STORAGE_KEYS) as GraphicsMode | null) || 'LOW'
 const angleLerp = (a: number, b: number, t: number) => {
   const diff = Math.atan2(Math.sin(b - a), Math.cos(b - a))
   return a + diff * t
@@ -4639,19 +4636,7 @@ export class VectorShooter {
   }
 
   private clearPersistentProgressStorage() {
-    const keys = Object.keys(localStorage)
-    for (const key of keys) {
-      if (
-        key === SCORE_STORAGE_KEY
-        || LEGACY_SCORE_STORAGE_KEYS.includes(key)
-        || key === GRAPHICS_STORAGE_KEY
-        || LEGACY_GRAPHICS_STORAGE_KEYS.includes(key)
-        || key === MOTHERSHIP_STORAGE_KEY
-        || key.startsWith('galactic_hordes_')
-      ) {
-        localStorage.removeItem(key)
-      }
-    }
+    clearStoredPersistentProgress(localStorage)
   }
 
   private loadMothership() {

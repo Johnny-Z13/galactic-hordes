@@ -22,6 +22,7 @@ const artifactArchiveSource = () => readFileSync(resolve(process.cwd(), 'src/art
 const mothershipSource = () => readFileSync(resolve(process.cwd(), 'src/ui/mothership-console.ts'), 'utf8')
 const scoresSource = () => readFileSync(resolve(process.cwd(), 'src/ui/scores.ts'), 'utf8')
 const mothershipStorageSource = () => readFileSync(resolve(process.cwd(), 'src/mothership-storage.ts'), 'utf8')
+const persistentProgressStorageSource = () => readFileSync(resolve(process.cwd(), 'src/persistent-progress-storage.ts'), 'utf8')
 const styles = () => readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8')
 
 test('shipboard workbench keeps discoveries in the front end collection', () => {
@@ -425,10 +426,11 @@ test('scores screen can reset persistent progress back to first play', () => {
   expect(scores).toContain("reset.textContent = 'Confirm Reset'")
   expect(scores).toContain("self['resetPersistentProgress']()")
   expect(main).toContain('private resetPersistentProgress()')
-  expect(main).toContain('key === SCORE_STORAGE_KEY')
-  expect(main).toContain('LEGACY_SCORE_STORAGE_KEYS.includes(key)')
-  expect(main).toContain('key === MOTHERSHIP_STORAGE_KEY')
-  expect(main).toContain('localStorage.removeItem(key)')
+  expect(main).toContain('clearStoredPersistentProgress(localStorage)')
+  expect(persistentProgressStorageSource()).toContain('key === SCORE_STORAGE_KEY')
+  expect(persistentProgressStorageSource()).toContain('LEGACY_SCORE_STORAGE_KEYS.includes(key)')
+  expect(persistentProgressStorageSource()).toContain('key === MOTHERSHIP_STORAGE_KEY')
+  expect(persistentProgressStorageSource()).toContain('storage.removeItem(key)')
   expect(main).toContain('this.mothership = defaultMothershipState()')
   expect(main).toContain('this.stats.highScore = 0')
   expect(main).toContain('this.showTitle()')

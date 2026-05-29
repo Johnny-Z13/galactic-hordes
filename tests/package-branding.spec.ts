@@ -16,11 +16,12 @@ test('package metadata uses the Galactic Hordes project name', () => {
 test('browser storage writes use Galactic Hordes keys with legacy fallbacks', () => {
   const main = readFileSync('src/main.ts', 'utf8')
   const scoreStorage = readFileSync('src/score-storage.ts', 'utf8')
+  const progressStorage = readFileSync('src/persistent-progress-storage.ts', 'utf8')
 
   expect(scoreStorage).toContain("export const SCORE_STORAGE_KEY = 'galactic_hordes_high_scores_v1'")
   expect(scoreStorage).toContain("export const LEGACY_SCORE_STORAGE_KEYS = ['vector_shooter_high_scores']")
-  expect(main).toContain("const GRAPHICS_STORAGE_KEY = 'galactic_hordes_graphics_v1'")
-  expect(main).toContain("const LEGACY_GRAPHICS_STORAGE_KEYS = ['vector_shooter_graphics']")
+  expect(progressStorage).toContain("export const GRAPHICS_STORAGE_KEY = 'galactic_hordes_graphics_v1'")
+  expect(progressStorage).toContain("export const LEGACY_GRAPHICS_STORAGE_KEYS = ['vector_shooter_graphics']")
   expect(scoreStorage).toContain('storage.setItem(SCORE_STORAGE_KEY')
   expect(main).toContain('localStorage.setItem(GRAPHICS_STORAGE_KEY')
   expect(main).not.toContain("localStorage.setItem('vector_shooter_graphics'")
