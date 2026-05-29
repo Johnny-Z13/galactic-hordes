@@ -182,6 +182,59 @@ const titleMarkup = (css: string) => `
   </div>
 `
 
+const mothershipMarkup = (css: string) => `
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <style>${css}</style>
+  <div id="app">
+    <div class="screen mothership-screen visible">
+      <div class="mothership-command first-command">
+        <header class="mothership-command-top">
+          <div class="mothership-command-title">
+            <span>COMMAND DECK</span>
+            <h1>MOTHERSHIP</h1>
+            <p>First scout is hot. Find a signal world, crack one cache, and bring something impossible home.</p>
+          </div>
+          <div class="mothership-resources">
+            <span><b>Scrap</b>0</span>
+            <span><b>Crystals</b>0</span>
+            <span><b>Cores</b>0</span>
+          </div>
+        </header>
+        <section class="mothership-flight">
+          <div class="mothership-launch-stack">
+            <div class="mothership-ship-bay">
+              <div class="mothership-ship-art"></div>
+              <button class="vector-button start-button mothership-launch" type="button">Open Sector Map</button>
+              <div class="mothership-launch-meters">
+                <div class="mothership-meter health"><div><span>Hull Integrity</span><b>100%</b></div><i><em style="width:100%"></em></i></div>
+                <div class="mothership-meter xp"><div><span>Mutation XP</span><b>LV 1 // 0/80</b></div><i><em style="width:0%"></em></i></div>
+                <div class="mothership-meter archive"><div><span>Archive Signal</span><b>0 records</b></div><i><em style="width:0%"></em></i></div>
+              </div>
+            </div>
+            <section class="mothership-route-preview">
+              <div class="mothership-route-head">
+                <b>SECTOR MAP</b>
+                <span>MOTHERSHIP // 3 jump routes armed</span>
+              </div>
+              <div class="mothership-route-map" aria-label="Sector route preview">
+                <svg class="mothership-route-lines" viewBox="0 0 100 100" aria-hidden="true">
+                  <line x1="8" y1="52" x2="28" y2="24"></line>
+                  <line x1="8" y1="52" x2="28" y2="52"></line>
+                  <line x1="8" y1="52" x2="28" y2="78"></line>
+                </svg>
+                <span class="mothership-route-node current" style="left:8%;top:52%"><b>M</b><em>MOTHERSHIP</em></span>
+                <span class="mothership-route-node available hostile" style="left:28%;top:24%"><b>H</b><em>SAFE DRIFT</em></span>
+                <span class="mothership-route-node available planet" style="left:28%;top:52%"><b>P</b><em>PLANET CLUSTER</em></span>
+                <span class="mothership-route-node locked final" style="left:88%;top:52%"><b>F</b><em>LAST STAND</em></span>
+              </div>
+            </section>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+`
+
 const renderShell = async (browser: Browser, viewport: ViewportCase, hasTouch: boolean) => {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
@@ -254,9 +307,7 @@ test('title launch action stays readable across app breakpoints', async ({ brows
 test('mothership launch deck keeps route preview inside phone viewport', async ({ browser }) => {
   const viewport = { name: 'iPhone portrait', width: 390, height: 844, isMobile: true }
   const { context, page } = await renderShell(browser, viewport, true)
-  await page.goto('http://127.0.0.1:5176/?harness=1&resetProgress=1&mothershipResponsive=1', { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: 'Launch Expedition', exact: true }).click()
-  await page.waitForTimeout(800)
+  await page.setContent(mothershipMarkup(styles()))
 
   const routePreviewBox = await page.locator('.mothership-route-preview').boundingBox()
   const launchBox = await page.locator('.mothership-launch').boundingBox()

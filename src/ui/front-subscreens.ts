@@ -1,35 +1,67 @@
-import type { VectorShooter } from '../main'
+import type { GameState } from '../game-states'
 import { renderCollectionScreen } from './collection'
 import { renderMothershipMetaSystems } from './mothership-console'
 
-export function showCollection(self: VectorShooter, options: { scrollTop?: number } = {}) {
-  self['state'] = 'collection'
-  self['ui'].collection.innerHTML = ''
-  self['ui'].collection.className = 'screen collection-route-screen'
+interface FrontSubscreenView extends Object {}
+
+type CollectionRendererView = Parameters<typeof renderCollectionScreen>[0]
+type MothershipMetaRendererView = Parameters<typeof renderMothershipMetaSystems>[0]
+
+interface FrontSubscreenRuntime {
+  state: GameState
+  ui: {
+    collection: HTMLElement
+    powerups: HTMLElement
+  }
+  mothership: {
+    archive: {
+      records: Record<string, unknown>
+    }
+    resources: {
+      scrap: number
+      crystal: number
+      cores: number
+    }
+  }
+  showTitle(): void
+  showOnly(which: GameState): void
+  restoreFrontScreenScroll(screen: 'collection' | 'powerups', scrollTop?: number): void
+}
+
+function frontSubscreenRuntime(self: FrontSubscreenView) {
+  return self as FrontSubscreenRuntime
+}
+
+export function showCollection(self: FrontSubscreenView & CollectionRendererView, options: { scrollTop?: number } = {}) {
+  const runtime = frontSubscreenRuntime(self)
+  runtime.state = 'collection'
+  runtime.ui.collection.innerHTML = ''
+  runtime.ui.collection.className = 'screen collection-route-screen'
   const shell = document.createElement('div')
   shell.className = 'front-subscreen collection-subscreen'
   const header = document.createElement('header')
   header.className = 'front-subscreen-head'
   header.innerHTML = `
       <div><span>RELICS / COLLECTION</span><h1>ARCHIVE</h1></div>
-      <p>${Object.keys(self['mothership'].archive.records).length} recovered records stored in mothership memory.</p>
+      <p>${Object.keys(runtime.mothership.archive.records).length} recovered records stored in mothership memory.</p>
     `
   const back = document.createElement('button')
   back.className = 'vector-button secondary'
   back.type = 'button'
   back.textContent = 'Back'
-  back.addEventListener('click', () => self['showTitle']())
+  back.addEventListener('click', () => runtime.showTitle())
   header.append(back)
   shell.append(header, renderCollectionScreen(self))
-  self['ui'].collection.append(shell)
-  self['showOnly']('collection')
-  self['restoreFrontScreenScroll']('collection', options.scrollTop)
+  runtime.ui.collection.append(shell)
+  runtime.showOnly('collection')
+  runtime.restoreFrontScreenScroll('collection', options.scrollTop)
 }
 
-export function showPowerUps(self: VectorShooter, options: { scrollTop?: number } = {}) {
-  self['state'] = 'powerups'
-  self['ui'].powerups.innerHTML = ''
-  self['ui'].powerups.className = 'screen powerups-route-screen'
+export function showPowerUps(self: FrontSubscreenView & MothershipMetaRendererView, options: { scrollTop?: number } = {}) {
+  const runtime = frontSubscreenRuntime(self)
+  runtime.state = 'powerups'
+  runtime.ui.powerups.innerHTML = ''
+  runtime.ui.powerups.className = 'screen powerups-route-screen'
   const shell = document.createElement('div')
   shell.className = 'front-subscreen powerups-subscreen'
   const header = document.createElement('header')
@@ -41,18 +73,18 @@ export function showPowerUps(self: VectorShooter, options: { scrollTop?: number 
   const resources = document.createElement('div')
   resources.className = 'mothership-resources front-subscreen-resources'
   resources.innerHTML = `
-      <span><b>Scrap</b>${self['mothership'].resources.scrap}</span>
-      <span><b>Crystals</b>${self['mothership'].resources.crystal}</span>
-      <span><b>Cores</b>${self['mothership'].resources.cores}</span>
+      <span><b>Scrap</b>${runtime.mothership.resources.scrap}</span>
+      <span><b>Crystals</b>${runtime.mothership.resources.crystal}</span>
+      <span><b>Cores</b>${runtime.mothership.resources.cores}</span>
     `
   const back = document.createElement('button')
   back.className = 'vector-button secondary'
   back.type = 'button'
   back.textContent = 'Back'
-  back.addEventListener('click', () => self['showTitle']())
+  back.addEventListener('click', () => runtime.showTitle())
   header.append(resources, back)
   shell.append(header, renderMothershipMetaSystems(self))
-  self['ui'].powerups.append(shell)
-  self['showOnly']('powerups')
-  self['restoreFrontScreenScroll']('powerups', options.scrollTop)
+  runtime.ui.powerups.append(shell)
+  runtime.showOnly('powerups')
+  runtime.restoreFrontScreenScroll('powerups', options.scrollTop)
 }
