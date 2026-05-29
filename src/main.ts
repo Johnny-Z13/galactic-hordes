@@ -35,6 +35,7 @@ import {
 } from './game-balance'
 import { resolveDashStats } from './dash-stats'
 import { navigationCruiseScalar, navigationTrailProfile } from './navigation-cruise'
+import { bestNavigationPickup } from './navigation-pickups'
 import { canLockPlanetCourse, nearestPlanetCourseTarget, planetCourseLockToast } from './navigation-planet-lock'
 import { applyMutationXp } from './mutation-progress'
 import { createChunkPlanet, type GeneratedPlanet } from './planet-generation'
@@ -1273,23 +1274,12 @@ export class VectorShooter {
   }
 
   private bestNavigationPickup() {
-    let best: Pickup | null = null
-    let bestScore = 0
-    const reach = powerupBalance.ship.navPickupReachBase
-      + this.build.nav * powerupBalance.ship.navPickupReachPerNavRank
-      + this.build.magnet * powerupBalance.ship.navPickupReachPerMagnetRank
-    const reach2 = reach * reach
-    for (const pickup of this.pickups) {
-      const d = dist2(pickup, this.player)
-      if (d > reach2) continue
-      const kindValue = pickup.kind === 'chest' ? 9 : pickup.kind === 'core' ? 7 : pickup.kind === 'repair' ? 5 : pickup.kind === 'magnet' ? 4 : 1
-      const score = kindValue / Math.max(powerupBalance.ship.navPickupMinScoreDistance, d)
-      if (score > bestScore) {
-        bestScore = score
-        best = pickup
-      }
-    }
-    return best
+    return bestNavigationPickup({
+      pickups: this.pickups,
+      player: this.player,
+      navRank: this.build.nav,
+      magnetRank: this.build.magnet
+    })
   }
 
   private updateReturnBeacon(dt: number) {
