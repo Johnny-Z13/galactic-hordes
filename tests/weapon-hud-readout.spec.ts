@@ -11,9 +11,9 @@ test('main wires the weapon hud readout into the gameplay hud', () => {
   expect(hud).toContain("weaponHudReadout")
   expect(main).toContain('weapon: document.createElement')
   expect(main).not.toContain('private chip(')
-  expect(hud).toContain("const weapon = chip('WEAPON', self['ui'].weapon, 'weapon wide')")
+  expect(hud).toContain("const weapon = chip('WEAPON', runtime.ui.weapon, 'weapon wide')")
   expect(hud).toContain('const weaponReadout = weaponHudReadout({')
-  expect(hud).toContain("self['ui'].weapon.textContent = weaponReadout.text")
+  expect(hud).toContain('runtime.ui.weapon.textContent = weaponReadout.text')
 })
 
 test('css keeps the weapon readout compact in the hud', () => {

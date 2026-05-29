@@ -30,9 +30,9 @@ test('main delegates mutation xp thresholds through a shared progression helper'
   expect(main).toContain('const levelsGained = applyMutationXp(this.stats, pickup.mutationXp)')
   expect(main).not.toContain('while (this.stats.xp >= this.stats.nextXp)')
   expect(hud).toContain("import { mutationSignalAlmostReady, mutationXpReadout } from '../mutation-progress'")
-  expect(hud).toContain("self['ui'].level.textContent = mutationXpReadout(self['stats'])")
-  expect(hud).toContain("self['ui'].xpFill.classList.toggle('near-signal', mutationSignalAlmostReady(self['stats']))")
-  expect(hud).toContain("self['ui'].xpFill.classList.toggle('near-signal', false)")
+  expect(hud).toContain('runtime.ui.level.textContent = mutationXpReadout(runtime.stats)')
+  expect(hud).toContain("runtime.ui.xpFill.classList.toggle('near-signal', mutationSignalAlmostReady(runtime.stats))")
+  expect(hud).toContain("runtime.ui.xpFill.classList.toggle('near-signal', false)")
 })
 
 test('mutation xp readout shows level and next signal progress compactly', () => {

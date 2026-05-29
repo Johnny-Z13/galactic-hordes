@@ -121,7 +121,7 @@ test('route station is reinforced by HUD distance reminder and docking assist', 
   expect(main).toContain('SPACE STATION AVAILABLE - TAP DOCK TO LOCK')
   expect(main).toContain('SPACE STATION WAITING - TAP DOCK TO LOCK')
   expect(main).toContain('DOCKING COURSE SET - NUDGE AWAY TO SKIP')
-  expect(hud).toContain("STATION ${Math.floor(Math.sqrt(dist2(self['returnBeacon'], self['player'])))}")
+  expect(hud).toContain('STATION ${Math.floor(Math.sqrt(dist2(runtime.returnBeacon, runtime.player)))}')
   expect(main).toContain('advanceReturnBeacon({')
   expect(beacons).toContain('RETURN_BEACON_ASSIST_SECONDS')
   expect(beacons).toContain('RETURN_BEACON_SKIP_DISTANCE')

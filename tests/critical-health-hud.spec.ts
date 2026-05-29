@@ -15,17 +15,17 @@ test('main toggles critical health on ship and surface hud fills', () => {
   expect(main).toContain("import { makeHud as uiMakeHud, updateHud as uiUpdateHud } from './ui/hud'")
   expect(main).toContain('uiUpdateHud(this)')
   expect(hud).toContain('vitalCriticalClass')
-  expect(hud).toContain("self['ui'].hullFill.classList.toggle(")
-  expect(hud).toContain("self['surface'].pilot.health / self['surface'].pilot.maxHealth")
-  expect(hud).toContain("Math.max(0, self['player'].hull) / self['player'].maxHull")
+  expect(hud).toContain('runtime.ui.hullFill.classList.toggle(')
+  expect(hud).toContain('runtime.surface.pilot.health / runtime.surface.pilot.maxHealth')
+  expect(hud).toContain('Math.max(0, runtime.player.hull) / runtime.player.maxHull')
 })
 
 test('main toggles critical oxygen on the surface o2 hud fill', () => {
   const hud = readFileSync('src/ui/hud.ts', 'utf8')
 
-  expect(hud).toContain("const oxygenRatio = self['surface'].pilot.oxygen / self['surface'].pilot.maxOxygen")
-  expect(hud).toContain("self['ui'].xpFill.classList.toggle('critical', vitalCriticalClass(oxygenRatio) === 'critical')")
-  expect(hud).toContain("self['ui'].xpFill.classList.toggle('critical', false)")
+  expect(hud).toContain('const oxygenRatio = runtime.surface.pilot.oxygen / runtime.surface.pilot.maxOxygen')
+  expect(hud).toContain("runtime.ui.xpFill.classList.toggle('critical', vitalCriticalClass(oxygenRatio) === 'critical')")
+  expect(hud).toContain("runtime.ui.xpFill.classList.toggle('critical', false)")
 })
 
 test('css styles critical health fill as a persistent warning', () => {

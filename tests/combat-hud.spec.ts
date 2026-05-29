@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs'
 test('desktop hud surfaces kill count as combat progress', () => {
   const hud = readFileSync('src/ui/hud.ts', 'utf8')
 
-  expect(hud).toContain("self['ui'].wave.textContent = self['stats'].kills.toString()")
-  expect(hud).toContain("chip('KILLS', self['ui'].wave, 'kills')")
+  expect(hud).toContain('runtime.ui.wave.textContent = runtime.stats.kills.toString()')
+  expect(hud).toContain("chip('KILLS', runtime.ui.wave, 'kills')")
 })
 
 test('css keeps kill count compact and off the mobile combat hud', () => {

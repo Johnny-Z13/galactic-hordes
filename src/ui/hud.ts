@@ -1,12 +1,90 @@
-import type { VectorShooter } from '../main'
+import type { GameState } from '../game-states'
 import { clamp, dist2 } from '../math-utils'
 import { mutationSignalAlmostReady, mutationXpReadout } from '../mutation-progress'
+import type { UpgradeId } from '../powerup-balance'
+import type { SectorMap, SectorNodeRunProfile } from '../sector-map'
+import type { ReturnBeaconState } from '../return-beacons'
+import type { SurfaceEventKind } from '../surface-encounters'
 import { formatTime } from '../time-format'
 import { weaponHudReadout } from '../weapon-signatures'
 import { currentHudObjectiveReadout } from './hud-objective'
 import { vitalCriticalClass } from './vital-meter'
 
-export function makeHud(self: VectorShooter) {
+interface HudView extends Object {}
+
+interface HudRuntime {
+  ui: {
+    hull: HTMLElement
+    hullFill: HTMLElement
+    hullLabel: HTMLElement
+    shieldFill: HTMLElement
+    level: HTMLElement
+    xpFill: HTMLElement
+    xpLabel: HTMLElement
+    time: HTMLElement
+    score: HTMLElement
+    wave: HTMLElement
+    objective: HTMLElement
+    weapon: HTMLElement
+    toast: HTMLElement
+    perf: HTMLElement
+    high: HTMLElement
+    resources: HTMLElement
+  }
+  stats: {
+    time: number
+    kills: number
+    level: number
+    xp: number
+    nextXp: number
+    highScore: number
+    planets: number
+    score: number
+  }
+  build: Partial<Record<UpgradeId, number>>
+  evolved: ReadonlySet<string>
+  returnBeacon: ReturnBeaconState | null
+  player: {
+    x: number
+    y: number
+    hull: number
+    maxHull: number
+    shield: number
+    maxShield: number
+    shieldDelay: number
+  }
+  resources: {
+    scrap: number
+    crystal: number
+    cores: number
+  }
+  state: GameState
+  surface: {
+    event: SurfaceEventKind
+    pilot: {
+      health: number
+      maxHealth: number
+      oxygen: number
+      maxOxygen: number
+    }
+  } | null
+  sectorMap: SectorMap
+  nextReturnBeaconAt: number
+  pendingUpgrades: number
+  sectorNodeProfile: SectorNodeRunProfile
+  firedSectorWaves: Set<string>
+  sectorNodeStartedAt: number
+  makeTouchControls(): HTMLElement
+  updateTouchHud(): void
+  updatePerfHud(): void
+}
+
+function hudRuntime(self: HudView) {
+  return self as HudRuntime
+}
+
+export function makeHud(self: HudView) {
+  const runtime = hudRuntime(self)
   const hud = document.createElement('div')
   hud.className = 'hud'
   const top = document.createElement('div')
@@ -14,78 +92,79 @@ export function makeHud(self: VectorShooter) {
   const meters = document.createElement('div')
   meters.className = 'hud-meters'
   meters.append(
-    meter('HULL', self['ui'].hull, self['ui'].hullFill, 'health', self['ui'].hullLabel, self['ui'].shieldFill),
-    meter('XP', self['ui'].level, self['ui'].xpFill, 'xp', self['ui'].xpLabel)
+    meter('HULL', runtime.ui.hull, runtime.ui.hullFill, 'health', runtime.ui.hullLabel, runtime.ui.shieldFill),
+    meter('XP', runtime.ui.level, runtime.ui.xpFill, 'xp', runtime.ui.xpLabel)
   )
   const left = document.createElement('div')
   left.className = 'hud-cluster hud-cluster-left'
-  left.append(chip('TIME', self['ui'].time), chip('SCORE', self['ui'].score), chip('KILLS', self['ui'].wave, 'kills'))
-  const objective = chip('ROUTE', self['ui'].objective, 'objective wide')
-  const weapon = chip('WEAPON', self['ui'].weapon, 'weapon wide')
-  self['ui'].toast.className = 'toast'
-  self['ui'].perf.className = 'perf'
-  hud.append(top, self['ui'].toast, self['makeTouchControls']())
+  left.append(chip('TIME', runtime.ui.time), chip('SCORE', runtime.ui.score), chip('KILLS', runtime.ui.wave, 'kills'))
+  const objective = chip('ROUTE', runtime.ui.objective, 'objective wide')
+  const weapon = chip('WEAPON', runtime.ui.weapon, 'weapon wide')
+  runtime.ui.toast.className = 'toast'
+  runtime.ui.perf.className = 'perf'
+  hud.append(top, runtime.ui.toast, runtime.makeTouchControls())
   top.append(meters, left, objective, weapon)
   return hud
 }
 
-export function updateHud(self: VectorShooter) {
-  self['ui'].score.textContent = Math.floor(self['stats'].score).toString()
-  self['ui'].time.textContent = formatTime(self['stats'].time)
-  self['ui'].wave.textContent = self['stats'].kills.toString()
-  self['ui'].high.textContent = Math.max(self['stats'].highScore, self['stats'].score).toString()
+export function updateHud(self: HudView) {
+  const runtime = hudRuntime(self)
+  runtime.ui.score.textContent = Math.floor(runtime.stats.score).toString()
+  runtime.ui.time.textContent = formatTime(runtime.stats.time)
+  runtime.ui.wave.textContent = runtime.stats.kills.toString()
+  runtime.ui.high.textContent = Math.max(runtime.stats.highScore, runtime.stats.score).toString()
   const weaponReadout = weaponHudReadout({
-    build: self['build'],
-    evolved: self['evolved']
+    build: runtime.build,
+    evolved: runtime.evolved
   })
-  self['ui'].weapon.textContent = weaponReadout.text
-  const objectiveReadout = currentHudObjectiveReadout(self)
-  const objectiveLabel = self['ui'].objective.parentElement?.querySelector('.hud-label')
-  self['ui'].objective.parentElement?.classList.toggle('signal-ready', objectiveReadout.label === 'SIGNAL')
-  self['ui'].objective.parentElement?.classList.toggle('threat-inbound', objectiveReadout.label === 'WAVE')
-  self['ui'].objective.parentElement?.classList.toggle('station-soon', objectiveReadout.label === 'STATION')
+  runtime.ui.weapon.textContent = weaponReadout.text
+  const objectiveReadout = currentHudObjectiveReadout(runtime)
+  const objectiveLabel = runtime.ui.objective.parentElement?.querySelector('.hud-label')
+  runtime.ui.objective.parentElement?.classList.toggle('signal-ready', objectiveReadout.label === 'SIGNAL')
+  runtime.ui.objective.parentElement?.classList.toggle('threat-inbound', objectiveReadout.label === 'WAVE')
+  runtime.ui.objective.parentElement?.classList.toggle('station-soon', objectiveReadout.label === 'STATION')
   if (objectiveLabel) objectiveLabel.textContent = objectiveReadout.label
-  self['ui'].objective.textContent = objectiveReadout.text
-  const beaconText = self['returnBeacon']
-    ? ` // STATION ${Math.floor(Math.sqrt(dist2(self['returnBeacon'], self['player'])))}`
+  runtime.ui.objective.textContent = objectiveReadout.text
+  const beaconText = runtime.returnBeacon
+    ? ` // STATION ${Math.floor(Math.sqrt(dist2(runtime.returnBeacon, runtime.player)))}`
     : ''
-  self['ui'].resources.textContent = `Scrap ${self['resources'].scrap}  Crystals ${self['resources'].crystal}  Cores ${self['resources'].cores}${beaconText}`
-  if (self['state'] === 'surface' && self['surface']) {
-    self['ui'].hullLabel.textContent = 'HEALTH'
-    self['ui'].xpLabel.textContent = 'O2'
-    self['ui'].hull.textContent = `${Math.ceil(self['surface'].pilot.health)}/${self['surface'].pilot.maxHealth}`
-    self['ui'].level.textContent = `${Math.ceil(self['surface'].pilot.oxygen)}s`
-    const healthRatio = self['surface'].pilot.health / self['surface'].pilot.maxHealth
-    const oxygenRatio = self['surface'].pilot.oxygen / self['surface'].pilot.maxOxygen
-    self['ui'].hullFill.style.width = `${clamp(healthRatio * 100, 0, 100)}%`
-    self['ui'].hullFill.classList.toggle('critical', vitalCriticalClass(healthRatio) === 'critical')
-    self['ui'].shieldFill.style.width = '0%'
-    self['ui'].shieldFill.classList.toggle('visible', false)
-    self['ui'].shieldFill.classList.toggle('depleted', false)
-    self['ui'].shieldFill.classList.toggle('recharging', false)
-    self['ui'].xpFill.style.width = `${clamp(oxygenRatio * 100, 0, 100)}%`
-    self['ui'].xpFill.classList.toggle('critical', vitalCriticalClass(oxygenRatio) === 'critical')
-    self['ui'].xpFill.classList.toggle('near-signal', false)
+  runtime.ui.resources.textContent = `Scrap ${runtime.resources.scrap}  Crystals ${runtime.resources.crystal}  Cores ${runtime.resources.cores}${beaconText}`
+  if (runtime.state === 'surface' && runtime.surface) {
+    runtime.ui.hullLabel.textContent = 'HEALTH'
+    runtime.ui.xpLabel.textContent = 'O2'
+    runtime.ui.hull.textContent = `${Math.ceil(runtime.surface.pilot.health)}/${runtime.surface.pilot.maxHealth}`
+    runtime.ui.level.textContent = `${Math.ceil(runtime.surface.pilot.oxygen)}s`
+    const healthRatio = runtime.surface.pilot.health / runtime.surface.pilot.maxHealth
+    const oxygenRatio = runtime.surface.pilot.oxygen / runtime.surface.pilot.maxOxygen
+    runtime.ui.hullFill.style.width = `${clamp(healthRatio * 100, 0, 100)}%`
+    runtime.ui.hullFill.classList.toggle('critical', vitalCriticalClass(healthRatio) === 'critical')
+    runtime.ui.shieldFill.style.width = '0%'
+    runtime.ui.shieldFill.classList.toggle('visible', false)
+    runtime.ui.shieldFill.classList.toggle('depleted', false)
+    runtime.ui.shieldFill.classList.toggle('recharging', false)
+    runtime.ui.xpFill.style.width = `${clamp(oxygenRatio * 100, 0, 100)}%`
+    runtime.ui.xpFill.classList.toggle('critical', vitalCriticalClass(oxygenRatio) === 'critical')
+    runtime.ui.xpFill.classList.toggle('near-signal', false)
   } else {
-    self['ui'].hullLabel.textContent = 'HULL'
-    self['ui'].xpLabel.textContent = 'XP'
-    self['ui'].level.textContent = mutationXpReadout(self['stats'])
-    const shield = self['player'].maxShield > 0 ? ` +${Math.floor(self['player'].shield)}` : ''
-    self['ui'].hull.textContent = `${Math.ceil(Math.max(0, self['player'].hull))}/${self['player'].maxHull}${shield}`
-    const hullRatio = Math.max(0, self['player'].hull) / self['player'].maxHull
-    const shieldRatio = self['player'].maxShield > 0 ? self['player'].shield / self['player'].maxShield : 0
-    self['ui'].hullFill.style.width = `${clamp(hullRatio * 100, 0, 100)}%`
-    self['ui'].hullFill.classList.toggle('critical', vitalCriticalClass(hullRatio) === 'critical')
-    self['ui'].shieldFill.style.width = `${clamp(shieldRatio * 100, 0, 100)}%`
-    self['ui'].shieldFill.classList.toggle('visible', self['player'].maxShield > 0)
-    self['ui'].shieldFill.classList.toggle('depleted', self['player'].maxShield > 0 && self['player'].shield <= 0)
-    self['ui'].shieldFill.classList.toggle('recharging', self['player'].maxShield > 0 && self['player'].shieldDelay > 0)
-    self['ui'].xpFill.style.width = `${clamp((self['stats'].xp / self['stats'].nextXp) * 100, 0, 100)}%`
-    self['ui'].xpFill.classList.toggle('critical', false)
-    self['ui'].xpFill.classList.toggle('near-signal', mutationSignalAlmostReady(self['stats']))
+    runtime.ui.hullLabel.textContent = 'HULL'
+    runtime.ui.xpLabel.textContent = 'XP'
+    runtime.ui.level.textContent = mutationXpReadout(runtime.stats)
+    const shield = runtime.player.maxShield > 0 ? ` +${Math.floor(runtime.player.shield)}` : ''
+    runtime.ui.hull.textContent = `${Math.ceil(Math.max(0, runtime.player.hull))}/${runtime.player.maxHull}${shield}`
+    const hullRatio = Math.max(0, runtime.player.hull) / runtime.player.maxHull
+    const shieldRatio = runtime.player.maxShield > 0 ? runtime.player.shield / runtime.player.maxShield : 0
+    runtime.ui.hullFill.style.width = `${clamp(hullRatio * 100, 0, 100)}%`
+    runtime.ui.hullFill.classList.toggle('critical', vitalCriticalClass(hullRatio) === 'critical')
+    runtime.ui.shieldFill.style.width = `${clamp(shieldRatio * 100, 0, 100)}%`
+    runtime.ui.shieldFill.classList.toggle('visible', runtime.player.maxShield > 0)
+    runtime.ui.shieldFill.classList.toggle('depleted', runtime.player.maxShield > 0 && runtime.player.shield <= 0)
+    runtime.ui.shieldFill.classList.toggle('recharging', runtime.player.maxShield > 0 && runtime.player.shieldDelay > 0)
+    runtime.ui.xpFill.style.width = `${clamp((runtime.stats.xp / runtime.stats.nextXp) * 100, 0, 100)}%`
+    runtime.ui.xpFill.classList.toggle('critical', false)
+    runtime.ui.xpFill.classList.toggle('near-signal', mutationSignalAlmostReady(runtime.stats))
   }
-  self['updateTouchHud']()
-  self['updatePerfHud']()
+  runtime.updateTouchHud()
+  runtime.updatePerfHud()
 }
 
 function meter(label: string, value: HTMLElement, fill: HTMLElement, tone: string, labelEl = document.createElement('span'), shieldFill?: HTMLElement) {

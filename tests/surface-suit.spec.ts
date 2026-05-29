@@ -12,8 +12,8 @@ test('surface runs track human health and oxygen instead of ship hull xp', () =>
 
   expect(main).toContain('health: this.surfaceMaxHealth()')
   expect(main).toContain('oxygen: this.surfaceMaxOxygen()')
-  expect(hud).toContain("self['ui'].hullLabel.textContent = 'HEALTH'")
-  expect(hud).toContain("self['ui'].xpLabel.textContent = 'O2'")
+  expect(hud).toContain("runtime.ui.hullLabel.textContent = 'HEALTH'")
+  expect(hud).toContain("runtime.ui.xpLabel.textContent = 'O2'")
 })
 
 test('low oxygen auto returns the surface pilot to the ship', () => {
