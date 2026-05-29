@@ -23,7 +23,7 @@ const runs = Array.from({ length: options.runs }, (_, index) => runSimPlaythroug
 const summary = summarizeSimBatch(options, runs)
 
 console.log(`Simulation batch: ${options.runs} runs, ${options.policy}, ${options.difficulty}, seed ${options.seed}`)
-console.log(`Survival: avg ${formatSeconds(summary.survival.averageSeconds)}, median ${formatSeconds(summary.survival.medianSeconds)}, best ${formatSeconds(summary.survival.bestSeconds)}, destroyed ${Math.round(summary.survival.destroyedRate * 100)}%`)
+console.log(`Survival: avg ${formatSeconds(summary.survival.averageSeconds)}, median ${formatSeconds(summary.survival.medianSeconds)}, best ${formatSeconds(summary.survival.bestSeconds)}, ten-minute ${Math.round(summary.survival.tenMinuteRate * 100)}%, destroyed ${Math.round(summary.survival.destroyedRate * 100)}%`)
 console.log(`Route: avg nodes ${summary.route.averageNodesCleared.toFixed(1)}, final reached ${summary.route.finalReached}/${options.runs}, median final clear ${summary.route.medianFinalClearSeconds === null ? 'none' : formatSeconds(summary.route.medianFinalClearSeconds)}`)
 console.log(`Route templates: ${formatCountRecord(summary.route.templateCounts) || 'none'}`)
 console.log(`First minute: kills ${summary.firstMinute.averageKillsFirst60Sec.toFixed(1)}, first kill ${formatSeconds(summary.firstMinute.medianFirstKillSec)}, first landing ${formatSeconds(summary.firstMinute.medianFirstLandingSec)}, first workbench ${formatSeconds(summary.firstMinute.medianFirstWorkbenchSec)}`)

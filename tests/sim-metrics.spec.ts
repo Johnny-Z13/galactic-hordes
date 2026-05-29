@@ -18,6 +18,17 @@ test('batch summary aggregates survival route planets economy and combat', () =>
   expect(summary.upgrades.averageChosen).toBeGreaterThan(0)
 })
 
+test('batch summary tracks ten-minute survival as an opening retention signal', () => {
+  const options = { seed: 360, runs: 4, policy: 'balanced' as const, maxSeconds: 1800, difficulty: 'normal' as const }
+  const runs = Array.from({ length: options.runs }, (_, index) => ({
+    ...runSimPlaythrough({ ...options, seed: options.seed + index }),
+    seconds: [599, 600, 900, 1200][index]
+  }))
+  const summary = summarizeSimBatch(options, runs)
+
+  expect(summary.survival.tenMinuteRate).toBe(0.75)
+})
+
 test('batch summary flags destructive median survival', () => {
   const options = { seed: 400, runs: 3, policy: 'stress' as const, maxSeconds: 120, difficulty: 'stress' as const }
   const runs = Array.from({ length: options.runs }, (_, index) => ({

@@ -101,6 +101,7 @@ export function summarizeSimBatch(options: SimBatchOptions, runs: SimRunResult[]
       averageSeconds: average(seconds),
       medianSeconds: median(seconds),
       bestSeconds: Math.max(0, ...seconds),
+      tenMinuteRate: runs.filter((run) => run.seconds >= 600).length / Math.max(1, runs.length),
       destroyedRate: runs.filter((run) => run.outcome === 'destroyed').length / Math.max(1, runs.length)
     },
     route: {

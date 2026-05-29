@@ -12,6 +12,13 @@ test('simulation dashboard surfaces median final clear pacing in summary cards',
   expect(dashboard).toContain("summary.route.medianFinalClearSeconds === null ? 'none' : formatSeconds(summary.route.medianFinalClearSeconds)")
 })
 
+test('simulation dashboard surfaces ten-minute survival retention', () => {
+  const dashboard = dashboardSource()
+
+  expect(dashboard).toContain("metricCard('10m Survival'")
+  expect(dashboard).toContain('summary.survival.tenMinuteRate')
+})
+
 test('simulation dashboard surfaces full opening-loop timing for tuning', () => {
   const dashboard = dashboardSource()
 

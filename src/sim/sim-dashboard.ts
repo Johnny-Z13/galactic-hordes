@@ -50,6 +50,7 @@ function renderSummary(summary: SimBatchSummary) {
   summaryEl.innerHTML = `
     ${metricCard('Median Survival', formatSeconds(summary.survival.medianSeconds))}
     ${metricCard('Best Survival', formatSeconds(summary.survival.bestSeconds))}
+    ${metricCard('10m Survival', `${Math.round(summary.survival.tenMinuteRate * 100)}%`)}
     ${metricCard('Destroyed', `${Math.round(summary.survival.destroyedRate * 100)}%`)}
     ${metricCard('First Kill', formatSeconds(summary.firstMinute.medianFirstKillSec))}
     ${metricCard('Kills 0-60s', summary.firstMinute.averageKillsFirst60Sec.toFixed(1))}

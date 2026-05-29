@@ -85,6 +85,7 @@ export interface SimBatchSummary {
     averageSeconds: number
     medianSeconds: number
     bestSeconds: number
+    tenMinuteRate: number
     destroyedRate: number
   }
   route: {
