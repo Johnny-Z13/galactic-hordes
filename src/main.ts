@@ -119,6 +119,7 @@ import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { clamp, norm, dist2, hash32, hashString, len, rngFrom, TAU } from './math-utils'
 import { resolvePlayerAim } from './player-aim'
 import { resolvePlayerInputAxes } from './player-input'
+import { renderPlayerDamageFlash as drawPlayerDamageFlash } from './render/player-damage-flash'
 import { renderScorePopups as drawScorePopups } from './render/score-popups'
 import { renderSectorWaveWarning as drawSectorWaveWarning } from './render/sector-wave-warning'
 import { renderSpaceBackground as drawSpaceBackground } from './render/space-background'
@@ -3496,11 +3497,11 @@ export class GalacticHordesGame {
     const handler = this.stateHandlers[this.state]
     if (handler?.render) {
       handler.render(ctx)
-      this.renderPlayerDamageFlash(ctx)
+      drawPlayerDamageFlash(ctx, this.playerDamageFlash, this.width, this.height)
       return
     }
     this.renderSpaceScene(ctx)
-    this.renderPlayerDamageFlash(ctx)
+    drawPlayerDamageFlash(ctx, this.playerDamageFlash, this.width, this.height)
   }
 
   private renderSpaceScene(ctx: CanvasRenderingContext2D) {
@@ -3579,33 +3580,6 @@ export class GalacticHordesGame {
     })
     this.renderIntroWaypoint(ctx)
     this.renderScorePopups(ctx)
-  }
-
-  private renderPlayerDamageFlash(ctx: CanvasRenderingContext2D) {
-    const flash = this.playerDamageFlash
-    if (!flash) return
-    const alpha = clamp(flash.life / flash.maxLife, 0, 1) * flash.alpha
-    const edge = Math.max(this.width, this.height) * (flash.kind === 'critical' ? 0.22 : 0.16)
-    const color = flash.kind === 'shield' ? '87,255,243' : '255,93,115'
-    const gradient = ctx.createRadialGradient(
-      this.width / 2,
-      this.height / 2,
-      Math.max(24, Math.min(this.width, this.height) * 0.32),
-      this.width / 2,
-      this.height / 2,
-      Math.max(this.width, this.height) * 0.72
-    )
-    gradient.addColorStop(0, 'rgba(0,0,0,0)')
-    gradient.addColorStop(0.55, 'rgba(0,0,0,0)')
-    gradient.addColorStop(1, `rgba(${color},${alpha})`)
-    ctx.save()
-    ctx.fillStyle = gradient
-    ctx.fillRect(0, 0, this.width, this.height)
-    ctx.globalAlpha = alpha * 0.72
-    ctx.strokeStyle = flash.color
-    ctx.lineWidth = edge
-    ctx.strokeRect(-edge / 2, -edge / 2, this.width + edge, this.height + edge)
-    ctx.restore()
   }
 
   private renderIntroWaypoint(ctx: CanvasRenderingContext2D) {

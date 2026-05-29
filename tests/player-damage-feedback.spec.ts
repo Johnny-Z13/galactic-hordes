@@ -51,13 +51,16 @@ test('player damage feedback ages out in place', () => {
 test('main wires player damage flash through damage update render and reset paths', () => {
   const source = readFileSync('src/main.ts', 'utf8')
   const damageResolution = readFileSync('src/combat/player-damage-resolution.ts', 'utf8')
+  const renderer = readFileSync('src/render/player-damage-flash.ts', 'utf8')
 
   expect(source).toContain("from './combat/player-damage-feedback'")
+  expect(source).toContain("import { renderPlayerDamageFlash as drawPlayerDamageFlash } from './render/player-damage-flash'")
   expect(source).toContain('private playerDamageFlash: PlayerDamageFlash | null = null')
   expect(source).toContain('advancePlayerDamageFlash(this.playerDamageFlash, dt)')
   expect(damageResolution).toContain('createPlayerDamageFlash({')
   expect(source).toContain('this.playerDamageFlash = damage.flash')
-  expect(source).toContain('this.renderPlayerDamageFlash(ctx)')
-  expect(source).toContain('private renderPlayerDamageFlash(')
+  expect(source).toContain('drawPlayerDamageFlash(ctx, this.playerDamageFlash, this.width, this.height)')
+  expect(source).not.toContain('private renderPlayerDamageFlash(')
+  expect(renderer).toContain('export function renderPlayerDamageFlash(')
   expect(source).toContain('this.playerDamageFlash = null')
 })
