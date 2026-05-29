@@ -1226,7 +1226,7 @@ export class GalacticHordesGame {
       this.autoNavActive = true
     }
 
-    const targetPlanet = this.autoNavTargetPlanetId ? this.planets.find((planet) => planet.id === this.autoNavTargetPlanetId) : null
+    const targetPlanet = this.lockedPlanetCourseTarget()
     const beaconTarget = this.autoNavTargetBeacon ? this.returnBeacon : null
     if (targetPlanet) {
       const targetAngle = Math.atan2(targetPlanet.y - this.player.y, targetPlanet.x - this.player.x)
@@ -1341,6 +1341,10 @@ export class GalacticHordesGame {
     this.autoNavTargetBeacon = false
     this.autoNavActive = true
     this.autoNavHeading = Math.atan2(target.y - this.player.y, target.x - this.player.x)
+  }
+
+  private lockedPlanetCourseTarget() {
+    return this.autoNavTargetPlanetId ? this.planets.find((planet) => planet.id === this.autoNavTargetPlanetId) ?? null : null
   }
 
   private setReturnBeaconCourse() {
@@ -3588,7 +3592,7 @@ export class GalacticHordesGame {
       worldToScreen: (x, y) => this.worldToScreen(x, y)
     })
     this.renderOrbitals(ctx)
-    const autopilotTarget = this.autoNavTargetPlanetId ? this.planets.find((planet) => planet.id === this.autoNavTargetPlanetId) ?? null : null
+    const autopilotTarget = this.lockedPlanetCourseTarget()
     const autopilotBeaconTarget = this.autoNavTargetBeacon ? this.returnBeacon : null
     const autopilotLevel = this.navigationCruiseLevel()
     drawAutopilot({
