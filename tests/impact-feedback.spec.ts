@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import {
   advanceImpactPulses,
+  appendImpactPulse,
   createImpactPulse,
   type ImpactPulse
 } from '../src/combat/impact-feedback'
@@ -57,6 +58,24 @@ test('impact pulses age out in place', () => {
   expect(pulses[0].life).toBeCloseTo(0.4)
 })
 
+test('impact pulse append skips null pulses and enforces a rolling cap', () => {
+  const pulses: ImpactPulse[] = [
+    { kind: 'hit', x: 1, y: 0, color: '#fff', life: 0.1, maxLife: 0.2, radius: 18, lineWidth: 1.4 },
+    { kind: 'hit', x: 2, y: 0, color: '#fff', life: 0.1, maxLife: 0.2, radius: 18, lineWidth: 1.4 }
+  ]
+
+  appendImpactPulse({ pulses, pulse: null, cap: 2 })
+  expect(pulses.map((pulse) => pulse.x)).toEqual([1, 2])
+
+  appendImpactPulse({
+    pulses,
+    pulse: { kind: 'kill', x: 3, y: 0, color: '#fff', life: 0.6, maxLife: 0.6, radius: 44, lineWidth: 2 },
+    cap: 2
+  })
+
+  expect(pulses.map((pulse) => pulse.x)).toEqual([2, 3])
+})
+
 test('main wires space impact pulses through damage kill update and render', () => {
   const main = readFileSync('src/main.ts', 'utf8')
   const renderer = readFileSync('src/render/impact-pulses.ts', 'utf8')
@@ -67,7 +86,8 @@ test('main wires space impact pulses through damage kill update and render', () 
   expect(main).toContain('advanceImpactPulses({ pulses: this.impactPulses, dt })')
   expect(main).toContain("kind: 'hit'")
   expect(main).toContain("kind: 'kill'")
-  expect(main).toContain('this.impactPulses.push(pulse)')
+  expect(main).toContain('appendImpactPulse({')
+  expect(main).not.toContain('this.impactPulses.length > 96')
   expect(main).toContain('this.renderImpactPulses(ctx)')
   expect(main).toContain('drawImpactPulses({')
   expect(renderer).toContain('export function renderImpactPulses')

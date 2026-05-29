@@ -57,3 +57,13 @@ export function advanceImpactPulses(input: {
     if (input.pulses[i].life <= 0) input.pulses.splice(i, 1)
   }
 }
+
+export function appendImpactPulse(input: {
+  pulses: ImpactPulse[]
+  pulse: ImpactPulse | null
+  cap: number
+}) {
+  if (!input.pulse) return
+  input.pulses.push(input.pulse)
+  if (input.pulses.length > input.cap) input.pulses.shift()
+}

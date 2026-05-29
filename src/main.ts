@@ -3,7 +3,7 @@ import { AudioDirector, type PlanetAudioMood } from './audio/audio-director'
 import { sfxSamples } from './audio/sfx-samples'
 import { uiClickSoundForButton } from './audio/ui-click-cues'
 import { damageFeedbackConfig } from './combat/damage-feedback'
-import { advanceImpactPulses, createImpactPulse, type ImpactPulse } from './combat/impact-feedback'
+import { advanceImpactPulses, appendImpactPulse, createImpactPulse, type ImpactPulse } from './combat/impact-feedback'
 import { damageShipPlayer, damageSurfacePilot as damageSuitPilot } from './combat/player-damage-resolution'
 import { advancePlayerDamageFlash, type PlayerDamageFlash } from './combat/player-damage-feedback'
 import { weaponSoundKindFor } from './combat/weapon-sound'
@@ -2201,10 +2201,7 @@ export class VectorShooter {
       giant: isGiantEnemyKind(e.kind),
       highLoad
     })
-    if (pulse) {
-      this.impactPulses.push(pulse)
-      if (this.impactPulses.length > 96) this.impactPulses.shift()
-    }
+    appendImpactPulse({ pulses: this.impactPulses, pulse, cap: 96 })
     if (!highLoad && this.particles.length < MAX_PARTICLES && Math.random() < 0.2) {
       this.particles.push({ x: e.x, y: e.y, vx: rand(-80, 80), vy: rand(-80, 80), life: 0.22, maxLife: 0.22, color, size: 2, glow: 10 })
     }
@@ -2228,10 +2225,7 @@ export class VectorShooter {
       giant: feedback.big,
       highLoad
     })
-    if (pulse) {
-      this.impactPulses.push(pulse)
-      if (this.impactPulses.length > 96) this.impactPulses.shift()
-    }
+    appendImpactPulse({ pulses: this.impactPulses, pulse, cap: 96 })
     if (feedback.playFx) {
       this.audio.boom(feedback.boomKind)
       this.camera.shake = Math.max(this.camera.shake, feedback.cameraShake)
