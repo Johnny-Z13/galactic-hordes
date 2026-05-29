@@ -8,6 +8,10 @@ import { runSimPlaythrough } from '../src/sim/sim-runner'
 test('every policy has a concrete simulation target envelope', () => {
   expect(Object.keys(simBalanceTargets)).toEqual(['balanced', 'survival', 'planetHunter', 'greedyCache', 'routeRusher', 'stress'])
   expect(simBalanceTargets.balanced.medianSurvivalMin).toBeGreaterThan(0)
+  expect(simBalanceTargets.balanced.averageKillsFirst60SecMin).toBeGreaterThan(0)
+  expect(simBalanceTargets.balanced.medianFirstKillMax).toBeGreaterThan(0)
+  expect(simBalanceTargets.balanced.medianFirstLandingMax).toBeGreaterThan(0)
+  expect(simBalanceTargets.balanced.medianFirstWorkbenchMax).toBeGreaterThan(0)
   expect(simBalanceTargets.planetHunter.averagePlanetsMin).toBeGreaterThan(simBalanceTargets.routeRusher.averagePlanetsMin)
   expect(simBalanceTargets.balanced.medianFinalClearMin).toBeGreaterThan(simBalanceTargets.routeRusher.medianFinalClearMin)
 })
@@ -28,5 +32,7 @@ test('simulation balance target docs describe final-clear pacing targets', () =>
   const doc = readFileSync(resolve(process.cwd(), 'docs/simulation-balance-targets.md'), 'utf8')
 
   expect(doc).toContain('Median Final Clear')
+  expect(doc).toContain('Opening 0-60s')
+  expect(doc).toContain('First Workbench')
   expect(doc).toContain('balanced | 4:00-20:00 | >= 12:00')
 })

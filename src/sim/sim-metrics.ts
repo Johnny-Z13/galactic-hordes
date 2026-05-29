@@ -66,6 +66,18 @@ function addTargetFlags(summary: Omit<SimBatchSummary, 'balanceFlags'>, flags: s
   ) {
     flags.push(`Median final clear ${formatSeconds(summary.route.medianFinalClearSeconds)} is below ${formatSeconds(target.medianFinalClearMin)} for ${summary.options.policy}.`)
   }
+  if (summary.firstMinute.averageKillsFirst60Sec < target.averageKillsFirst60SecMin) {
+    flags.push(`Opening kills ${summary.firstMinute.averageKillsFirst60Sec.toFixed(1)} is below ${target.averageKillsFirst60SecMin.toFixed(1)} in the first 60 seconds for ${summary.options.policy}.`)
+  }
+  if (summary.firstMinute.medianFirstKillSec > target.medianFirstKillMax) {
+    flags.push(`First kill ${formatSeconds(summary.firstMinute.medianFirstKillSec)} is later than ${formatSeconds(target.medianFirstKillMax)} for ${summary.options.policy}.`)
+  }
+  if (summary.firstMinute.medianFirstLandingSec > target.medianFirstLandingMax) {
+    flags.push(`First landing ${formatSeconds(summary.firstMinute.medianFirstLandingSec)} is later than ${formatSeconds(target.medianFirstLandingMax)} for ${summary.options.policy}.`)
+  }
+  if (summary.firstMinute.medianFirstWorkbenchSec > target.medianFirstWorkbenchMax) {
+    flags.push(`First workbench ${formatSeconds(summary.firstMinute.medianFirstWorkbenchSec)} is later than ${formatSeconds(target.medianFirstWorkbenchMax)} for ${summary.options.policy}.`)
+  }
   if (Object.keys(summary.route.templateCounts).length < target.routeTemplateVarietyMin) {
     flags.push(`Low route template variety across batch; expected at least ${target.routeTemplateVarietyMin} template families.`)
   }

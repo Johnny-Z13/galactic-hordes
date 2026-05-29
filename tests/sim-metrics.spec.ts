@@ -60,6 +60,25 @@ test('batch summary flags final-route clears that are too compressed', () => {
   expect(summary.balanceFlags.some((flag) => flag.includes('Median final clear'))).toBe(true)
 })
 
+test('batch summary flags weak opening engagement against first-minute targets', () => {
+  const options = { seed: 720, runs: 5, policy: 'balanced' as const, maxSeconds: 1800, difficulty: 'normal' as const }
+  const runs = Array.from({ length: options.runs }, (_, index) => ({
+    ...runSimPlaythrough({ ...options, seed: options.seed + index }),
+    firstMinute: {
+      firstKillSec: 14,
+      killsFirst60Sec: 6,
+      firstLandingSec: 100,
+      firstWorkbenchSec: 128
+    }
+  }))
+  const summary = summarizeSimBatch(options, runs)
+
+  expect(summary.balanceFlags.some((flag) => flag.includes('First kill'))).toBe(true)
+  expect(summary.balanceFlags.some((flag) => flag.includes('Opening kills'))).toBe(true)
+  expect(summary.balanceFlags.some((flag) => flag.includes('First landing'))).toBe(true)
+  expect(summary.balanceFlags.some((flag) => flag.includes('First workbench'))).toBe(true)
+})
+
 test('planet hunter engagement is judged by batch rate, not one dry run', () => {
   const options = { seed: 8100, runs: 80, policy: 'planetHunter' as const, maxSeconds: 1200, difficulty: 'normal' as const }
   const runs = Array.from({ length: options.runs }, (_, index) => runSimPlaythrough({ ...options, seed: options.seed + index }))
