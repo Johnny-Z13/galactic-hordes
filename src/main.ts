@@ -166,7 +166,7 @@ import { renderOrbitals as drawOrbitals } from './render/orbitals'
 import { renderBullets as drawBullets, renderBulletsSimple as drawBulletsSimple } from './render/bullets'
 import { renderAutopilot as drawAutopilot, renderReturnBeacon as drawReturnBeacon } from './render/navigation-aids'
 import { effectLayerCamera, surfaceEffectMode } from './render/effect-layer'
-import { renderGlowAllowed, renderHighLoad } from './render/performance-mode'
+import { renderDprCap, renderGlowAllowed, renderHighLoad } from './render/performance-mode'
 import type { MothershipCollectionFilter, MothershipConsoleView } from './ui/mothership-ui-types'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
 import { fireCathedralLattice, fireDreadnoughtBroadside, fireHelixSpikes, firePrismFan, fireSiphonVortex, type SpaceEnemyAttackContext } from './space-enemy-attacks'
@@ -943,7 +943,7 @@ export class GalacticHordesGame {
   }
 
   private resize() {
-    const modeCap = this.graphicsMode === 'LOW' ? 1 : this.graphicsMode === 'MED' ? 1.25 : 1.75
+    const modeCap = renderDprCap(this.graphicsMode)
     this.dpr = Math.min(window.devicePixelRatio || 1, modeCap)
     this.width = window.innerWidth
     this.height = window.innerHeight

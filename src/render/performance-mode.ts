@@ -13,3 +13,9 @@ export function renderHighLoad({ graphicsMode, particles, enemies, bullets, pick
 export function renderGlowAllowed(input: RenderPerformanceInput) {
   return input.graphicsMode === 'GLOW' && !renderHighLoad(input)
 }
+
+export function renderDprCap(graphicsMode: string) {
+  if (graphicsMode === 'LOW') return 1
+  if (graphicsMode === 'MED') return 1.25
+  return 1.75
+}
