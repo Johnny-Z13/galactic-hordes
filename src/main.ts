@@ -252,12 +252,11 @@ import {
   pickWaypointTarget
 } from './intro-hook'
 import { installPlaytestHarnessIfRequested } from './playtest-harness'
-import type { StateHandlers } from './game-states'
+import type { GameState, StateHandlers } from './game-states'
 
 export type { AudioUpgradeCue } from './audio/audio-director'
 export type { ArtifactKind, ArtifactRecord } from './artifact-archive'
 
-export type GameState = 'title' | 'mothership' | 'collection' | 'powerups' | 'sectorMap' | 'station' | 'playing' | 'paused' | 'levelup' | 'planet' | 'landing' | 'surface' | 'alien' | 'lore' | 'takeoff' | 'dying' | 'debrief' | 'gameover' | 'scores'
 type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
 export type MothershipConsoleView = 'workbench' | 'manifest'
 export type MothershipCollectionFilter = 'all' | 'found' | 'locked' | ArtifactKind

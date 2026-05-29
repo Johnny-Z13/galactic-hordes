@@ -19,10 +19,11 @@ const sectorMapScreenSource = () => optionalSource('src/ui/sector-map-screen.ts'
 
 test('sector map is a first class screen between mothership and expeditions', () => {
   const main = mainSource()
+  const gameStates = optionalSource('src/game-states.ts')
   const sectorMapScreen = sectorMapScreenSource()
 
-  expect(main).toContain("| 'sectorMap'")
-  expect(main).toContain("| 'station'")
+  expect(gameStates).toContain("| 'sectorMap'")
+  expect(gameStates).toContain("| 'station'")
   expect(main).toContain('sectorMap: document.createElement')
   expect(main).toContain('station: document.createElement')
   expect(main).toContain("import { showSectorMap as uiShowSectorMap } from './ui/sector-map-screen'")

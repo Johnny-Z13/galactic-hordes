@@ -1,4 +1,5 @@
-import type { GameState, VectorShooter } from '../main'
+import type { GameState } from '../game-states'
+import type { VectorShooter } from '../main'
 
 export function makeScreens(self: VectorShooter) {
   const wrap = document.createElement('div')
