@@ -176,7 +176,7 @@ import {
   type SpaceEncounterKind
 } from './space-encounters'
 import { nextSpaceWaveWarning, spaceWaveId } from './space-wave-director'
-import { surfacePilotMuzzleOffset } from './surface-pilot'
+import { surfacePilotMuzzleOffset, updateSurfacePilotMotion } from './surface-pilot'
 import {
   surfaceEventPoint as plannedSurfaceEventPoint,
   surfaceRunBalance,
@@ -1460,26 +1460,15 @@ export class VectorShooter {
     if (oxygen.depleted) this.startTakeoff()
     if (this.state !== 'surface' || !this.surface) return
 
-    const accel = powerupBalance.ship.surfaceAcceleration * dt
-    this.surface.pilot.vx += input.move.x * accel
-    this.surface.pilot.vy += input.move.y * accel
-    if (this.surface.o2Returning) {
-      const toShip = norm(this.surface.ship.x - this.surface.pilot.x, this.surface.ship.y - this.surface.pilot.y)
-      this.surface.pilot.vx += toShip.x * powerupBalance.ship.surfaceReturnAcceleration * dt
-      this.surface.pilot.vy += toShip.y * powerupBalance.ship.surfaceReturnAcceleration * dt
-      this.surface.pilot.facing = Math.atan2(toShip.y, toShip.x)
-    }
-    const speed = len(this.surface.pilot.vx, this.surface.pilot.vy)
-    const maxSpeed = powerupBalance.ship.surfaceMaxSpeedBase + this.build.engine * powerupBalance.ship.surfaceMaxSpeedPerEngineRank
-    if (speed > maxSpeed) {
-      this.surface.pilot.vx = (this.surface.pilot.vx / speed) * maxSpeed
-      this.surface.pilot.vy = (this.surface.pilot.vy / speed) * maxSpeed
-    }
-    this.surface.pilot.vx *= Math.pow(0.04, dt)
-    this.surface.pilot.vy *= Math.pow(0.04, dt)
-    this.surface.pilot.x = clamp(this.surface.pilot.x + this.surface.pilot.vx * dt, 40, this.surface.width - 40)
-    this.surface.pilot.y = clamp(this.surface.pilot.y + this.surface.pilot.vy * dt, 40, this.surface.height - 40)
-    if (Math.abs(input.move.x) + Math.abs(input.move.y) > 0.05) this.surface.pilot.facing = Math.atan2(input.move.y, input.move.x)
+    Object.assign(this.surface.pilot, updateSurfacePilotMotion({
+      pilot: this.surface.pilot,
+      ship: this.surface.ship,
+      move: input.move,
+      o2Returning: this.surface.o2Returning,
+      engineRank: this.build.engine,
+      dt,
+      world: { width: this.surface.width, height: this.surface.height }
+    }))
 
     if (this.surface.pilot.gunCd <= 0 && this.findSurfaceTarget()) this.fireSurfaceGun()
     this.collectSurfaceResources()
