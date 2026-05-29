@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { canLockPlanetCourse, nearestPlanetCourseTarget, planetCourseLockToast, resolveLandingIntent } from '../src/navigation-planet-lock'
+
+const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+const occurrences = (sourceText: string, text: string) => sourceText.split(text).length - 1
 
 test('pending mutation signals can lock a planet course before nav upgrades', () => {
   expect(canLockPlanetCourse({
@@ -65,6 +70,15 @@ test('nearest planet course target uses ship distance', () => {
 test('planet course lock toast distinguishes signal installs from nav ghosting', () => {
   expect(planetCourseLockToast({ pendingUpgrades: 1, planetName: 'Install World' })).toBe('SIGNAL COURSE LOCKED: Install World')
   expect(planetCourseLockToast({ pendingUpgrades: 0, planetName: 'Scout World' })).toBe('NAV GHOST LOCKED: Scout World')
+})
+
+test('main keeps planet course lock state in a focused helper', () => {
+  const main = source()
+
+  expect(main).toContain('private setPlanetCourse(target: Planet)')
+  expect(occurrences(main, 'this.setPlanetCourse(target)')).toBe(1)
+  expect(occurrences(main, 'this.autoNavTargetPlanetId = target.id')).toBe(1)
+  expect(main).toContain('this.autoNavTargetBeacon = false')
 })
 
 test('landing intent prioritizes nearby planets then return beacon then course lock', () => {

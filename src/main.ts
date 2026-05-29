@@ -1336,6 +1336,13 @@ export class GalacticHordesGame {
     return node.column === 1
   }
 
+  private setPlanetCourse(target: Planet) {
+    this.autoNavTargetPlanetId = target.id
+    this.autoNavTargetBeacon = false
+    this.autoNavActive = true
+    this.autoNavHeading = Math.atan2(target.y - this.player.y, target.x - this.player.x)
+  }
+
   private setReturnBeaconCourse() {
     if (!this.returnBeacon) return false
     this.autoNavTargetPlanetId = null
@@ -2614,9 +2621,7 @@ export class GalacticHordesGame {
     if (intent.action === 'returnBeacon' && this.lockReturnBeacon()) return
     if (intent.action === 'lockPlanetCourse') {
       const target = intent.target
-      this.autoNavTargetPlanetId = target.id
-      this.autoNavActive = true
-      this.autoNavHeading = Math.atan2(target.y - this.player.y, target.x - this.player.x)
+      this.setPlanetCourse(target)
       this.toast(planetCourseLockToast({ pendingUpgrades: this.pendingUpgrades, planetName: target.name }))
       this.audio.pickup('nav')
       return
