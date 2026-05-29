@@ -37,6 +37,7 @@ import { resolveDashStats } from './dash-stats'
 import { navigationCruiseScalar, navigationTrailProfile } from './navigation-cruise'
 import { bestNavigationPickup } from './navigation-pickups'
 import { canLockPlanetCourse, nearestPlanetCourseTarget, planetCourseLockToast } from './navigation-planet-lock'
+import { blendedNavigationMove, isManualNavigationActive } from './navigation-steering'
 import { applyMutationXp } from './mutation-progress'
 import { createChunkPlanet, type GeneratedPlanet } from './planet-generation'
 import { collectPickup, dropPickup, updatePickupsPhysics, type Pickup, type PickupKind } from './pickups'
@@ -1212,7 +1213,7 @@ export class VectorShooter {
   private resolveNavigationMove(move: Vec, moveActive: boolean, dt: number): Vec {
     const level = this.navigationCruiseLevel()
 
-    const manualActive = moveActive && Math.abs(move.x) + Math.abs(move.y) > 0.06
+    const manualActive = isManualNavigationActive({ move, moveActive })
     if (manualActive) {
       const target = Math.atan2(move.y, move.x)
       this.autoNavHeading = this.autoNavActive ? angleLerp(this.autoNavHeading, target, clamp(dt * (3.6 + level * 0.42), 0, 0.38)) : target
@@ -1262,12 +1263,8 @@ export class VectorShooter {
     }
 
     const cruise = navigationCruiseScalar({ navRank: this.build.nav, targetLocked: !!targetPlanet })
-    const influence = manualActive ? 0.58 + level * 0.035 : 0
     const ghost = { x: Math.cos(this.autoNavHeading) * cruise, y: Math.sin(this.autoNavHeading) * cruise }
-    if (!manualActive) return ghost
-    const steered = { x: ghost.x + move.x * influence, y: ghost.y + move.y * influence }
-    const magnitude = len(steered.x, steered.y)
-    return magnitude > 1 ? { x: steered.x / magnitude, y: steered.y / magnitude } : steered
+    return blendedNavigationMove({ ghost, move, manualActive, navRank: level })
   }
 
   private navigationCruiseLevel() {
