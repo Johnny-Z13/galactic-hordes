@@ -187,9 +187,10 @@ export function renderMothershipRoutePreview(self: VectorShooter) {
   `
   preview.querySelectorAll<HTMLButtonElement>('.mothership-route-node.available').forEach((button, index) => {
     const node = choices[index]
+    button.setAttribute('aria-label', `Launch ${node.label}`)
     button.addEventListener('click', () => {
       if (!node) return
-      self['toast'](`${node.label}: ${node.description}`)
+      self['launchSectorNode'](node.id)
     })
   })
   return preview

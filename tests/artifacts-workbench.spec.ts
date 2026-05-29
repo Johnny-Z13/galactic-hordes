@@ -215,6 +215,14 @@ test('desktop mothership shows route map alongside launch controls', () => {
   expect(css).toContain('.mothership-first-briefing')
 })
 
+test('mothership route preview nodes launch armed routes directly', () => {
+  const mothership = mothershipSource()
+
+  expect(mothership).toContain("button.setAttribute('aria-label', `Launch ${node.label}`)")
+  expect(mothership).toContain("self['launchSectorNode'](node.id)")
+  expect(mothership).not.toContain("self['toast'](`${node.label}: ${node.description}`)")
+})
+
 test('mothership last report preserves the expedition story after debrief', () => {
   const mothership = mothershipSource()
   const css = styles()
