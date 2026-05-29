@@ -1,5 +1,6 @@
 import { advancedRewardEnemyKinds, spaceEnemyBehavior } from './space-enemy-behavior'
 import { isGiantEnemyKind, type SpaceEnemyKind } from './space-enemies'
+import { powerupBalance } from './powerup-balance'
 
 export interface SpaceEnemyKillRewardInput {
   kind: SpaceEnemyKind
@@ -10,6 +11,17 @@ export interface SpaceEnemyKillReward {
   xpDrops: number
   xpValue: number
   chest: boolean
+}
+
+export interface SpaceEnemyBonusDropInput {
+  vampireRank: number
+  elapsedSeconds: number
+  random: () => number
+}
+
+export interface SpaceEnemyBonusDrop {
+  kind: 'repair' | 'magnet'
+  value: number
 }
 
 function spaceEnemyXpCount(kind: SpaceEnemyKind) {
@@ -37,4 +49,17 @@ export function resolveSpaceEnemyKillReward(input: SpaceEnemyKillRewardInput): S
     xpValue: spaceEnemyXpValue(input.kind, input.highLoad, xpCount),
     chest: input.kind === 'warden' || isGiantEnemyKind(input.kind)
   }
+}
+
+export function resolveSpaceEnemyBonusDrops(input: SpaceEnemyBonusDropInput): SpaceEnemyBonusDrop[] {
+  const drops: SpaceEnemyBonusDrop[] = []
+  if (input.random() < powerupBalance.upgradeApply.vampireRepairDropBaseChance
+    + input.vampireRank * powerupBalance.upgradeApply.vampireRepairDropChancePerRank) {
+    drops.push({ kind: 'repair', value: powerupBalance.upgradeApply.vampireRepairDropValue })
+  }
+  if (input.random() < powerupBalance.upgradeApply.magnetDropBaseChance
+    + input.elapsedSeconds * powerupBalance.upgradeApply.magnetDropChancePerSecond) {
+    drops.push({ kind: 'magnet', value: powerupBalance.upgradeApply.magnetDropValue })
+  }
+  return drops
 }

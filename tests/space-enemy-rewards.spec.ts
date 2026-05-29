@@ -1,7 +1,11 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
+import { powerupBalance } from '../src/powerup-balance'
 import { spaceEnemyBehavior } from '../src/space-enemy-behavior'
-import { resolveSpaceEnemyKillReward } from '../src/space-enemy-rewards'
+import {
+  resolveSpaceEnemyBonusDrops,
+  resolveSpaceEnemyKillReward
+} from '../src/space-enemy-rewards'
 
 test('space enemy rewards use default xp for ordinary enemies', () => {
   expect(resolveSpaceEnemyKillReward({ kind: 'chaser', highLoad: false })).toEqual({
@@ -43,13 +47,46 @@ test('space enemy rewards merge high-load ordinary enemy xp by original drop cou
   })
 })
 
+test('space enemy bonus drops use vampire and elapsed-time chances independently', () => {
+  const drops = resolveSpaceEnemyBonusDrops({
+    vampireRank: 2,
+    elapsedSeconds: 500,
+    random: () => 0
+  })
+
+  expect(drops).toEqual([
+    { kind: 'repair', value: powerupBalance.upgradeApply.vampireRepairDropValue },
+    { kind: 'magnet', value: powerupBalance.upgradeApply.magnetDropValue }
+  ])
+})
+
+test('space enemy bonus drops can miss repair while still rolling magnet', () => {
+  let roll = 0
+  const drops = resolveSpaceEnemyBonusDrops({
+    vampireRank: 0,
+    elapsedSeconds: 500,
+    random: () => {
+      roll += 1
+      return roll === 1 ? 1 : 0
+    }
+  })
+
+  expect(drops).toEqual([
+    { kind: 'magnet', value: powerupBalance.upgradeApply.magnetDropValue }
+  ])
+})
+
 test('main delegates space enemy kill reward math to focused helper', () => {
   const main = readFileSync('src/main.ts', 'utf8')
   const helper = readFileSync('src/space-enemy-rewards.ts', 'utf8')
 
   expect(helper).toContain('export function resolveSpaceEnemyKillReward')
+  expect(helper).toContain('export function resolveSpaceEnemyBonusDrops')
   expect(main).toContain("from './space-enemy-rewards'")
   expect(main).toContain('const killReward = resolveSpaceEnemyKillReward({')
+  expect(main).toContain('const bonusDrops = resolveSpaceEnemyBonusDrops({')
   expect(main).not.toContain('const xpCount = isGiantEnemyKind(e.kind)')
   expect(main).not.toContain('spaceEnemyBehavior.rewards.xpValue.highLoadPerDrop')
+  expect(main).not.toContain('vampireRepairDropBaseChance + this.build.vampire')
+  expect(main).not.toContain('magnetDropBaseChance + this.stats.time')
 })

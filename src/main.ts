@@ -92,7 +92,7 @@ import { createDashWakeEffects } from './space-dash-wake'
 import { createSpaceEnemy, createSplitChildEnemy } from './space-enemy-factory'
 import { createEnemyTrailParticle } from './space-enemy-trails'
 import { EnemySpatialGrid } from './space-enemy-grid'
-import { resolveSpaceEnemyKillReward } from './space-enemy-rewards'
+import { resolveSpaceEnemyBonusDrops, resolveSpaceEnemyKillReward } from './space-enemy-rewards'
 import { damageSpaceHazard as damageSpaceHazardCombat } from './space-hazard-combat'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
@@ -2252,12 +2252,12 @@ export class VectorShooter {
           this.enemies.push(child)
         }
       }
-      if (Math.random() < powerupBalance.upgradeApply.vampireRepairDropBaseChance + this.build.vampire * powerupBalance.upgradeApply.vampireRepairDropChancePerRank) {
-        this.drop('repair', e.x, e.y, powerupBalance.upgradeApply.vampireRepairDropValue)
-      }
-      if (Math.random() < powerupBalance.upgradeApply.magnetDropBaseChance + this.stats.time * powerupBalance.upgradeApply.magnetDropChancePerSecond) {
-        this.drop('magnet', e.x, e.y, powerupBalance.upgradeApply.magnetDropValue)
-      }
+      const bonusDrops = resolveSpaceEnemyBonusDrops({
+        vampireRank: this.build.vampire,
+        elapsedSeconds: this.stats.time,
+        random: Math.random
+      })
+      for (const drop of bonusDrops) this.drop(drop.kind, e.x, e.y, drop.value)
     }
   }
 
