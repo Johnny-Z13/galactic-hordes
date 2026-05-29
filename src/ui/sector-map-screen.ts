@@ -46,6 +46,9 @@ export function showSectorMap(self: SectorMapView, message: string) {
   titleBlock.className = 'sector-map-title'
   titleBlock.innerHTML = `<span>RUN ROUTE</span><h1>SECTOR MAP</h1><p>${runtime.escape(message)}</p>`
   const choices = availableSectorChoices(runtime.sectorMap)
+  const current = currentSectorNode(runtime.sectorMap)
+  const currentStationVisit = runtime.stationVisits.find((visit) => visit.nodeId === current.id)
+  let selectedNodeId = ''
   const status = document.createElement('div')
   status.className = 'sector-map-status'
   status.innerHTML = `
@@ -71,11 +74,12 @@ export function showSectorMap(self: SectorMapView, message: string) {
   svg.classList.add('sector-map-lines')
   svg.setAttribute('viewBox', '0 0 100 100')
   const renderedEdges = new Set<string>()
+  const legalEdgeKeys = new Set(choices.map((choice) => sectorEdgeKey(current.id, choice.id)))
   for (const edge of runtime.sectorMap.edges) {
     const from = runtime.sectorMap.nodes.find((node) => node.id === edge.from)
     const to = runtime.sectorMap.nodes.find((node) => node.id === edge.to)
     if (!from || !to) continue
-    const edgeKey = [from.id, to.id].sort().join('::')
+    const edgeKey = sectorEdgeKey(from.id, to.id)
     if (renderedEdges.has(edgeKey)) continue
     renderedEdges.add(edgeKey)
     const a = sectorNodePosition(runtime.sectorMap, from)
@@ -85,8 +89,9 @@ export function showSectorMap(self: SectorMapView, message: string) {
     line.setAttribute('y1', `${a.y}`)
     line.setAttribute('x2', `${b.x}`)
     line.setAttribute('y2', `${b.y}`)
-    const available = choices.some((choice) => choice.id === from.id || choice.id === to.id)
-    line.classList.add(from.completed && to.completed ? 'completed' : available ? 'available' : 'locked')
+    line.dataset.edgeKey = edgeKey
+    const legalJump = legalEdgeKeys.has(edgeKey)
+    line.classList.add(from.completed && to.completed ? 'completed' : legalJump ? 'available' : 'locked')
     svg.append(line)
   }
   graph.append(svg)
@@ -101,16 +106,19 @@ export function showSectorMap(self: SectorMapView, message: string) {
     button.style.left = `${pos.x}%`
     button.style.top = `${pos.y}%`
     button.dataset.label = node.label
+    button.dataset.nodeId = node.id
+    button.dataset.baseState = stateLabel
+    if (isAvailable) button.dataset.edgeKey = sectorEdgeKey(current.id, node.id)
     button.setAttribute('aria-label', `${sectorKindLabel(node.kind)}: ${node.label}`)
     button.innerHTML = `
-        <span class="sector-node-core"><span class="sector-node-glyph">${sectorNodeGlyph(node.kind)}</span></span>
+        <span class="sector-node-core" aria-hidden="true"></span>
         <span class="sector-node-label">${runtime.escape(node.label.replace(/\s+\d+-\d+$/, ''))}</span>
         <span class="sector-node-state">${stateLabel}</span>
         ${sectorStationEdgeMarkers(node, runtime.sectorMap.currentNodeId, isAvailable)}
       `
     button.title = stationVisit ? `${stationVisit.stationName}: ${stationVisit.contactName}, ${stationVisit.contactRole}` : `${node.label}: ${node.description}`
     button.disabled = !isAvailable
-    button.addEventListener('click', () => runtime.launchSectorNode(node.id))
+    button.addEventListener('click', () => selectSectorChoice(node.id))
     graph.append(button)
   }
   const legend = document.createElement('div')
@@ -125,58 +133,54 @@ export function showSectorMap(self: SectorMapView, message: string) {
 
   const details = document.createElement('div')
   details.className = 'sector-map-details'
-  const current = currentSectorNode(runtime.sectorMap)
-  const currentStationVisit = runtime.stationVisits.find((visit) => visit.nodeId === current.id)
   const heading = document.createElement('div')
   heading.className = 'sector-map-current'
   heading.innerHTML = currentStationVisit
     ? `<span>CURRENT NODE // DOCKED</span><h2>${runtime.escape(currentStationVisit.stationName)}</h2><p>${runtime.escape(`${currentStationVisit.contactName}, ${currentStationVisit.contactRole}: ${currentStationVisit.rumor}`)}</p>`
     : `<span>CURRENT NODE</span><h2>${runtime.escape(current.label)}</h2><p>${runtime.escape(current.description)}</p>`
-  const list = document.createElement('div')
-  list.className = 'sector-choice-list'
-  for (const choice of choices) {
-    const profile = sectorNodeRunProfile(choice)
-    const intel = sectorNodeDecisionIntel(choice)
-    const hazards = sectorHazardsLabel(choice.config.hazards)
-    const planets = sectorPlanetLabel(choice.config.planets.countMin, choice.config.planets.countMax)
-    const option = document.createElement('button')
-    option.type = 'button'
-    option.className = `sector-choice ${choice.kind}`
-    option.innerHTML = `
-        <span class="sector-choice-head">
-          <span class="sector-choice-kind">${runtime.escape(sectorKindLabel(choice.kind))}</span>
-          <b class="sector-choice-title">${runtime.escape(choice.label)}</b>
-        </span>
-        <small>${runtime.escape(choice.config.readout)}</small>
-        <span class="sector-choice-intel" aria-label="Route decision intel">
-          <span>${runtime.escape(intel.directive)}</span>
-          <span>${runtime.escape(intel.reward)}</span>
-          <span>${runtime.escape(intel.risk)}</span>
-        </span>
-        <span class="sector-choice-metrics" aria-label="Route metrics">
-          <span><b>${planets}</b><em>PLANETS</em></span>
-          <span><b>${choice.config.waves.length}</b><em>${sectorWaveLabel(choice.config.waveOrder)}</em></span>
-          <span><b>${sectorFirstWaveLabel(choice)}</b><em>CONTACT</em></span>
-          <span><b>x${profile.spawnMultiplier.toFixed(2)}</b><em>PRESSURE</em></span>
-          <span><b>${runtime.escape(hazards)}</b><em>HAZARDS</em></span>
-        </span>
-        <i class="sector-choice-readout">${runtime.escape(sectorNodeConfigSummary(choice, profile))}</i>
-      `
-    option.addEventListener('click', () => runtime.launchSectorNode(choice.id))
-    list.append(option)
-  }
-  if (!choices.length) {
-    const empty = document.createElement('p')
-    empty.className = 'copy small'
-    empty.textContent = 'No forward route is open yet.'
-    list.append(empty)
-  }
-  list.append(sectorMapDebugReadout(runtime))
-  details.append(heading, list)
+  const selectionReadout = document.createElement('div')
+  selectionReadout.className = 'sector-selection-readout'
+  const launchButton = document.createElement('button')
+  launchButton.type = 'button'
+  launchButton.className = 'vector-button sector-launch-button'
+  launchButton.disabled = true
+  launchButton.textContent = 'Select Sector'
+  launchButton.addEventListener('click', () => {
+    if (!selectedNodeId) return
+    runtime.launchSectorNode(selectedNodeId)
+  })
+  details.append(heading, selectionReadout, launchButton, sectorMapDebugReadout(runtime))
   body.append(graph, details)
   panel.append(top, body)
   runtime.ui.sectorMap.append(panel)
   runtime.showOnly('sectorMap')
+
+  function selectSectorChoice(nodeId: string) {
+    const selected = choices.find((choice) => choice.id === nodeId)
+    if (!selected) return
+    selectedNodeId = selected.id
+    const selectedEdgeKey = sectorEdgeKey(current.id, selected.id)
+    graph.querySelectorAll<HTMLButtonElement>('.sector-node').forEach((button) => {
+      const isSelected = button.dataset.nodeId === selected.id
+      button.classList.toggle('selected', isSelected)
+      const state = button.querySelector<HTMLElement>('.sector-node-state')
+      if (state) state.textContent = isSelected ? 'LOCKED' : button.dataset.baseState ?? state.textContent ?? ''
+    })
+    graph.querySelectorAll<SVGLineElement>('.sector-map-lines line').forEach((line) => {
+      line.classList.toggle('selected', line.dataset.edgeKey === selectedEdgeKey)
+    })
+    selectionReadout.innerHTML = sectorSelectionReadout(runtime, selected)
+    launchButton.disabled = false
+    launchButton.textContent = `Launch ${sectorDisplayId(runtime.sectorMap, selected)}`
+  }
+
+  selectionReadout.innerHTML = choices.length
+    ? sectorSelectionPlaceholder(runtime)
+    : `<span>NO JUMP LOCK</span><h2>No Open Adjacent Hex</h2><p>No forward route is open yet.</p>`
+}
+
+function sectorEdgeKey(a: string, b: string) {
+  return [a, b].sort().join('::')
 }
 
 function sectorNodePosition(sectorMap: SectorMap, node: SectorNode) {
@@ -219,6 +223,53 @@ function sectorRouteString(sectorMap: SectorMap) {
     .sort((a, b) => a.config.depth - b.config.depth || a.label.localeCompare(b.label))
     .map((node) => node.label.replace(/\s+\d+-\d+$/, ''))
   return route.length ? route.join('  /  ') : 'UNCHARTED LOCAL SPACE'
+}
+
+function sectorDisplayId(sectorMap: SectorMap, node: SectorNode) {
+  if (node.id === 'mothership') return 'Sector 00'
+  const ordered = [...sectorMap.nodes]
+    .filter((candidate) => candidate.id !== 'mothership')
+    .sort((a, b) => a.config.depth - b.config.depth || a.q - b.q || a.r - b.r || a.label.localeCompare(b.label))
+  const index = Math.max(0, ordered.findIndex((candidate) => candidate.id === node.id)) + 1
+  return `Sector ${String(index).padStart(2, '0')}`
+}
+
+function sectorSelectionPlaceholder(runtime: SectorMapRuntime) {
+  return `
+        <span>JUMP TARGET</span>
+        <h2>Select Adjacent Hex</h2>
+        <p>Illuminated edges are legal jumps from the current sector. Tap one to lock the readout before launch.</p>
+        <span class="sector-choice-intel" aria-label="Jump selection state">
+          <span>EDGE LIT</span>
+          <span>HEX WIREFRAME</span>
+          <span>AWAITING LOCK</span>
+        </span>
+      `
+}
+
+function sectorSelectionReadout(runtime: SectorMapRuntime, node: SectorNode) {
+  const profile = sectorNodeRunProfile(node)
+  const intel = sectorNodeDecisionIntel(node)
+  const hazards = sectorHazardsLabel(node.config.hazards)
+  const planets = sectorPlanetLabel(node.config.planets.countMin, node.config.planets.countMax)
+  return `
+        <span>JUMP LOCK // ${runtime.escape(sectorKindLabel(node.kind))}</span>
+        <h2>${runtime.escape(sectorDisplayId(runtime.sectorMap, node))} // ${runtime.escape(node.label.replace(/\s+\d+-\d+$/, ''))}</h2>
+        <p>${runtime.escape(node.config.readout)}</p>
+        <span class="sector-choice-intel" aria-label="Route decision intel">
+          <span>${runtime.escape(intel.directive)}</span>
+          <span>${runtime.escape(intel.reward)}</span>
+          <span>${runtime.escape(intel.risk)}</span>
+        </span>
+        <span class="sector-choice-metrics" aria-label="Route metrics">
+          <span><b>${planets}</b><em>PLANETS</em></span>
+          <span><b>${node.config.waves.length}</b><em>${sectorWaveLabel(node.config.waveOrder)}</em></span>
+          <span><b>${sectorFirstWaveLabel(node)}</b><em>CONTACT</em></span>
+          <span><b>x${profile.spawnMultiplier.toFixed(2)}</b><em>PRESSURE</em></span>
+          <span><b>${runtime.escape(hazards)}</b><em>HAZARDS</em></span>
+        </span>
+        <i class="sector-choice-readout">${runtime.escape(sectorNodeConfigSummary(node, profile))}</i>
+      `
 }
 
 export function sectorNodeGlyph(kind: SectorNode['kind']) {

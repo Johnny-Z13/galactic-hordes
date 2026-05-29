@@ -55,24 +55,25 @@ const sectorMapMarkup = (css: string) => `
           </div>
         </div>
         <div class="sector-map-body">
-          <div class="sector-map-graph sector-map-starchart">
-            <div class="sector-map-graph-header"><span>LOCAL STARCHART</span><b>2 ROUTES OPEN</b></div>
+          <div class="sector-map-graph sector-map-hexchart">
+            <div class="sector-map-graph-header"><span>LOCAL HEX FRONTIER</span><b>2 ADJACENT JUMPS</b></div>
+            <div class="sector-route-string">MOTHERSHIP</div>
             <svg class="sector-map-lines" viewBox="0 0 100 100">
-              <line class="available" x1="8" y1="48" x2="25" y2="18"></line>
-              <line class="available" x1="8" y1="48" x2="25" y2="38"></line>
-              <line class="locked" x1="25" y1="18" x2="42" y2="38"></line>
+              <line class="available" x1="50" y1="50" x2="61" y2="50"></line>
+              <line class="available" x1="50" y1="50" x2="56" y2="60"></line>
+              <line class="locked" x1="61" y1="50" x2="67" y2="60"></line>
             </svg>
-            <button class="sector-node mothership completed current" style="left: 8%; top: 48%" type="button" disabled>
-              <span class="sector-node-core"><span class="sector-node-glyph">M</span></span><span class="sector-node-label">MOTHERSHIP</span><span class="sector-node-state">HERE</span>
+            <button class="sector-node mothership completed current" style="left: 50%; top: 50%" type="button" disabled>
+              <span class="sector-node-core" aria-hidden="true"></span><span class="sector-node-label">MOTHERSHIP</span><span class="sector-node-state">HERE</span>
             </button>
-            <button class="sector-node hostile available" style="left: 25%; top: 18%" type="button">
-              <span class="sector-node-core"><span class="sector-node-glyph">H</span></span><span class="sector-node-label">SAFE DRIFT</span><span class="sector-node-state">OPEN</span>
+            <button class="sector-node hostile available" style="left: 61%; top: 50%" type="button">
+              <span class="sector-node-core" aria-hidden="true"></span><span class="sector-node-label">SAFE DRIFT</span><span class="sector-node-state">JUMP</span><span class="sector-station-edges"><i class="station-edge w"></i></span>
             </button>
-            <button class="sector-node planet available" style="left: 25%; top: 38%" type="button">
-              <span class="sector-node-core"><span class="sector-node-glyph">P</span></span><span class="sector-node-label">PLANET CLUSTER</span><span class="sector-node-state">OPEN</span>
+            <button class="sector-node planet available" style="left: 56%; top: 60%" type="button">
+              <span class="sector-node-core" aria-hidden="true"></span><span class="sector-node-label">PLANET CLUSTER</span><span class="sector-node-state">JUMP</span><span class="sector-station-edges"><i class="station-edge nw"></i></span>
             </button>
-            <button class="sector-node final locked" style="left: 92%; top: 48%" type="button" disabled>
-              <span class="sector-node-core"><span class="sector-node-glyph">F</span></span><span class="sector-node-label">LAST STAND</span><span class="sector-node-state">LOCK</span>
+            <button class="sector-node final locked sector-node-frontier" style="left: 84%; top: 50%" type="button" disabled>
+              <span class="sector-node-core" aria-hidden="true"></span><span class="sector-node-label">LAST STAND</span><span class="sector-node-state">LOCK</span>
             </button>
             <div class="sector-map-legend">
               <span><i class="legend-swatch planet"></i>Planet</span>
@@ -87,26 +88,17 @@ const sectorMapMarkup = (css: string) => `
               <h2>MOTHERSHIP</h2>
               <p>Safe launch node with light scouts and normal route access.</p>
             </div>
-            <div class="sector-choice-list">
-              <button class="sector-choice hostile" type="button">
-                <span class="sector-choice-head"><span class="sector-choice-kind">COMBAT</span><b class="sector-choice-title">SAFE DRIFT 1-1</b></span>
-                <small>Opening route. Scouts, signal, station choice.</small>
-                <span class="sector-choice-intel"><span>SCOUTS</span><span>SIGNAL</span><span>LOW RISK</span></span>
-                <span class="sector-choice-metrics"><span><b>1-2</b><em>PLANETS</em></span><span><b>3</b><em>SCOUTS</em></span><span><b>14s</b><em>CONTACT</em></span><span><b>x0.50</b><em>PRESSURE</em></span><span><b>CLEAR</b><em>HAZARDS</em></span></span>
-                <i class="sector-choice-readout">PLANETS 1-2 / WAVES 3 SCOUTS / FIRST 14s / HAZARDS CLEAR / PRESSURE x0.50</i>
-              </button>
-              <button class="sector-choice planet" type="button">
-                <span class="sector-choice-head"><span class="sector-choice-kind">PLANET</span><b class="sector-choice-title">PLANET CLUSTER 1-2</b></span>
-                <small>Planet route. More landings, moderate pressure.</small>
-                <span class="sector-choice-intel"><span>LANDINGS</span><span>PLANETS</span><span>MED RISK</span></span>
-                <span class="sector-choice-metrics"><span><b>3-6</b><em>PLANETS</em></span><span><b>2</b><em>SWARM</em></span><span><b>x0.88</b><em>PRESSURE</em></span><span><b>CLEAR</b><em>HAZARDS</em></span></span>
-                <i class="sector-choice-readout">PLANETS 3-6 / WAVES 2 SWARM / HAZARDS CLEAR / PRESSURE x0.88</i>
-              </button>
-              <details class="sector-debug-readout">
-                <summary>ROUTE DEBUG</summary>
-                <div class="sector-debug-row"><b>SAFE DRIFT 1-1</b><span>safeDrift / d0.20 / safe</span></div>
-              </details>
+            <div class="sector-selection-readout">
+              <span>JUMP TARGET</span>
+              <h2>Select Adjacent Hex</h2>
+              <p>Illuminated edges are legal jumps from the current sector. Tap one to lock the readout before launch.</p>
+              <span class="sector-choice-intel"><span>EDGE LIT</span><span>HEX WIREFRAME</span><span>AWAITING LOCK</span></span>
             </div>
+            <button class="vector-button sector-launch-button" type="button" disabled>Select Sector</button>
+            <details class="sector-debug-readout">
+              <summary>ROUTE DEBUG</summary>
+              <div class="sector-debug-row"><b>SAFE DRIFT 1-1</b><span>safeDrift / d0.20 / safe</span></div>
+            </details>
           </div>
         </div>
       </div>
@@ -381,15 +373,18 @@ test('sector map route planner keeps graph and first route visible across app br
     await page.setContent(sectorMapMarkup(styles()))
 
     const graphBox = await page.locator('.sector-map-graph').boundingBox()
-    const firstChoiceBox = await page.locator('.sector-choice').first().boundingBox()
+    const readoutBox = await page.locator('.sector-selection-readout').boundingBox()
+    const launchBox = await page.locator('.sector-launch-button').boundingBox()
     const detailsDisplay = await page.locator('.sector-map-body').evaluate((el) => getComputedStyle(el).gridTemplateColumns)
     const debugOpen = await page.locator('.sector-debug-readout').evaluate((el) => (el as HTMLDetailsElement).open)
 
     expect(graphBox, `${viewport.name} sector graph should render`).not.toBeNull()
-    expect(firstChoiceBox, `${viewport.name} first route should render`).not.toBeNull()
-    expect(firstChoiceBox!.y, `${viewport.name} first route top`).toBeGreaterThanOrEqual(0)
-    expect(firstChoiceBox!.y, `${viewport.name} first route starts inside first viewport`).toBeLessThan(viewport.height)
-    expect(firstChoiceBox!.x + firstChoiceBox!.width, `${viewport.name} first route right edge`).toBeLessThanOrEqual(viewport.width)
+    expect(readoutBox, `${viewport.name} sector readout should render`).not.toBeNull()
+    expect(launchBox, `${viewport.name} launch action should render`).not.toBeNull()
+    expect(readoutBox!.y, `${viewport.name} readout top`).toBeGreaterThanOrEqual(0)
+    expect(readoutBox!.y, `${viewport.name} readout starts inside first viewport`).toBeLessThan(viewport.height)
+    expect(readoutBox!.x + readoutBox!.width, `${viewport.name} readout right edge`).toBeLessThanOrEqual(viewport.width)
+    expect(launchBox!.x + launchBox!.width, `${viewport.name} launch right edge`).toBeLessThanOrEqual(viewport.width)
     expect(debugOpen, `${viewport.name} debug readout should stay collapsed`).toBe(false)
 
     if (viewport.width <= 980) {
