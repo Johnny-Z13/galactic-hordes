@@ -1534,6 +1534,7 @@ export class GalacticHordesGame {
     })
 
     this.updateParticles(dt)
+    advanceScorePopups(this.scorePopups, dt)
     this.updateHud()
     if (this.player.hull <= 0) this.gameOver()
   }

@@ -145,3 +145,11 @@ test('surface threat kills create surface-layer score feedback', () => {
   expect(main).not.toContain('private pushScorePopup')
   expect(main).not.toContain('surface kills will render at an incorrect')
 })
+
+test('surface gameplay ages score popups so planet reward text clears', () => {
+  const main = readFileSync('src/main.ts', 'utf8')
+  const updateSurface = main.slice(main.indexOf('private updateSurface('), main.indexOf('private getInput(', main.indexOf('private updateSurface(')))
+
+  expect(updateSurface).toContain('advanceScorePopups(this.scorePopups, dt)')
+  expect(updateSurface.indexOf('advanceScorePopups(this.scorePopups, dt)')).toBeLessThan(updateSurface.indexOf('this.updateHud()'))
+})
