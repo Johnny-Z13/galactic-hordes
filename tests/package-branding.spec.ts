@@ -39,3 +39,13 @@ test('browser debug global exposes Galactic Hordes name with legacy alias', () =
   expect(main).toContain('window.__vectorShooter = window.__galacticHordes')
   expect(enemyBehaviors).not.toContain('VectorShooter')
 })
+
+test('browser playtest specs prefer Galactic Hordes debug globals', () => {
+  for (const file of ['tests/intro-juice.spec.ts', 'tests/intro-waypoint.spec.ts']) {
+    const source = readFileSync(file, 'utf8')
+
+    expect(source).toContain('__galacticHordes')
+    expect(source).not.toContain('__vectorShooter')
+    expect(source).not.toContain(': any')
+  }
+})

@@ -27,9 +27,9 @@ test('score popups appear after a kill and clear after popup lifetime elapses', 
       debugForceKillNearestEnemy: (giant: boolean) => boolean
       debugScorePopupsSnapshot: () => { count: number; texts: string[] }
       debugStepScorePopups: (dt: number) => void
-      __vectorShooter: { state: string }
+      __galacticHordes: { state: string }
     }
-    w.__vectorShooter.state = 'playing'
+    w.__galacticHordes.state = 'playing'
     w.debugSpawnSingleEnemy('chaser', 60, 0)
     const before = w.debugScorePopupsSnapshot()
     w.debugForceKillNearestEnemy(false)
@@ -53,9 +53,9 @@ test('hitstop fires on giant-kind kill but not on chaser kill', async ({ page })
       debugSpawnSingleEnemy: (kind: string, dx: number, dy: number) => void
       debugForceKillNearestEnemy: (giant: boolean) => boolean
       debugHitstopUntil: () => number
-      __vectorShooter: { state: string }
+      __galacticHordes: { state: string }
     }
-    w.__vectorShooter.state = 'playing'
+    w.__galacticHordes.state = 'playing'
     w.debugSpawnSingleEnemy('chaser', 60, 0)
     const t0 = performance.now() / 1000
     w.debugForceKillNearestEnemy(false)
@@ -78,13 +78,13 @@ test('enemy.flash is stamped by damage with the configured hitFlash duration', a
   const result = await page.evaluate(async () => {
     const w = window as unknown as {
       debugSpawnSingleEnemy: (kind: string, dx: number, dy: number) => void
-      __vectorShooter: {
+      __galacticHordes: {
         state: string
         enemies: Array<{ hp: number; flash: number }>
         damageEnemy: (e: { hp: number; flash: number }, amount: number, color: string) => void
       }
     }
-    const g = w.__vectorShooter
+    const g = w.__galacticHordes
     g.state = 'playing'
     w.debugSpawnSingleEnemy('brute', 80, 0)
     const e = g.enemies[0]
@@ -100,7 +100,15 @@ test('enemy.flash is stamped by damage with the configured hitFlash duration', a
 test('pickup magnet glint uses a dedicated cyan signal color while pulled', async ({ page }) => {
   await loadHarnessPage(page)
   const result = await page.evaluate(() => {
-    const g = (window as unknown as { __vectorShooter: any }).__vectorShooter
+    const g = (window as unknown as {
+      __galacticHordes: {
+        state: string
+        player: { x: number; y: number }
+        pickups: Array<{ kind: string; x: number; y: number; vx: number; vy: number; value: number; radius: number; life: number; color: string }>
+        particles: Array<{ color: string }>
+        updatePickups: (dt: number) => void
+      }
+    }).__galacticHordes
     g.state = 'playing'
     g.player.x = 0
     g.player.y = 0
@@ -119,7 +127,17 @@ test('pickup magnet glint uses a dedicated cyan signal color while pulled', asyn
 test('banked mutation signals create visible decision feedback', async ({ page }) => {
   await loadHarnessPage(page)
   const result = await page.evaluate(() => {
-    const g = (window as unknown as { __vectorShooter: any }).__vectorShooter
+    const g = (window as unknown as {
+      __galacticHordes: {
+        state: string
+        player: { x: number; y: number }
+        stats: { xp: number; nextXp: number }
+        pickups: Array<{ kind: string; x: number; y: number; vx: number; vy: number; value: number; radius: number; life: number; color: string }>
+        scorePopups: Array<{ text: string }>
+        pendingUpgrades: number
+        updatePickups: (dt: number) => void
+      }
+    }).__galacticHordes
     g.state = 'playing'
     g.player.x = 0
     g.player.y = 0
@@ -140,7 +158,32 @@ test('banked mutation signals create visible decision feedback', async ({ page }
 test('banked mutation signal lets the starter ship lock a planet for install', async ({ page }) => {
   await loadHarnessPage(page)
   const result = await page.evaluate(() => {
-    const g = (window as unknown as { __vectorShooter: any }).__vectorShooter
+    const g = (window as unknown as {
+      __galacticHordes: {
+        state: string
+        pendingUpgrades: number
+        build: { nav: number }
+        player: { x: number; y: number; landedCd: number }
+        returnBeacon: unknown | null
+        planets: Array<{
+          id: string
+          name: string
+          x: number
+          y: number
+          vx: number
+          vy: number
+          radius: number
+          color: string
+          reward: string
+          visited: boolean
+          archetype: string
+          biome: { label: string; baseColor: string; accentColor: string; surfaceMotif: string }
+        }>
+        autoNavTargetPlanetId: string | null
+        toastText: string
+        tryLand: () => void
+      }
+    }).__galacticHordes
     g.state = 'playing'
     g.pendingUpgrades = 1
     g.build.nav = 0

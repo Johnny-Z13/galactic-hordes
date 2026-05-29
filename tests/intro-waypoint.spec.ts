@@ -8,10 +8,10 @@ test('intro waypoint activates on a fresh first-ever run', async ({ page }) => {
     const w = window as unknown as {
       debugForceFirstEverRun: () => void
       debugIntroWaypointState: () => { active: boolean; timer: number; targetPlanetId: string | null } | null
-      __vectorShooter: { state: string }
+      __galacticHordes: { state: string }
     }
     w.debugForceFirstEverRun()
-    const g = w.__vectorShooter
+    const g = w.__galacticHordes
     g.state = 'playing'
     // Wait two animation frames so updatePlaying can run and call tryStartIntroWaypoint.
     await new Promise((r) => requestAnimationFrame(() => r(null)))
@@ -33,10 +33,10 @@ test('intro waypoint deactivates after landing', async ({ page }) => {
       debugForceFirstEverRun: () => void
       debugIntroWaypointState: () => { active: boolean; timer: number; targetPlanetId: string | null } | null
       debugLandOnNearestPlanet: () => boolean
-      __vectorShooter: { state: string }
+      __galacticHordes: { state: string }
     }
     w.debugForceFirstEverRun()
-    const g = w.__vectorShooter
+    const g = w.__galacticHordes
     g.state = 'playing'
     await new Promise((r) => requestAnimationFrame(() => r(null)))
     await new Promise((r) => requestAnimationFrame(() => r(null)))
@@ -55,13 +55,13 @@ test('intro waypoint stays active past its reminder timer until first landing', 
     const w = window as unknown as {
       debugForceFirstEverRun: () => void
       debugIntroWaypointState: () => { active: boolean; timer: number; targetPlanetId: string | null } | null
-      __vectorShooter: {
+      __galacticHordes: {
         state: string
         tickIntroWaypoint: (dt: number) => void
       }
     }
     w.debugForceFirstEverRun()
-    const g = w.__vectorShooter
+    const g = w.__galacticHordes
     g.state = 'playing'
     await new Promise((r) => requestAnimationFrame(() => r(null)))
     await new Promise((r) => requestAnimationFrame(() => r(null)))
@@ -80,14 +80,14 @@ test('intro waypoint does NOT activate on a second run (debrief present)', async
   const result = await page.evaluate(async () => {
     const w = window as unknown as {
       debugIntroWaypointState: () => { active: boolean; timer: number; targetPlanetId: string | null } | null
-      __vectorShooter: {
+      __galacticHordes: {
         state: string
         debrief: unknown
         stats: { planets: number }
         introWaypoint: null
       }
     }
-    const g = w.__vectorShooter
+    const g = w.__galacticHordes
     // @see DebriefReport in src/main.ts — keep shape in sync.
     g.debrief = { resources: { recovered: { scrap: 0, crystal: 0, cores: 0 } }, discoveries: [], lightYears: 0, stationVisits: [], skippedBeacons: 0, title: 'Test', copy: '' }
     g.stats.planets = 1
