@@ -3560,8 +3560,24 @@ export class GalacticHordesGame {
     this.renderPickups(ctx)
     this.renderBullets(ctx)
     this.renderEnemies(ctx)
-    this.renderThreatIndicators(ctx)
-    this.renderSpawnEntryPings(ctx)
+    drawThreatIndicators({
+      ctx,
+      targets: this.enemies,
+      player: this.player,
+      width: this.width,
+      height: this.height,
+      glow: this.allowGlow(),
+      worldToScreen: (x, y) => this.worldToScreen(x, y)
+    })
+    drawSpawnEntryPings({
+      ctx,
+      pings: this.spawnEntryPings,
+      width: this.width,
+      height: this.height,
+      glow: this.allowGlow(),
+      scale: this.spaceScale(),
+      worldToScreen: (x, y) => this.worldToScreen(x, y)
+    })
     this.renderOrbitals(ctx)
     const autopilotTarget = this.autoNavTargetPlanetId ? this.planets.find((planet) => planet.id === this.autoNavTargetPlanetId) ?? null : null
     const autopilotBeaconTarget = this.autoNavTargetBeacon ? this.returnBeacon : null
@@ -3584,7 +3600,15 @@ export class GalacticHordesGame {
     if (this.state !== 'dying' || this.deathTimer < 0.16) this.renderPlayer(ctx)
     this.renderShockwaves(ctx)
     this.renderParticles(ctx)
-    this.renderImpactPulses(ctx)
+    drawImpactPulses({
+      ctx,
+      pulses: this.impactPulses,
+      width: this.width,
+      height: this.height,
+      glow: this.allowGlow(),
+      scale: this.spaceScale(),
+      worldToScreen: (x, y) => this.worldToScreen(x, y)
+    })
     if (this.state === 'playing') {
       const landingPlanet = this.planets.find((planet) => Math.sqrt(dist2(planet, this.player)) < planet.radius + 86)
       if (landingPlanet) {
@@ -3846,42 +3870,6 @@ export class GalacticHordesGame {
       allowGlow: this.allowGlow(),
       scale: this.spaceScale(),
       spriteSheet: this.spaceEnemyCatalog,
-      worldToScreen: (x, y) => this.worldToScreen(x, y)
-    })
-  }
-
-  private renderSpawnEntryPings(ctx: CanvasRenderingContext2D) {
-    drawSpawnEntryPings({
-      ctx,
-      pings: this.spawnEntryPings,
-      width: this.width,
-      height: this.height,
-      glow: this.allowGlow(),
-      scale: this.spaceScale(),
-      worldToScreen: (x, y) => this.worldToScreen(x, y)
-    })
-  }
-
-  private renderThreatIndicators(ctx: CanvasRenderingContext2D) {
-    drawThreatIndicators({
-      ctx,
-      targets: this.enemies,
-      player: this.player,
-      width: this.width,
-      height: this.height,
-      glow: this.allowGlow(),
-      worldToScreen: (x, y) => this.worldToScreen(x, y)
-    })
-  }
-
-  private renderImpactPulses(ctx: CanvasRenderingContext2D) {
-    drawImpactPulses({
-      ctx,
-      pulses: this.impactPulses,
-      width: this.width,
-      height: this.height,
-      glow: this.allowGlow(),
-      scale: this.spaceScale(),
       worldToScreen: (x, y) => this.worldToScreen(x, y)
     })
   }

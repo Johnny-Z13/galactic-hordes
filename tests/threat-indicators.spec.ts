@@ -48,8 +48,9 @@ test('main renders persistent threat indicators after enemy rendering', () => {
   const renderer = readFileSync('src/render/threat-indicators.ts', 'utf8')
 
   expect(main).toContain("from './render/threat-indicators'")
-  expect(main).toContain('this.renderThreatIndicators(ctx)')
-  expect(main.indexOf('this.renderEnemies(ctx)')).toBeLessThan(main.indexOf('this.renderThreatIndicators(ctx)'))
+  expect(main).toContain('drawThreatIndicators({')
+  expect(main).not.toContain('private renderThreatIndicators(')
+  expect(main.indexOf('this.renderEnemies(ctx)')).toBeLessThan(main.indexOf('drawThreatIndicators({'))
   expect(renderer).toContain('export function renderThreatIndicators')
   expect(renderer).toContain('threatIndicatorMarkers({')
 })
