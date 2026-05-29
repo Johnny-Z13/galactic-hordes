@@ -132,7 +132,7 @@ import { renderSurfaceBullets as drawSurfaceBullets, renderSurfaceWaveTelegraphs
 import { renderSurfaceShip as drawSurfaceShip } from './surface/render-ship'
 import { renderSurfaceThreats } from './surface/render-threats'
 import { renderSurfaceWorld as drawSurfaceWorld } from './surface/render-world'
-import { alienGiftOfferCopy, createBadAlienGiftThreats, isAlienGiftGood } from './surface/alien-gifts'
+import { alienGiftDiscoveryRecord, alienGiftOfferCopy, createBadAlienGiftThreats, isAlienGiftGood } from './surface/alien-gifts'
 import { createSurfaceCacheArtifact, resolveSurfaceCacheReward, surfaceCacheAmbushChance } from './surface/cache-rewards'
 import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurfaceBulletsAndThreatDamage } from './surface/bullet-combat'
 import { followSurfaceCamera, initialSurfaceCamera as createInitialSurfaceCamera } from './surface/camera'
@@ -3182,15 +3182,13 @@ export class VectorShooter {
     const alien = this.alienChoice
     alien.resolved = true
     this.alienChoice = null
-    this.recordArtifact({
-      id: `alien:${this.collectionSlug(alien.name)}`,
-      kind: 'alien',
-      title: alien.name,
-      detail: `${take ? 'Accepted' : 'Refused'} ${alien.gift.toUpperCase()} gift.`,
-      source: this.surface.planet.name,
-      color: alien.color,
-      icon: hashString(`${alien.name}:${alien.gift}`, 53) % 16
-    })
+    this.recordArtifact(alienGiftDiscoveryRecord({
+      name: alien.name,
+      gift: alien.gift,
+      accepted: take,
+      planetName: this.surface.planet.name,
+      color: alien.color
+    }))
     this.state = 'surface'
     this.showOnly(null)
     if (!take) {

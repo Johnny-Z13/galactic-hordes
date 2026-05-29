@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { TAU } from '../src/math-utils'
 import { surfaceRunBalance } from '../src/surface-balance'
 import {
+  alienGiftDiscoveryRecord,
   alienGiftOfferCopy,
   createBadAlienGiftThreats,
   isAlienGiftGood
@@ -78,13 +79,46 @@ test('alien gift success chance scales with luck and survey ranks', () => {
   expect(isAlienGiftGood({ luckRank: 2, surveyRank: 3, random: () => chance })).toBe(false)
 })
 
+test('alien gift discovery record preserves accept and refuse archive details', () => {
+  expect(alienGiftDiscoveryRecord({
+    name: 'The Glass Herbalist!',
+    gift: 'herb',
+    accepted: true,
+    planetName: 'Mirrorglen',
+    color: '#b990ff'
+  })).toEqual({
+    id: 'alien:the-glass-herbalist',
+    kind: 'alien',
+    title: 'The Glass Herbalist!',
+    detail: 'Accepted HERB gift.',
+    source: 'Mirrorglen',
+    color: '#b990ff',
+    icon: expect.any(Number)
+  })
+
+  expect(alienGiftDiscoveryRecord({
+    name: 'The Glass Herbalist!',
+    gift: 'idol',
+    accepted: false,
+    planetName: 'Mirrorglen',
+    color: '#57fff3'
+  })).toMatchObject({
+    id: 'alien:the-glass-herbalist',
+    kind: 'alien',
+    detail: 'Refused IDOL gift.',
+    color: '#57fff3'
+  })
+})
+
 test('main delegates alien gift copy and ambush creation to the surface module', () => {
   const main = readFileSync('src/main.ts', 'utf8')
 
   expect(main).toContain("from './surface/alien-gifts'")
   expect(main).toContain('alienGiftOfferCopy(alien.gift)')
+  expect(main).toContain('alienGiftDiscoveryRecord({')
   expect(main).toContain('createBadAlienGiftThreats({')
   expect(main).toContain('isAlienGiftGood({')
   expect(main).not.toContain('private alienOfferCopy(')
   expect(main).not.toContain('alienGiftGoodBaseChance')
+  expect(main).not.toContain("id: `alien:${this.collectionSlug(alien.name)}`")
 })

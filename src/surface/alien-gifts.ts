@@ -1,4 +1,5 @@
-import { clamp, TAU } from '../math-utils'
+import { collectionSlug, type ArtifactRecord } from '../artifact-archive'
+import { clamp, hashString, TAU } from '../math-utils'
 import { powerupBalance } from '../powerup-balance'
 import { surfaceRunBalance, type AlienGiftKind } from '../surface-balance'
 
@@ -33,6 +34,24 @@ export function isAlienGiftGood(input: {
     + input.luckRank * powerupBalance.upgradeApply.alienGiftLuckPerRank
     + input.surveyRank * powerupBalance.upgradeApply.alienGiftSurveyPerRank
   return input.random() < chance
+}
+
+export function alienGiftDiscoveryRecord(input: {
+  name: string
+  gift: AlienGiftKind
+  accepted: boolean
+  planetName: string
+  color: string
+}): Omit<ArtifactRecord, 'count'> {
+  return {
+    id: `alien:${collectionSlug(input.name)}`,
+    kind: 'alien',
+    title: input.name,
+    detail: `${input.accepted ? 'Accepted' : 'Refused'} ${input.gift.toUpperCase()} gift.`,
+    source: input.planetName,
+    color: input.color,
+    icon: hashString(`${input.name}:${input.gift}`, 53) % 16
+  }
 }
 
 export function createBadAlienGiftThreats(input: {
