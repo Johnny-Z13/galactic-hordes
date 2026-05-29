@@ -19,6 +19,7 @@ import {
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
 const hudSource = () => readFileSync(resolve(process.cwd(), 'src/ui/hud.ts'), 'utf8')
 const returnBeaconSource = () => readFileSync(resolve(process.cwd(), 'src/return-beacons.ts'), 'utf8')
+const occurrences = (sourceText: string, text: string) => sourceText.split(text).length - 1
 
 test('blocks first beacon before four minutes or before first planet', () => {
   expect(returnBeaconEligible({ time: 239, planetsVisited: 1, activeBeacon: false, nextBeaconAt: 0 })).toBe(false)
@@ -126,6 +127,16 @@ test('route station is reinforced by HUD distance reminder and docking assist', 
   expect(beacons).toContain('RETURN_BEACON_ASSIST_SECONDS')
   expect(beacons).toContain('RETURN_BEACON_SKIP_DISTANCE')
   expect(main).toContain('createReturnBeacon({')
+})
+
+test('route station docking course setup is shared by assist and dock lock paths', () => {
+  const main = source()
+
+  expect(main).toContain('private setReturnBeaconCourse()')
+  expect(occurrences(main, 'this.setReturnBeaconCourse()')).toBe(2)
+  expect(occurrences(main, 'this.autoNavTargetBeacon = true')).toBe(1)
+  expect(main).toContain('DOCKING COURSE SET - NUDGE AWAY TO SKIP')
+  expect(main).toContain('DOCKING COURSE LOCKED')
 })
 
 test('route station renders as a large octagonal docking structure', () => {

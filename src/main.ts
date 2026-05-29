@@ -1298,10 +1298,7 @@ export class GalacticHordesGame {
         this.toast('SPACE STATION WAITING - TAP DOCK TO LOCK')
         this.audio.pickup('nav')
       } else if (event === 'assist') {
-        this.autoNavTargetPlanetId = null
-        this.autoNavTargetBeacon = true
-        this.autoNavActive = true
-        this.autoNavHeading = Math.atan2(this.returnBeacon.y - this.player.y, this.returnBeacon.x - this.player.x)
+        if (!this.setReturnBeaconCourse()) return
         this.toast('DOCKING COURSE SET - NUDGE AWAY TO SKIP')
         this.audio.pickup('nav')
       } else if (event === 'skip') {
@@ -1339,6 +1336,15 @@ export class GalacticHordesGame {
     return node.column === 1
   }
 
+  private setReturnBeaconCourse() {
+    if (!this.returnBeacon) return false
+    this.autoNavTargetPlanetId = null
+    this.autoNavTargetBeacon = true
+    this.autoNavActive = true
+    this.autoNavHeading = Math.atan2(this.returnBeacon.y - this.player.y, this.returnBeacon.x - this.player.x)
+    return true
+  }
+
   private skipReturnBeacon() {
     if (!this.returnBeacon) return
     this.returnBeacon = null
@@ -1349,11 +1355,7 @@ export class GalacticHordesGame {
   }
 
   private lockReturnBeacon() {
-    if (!this.returnBeacon) return false
-    this.autoNavTargetPlanetId = null
-    this.autoNavTargetBeacon = true
-    this.autoNavActive = true
-    this.autoNavHeading = Math.atan2(this.returnBeacon.y - this.player.y, this.returnBeacon.x - this.player.x)
+    if (!this.setReturnBeaconCourse()) return false
     this.toast('DOCKING COURSE LOCKED')
     this.audio.pickup('nav')
     return true
