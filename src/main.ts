@@ -118,6 +118,7 @@ import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurf
 import { createSurfaceResourceNodes, surfaceEventMessage } from './surface/run-setup'
 import { resolveSurfaceResourcePickup } from './surface/resource-pickup'
 import { safeSurfaceResourcePoint } from './surface/safe-point'
+import { resolveSurfaceSignalBank, surfaceSignalCap } from './surface/signal-buffer'
 import { surfaceGunCooldown, surfaceGunDamage, surfaceGunSpeed, surfaceLowOxygenRatio, surfaceMaxHealth, surfaceMaxOxygen } from './surface/suit-stats'
 import { createSurfaceAliens as createSurfaceAliensFactory, createSurfaceLoreSites as createSurfaceLoreSitesFactory, type SurfaceAlienModel, type SurfaceLoreSiteModel } from './surface/discovery-factory'
 import { createGenericSurfaceThreat as createGenericSurfaceThreatFactory, createGlassMiteOracleThreat as createGlassMiteOracleThreatFactory, createPlanetBossThreat as createPlanetBossThreatFactory } from './surface/threat-factory'
@@ -2435,24 +2436,25 @@ export class VectorShooter {
   }
 
   private surfaceSignalCap(surface = this.surface) {
-    if (!surface) return workbenchBalance.surfaceSignalCapBase
-    const rewardBonus = surface.event === 'horde' || surface.event === 'jackpot'
-      ? workbenchBalance.surfaceSignalCapRewardEventBonus
-      : 0
-    return workbenchBalance.surfaceSignalCapBase + rewardBonus
+    return surfaceSignalCap(surface?.event ?? null)
   }
 
   private bankSurfaceUpgrade(message?: string) {
     if (!this.surface) return this.bankUpgrade(message)
-    if (this.surface.bankedSignals >= this.surfaceSignalCap()) {
-      this.surface.overflowSignals += 1
-      this.resources.scrap += workbenchBalance.overflowSignalScrap
-      this.resources.crystal += workbenchBalance.overflowSignalCrystal
-      if (this.surface.overflowSignals === 1) this.toast('SIGNAL BUFFER FULL: EXTRA SIGNALS CONVERT TO CARGO')
+    const result = resolveSurfaceSignalBank({
+      event: this.surface.event,
+      bankedSignals: this.surface.bankedSignals,
+      overflowSignals: this.surface.overflowSignals
+    })
+    this.surface.bankedSignals = result.nextBankedSignals
+    this.surface.overflowSignals = result.nextOverflowSignals
+    this.resources.scrap += result.scrap
+    this.resources.crystal += result.crystal
+    if (result.toast) this.toast(result.toast)
+    if (!result.banked) {
       return false
     }
-    this.surface.pendingUpgrade = true
-    this.surface.bankedSignals += 1
+    if (result.pendingUpgrade) this.surface.pendingUpgrade = true
     return this.bankUpgrade(message)
   }
 
