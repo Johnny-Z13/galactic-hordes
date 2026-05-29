@@ -113,6 +113,7 @@ import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurf
 import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction, surfaceTakeoffRequest, surfaceTransitionProgress } from './surface/lifecycle'
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
 import { createSurfaceResourceNodes, surfaceEventMessage } from './surface/run-setup'
+import { safeSurfaceResourcePoint } from './surface/safe-point'
 import { surfaceGunCooldown, surfaceGunDamage, surfaceGunSpeed, surfaceLowOxygenRatio, surfaceMaxHealth, surfaceMaxOxygen } from './surface/suit-stats'
 import { createSurfaceAliens as createSurfaceAliensFactory, createSurfaceLoreSites as createSurfaceLoreSitesFactory, type SurfaceAlienModel, type SurfaceLoreSiteModel } from './surface/discovery-factory'
 import { createGenericSurfaceThreat as createGenericSurfaceThreatFactory, createGlassMiteOracleThreat as createGlassMiteOracleThreatFactory, createPlanetBossThreat as createPlanetBossThreatFactory } from './surface/threat-factory'
@@ -2948,24 +2949,7 @@ export class VectorShooter {
   }
 
   private surfaceSafePoint(point: Vec, minDistance = 210): Vec {
-    const world = surfaceRunBalance.world
-    const ship = world.ship
-    const pilot = world.pilotStart
-    let x = clamp(point.x, world.resourceSafeMinX, world.resourceSafeMaxX)
-    let y = clamp(point.y, world.resourceSafeMinY, world.resourceSafeMaxY)
-    for (let pass = 0; pass < 3; pass += 1) {
-      for (const anchor of [ship, pilot]) {
-        const dx = x - anchor.x
-        const dy = y - anchor.y
-        const distance = Math.hypot(dx, dy)
-        if (distance >= minDistance) continue
-        const angle = distance > 1 ? Math.atan2(dy, dx) : rand(0, TAU)
-        const push = minDistance + rand(18, 96)
-        x = clamp(anchor.x + Math.cos(angle) * push, world.resourceSafeMinX, world.resourceSafeMaxX)
-        y = clamp(anchor.y + Math.sin(angle) * push, world.resourceSafeMinY, world.resourceSafeMaxY)
-      }
-    }
-    return { x, y }
+    return safeSurfaceResourcePoint(point, rand, minDistance)
   }
 
   private confirmLanding() {
