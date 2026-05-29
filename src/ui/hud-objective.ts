@@ -1,29 +1,52 @@
 import { spaceSpawnBalance } from '../game-balance'
-import type { VectorShooter } from '../main'
 import { dist2 } from '../math-utils'
 import { runObjectiveReadout } from '../run-objective-readout'
-import { currentSectorNode, sectorNodeDecisionIntel } from '../sector-map'
+import { currentSectorNode, sectorNodeDecisionIntel, type SectorMap, type SectorNodeRunProfile } from '../sector-map'
 import { nextSpaceWaveWarning } from '../space-wave-director'
+import type { SurfaceEventKind } from '../surface-encounters'
 
-export function currentHudObjectiveReadout(self: VectorShooter) {
-  const returnBeaconDistance = self['returnBeacon']
-    ? Math.sqrt(dist2(self['returnBeacon'], self['player']))
+interface HudObjectiveView extends Object {}
+
+interface HudObjectiveRuntime {
+  returnBeacon: { x: number; y: number } | null
+  player: { x: number; y: number }
+  sectorMap: SectorMap
+  state: string
+  stats: {
+    time: number
+  }
+  nextReturnBeaconAt: number
+  surface: { event: SurfaceEventKind } | null
+  pendingUpgrades: number
+  sectorNodeProfile: SectorNodeRunProfile
+  firedSectorWaves: Set<string>
+  sectorNodeStartedAt: number
+}
+
+function hudObjectiveRuntime(self: HudObjectiveView) {
+  return self as HudObjectiveRuntime
+}
+
+export function currentHudObjectiveReadout(self: HudObjectiveView) {
+  const view = hudObjectiveRuntime(self)
+  const returnBeaconDistance = view.returnBeacon
+    ? Math.sqrt(dist2(view.returnBeacon, view.player))
     : null
-  const currentNode = currentSectorNode(self['sectorMap'])
+  const currentNode = currentSectorNode(view.sectorMap)
   return runObjectiveReadout({
-    state: self['state'],
+    state: view.state,
     routeObjective: currentNode.config.objective,
     routeIntel: sectorNodeDecisionIntel(currentNode),
-    elapsed: self['stats'].time,
-    nextReturnBeaconAt: self['nextReturnBeaconAt'],
+    elapsed: view.stats.time,
+    nextReturnBeaconAt: view.nextReturnBeaconAt,
     returnBeaconDistance,
-    surfaceEvent: self['surface']?.event ?? null,
-    pendingUpgrades: self['pendingUpgrades'],
-    waveWarning: self['state'] === 'playing' ? nextSpaceWaveWarning({
-      nodeId: self['sectorMap'].currentNodeId,
-      waves: self['sectorNodeProfile'].config.waves,
-      firedWaveIds: self['firedSectorWaves'],
-      elapsed: self['stats'].time - self['sectorNodeStartedAt'],
+    surfaceEvent: view.surface?.event ?? null,
+    pendingUpgrades: view.pendingUpgrades,
+    waveWarning: view.state === 'playing' ? nextSpaceWaveWarning({
+      nodeId: view.sectorMap.currentNodeId,
+      waves: view.sectorNodeProfile.config.waves,
+      firedWaveIds: view.firedSectorWaves,
+      elapsed: view.stats.time - view.sectorNodeStartedAt,
       warningSeconds: spaceSpawnBalance.sectorWaveWarningSeconds
     }) : null
   })
