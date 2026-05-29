@@ -135,6 +135,7 @@ test('surface threat kills create surface-layer score feedback', () => {
   expect(main).toContain("from './render/score-popups'")
   expect(main).toContain('advanceScorePopups(this.scorePopups, dt)')
   expect(main).toContain('drawScorePopups({')
+  expect(main).not.toContain('private renderScorePopups(')
   expect(renderer).toContain('export function renderScorePopups')
   expect(renderer).toContain('scorePopupScreenPoint')
   expect(renderer).toContain('popup.color ?? introHookConfig.popup.color')

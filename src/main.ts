@@ -3579,7 +3579,12 @@ export class GalacticHordesGame {
       chunkLoadRadius: CHUNK_LOAD_RADIUS
     })
     this.renderIntroWaypoint(ctx)
-    this.renderScorePopups(ctx)
+    drawScorePopups({
+      ctx,
+      popups: this.scorePopups,
+      worldToScreen: (x, y) => this.worldToScreen(x, y),
+      surfaceToScreen: (x, y) => this.surfaceToScreen(x, y)
+    })
   }
 
   private renderIntroWaypoint(ctx: CanvasRenderingContext2D) {
@@ -3612,15 +3617,6 @@ export class GalacticHordesGame {
       width: this.width,
       glow: this.allowGlow(),
       warning
-    })
-  }
-
-  private renderScorePopups(ctx: CanvasRenderingContext2D) {
-    drawScorePopups({
-      ctx,
-      popups: this.scorePopups,
-      worldToScreen: (x, y) => this.worldToScreen(x, y),
-      surfaceToScreen: (x, y) => this.surfaceToScreen(x, y)
     })
   }
 
@@ -3756,7 +3752,12 @@ export class GalacticHordesGame {
       o2Returning: s.o2Returning,
       allowGlow: this.allowGlow()
     })
-    this.renderScorePopups(ctx)
+    drawScorePopups({
+      ctx,
+      popups: this.scorePopups,
+      worldToScreen: (x, y) => this.worldToScreen(x, y),
+      surfaceToScreen: (x, y) => this.surfaceToScreen(x, y)
+    })
     ctx.restore()
   }
 
