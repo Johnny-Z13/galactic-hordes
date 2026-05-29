@@ -33,7 +33,7 @@ test('run objective readout carries route decision intel during ordinary flight'
     pendingUpgrades: 0
   })).toEqual({
     label: 'ROUTE',
-    text: 'RECOVER // SALVAGE // LOW RISK // STATION 48s'
+    text: 'Recover, scout, and reach the next route branch. // SALVAGE // LOW RISK // STATION 48s'
   })
 })
 

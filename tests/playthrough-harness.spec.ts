@@ -65,5 +65,5 @@ test('browser playthrough harness is live during a launched expedition', async (
   expect(snapshot?.pendingUpgrades).toBe(0)
   expect(snapshot?.lockedPlanetId).toBeNull()
   expect(snapshot?.objective?.label).toBe('ROUTE')
-  expect(snapshot?.objective?.text).toContain('SCOUTS')
+  expect(snapshot?.objective?.text).toContain('Clear scouts, bank signal')
 })

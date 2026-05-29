@@ -69,7 +69,7 @@ export function runObjectiveReadout(input: RunObjectiveReadoutInput): RunObjecti
 
 function routeText(input: RunObjectiveReadoutInput) {
   if (!input.routeIntel) return input.routeObjective
-  return `${input.routeIntel.directive} // ${input.routeIntel.reward} // ${input.routeIntel.risk}`
+  return `${input.routeObjective} // ${input.routeIntel.reward} // ${input.routeIntel.risk}`
 }
 
 function signalReadyText(count: number) {
