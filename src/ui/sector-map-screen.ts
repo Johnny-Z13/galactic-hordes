@@ -1,6 +1,7 @@
 import {
   availableSectorChoices,
   currentSectorNode,
+  hexDistance,
   sectorNodeDecisionIntel,
   sectorNodeRunProfile,
   type SectorHazardTag,
@@ -64,12 +65,8 @@ export function showSectorMap(self: SectorMapView, message: string) {
   graph.className = 'sector-map-graph sector-map-hexchart'
   const graphHeader = document.createElement('div')
   graphHeader.className = 'sector-map-graph-header'
-  graphHeader.innerHTML = `<span>LOCAL HEX FRONTIER</span><b>${choices.length} ADJACENT JUMPS</b>`
+  graphHeader.innerHTML = `<span>LOCAL HEX GRID</span><b>${choices.length} ADJACENT JUMPS</b>`
   graph.append(graphHeader)
-  const routeString = document.createElement('div')
-  routeString.className = 'sector-route-string'
-  routeString.textContent = sectorRouteString(runtime.sectorMap)
-  graph.append(routeString)
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   svg.classList.add('sector-map-lines')
   svg.setAttribute('viewBox', '0 0 100 100')
@@ -78,40 +75,20 @@ export function showSectorMap(self: SectorMapView, message: string) {
     const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon')
     polygon.setAttribute('points', sectorWireHexPoints(pos.x, pos.y))
     polygon.classList.add('sector-wire-hex')
+    polygon.dataset.nodeId = node.id
     if (node.frontier) polygon.classList.add('frontier')
     if (node.id === current.id) polygon.classList.add('current')
+    if (node.completed) polygon.classList.add('completed')
+    if (hexDistance(current, node) <= 1) polygon.classList.add('nearby')
     if (choices.some((choice) => choice.id === node.id)) polygon.classList.add('available')
     svg.append(polygon)
-  }
-  const renderedEdges = new Set<string>()
-  const legalEdgeKeys = new Set(choices.map((choice) => sectorEdgeKey(current.id, choice.id)))
-  for (const edge of runtime.sectorMap.edges) {
-    const from = runtime.sectorMap.nodes.find((node) => node.id === edge.from)
-    const to = runtime.sectorMap.nodes.find((node) => node.id === edge.to)
-    if (!from || !to) continue
-    const edgeKey = sectorEdgeKey(from.id, to.id)
-    if (renderedEdges.has(edgeKey)) continue
-    renderedEdges.add(edgeKey)
-    const a = sectorNodePosition(runtime.sectorMap, from)
-    const b = sectorNodePosition(runtime.sectorMap, to)
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
-    line.setAttribute('x1', `${a.x}`)
-    line.setAttribute('y1', `${a.y}`)
-    line.setAttribute('x2', `${b.x}`)
-    line.setAttribute('y2', `${b.y}`)
-    line.dataset.edgeKey = edgeKey
-    const legalJump = legalEdgeKeys.has(edgeKey)
-    const completedRoute = from.completed && to.completed
-    if (!legalJump && !completedRoute) continue
-    line.classList.add(completedRoute ? 'completed' : 'available')
-    svg.append(line)
   }
   graph.append(svg)
   for (const node of runtime.sectorMap.nodes) {
     const pos = sectorNodePosition(runtime.sectorMap, node)
     const isAvailable = choices.some((choice) => choice.id === node.id)
     const stationVisit = runtime.stationVisits.find((visit) => visit.nodeId === node.id)
-    const stateLabel = stationVisit ? 'DOCKED' : node.completed ? 'DONE' : node.id === runtime.sectorMap.currentNodeId ? 'HERE' : isAvailable ? 'OPEN' : 'LOCK'
+    const stateLabel = stationVisit ? 'DOCKED' : node.completed ? 'DONE' : node.id === runtime.sectorMap.currentNodeId ? 'HERE' : isAvailable ? 'READY' : 'LOCK'
     const button = document.createElement('button')
     button.type = 'button'
     button.className = sectorNodeClass(runtime.sectorMap, node, choices)
@@ -121,28 +98,15 @@ export function showSectorMap(self: SectorMapView, message: string) {
     button.dataset.nodeId = node.id
     button.dataset.baseState = stateLabel
     if (isAvailable) button.dataset.edgeKey = sectorEdgeKey(current.id, node.id)
-    button.setAttribute('aria-label', `${sectorKindLabel(node.kind)}: ${node.label}`)
+    button.setAttribute('aria-label', `${stateLabel} ${sectorKindLabel(node.kind)}: ${node.label}`)
     button.innerHTML = `
         <span class="sector-node-core" aria-hidden="true"></span>
-        <span class="sector-node-label">${runtime.escape(node.label.replace(/\s+\d+-\d+$/, ''))}</span>
-        <span class="sector-node-state">${stateLabel}</span>
-        ${sectorStationEdgeMarkers(node, runtime.sectorMap.currentNodeId, isAvailable)}
       `
     button.title = stationVisit ? `${stationVisit.stationName}: ${stationVisit.contactName}, ${stationVisit.contactRole}` : `${node.label}: ${node.description}`
     button.disabled = !isAvailable
     button.addEventListener('click', () => selectSectorChoice(node.id))
     graph.append(button)
   }
-  const legend = document.createElement('div')
-  legend.className = 'sector-map-legend'
-  legend.innerHTML = `
-      <span><i class="legend-swatch planet"></i>Planet</span>
-      <span><i class="legend-swatch hostile"></i>Combat</span>
-      <span><i class="legend-swatch anomaly"></i>Hazard</span>
-      <span><i class="legend-swatch station"></i>Station</span>
-    `
-  graph.append(legend)
-
   const details = document.createElement('div')
   details.className = 'sector-map-details'
   const currentPanel = document.createElement('div')
@@ -175,11 +139,9 @@ export function showSectorMap(self: SectorMapView, message: string) {
     graph.querySelectorAll<HTMLButtonElement>('.sector-node').forEach((button) => {
       const isSelected = button.dataset.nodeId === selected.id
       button.classList.toggle('selected', isSelected)
-      const state = button.querySelector<HTMLElement>('.sector-node-state')
-      if (state) state.textContent = isSelected ? 'LOCKED' : button.dataset.baseState ?? state.textContent ?? ''
     })
-    graph.querySelectorAll<SVGLineElement>('.sector-map-lines line').forEach((line) => {
-      line.classList.toggle('selected', line.dataset.edgeKey === selectedEdgeKey)
+    graph.querySelectorAll<SVGPolygonElement>('.sector-wire-hex').forEach((hex) => {
+      hex.classList.toggle('selected', hex.dataset.nodeId === selected.id)
     })
     selectionReadout.innerHTML = sectorSelectionReadout(runtime, selected)
     launchButton.disabled = false
@@ -188,7 +150,7 @@ export function showSectorMap(self: SectorMapView, message: string) {
 
   selectionReadout.innerHTML = choices.length
     ? sectorSelectionPlaceholder(runtime)
-    : `<span>NO JUMP LOCK</span><h2>No Open Adjacent Hex</h2><p>No forward route is open yet.</p>`
+    : `<span>NO JUMP LOCK</span><h2>No Adjacent Hex</h2><p>No forward route is ready yet.</p>`
 }
 
 function sectorEdgeKey(a: string, b: string) {
@@ -196,27 +158,25 @@ function sectorEdgeKey(a: string, b: string) {
 }
 
 function sectorWireHexPoints(x: number, y: number) {
-  const width = 8.4
-  const height = 9.2
-  const left = x - width / 2
-  const right = x + width / 2
-  const top = y - height / 2
-  const bottom = y + height / 2
+  const size = 6.6
+  const halfWidth = Math.sqrt(3) * size / 2
   return [
-    [left + width * 0.25, top + height * 0.05],
-    [left + width * 0.75, top + height * 0.05],
-    [right, y],
-    [left + width * 0.75, top + height * 0.95],
-    [left + width * 0.25, top + height * 0.95],
-    [left, y]
+    [x, y - size],
+    [x + halfWidth, y - size / 2],
+    [x + halfWidth, y + size / 2],
+    [x, y + size],
+    [x - halfWidth, y + size / 2],
+    [x - halfWidth, y - size / 2]
   ].map(([px, py]) => `${px.toFixed(2)},${py.toFixed(2)}`).join(' ')
 }
 
 function sectorNodePosition(sectorMap: SectorMap, node: SectorNode) {
   const radius = Math.max(1, Math.floor((sectorMap.columns - 1) / 2))
-  const hexX = node.q + node.r * 0.5
-  const x = 50 + hexX * (34 / radius)
-  const y = 50 + node.r * (30 / radius)
+  const size = 6.6
+  const hexX = Math.sqrt(3) * size * (node.q + node.r * 0.5)
+  const hexY = 1.5 * size * node.r
+  const x = 50 + hexX * (3 / radius)
+  const y = 50 + hexY * (3 / radius)
   return { x, y }
 }
 
@@ -229,29 +189,6 @@ function sectorNodeClass(sectorMap: SectorMap, node: SectorNode, choices: Sector
   if (node.frontier) classes.push('sector-node-frontier')
   if (!node.completed && node.id !== sectorMap.currentNodeId && !available) classes.push('locked')
   return classes.join(' ')
-}
-
-function sectorStationEdgeMarkers(node: SectorNode, currentNodeId = '', available = false) {
-  const visibleEdges = available
-    ? node.stationEdges.filter((edge) => edge.from === currentNodeId && edge.to === node.id)
-    : node.id === currentNodeId
-      ? node.stationEdges.filter((edge) => edge.from === node.id)
-      : []
-  const uniqueDirections = [...new Set(visibleEdges.map((edge) => edge.direction))]
-  if (!uniqueDirections.length) return ''
-  return `
-        <span class="sector-station-edges" aria-hidden="true">
-          ${uniqueDirections.map((direction) => `<i class="station-edge ${direction.toLowerCase()}"></i>`).join('')}
-        </span>
-      `
-}
-
-function sectorRouteString(sectorMap: SectorMap) {
-  const route = sectorMap.nodes
-    .filter((node) => node.completed || node.id === sectorMap.currentNodeId)
-    .sort((a, b) => a.config.depth - b.config.depth || a.label.localeCompare(b.label))
-    .map((node) => node.label.replace(/\s+\d+-\d+$/, ''))
-  return route.length ? route.join('  /  ') : 'UNCHARTED LOCAL SPACE'
 }
 
 function sectorDisplayId(sectorMap: SectorMap, node: SectorNode) {
@@ -267,9 +204,9 @@ function sectorSelectionPlaceholder(runtime: SectorMapRuntime) {
   return `
         <span>JUMP TARGET</span>
         <h2>Select Adjacent Hex</h2>
-        <p>Illuminated edges are legal jumps from the current sector. Tap one to lock the readout before launch.</p>
+        <p>Nearby hexes are illuminated from the current sector. Tap one to reveal the status readout before launch.</p>
         <span class="sector-choice-intel" aria-label="Jump selection state">
-          <span>EDGE LIT</span>
+          <span>LOCAL LIGHT</span>
           <span>HEX WIREFRAME</span>
           <span>AWAITING LOCK</span>
         </span>

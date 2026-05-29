@@ -502,12 +502,14 @@ canvas {
   padding: 0;
   overflow: hidden;
   background:
-    linear-gradient(rgba(87, 255, 243, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(87, 255, 243, 0.04) 1px, transparent 1px),
-    linear-gradient(120deg, rgba(87, 255, 243, 0.09), transparent 24%, rgba(255, 242, 122, 0.045) 58%, transparent 78%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.74)),
-    #010408;
-  background-size: 22px 22px, 22px 22px, auto, auto, auto;
+    radial-gradient(circle at 9% 13%, rgba(215, 255, 247, 0.34) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 71% 19%, rgba(87, 255, 243, 0.26) 0 0.9px, transparent 1.5px),
+    radial-gradient(circle at 28% 72%, rgba(112, 168, 255, 0.22) 0 0.8px, transparent 1.4px),
+    radial-gradient(circle at 88% 63%, rgba(215, 255, 247, 0.2) 0 0.8px, transparent 1.3px),
+    linear-gradient(180deg, rgba(1, 6, 10, 0.7), rgba(0, 0, 0, 0.94)),
+    #000;
+  background-position: 0 0, 17px 11px, 7px 23px, 29px 31px, 0 0, 0 0;
+  background-size: 61px 53px, 101px 87px, 137px 113px, 173px 149px, auto, auto;
 }
 
 .sector-map-panel {
@@ -604,10 +606,10 @@ canvas {
 .sector-map-details {
   min-height: 0;
   border: 1px solid rgba(87, 255, 243, 0.26);
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgba(4, 12, 16, 0.82), rgba(0, 0, 0, 0.72));
+  border-radius: 4px;
+  background: rgba(0, 3, 6, 0.74);
   box-shadow:
-    inset 0 0 42px rgba(87, 255, 243, 0.07),
+    inset 0 0 34px rgba(87, 255, 243, 0.05),
     0 18px 46px rgba(0, 0, 0, 0.28);
 }
 
@@ -616,16 +618,14 @@ canvas {
   overflow: hidden;
   min-height: min(430px, 34svh);
   background:
-    radial-gradient(circle at 12% 18%, rgba(246, 255, 254, 0.32) 0 1px, transparent 1.6px),
-    radial-gradient(circle at 78% 24%, rgba(215, 255, 247, 0.26) 0 0.9px, transparent 1.5px),
-    radial-gradient(circle at 36% 76%, rgba(255, 242, 122, 0.2) 0 0.8px, transparent 1.4px),
-    radial-gradient(circle at 62% 58%, rgba(112, 168, 255, 0.2) 0 0.8px, transparent 1.5px),
-    linear-gradient(rgba(87, 255, 243, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(87, 255, 243, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(87, 255, 243, 0.14), transparent 16%, transparent 84%, rgba(255, 242, 122, 0.1)),
-    linear-gradient(180deg, rgba(3, 15, 20, 0.9), rgba(0, 3, 7, 0.76));
-  background-position: 0 0, 19px 11px, 7px 23px, 29px 31px, 0 0, 0 0, 0 0, 0 0;
-  background-size: 47px 41px, 83px 67px, 109px 91px, 139px 113px, 34px 34px, 34px 34px, auto, auto;
+    radial-gradient(circle at 12% 18%, rgba(246, 255, 254, 0.28) 0 0.9px, transparent 1.6px),
+    radial-gradient(circle at 78% 24%, rgba(215, 255, 247, 0.22) 0 0.8px, transparent 1.5px),
+    radial-gradient(circle at 36% 76%, rgba(87, 255, 243, 0.18) 0 0.7px, transparent 1.4px),
+    radial-gradient(circle at 62% 58%, rgba(112, 168, 255, 0.18) 0 0.7px, transparent 1.5px),
+    radial-gradient(circle at 50% 50%, rgba(87, 255, 243, 0.08), transparent 64%),
+    #000;
+  background-position: 0 0, 19px 11px, 7px 23px, 29px 31px, 0 0, 0 0;
+  background-size: 47px 41px, 83px 67px, 109px 91px, 139px 113px, auto, auto;
 }
 
 .sector-map-graph::before,
@@ -639,16 +639,15 @@ canvas {
 }
 
 .sector-map-graph::before {
-  content: "LOCAL FRONTIER";
+  content: "";
   left: 16px;
   top: 46px;
 }
 
 .sector-map-graph::after {
-  content: "UNCHARTED EDGE";
+  content: "";
   right: 16px;
   top: 46px;
-  color: rgba(255, 242, 122, 0.62);
 }
 
 .sector-map-graph-header {
@@ -675,71 +674,71 @@ canvas {
   font-size: 11px;
 }
 
-.sector-route-string {
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  top: 34px;
-  z-index: 4;
-  overflow: hidden;
-  color: rgba(215, 255, 247, 0.46);
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
 .sector-map-lines {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
+  z-index: 2;
 }
 
 .sector-map-lines line {
-  stroke: rgba(255, 242, 122, 0.88);
-  stroke-width: 1.28;
-  stroke-linecap: round;
-  filter: drop-shadow(0 0 5px rgba(255, 242, 122, 0.44));
+  display: none;
 }
 
 .sector-map-lines line.selected {
-  stroke: rgba(143, 255, 125, 0.98);
-  stroke-width: 1.86;
-  filter: drop-shadow(0 0 9px rgba(143, 255, 125, 0.62));
+  display: none;
 }
 
 .sector-map-lines line.completed {
-  stroke: rgba(143, 255, 125, 0.7);
+  display: none;
 }
 
 .sector-wire-hex {
-  fill: rgba(2, 9, 14, 0.08);
-  stroke: rgba(160, 178, 178, 0.24);
-  stroke-width: 0.34;
+  fill: rgba(0, 7, 12, 0.08);
+  stroke: rgba(87, 206, 255, 0.32);
+  stroke-width: 0.16;
+  transition: fill 120ms ease, filter 120ms ease, stroke 120ms ease, stroke-width 120ms ease;
 }
 
 .sector-wire-hex.frontier {
-  stroke-dasharray: 1.2 1.2;
-  stroke: rgba(160, 178, 178, 0.18);
+  stroke: rgba(87, 206, 255, 0.24);
 }
 
 .sector-wire-hex.available {
-  stroke: rgba(255, 242, 122, 0.34);
+  fill: rgba(87, 255, 243, 0.12);
+  stroke: rgba(87, 255, 243, 0.9);
+  filter: drop-shadow(0 0 3px rgba(87, 255, 243, 0.5));
 }
 
 .sector-wire-hex.current {
-  stroke: rgba(143, 255, 125, 0.5);
+  fill: rgba(87, 255, 243, 0.16);
+  stroke: rgba(177, 245, 255, 0.94);
+  stroke-width: 0.22;
+  filter: drop-shadow(0 0 5px rgba(87, 255, 243, 0.6));
+}
+
+.sector-wire-hex.nearby {
+  stroke: rgba(87, 255, 243, 0.58);
+}
+
+.sector-wire-hex.completed {
+  fill: rgba(87, 255, 243, 0.07);
+  stroke: rgba(87, 255, 243, 0.48);
+}
+
+.sector-wire-hex.selected {
+  fill: rgba(143, 255, 125, 0.22);
+  stroke: rgba(202, 255, 247, 0.98);
+  stroke-width: 0.24;
+  filter: drop-shadow(0 0 7px rgba(143, 255, 125, 0.7));
 }
 
 .sector-node {
   position: absolute;
-  width: clamp(62px, 5.8vw, 82px);
-  min-height: clamp(68px, 6.3vw, 88px);
+  width: clamp(54px, 6.7vw, 86px);
+  min-height: clamp(62px, 7.6vw, 98px);
   transform: translate(-50%, -50%);
   border: 0;
   background: transparent;
@@ -759,19 +758,17 @@ canvas {
   position: relative;
   display: grid;
   place-items: center;
-  width: clamp(42px, 4.4vw, 58px);
-  height: clamp(42px, 4.4vw, 58px);
-  border: 2px solid rgba(215, 255, 247, 0.52);
+  width: 100%;
+  height: 100%;
+  border: 0;
   border-radius: 0;
   clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%);
-  background:
-    linear-gradient(180deg, rgba(9, 31, 38, 0.96), rgba(1, 7, 11, 0.94));
-  box-shadow:
-    inset 0 0 18px rgba(87, 255, 243, 0.08),
-    0 0 18px rgba(87, 255, 243, 0.1);
+  background: transparent;
+  box-shadow: none;
 }
 
 .sector-node-label {
+  display: none;
   width: 100%;
   color: rgba(215, 255, 247, 0.64);
   font-size: clamp(7px, 0.72vw, 9px);
@@ -784,6 +781,7 @@ canvas {
 }
 
 .sector-node-state {
+  display: none;
   min-width: 32px;
   border: 1px solid rgba(215, 255, 247, 0.18);
   border-radius: 999px;
@@ -795,71 +793,62 @@ canvas {
 }
 
 .sector-node.hostile .sector-node-core {
-  border-color: rgba(255, 93, 115, 0.78);
+  border-color: transparent;
 }
 
 .sector-node.planet .sector-node-core {
-  border-color: rgba(87, 255, 243, 0.78);
+  border-color: transparent;
 }
 
 .sector-node.station .sector-node-core {
-  border-color: rgba(143, 255, 125, 0.86);
+  border-color: transparent;
 }
 
 .sector-node.anomaly .sector-node-core {
-  border-color: rgba(185, 144, 255, 0.84);
+  border-color: transparent;
 }
 
 .sector-node.boss .sector-node-core,
 .sector-node.final .sector-node-core {
-  border-color: rgba(255, 242, 122, 0.9);
+  border-color: transparent;
 }
 
 .sector-node.available {
-  color: rgba(255, 242, 122, 0.94);
+  color: rgba(87, 255, 243, 0.94);
 }
 
 .sector-node.available .sector-node-core {
-  border-color: rgba(255, 242, 122, 0.98);
-  background:
-    linear-gradient(180deg, rgba(255, 242, 122, 0.12), rgba(1, 7, 11, 0.94));
-  box-shadow:
-    inset 0 0 18px rgba(255, 242, 122, 0.08),
-    0 0 0 5px rgba(255, 242, 122, 0.06),
-    0 0 25px rgba(255, 242, 122, 0.34);
+  background: rgba(87, 255, 243, 0.03);
+  box-shadow: inset 0 0 18px rgba(87, 255, 243, 0.1);
 }
 
 .sector-node.available .sector-node-label,
 .sector-node.available .sector-node-state {
-  color: rgba(255, 242, 122, 0.92);
+  color: rgba(87, 255, 243, 0.92);
 }
 
 .sector-node.available .sector-node-state {
-  border-color: rgba(255, 242, 122, 0.5);
-  background: rgba(255, 242, 122, 0.12);
+  border-color: rgba(87, 255, 243, 0.5);
+  background: rgba(87, 255, 243, 0.12);
 }
 
 .sector-node.selected {
-  color: #061014;
+  color: rgba(143, 255, 125, 0.94);
 }
 
 .sector-node.selected .sector-node-core {
-  border-color: rgba(143, 255, 125, 0.98);
-  background:
-    linear-gradient(180deg, rgba(255, 242, 122, 0.98), rgba(143, 255, 125, 0.88));
-  box-shadow:
-    0 0 0 7px rgba(143, 255, 125, 0.1),
-    0 0 34px rgba(143, 255, 125, 0.5);
+  background: rgba(143, 255, 125, 0.08);
+  box-shadow: inset 0 0 22px rgba(143, 255, 125, 0.22);
 }
 
 .sector-node.selected .sector-node-label,
 .sector-node.selected .sector-node-state {
-  color: #061014;
+  color: rgba(143, 255, 125, 0.94);
 }
 
 .sector-node.selected .sector-node-state {
-  border-color: rgba(6, 16, 20, 0.34);
-  background: rgba(246, 255, 254, 0.58);
+  border-color: rgba(143, 255, 125, 0.34);
+  background: rgba(143, 255, 125, 0.14);
 }
 
 .sector-node.current {
@@ -867,23 +856,19 @@ canvas {
 }
 
 .sector-node.current .sector-node-core {
-  border-color: rgba(143, 255, 125, 0.94);
-  background:
-    linear-gradient(180deg, rgba(143, 255, 125, 0.32), rgba(4, 22, 18, 0.96));
-  box-shadow:
-    0 0 0 7px rgba(143, 255, 125, 0.08),
-    0 0 24px rgba(143, 255, 125, 0.22);
+  background: rgba(87, 255, 243, 0.05);
+  box-shadow: inset 0 0 22px rgba(87, 255, 243, 0.16);
 }
 
 .sector-node.completed .sector-node-core {
-  background: rgba(143, 255, 125, 0.2);
-  color: #dfffe0;
+  background: rgba(87, 255, 243, 0.02);
+  color: #d7fff7;
 }
 
 .sector-node-frontier .sector-node-core {
-  border-style: dashed;
-  border-color: rgba(160, 178, 178, 0.34);
-  background: rgba(2, 9, 14, 0.82);
+  border-style: solid;
+  border-color: transparent;
+  background: transparent;
 }
 
 .sector-node-frontier .sector-node-state {
@@ -891,98 +876,8 @@ canvas {
 }
 
 .sector-node.locked {
-  opacity: 0.36;
+  opacity: 1;
   cursor: default;
-}
-
-.sector-station-edges {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  pointer-events: none;
-}
-
-.station-edge {
-  position: absolute;
-  width: 7px;
-  height: 7px;
-  border: 1px solid rgba(255, 242, 122, 0.92);
-  border-radius: 50%;
-  background: rgba(255, 242, 122, 0.76);
-  box-shadow: 0 0 10px rgba(255, 242, 122, 0.35);
-}
-
-.station-edge.e {
-  right: 11px;
-  top: 45%;
-}
-
-.station-edge.ne {
-  right: 24px;
-  top: 5px;
-}
-
-.station-edge.nw {
-  left: 24px;
-  top: 5px;
-}
-
-.station-edge.w {
-  left: 11px;
-  top: 45%;
-}
-
-.station-edge.sw {
-  left: 24px;
-  bottom: 17px;
-}
-
-.station-edge.se {
-  right: 24px;
-  bottom: 17px;
-}
-
-.sector-map-legend {
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 12px;
-  z-index: 4;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  pointer-events: none;
-}
-
-.sector-map-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid rgba(87, 255, 243, 0.18);
-  background: rgba(0, 6, 10, 0.62);
-  padding: 5px 7px;
-  color: rgba(215, 255, 247, 0.62);
-  font-size: 9px;
-}
-
-.legend-swatch {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--cyan);
-  box-shadow: 0 0 10px currentColor;
-}
-
-.legend-swatch.hostile {
-  background: var(--red);
-}
-
-.legend-swatch.anomaly {
-  background: var(--violet);
-}
-
-.legend-swatch.station {
-  background: var(--green);
 }
 
 .sector-map-details {
@@ -4936,10 +4831,6 @@ button.manifest-chip:disabled {
   }
 
   .sector-node-state {
-    display: none;
-  }
-
-  .sector-map-legend {
     display: none;
   }
 
