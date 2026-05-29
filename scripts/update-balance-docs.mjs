@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 const root = process.cwd()
 const read = (path) => readFileSync(resolve(root, path), 'utf8')
 const write = (path, text) => writeFileSync(resolve(root, path), text)
+const stripLineEnd = (value) => value.trimEnd()
 
 const balance = read('src/game-balance.ts')
 const powerups = read('src/powerup-balance.ts')
@@ -19,7 +20,7 @@ const scopedConfigValue = (scope, name) => powerups.match(new RegExp(`${scope}: 
 const scopedRunValue = (scope, name) => run.match(new RegExp(`${scope}: \\{[\\s\\S]*?${name}: ([0-9.]+)`))?.[1] ?? ''
 const surfaceValue = (name) => surface.match(new RegExp(`${name}: ([0-9.]+)`))?.[1] ?? ''
 const scopedSurfaceValue = (scope, name) => surface.match(new RegExp(`${scope}: \\{[\\s\\S]*?${name}: ([0-9.]+)`))?.[1] ?? ''
-const unionValues = (name, source) => source.match(new RegExp(`export type ${name} = ([^\\n]+)`))?.[1].replaceAll("'", '`').replaceAll(' | ', ', ') ?? ''
+const unionValues = (name, source) => stripLineEnd(source.match(new RegExp(`export type ${name} = ([^\\n]+)`))?.[1] ?? '').replaceAll("'", '`').replaceAll(' | ', ', ')
 
 const enemyRows = [...balance.matchAll(/^\s+(\w+): \{ hp: ([0-9.]+), radius: ([0-9.]+), speed: ([0-9.]+), value: ([0-9.]+), color: '[^']+', contactDamage: ([0-9.]+), timeGateSeconds: ([0-9.]+), spawnRollCeiling: ([0-9.]+)/gm)]
   .map((match) => `| ${match[1]} | ${match[2]} | ${match[4]} | ${match[6]} | ${match[7]}s | ${match[8]} |`)

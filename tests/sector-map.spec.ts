@@ -3,6 +3,7 @@ import {
   availableSectorChoices,
   completeSectorNode,
   createSectorMap,
+  sectorNodeDecisionIntel,
   sectorNodeRunProfile,
   sectorNodeTemplateCatalog,
   selectSectorNode
@@ -14,6 +15,7 @@ test('sector map starts at the mothership and ends at a final node', () => {
   const start = map.nodes.find((node) => node.kind === 'mothership')
   const final = map.nodes.find((node) => node.kind === 'final')
 
+  expect(map.columns).toBeGreaterThanOrEqual(7)
   expect(start).toMatchObject({ id: 'mothership', column: 0, completed: true })
   expect(final?.column).toBe(map.columns - 1)
   expect(final?.label).toContain('LAST STAND')
@@ -72,12 +74,30 @@ test('sector procedural texture is seeded but changes route personality across r
 })
 
 test('wave grammar gets bounded seeded jitter instead of identical route clocks', () => {
-  const safeDriftFirstWaveTimes = Array.from({ length: 20 }, (_, seed) => createSectorMap(seed + 500))
-    .map((map) => map.nodes.find((node) => node.column === 1 && node.config.templateId === 'safeDrift')?.config.waves[0]?.atSeconds)
-    .filter((time): time is number => typeof time === 'number')
+  const safeDriftWaveTimes = Array.from({ length: 20 }, (_, seed) => createSectorMap(seed + 500))
+    .map((map) => map.nodes.find((node) => node.column === 1 && node.config.templateId === 'safeDrift')?.config.waves.map((wave) => wave.atSeconds) ?? [])
+    .filter((times) => times.length > 0)
 
-  expect(new Set(safeDriftFirstWaveTimes).size).toBeGreaterThan(3)
-  expect(safeDriftFirstWaveTimes.every((time) => time >= 14 && time <= 120)).toBe(true)
+  expect(new Set(safeDriftWaveTimes.map((times) => times.join(','))).size).toBeGreaterThan(3)
+  expect(safeDriftWaveTimes.flat().every((time) => time >= 14 && time <= 120)).toBe(true)
+})
+
+test('first safe drift creates a three beat opening combat arc', () => {
+  const map = createSectorMap(17)
+  const safe = map.nodes.find((node) => node.column === 1 && node.config.templateId === 'safeDrift')!
+  const waveTimes = safe.config.waves.map((wave) => wave.atSeconds)
+  const waveLabels = safe.config.waves.map((wave) => wave.label)
+
+  expect(waveTimes.length).toBeGreaterThanOrEqual(3)
+  expect(waveTimes[0]).toBeGreaterThanOrEqual(14)
+  expect(waveTimes[0]).toBeLessThanOrEqual(18)
+  expect(waveTimes[1]).toBeGreaterThanOrEqual(24)
+  expect(waveTimes[1]).toBeLessThanOrEqual(36)
+  expect(waveTimes[2]).toBeGreaterThanOrEqual(39)
+  expect(waveTimes[2]).toBeLessThanOrEqual(56)
+  expect(waveLabels.join(' // ')).toContain('Contact')
+  expect(waveLabels.join(' // ')).toContain('Flank')
+  expect(waveLabels.join(' // ')).toContain('Decision')
 })
 
 test('sector map creates connected forward routes with stations before the final gate', () => {
@@ -131,21 +151,59 @@ test('sector node profiles provide enemy recipes planet bias and station service
   expect(sectorNodeRunProfile(final).config.waves.every((wave) => wave.atSeconds > 0)).toBe(true)
 })
 
+test('sector decision intel translates route configs into quick reward and risk reads', () => {
+  const sampledNodes = Array.from({ length: 40 }, (_, seed) => createSectorMap(seed + 700))
+    .flatMap((candidate) => candidate.nodes)
+  const safe = sampledNodes.find((node) => node.config.templateId === 'safeDrift')!
+  const planet = sampledNodes.find((node) => node.config.templateId === 'planetCluster')!
+  const asteroid = sampledNodes.find((node) => node.config.templateId === 'asteroidBelt')!
+  const station = sampledNodes.find((node) => node.kind === 'station')!
+
+  expect(sectorNodeDecisionIntel(safe)).toMatchObject({
+    directive: 'SCOUTS',
+    reward: expect.stringMatching(/SIGNAL|RELIC TRACE|CACHE|REPAIR/),
+    risk: 'LOW RISK'
+  })
+  expect(sectorNodeDecisionIntel(planet)).toMatchObject({
+    directive: 'LANDINGS',
+    reward: expect.stringMatching(/PLANETS|RELIC TRACE|SIGNAL|CACHE/),
+    risk: expect.stringMatching(/LOW RISK|MED RISK/)
+  })
+  expect(sectorNodeDecisionIntel(asteroid)).toMatchObject({
+    directive: 'NAV TEST',
+    risk: 'HIGH RISK'
+  })
+  expect(sectorNodeDecisionIntel(station)).toMatchObject({
+    directive: 'SERVICE',
+    reward: 'REPAIR / WORKBENCH',
+    risk: 'SAFE DOCK'
+  })
+})
+
+test('safe drift objective frames combat collection and station choice', () => {
+  const map = createSectorMap(22)
+  const safe = map.nodes.find((node) => node.column === 1 && node.config.templateId === 'safeDrift')!
+
+  expect(safe.config.objective).toBe('Clear scouts, bank signal, then dock or chase cache.')
+  expect(safe.config.readout).toMatch(/^Opening route\. Scouts, signal, station choice\./)
+})
+
 test('sector generation guarantees early safety exploration anchors and late route checks', () => {
   const map = createSectorMap(123)
   const columnOneTemplates = new Set(map.nodes.filter((node) => node.column === 1).map((node) => node.config.templateId))
-  const columnFourTemplates = new Set(map.nodes.filter((node) => node.column === 4).map((node) => node.config.templateId))
+  const routeCheckColumn = map.columns - 2
+  const routeCheckTemplates = new Set(map.nodes.filter((node) => node.column === routeCheckColumn).map((node) => node.config.templateId))
 
   expect([...columnOneTemplates]).toEqual(expect.arrayContaining(['safeDrift', 'planetCluster']))
   expect(columnOneTemplates.size).toBeGreaterThanOrEqual(3)
-  expect([...columnFourTemplates]).toEqual(expect.arrayContaining(['bossGate', 'freeport']))
-  expect(columnFourTemplates.size).toBeGreaterThanOrEqual(3)
+  expect([...routeCheckTemplates]).toEqual(expect.arrayContaining(['bossGate', 'freeport']))
+  expect(routeCheckTemplates.size).toBeGreaterThanOrEqual(3)
 })
 
 test('node depth increases pressure and reward readability deeper into the route', () => {
   const map = createSectorMap(123)
   const early = map.nodes.find((node) => node.column === 1 && node.config.templateId === 'safeDrift')!
-  const late = map.nodes.find((node) => node.column === 4 && node.config.templateId === 'bossGate')!
+  const late = map.nodes.find((node) => node.column === map.columns - 2 && node.config.templateId === 'bossGate')!
 
   expect(early.config.depth).toBeLessThan(late.config.depth)
   expect(early.config.rewards.resourceMultiplier).toBeLessThan(late.config.rewards.resourceMultiplier)

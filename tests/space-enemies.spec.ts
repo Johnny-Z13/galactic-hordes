@@ -95,17 +95,26 @@ test('high-load renderer batches every sprite enemy kind', () => {
 })
 
 test('giant boss enemies have dedicated attack routines', () => {
-  const source = readFileSync('src/main.ts', 'utf8')
+  const source = readFileSync('src/space-enemy-attacks.ts', 'utf8')
+  const main = readFileSync('src/main.ts', 'utf8')
 
-  expect(source).toContain('this.fireSiphonVortex')
-  expect(source).toContain('this.fireDreadnoughtBroadside')
-  expect(source).toContain('this.fireCathedralLattice')
+  expect(source).toContain('export function fireSiphonVortex')
+  expect(source).toContain('export function fireDreadnoughtBroadside')
+  expect(source).toContain('export function fireCathedralLattice')
+  expect(main).toContain("from './space-enemy-attacks'")
+  expect(main).not.toContain('private fireSiphonVortex(')
+  expect(main).not.toContain('private fireDreadnoughtBroadside(')
+  expect(main).not.toContain('private fireCathedralLattice(')
 })
 
 test('strange sprite aliens have dedicated movement and attack routines', () => {
-  const source = readFileSync('src/main.ts', 'utf8')
+  const behaviors = readFileSync('src/enemy-behaviors.ts', 'utf8')
+  const attacks = readFileSync('src/space-enemy-attacks.ts', 'utf8')
+  const main = readFileSync('src/main.ts', 'utf8')
 
-  expect(source).toContain("e.kind === 'shard'")
-  expect(source).toContain('this.fireHelixSpikes')
-  expect(source).toContain('this.firePrismFan')
+  expect(behaviors).toContain('shard: (e, ctx, dt, def)')
+  expect(attacks).toContain('export function fireHelixSpikes')
+  expect(attacks).toContain('export function firePrismFan')
+  expect(main).not.toContain('private fireHelixSpikes(')
+  expect(main).not.toContain('private firePrismFan(')
 })

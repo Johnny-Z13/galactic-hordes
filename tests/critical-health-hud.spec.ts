@@ -1,0 +1,45 @@
+import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { vitalCriticalClass } from '../src/ui/vital-meter'
+
+test('vital critical class applies at low health only', () => {
+  expect(vitalCriticalClass(0.31)).toBe('')
+  expect(vitalCriticalClass(0.3)).toBe('critical')
+  expect(vitalCriticalClass(0.05)).toBe('critical')
+})
+
+test('main toggles critical health on ship and surface hud fills', () => {
+  const main = readFileSync('src/main.ts', 'utf8')
+  const hud = readFileSync('src/ui/hud.ts', 'utf8')
+
+  expect(main).toContain("import { makeHud as uiMakeHud, updateHud as uiUpdateHud } from './ui/hud'")
+  expect(main).toContain('uiUpdateHud(this)')
+  expect(hud).toContain('vitalCriticalClass')
+  expect(hud).toContain('runtime.ui.hullFill.classList.toggle(')
+  expect(hud).toContain('runtime.surface.pilot.health / runtime.surface.pilot.maxHealth')
+  expect(hud).toContain('Math.max(0, runtime.player.hull) / runtime.player.maxHull')
+})
+
+test('main toggles critical oxygen on the surface o2 hud fill', () => {
+  const hud = readFileSync('src/ui/hud.ts', 'utf8')
+
+  expect(hud).toContain('const oxygenRatio = runtime.surface.pilot.oxygen / runtime.surface.pilot.maxOxygen')
+  expect(hud).toContain("runtime.ui.xpFill.classList.toggle('critical', vitalCriticalClass(oxygenRatio) === 'critical')")
+  expect(hud).toContain("runtime.ui.xpFill.classList.toggle('critical', false)")
+})
+
+test('css styles critical health fill as a persistent warning', () => {
+  const css = readFileSync('src/style.css', 'utf8')
+
+  expect(css).toContain('.hud-meter-fill.health.critical')
+  expect(css).toContain('.hud-meter:has(.hud-meter-fill.health.critical)')
+  expect(css).toContain('@keyframes critical-health-pulse')
+})
+
+test('css styles critical oxygen fill as a persistent warning', () => {
+  const css = readFileSync('src/style.css', 'utf8')
+
+  expect(css).toContain('.hud-meter-fill.xp.critical')
+  expect(css).toContain('.hud-meter:has(.hud-meter-fill.xp.critical)')
+  expect(css).toContain('@keyframes critical-oxygen-pulse')
+})

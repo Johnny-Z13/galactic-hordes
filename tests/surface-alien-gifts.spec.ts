@@ -1,0 +1,124 @@
+import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { TAU } from '../src/math-utils'
+import { surfaceRunBalance } from '../src/surface-balance'
+import {
+  alienGiftDiscoveryRecord,
+  alienGiftOfferCopy,
+  createBadAlienGiftThreats,
+  isAlienGiftGood
+} from '../src/surface/alien-gifts'
+import { powerupBalance } from '../src/powerup-balance'
+
+const middleRange = (min: number, max: number) => (min + max) / 2
+
+test('alien gift offer copy is keyed by gift type', () => {
+  expect(alienGiftOfferCopy('herb')).toContain('luminous herb')
+  expect(alienGiftOfferCopy('idol')).toContain('cooled lightning')
+  expect(alienGiftOfferCopy('map')).toContain('living map')
+  expect(alienGiftOfferCopy('coin')).toContain('black coin')
+  expect(alienGiftOfferCopy('beacon')).toContain('docking charter')
+})
+
+test('bad idol gift creates hostile ambush threats around the alien', () => {
+  const threats = createBadAlienGiftThreats({
+    gift: 'idol',
+    origin: { x: 500, y: 400 },
+    surface: { width: 1600, height: 1180 },
+    time: 50,
+    randomRange: middleRange
+  })
+  const balance = surfaceRunBalance.alien.badGift
+
+  expect(threats).toHaveLength(balance.idolThreatCount)
+  expect(threats[0]).toMatchObject({
+    x: 500,
+    y: 400,
+    vx: 0,
+    vy: 0,
+    hp: balance.idolThreatHpBase + 50 * balance.idolThreatHpPerSecond,
+    radius: balance.idolThreatRadius,
+    phase: TAU / 2,
+    color: '#ff5d73',
+    hit: 0
+  })
+})
+
+test('bad beacon gift creates blue dust threats and non-threat gifts create none', () => {
+  const threats = createBadAlienGiftThreats({
+    gift: 'beacon',
+    origin: { x: 520, y: 440 },
+    surface: { width: 1600, height: 1180 },
+    time: 80,
+    randomRange: middleRange
+  })
+  const balance = surfaceRunBalance.alien.badGift
+
+  expect(threats).toHaveLength(balance.beaconThreatCount)
+  expect(threats[0]).toMatchObject({
+    hp: balance.beaconThreatHpBase + 80 * balance.beaconThreatHpPerSecond,
+    radius: balance.beaconThreatRadius,
+    color: '#70a8ff',
+    hit: 0
+  })
+  expect(createBadAlienGiftThreats({
+    gift: 'coin',
+    origin: { x: 520, y: 440 },
+    surface: { width: 1600, height: 1180 },
+    time: 80,
+    randomRange: middleRange
+  })).toEqual([])
+})
+
+test('alien gift success chance scales with luck and survey ranks', () => {
+  const chance = powerupBalance.upgradeApply.alienGiftGoodBaseChance
+    + 2 * powerupBalance.upgradeApply.alienGiftLuckPerRank
+    + 3 * powerupBalance.upgradeApply.alienGiftSurveyPerRank
+
+  expect(isAlienGiftGood({ luckRank: 2, surveyRank: 3, random: () => chance - 0.001 })).toBe(true)
+  expect(isAlienGiftGood({ luckRank: 2, surveyRank: 3, random: () => chance })).toBe(false)
+})
+
+test('alien gift discovery record preserves accept and refuse archive details', () => {
+  expect(alienGiftDiscoveryRecord({
+    name: 'The Glass Herbalist!',
+    gift: 'herb',
+    accepted: true,
+    planetName: 'Mirrorglen',
+    color: '#b990ff'
+  })).toEqual({
+    id: 'alien:the-glass-herbalist',
+    kind: 'alien',
+    title: 'The Glass Herbalist!',
+    detail: 'Accepted HERB gift.',
+    source: 'Mirrorglen',
+    color: '#b990ff',
+    icon: expect.any(Number)
+  })
+
+  expect(alienGiftDiscoveryRecord({
+    name: 'The Glass Herbalist!',
+    gift: 'idol',
+    accepted: false,
+    planetName: 'Mirrorglen',
+    color: '#57fff3'
+  })).toMatchObject({
+    id: 'alien:the-glass-herbalist',
+    kind: 'alien',
+    detail: 'Refused IDOL gift.',
+    color: '#57fff3'
+  })
+})
+
+test('main delegates alien gift copy and ambush creation to the surface module', () => {
+  const main = readFileSync('src/main.ts', 'utf8')
+
+  expect(main).toContain("from './surface/alien-gifts'")
+  expect(main).toContain('alienGiftOfferCopy(alien.gift)')
+  expect(main).toContain('alienGiftDiscoveryRecord({')
+  expect(main).toContain('createBadAlienGiftThreats({')
+  expect(main).toContain('isAlienGiftGood({')
+  expect(main).not.toContain('private alienOfferCopy(')
+  expect(main).not.toContain('alienGiftGoodBaseChance')
+  expect(main).not.toContain("id: `alien:${this.collectionSlug(alien.name)}`")
+})

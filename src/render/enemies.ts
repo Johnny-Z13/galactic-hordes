@@ -1,7 +1,8 @@
 import type { Vec, Enemy, EnemyKind } from '../main-types'
 import { TAU } from '../math-utils'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spriteEnemyKinds } from '../space-enemies'
-import { introHookConfig } from '../intro-hook'
+import { damageFeedbackConfig } from '../combat/damage-feedback'
+import { enemyHealthReadout } from './enemy-health-readout'
 
 export interface EnemiesView {
   ctx: CanvasRenderingContext2D
@@ -23,6 +24,7 @@ export function renderEnemies(view: EnemiesView): void {
   if (highLoad) {
     renderHordeEnemies(view)
     renderPrioritySpriteEnemies(view)
+    renderEnemyHealthReadouts(view)
     return
   }
   for (const e of view.enemies) {
@@ -36,7 +38,7 @@ export function renderEnemies(view: EnemiesView): void {
     ctx.translate(p.x, p.y)
     ctx.rotate(e.phase)
     ctx.scale(view.scale, view.scale)
-    ctx.strokeStyle = e.flash > 0 ? introHookConfig.hitFlash.color : e.color
+    ctx.strokeStyle = e.flash > 0 ? damageFeedbackConfig.hitFlash.color : e.color
     ctx.shadowColor = e.color
     ctx.shadowBlur = view.allowGlow ? 12 : 0
     ctx.lineWidth = e.kind === 'warden' || e.kind === 'brute' ? 3 : 2
@@ -108,6 +110,7 @@ export function renderEnemies(view: EnemiesView): void {
     }
     ctx.restore()
   }
+  renderEnemyHealthReadouts(view)
 }
 
 function renderSpaceSpriteEnemy(view: EnemiesView, e: Enemy, p: Vec): void {
@@ -154,7 +157,7 @@ function renderSpaceSpriteEnemy(view: EnemiesView, e: Enemy, p: Vec): void {
   ctx.drawImage(sheet, frame * sw, row * sh, sw, sh, -dw / 2, -dh / 2, dw, dh)
   if (e.flash > 0) {
     ctx.globalAlpha = 0.45
-    ctx.strokeStyle = introHookConfig.hitFlash.color
+    ctx.strokeStyle = damageFeedbackConfig.hitFlash.color
     ctx.lineWidth = 2
     ctx.beginPath()
     ctx.arc(0, 0, e.radius * 1.35 * view.scale, 0, TAU)
@@ -171,6 +174,42 @@ function renderPrioritySpriteEnemies(view: EnemiesView): void {
     if (p.x < -margin || p.x > view.width + margin || p.y < -margin || p.y > view.height + margin) continue
     renderSpaceSpriteEnemy(view, e, p)
   }
+}
+
+function renderEnemyHealthReadouts(view: EnemiesView): void {
+  const ctx = view.ctx
+  ctx.save()
+  ctx.shadowBlur = 0
+  for (const e of view.enemies) {
+    const readout = enemyHealthReadout({
+      enemy: e,
+      highLoad: view.isHighLoad,
+      scale: view.scale
+    })
+    if (!readout) continue
+    const p = view.worldToScreen(e.x, e.y)
+    if (p.x < -110 || p.x > view.width + 110 || p.y < -110 || p.y > view.height + 110) continue
+    const x = p.x - readout.width / 2
+    const y = p.y + readout.yOffset
+    const fillWidth = Math.max(0, (readout.width - 2) * readout.fillRatio)
+    ctx.save()
+    ctx.globalAlpha = readout.alpha
+    ctx.fillStyle = readout.trackColor
+    ctx.strokeStyle = readout.strokeColor
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.roundRect(x, y, readout.width, readout.height, readout.height / 2)
+    ctx.fill()
+    ctx.stroke()
+    if (fillWidth > 0) {
+      ctx.fillStyle = readout.fillColor
+      ctx.beginPath()
+      ctx.roundRect(x + 1, y + 1, fillWidth, Math.max(1, readout.height - 2), Math.max(1, (readout.height - 2) / 2))
+      ctx.fill()
+    }
+    ctx.restore()
+  }
+  ctx.restore()
 }
 
 function renderHordeEnemies(view: EnemiesView): void {
@@ -196,7 +235,7 @@ function renderHordeEnemies(view: EnemiesView): void {
   strokeEnemyBatch(view, 'cathedral', '#d7fff7')
   strokeEnemyBatch(view, 'warden', '#b990ff')
   ctx.lineWidth = 1.8
-  ctx.strokeStyle = introHookConfig.hitFlash.color
+  ctx.strokeStyle = damageFeedbackConfig.hitFlash.color
   ctx.beginPath()
   for (const e of view.enemies) {
     if (e.flash <= 0) continue
@@ -369,7 +408,7 @@ function renderEnemyLod(view: EnemiesView, e: Enemy, p: Vec): void {
   ctx.translate(p.x, p.y)
   ctx.rotate(e.phase)
   ctx.scale(view.scale, view.scale)
-  ctx.strokeStyle = e.flash > 0 ? introHookConfig.hitFlash.color : e.color
+  ctx.strokeStyle = e.flash > 0 ? damageFeedbackConfig.hitFlash.color : e.color
   ctx.lineWidth = 1.5
   const r = e.radius
   ctx.beginPath()

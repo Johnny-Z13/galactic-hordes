@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test'
-import { introHookConfig, isFirstEverRun, pickWaypointTarget } from '../src/intro-hook'
+import {
+  hitFlashColor,
+  introHookConfig,
+  introSafeDriftSpawnMultiplier,
+  introSafeDriftStartingSpawns,
+  isFirstEverRun,
+  pickWaypointTarget
+} from '../src/intro-hook'
 
 test('introHookConfig has the expected tuning keys and sane defaults', () => {
   expect(introHookConfig.waypoint.durationSeconds).toBeGreaterThan(0)
@@ -14,6 +21,7 @@ test('introHookConfig has the expected tuning keys and sane defaults', () => {
   expect(introHookConfig.hitstop.giantKindsOnly).toBe(true)
   expect(introHookConfig.magnetGlint.frameInterval).toBeGreaterThanOrEqual(1)
   expect(introHookConfig.magnetGlint.particleSpeed).toBeGreaterThan(0)
+  expect(introHookConfig.magnetGlint.color).toMatch(/^#[0-9a-fA-F]{6}$/)
   expect(introHookConfig.safeDriftFirstNode.spawnMultiplier).toBeGreaterThan(1)
   expect(introHookConfig.safeDriftFirstNode.extraStartingSpawns).toBeGreaterThanOrEqual(0)
   expect(introHookConfig.firstPlanetPayoff.cacheMultiplier).toBeGreaterThan(1)
@@ -39,4 +47,18 @@ test('pickWaypointTarget returns the nearest planet', () => {
 
 test('pickWaypointTarget returns null when no planets exist', () => {
   expect(pickWaypointTarget([], { x: 0, y: 0 })).toBeNull()
+})
+
+test('intro safeDrift helpers apply first-run spawn pressure without mutating base spawns', () => {
+  const base = ['chaser', 'splinter'] as const
+  const boosted = introSafeDriftStartingSpawns(base)
+
+  expect(boosted).toEqual(['chaser', 'splinter', 'chaser', 'splinter'])
+  expect(base).toEqual(['chaser', 'splinter'])
+  expect(introSafeDriftSpawnMultiplier(0.6)).toBeCloseTo(0.75)
+})
+
+test('hitFlashColor uses the shared red hit-feedback color for hit enemies', () => {
+  expect(hitFlashColor(true, '#57fff3')).toBe(introHookConfig.hitFlash.color)
+  expect(hitFlashColor(false, '#57fff3')).toBe('#57fff3')
 })

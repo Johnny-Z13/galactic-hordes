@@ -1,3 +1,5 @@
+import { damageFeedbackConfig } from './combat/damage-feedback'
+
 export const introHookConfig = {
   waypoint: {
     durationSeconds: 30,
@@ -6,12 +8,27 @@ export const introHookConfig = {
     color: '#fff27a'
   },
   popup: { lifeSeconds: 0.6, riseSpeed: 40, fontPx: 13, cap: 60, color: '#fff27a' },
-  hitFlash: { durationSeconds: 0.08, dashRamDurationSeconds: 0.12, color: '#ff5d73' },
+  hitFlash: damageFeedbackConfig.hitFlash,
   hitstop: { durationSeconds: 0.04, giantKindsOnly: true },
-  magnetGlint: { frameInterval: 4, particleSpeed: 30 },
+  magnetGlint: { frameInterval: 4, particleSpeed: 30, color: '#57fff3' },
   safeDriftFirstNode: { spawnMultiplier: 1.25, extraStartingSpawns: 2 },
   firstPlanetPayoff: { cacheMultiplier: 1.4, guaranteedRelic: true, extraLoreSites: 1 }
 } as const
+
+export { hitFlashColor } from './combat/damage-feedback'
+
+export function introSafeDriftStartingSpawns<T>(base: readonly T[]): T[] {
+  const spawns = [...base]
+  if (base.length === 0) return spawns
+  for (let i = 0; i < introHookConfig.safeDriftFirstNode.extraStartingSpawns; i += 1) {
+    spawns.push(base[i % base.length])
+  }
+  return spawns
+}
+
+export function introSafeDriftSpawnMultiplier(base: number): number {
+  return base * introHookConfig.safeDriftFirstNode.spawnMultiplier
+}
 
 export interface IsFirstEverRunInput {
   planets: number

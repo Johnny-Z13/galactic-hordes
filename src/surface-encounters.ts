@@ -1,3 +1,5 @@
+import { introHookConfig } from './intro-hook'
+
 export type PlanetArchetype = 'cache' | 'hostile' | 'repair' | 'relic' | 'strange' | 'lore' | 'horde'
 export type SurfaceEventKind = 'jackpot' | 'swarm' | 'relic' | 'repair' | 'volatile' | 'standard' | 'horde'
 export type SurfaceScenarioKind = 'salvage' | 'boss' | 'friendly' | 'mixed' | 'lore' | 'horde'
@@ -39,14 +41,15 @@ export const rollPlanetArchetype = ({ chunkX, chunkY, index, random }: RollPlane
 
 export const planSurfaceEncounter = (input: PlanSurfaceEncounterInput): SurfaceEncounterProfile => {
   if (input.firstRunLanding) {
+    const baseResourceCount = 9 + Math.floor(input.random() * 4)
     return {
       event: 'relic',
       scenario: 'friendly',
-      resourceCount: 9 + Math.floor(input.random() * 4),
+      resourceCount: Math.round(baseResourceCount * introHookConfig.firstPlanetPayoff.cacheMultiplier),
       threatCount: 2 + Math.floor(input.random() * 2),
       bossCount: 0,
       alienCount: 1,
-      loreSiteCount: 1,
+      loreSiteCount: 1 + introHookConfig.firstPlanetPayoff.extraLoreSites,
       bossCacheCount: 0
     }
   }

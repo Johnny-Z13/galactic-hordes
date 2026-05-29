@@ -144,7 +144,8 @@ export const spaceSpawnBalance = {
     maxPackPerMinute: 0.4,
     maxPackMin: 1,
     maxPackMax: 7
-  }
+  },
+  sectorWaveWarningSeconds: 12
 } as const
 
 export const spaceEnemyVariety = {

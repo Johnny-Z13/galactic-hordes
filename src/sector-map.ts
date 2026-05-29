@@ -141,7 +141,14 @@ export interface SectorNodeRunProfile {
   allowsMetaUpgrades: boolean
 }
 
+export interface SectorNodeDecisionIntel {
+  directive: string
+  reward: string
+  risk: string
+}
+
 const nodeRows = [0, 1, 2, 3] as const
+const sectorColumnCount = 7
 
 export const sectorNodeTemplateCatalog: Record<SectorNodeTemplateId, SectorNodeTemplate> = {
   mothership: {
@@ -421,14 +428,16 @@ const configFor = (templateId: SectorNodeTemplateId, column: number, random: () 
       waveOrder,
       hazards,
       planets: planetConfig(1, 2, 'sparse', { repair: 1.6, cache: 1.1 }),
-      enemies: enemyConfig(['chaser'], { chaser: 1, splinter: 0.55, lancer: depth > 0.45 ? 0.35 : 0 }, 0.6 * pacePressureFor(pace) * pressureScale(depth, template.pressureRole), 0.72),
+      enemies: enemyConfig(['chaser'], { chaser: 1, splinter: 0.55, lancer: depth > 0.45 ? 0.35 : 0 }, 0.56 * pacePressureFor(pace) * pressureScale(depth, template.pressureRole), 0.72),
       waves: [
-        { atSeconds: 30, label: 'Scout drift', enemies: scaleEnemyCounts({ chaser: 3, splinter: 1 }, depth, 0.35), notes: 'Low-pressure route that protects recovery space.' }
+        { atSeconds: 12, label: 'Contact scouts', enemies: scaleEnemyCounts({ chaser: 1 }, depth, 0.18), notes: 'Immediate contact so the route starts with shooting.' },
+        { atSeconds: 28, label: 'Flank drift', enemies: scaleEnemyCounts({ chaser: 2 }, depth, 0.22), notes: 'Small mixed flank before the player settles into collection.' },
+        { atSeconds: 43, label: 'Decision pickets', enemies: scaleEnemyCounts({ chaser: 2, splinter: 1 }, depth, 0.26), notes: 'Pressure arrives as the station/cache decision comes online.' }
       ],
       rewards: { resourceMultiplier: 0.9 * rewardScale(depth), chestIntervalMultiplier: 1.15, upgradeSignalBonusChance: 0.03 + depth * 0.03 },
-      objective: 'Recover, scout, and reach the next route branch.',
-      readout: 'Safe drift. Low pressure, modest rewards.',
-      notes: ['Breather node. Use sparingly so route choices are not all combat pressure.']
+      objective: 'Clear scouts, bank signal, then dock or chase cache.',
+      readout: 'Opening route. Scouts, signal, station choice.',
+      notes: ['Opening breather with enough pressure to teach shooting, collection, and docking.']
     })
   }
   if (templateId === 'planetCluster') {
@@ -619,13 +628,15 @@ const weightedTemplate = (
   return weighted[weighted.length - 1][0]
 }
 
-const templateFor = (column: number, row: number, random: () => number, usedInColumn: Set<SectorNodeTemplateId>): SectorNodeTemplateId => {
+const templateFor = (column: number, row: number, random: () => number, usedInColumn: Set<SectorNodeTemplateId>, columns: number): SectorNodeTemplateId => {
+  const finalColumn = columns - 1
+  const routeCheckColumn = columns - 2
   if (column === 0) return 'mothership'
-  if (column === 5) return 'finalStand'
+  if (column === finalColumn) return 'finalStand'
   if (column === 1 && row === 0) return 'safeDrift'
   if (column === 1 && row === 1) return 'planetCluster'
-  if ((column === 2 && row === 1) || (column === 4 && row === 3)) return 'freeport'
-  if (column === 4 && row % 2 === 0) return 'bossGate'
+  if ((column === 2 && row === 1) || (column === routeCheckColumn && row === 3)) return 'freeport'
+  if (column === routeCheckColumn && row % 2 === 0) return 'bossGate'
   if (column === 1) return weightedTemplate([
     ['derelictField', 1.15],
     ['hunterLane', 0.9],
@@ -654,11 +665,11 @@ const templateFor = (column: number, row: number, random: () => number, usedInCo
   ], random, usedInColumn)
 }
 
-const nodeId = (column: number, row: number) => column === 0 ? 'mothership' : column === 5 ? 'final' : `c${column}r${row}`
+const nodeId = (column: number, row: number, columns: number) => column === 0 ? 'mothership' : column === columns - 1 ? 'final' : `c${column}r${row}`
 
 export const createSectorMap = (seed = Date.now()): SectorMap => {
   const random = rngFrom(seed)
-  const columns = 6
+  const columns = sectorColumnCount
   const nodes: SectorNode[] = [
     {
       id: 'mothership',
@@ -676,11 +687,11 @@ export const createSectorMap = (seed = Date.now()): SectorMap => {
   for (let column = 1; column < columns - 1; column += 1) {
     const usedInColumn = new Set<SectorNodeTemplateId>()
     for (const row of nodeRows) {
-      const templateId = templateFor(column, row, random, usedInColumn)
+      const templateId = templateFor(column, row, random, usedInColumn, columns)
       usedInColumn.add(templateId)
       const kind = sectorNodeTemplateCatalog[templateId].kind
       nodes.push({
-        id: nodeId(column, row),
+        id: nodeId(column, row, columns),
         column,
         row,
         kind,
@@ -1153,4 +1164,54 @@ export const sectorNodeRunProfile = (node: SectorNode): SectorNodeRunProfile => 
     rewardShape: node.config.rewardShape,
     enemyPacket: node.config.enemyPacket
   }
+}
+
+export const sectorNodeDecisionIntel = (node: SectorNode): SectorNodeDecisionIntel => {
+  const profile = sectorNodeRunProfile(node)
+  return {
+    directive: sectorNodeDirective(node),
+    reward: sectorNodeRewardRead(node, profile),
+    risk: sectorNodeRiskRead(node, profile)
+  }
+}
+
+const sectorNodeDirective = (node: SectorNode) => {
+  if (node.kind === 'station') return 'SERVICE'
+  if (node.kind === 'boss') return 'BOSS GATE'
+  if (node.kind === 'final') return 'LAST STAND'
+  if (node.config.templateId === 'safeDrift') return 'SCOUTS'
+  if (node.config.templateId === 'planetCluster') return 'LANDINGS'
+  if (node.config.templateId === 'asteroidBelt') return 'NAV TEST'
+  if (node.config.templateId === 'hunterLane') return 'FIGHT'
+  if (node.config.templateId === 'derelictField') return 'GREED'
+  if (node.config.templateId === 'nebulaAnomaly') return 'VOLATILE'
+  return node.kind === 'planet' ? 'LANDINGS' : 'ROUTE'
+}
+
+const sectorNodeRewardRead = (node: SectorNode, profile: SectorNodeRunProfile) => {
+  if (node.kind === 'station') return 'REPAIR / WORKBENCH'
+  if (node.config.templateId === 'safeDrift') return 'SIGNAL'
+  if (profile.rewardShape.id === 'relicTrace') return 'RELIC TRACE'
+  if (profile.rewardShape.id === 'signalBloom' || node.config.rewards.upgradeSignalBonusChance >= 0.08) return 'SIGNAL'
+  if (node.config.planets.countMin >= 2 || node.config.templateId === 'planetCluster') return 'PLANETS'
+  if (profile.rewardShape.id === 'repairCache') return 'REPAIR'
+  if (node.config.hazards.includes('derelictCache')) return 'CACHE'
+  if (profile.rewardShape.id === 'scrapHeavy' || profile.rewardMultiplier >= 1.08) return 'SALVAGE'
+  return 'SALVAGE'
+}
+
+const sectorNodeRiskRead = (node: SectorNode, profile: SectorNodeRunProfile) => {
+  if (node.kind === 'station') return 'SAFE DOCK'
+  if (
+    node.kind === 'boss'
+    || node.kind === 'final'
+    || node.config.pace === 'boss'
+    || node.config.pace === 'intense'
+    || node.config.hazards.includes('asteroids')
+    || node.config.hazards.includes('hunterWing')
+    || node.config.hazards.includes('nebula')
+    || profile.spawnMultiplier >= 1.05
+  ) return 'HIGH RISK'
+  if (node.config.pace === 'safe' && profile.spawnMultiplier < 0.82) return 'LOW RISK'
+  return 'MED RISK'
 }

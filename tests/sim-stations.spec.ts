@@ -21,3 +21,12 @@ test('station dock cannot repair more damage than the run has taken', () => {
 
   expect(result.repaired).toBe(10)
 })
+
+test('station dock repair remains capped when sim damage exceeds base hull', () => {
+  const station = Array.from({ length: 20 }, (_, seed) => createSectorMap(seed + 20))
+    .flatMap((map) => map.nodes)
+    .find((node) => node.kind === 'station' && node.stationServices.includes('repair'))!
+  const result = simulateStationDock({ node: station, currentDamage: runBalance.player.baseHull + 50 })
+
+  expect(result.repaired).toBe(runBalance.station.repairHull)
+})

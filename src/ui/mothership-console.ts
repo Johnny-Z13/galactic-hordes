@@ -1,17 +1,64 @@
 import titleLogoMarkUrl from '../assets/title-logo-mark.png'
-import { relics, upgrades } from '../powerup-balance'
+import { relics, upgrades, type RelicId, type Upgrade, type UpgradeBucket, type UpgradeId } from '../powerup-balance'
 import {
   isMothershipDepartmentUnlocked,
   mothershipDepartmentUnlockText,
   mothershipDepartments,
   purchaseMothershipTier,
-  type MothershipDepartmentId
+  type MothershipDepartmentId,
+  type MothershipState
 } from '../mothership-progression'
-import { availableSectorChoices, currentSectorNode } from '../sector-map'
-import { clamp, type MothershipConsoleView, type VectorShooter } from '../main'
+import { availableSectorChoices, currentSectorNode, type SectorMap } from '../sector-map'
+import { clamp } from '../math-utils'
+import type { DebriefReport } from '../debrief-report'
+import type { MothershipConsoleView } from './mothership-ui-types'
 import { renderManifestRelicLine, renderManifestSummary } from './workbench'
 import { renderCollectionScreen } from './collection'
-export function renderBuildManifest(self: VectorShooter) {
+import { sectorNodeGlyph } from './sector-map-screen'
+
+interface MothershipConsoleHost extends Object {}
+
+interface MothershipConsoleRuntime {
+  build: Record<UpgradeId, number>
+  debrief: DebriefReport | null
+  evolved: Set<UpgradeId>
+  expandedMothershipDepartment: MothershipDepartmentId | null
+  mothership: MothershipState
+  mothershipConsoleView: MothershipConsoleView
+  pendingUpgrades: number
+  player: {
+    hull: number
+    maxHull: number
+  }
+  relics: Set<RelicId>
+  sectorMap: SectorMap
+  selectedMothershipDepartment: MothershipDepartmentId
+  state: string
+  stats: {
+    level: number
+    nextXp: number
+    xp: number
+  }
+  ui: {
+    title: HTMLElement
+  }
+  bucketLabel(bucket: UpgradeBucket): string
+  currentFrontScreenScrollTop(screen: 'powerups'): number
+  escape(value: string): string
+  launchSectorNode(nodeId: string): void
+  saveMothership(): void
+  showOnly(which: 'title'): void
+  showPowerUps(options?: { scrollTop?: number }): void
+  start(): void
+  toast(message: string): void
+  upgradeLevelDetail(upgrade: Upgrade, level: number): string
+}
+
+function mothershipRuntime(self: MothershipConsoleHost) {
+  return self as unknown as MothershipConsoleRuntime
+}
+export function renderBuildManifest(self: MothershipConsoleHost) {
+  const runtime = mothershipRuntime(self)
   const wrap = document.createElement('div')
   wrap.className = 'build-manifest overview'
   const title = document.createElement('div')
@@ -20,39 +67,41 @@ export function renderBuildManifest(self: VectorShooter) {
   const chips = document.createElement('div')
   chips.className = 'manifest-grid'
   for (const upgrade of upgrades) {
-    const level = self['build'][upgrade.id]
+    const level = runtime['build'][upgrade.id]
     const maxed = level >= upgrade.max
-    const evolved = self['evolved'].has(upgrade.id)
+    const evolved = runtime['evolved'].has(upgrade.id)
     const catalyst = upgrade.catalyst ? relics.find((relic) => relic.id === upgrade.catalyst) : null
-    const ready = maxed && catalyst && self['relics'].has(catalyst.id) && !evolved
+    const ready = maxed && catalyst && runtime['relics'].has(catalyst.id) && !evolved
     const chip = document.createElement('div')
     chip.className = `manifest-chip ${level > 0 ? 'owned' : 'locked'} ${maxed ? 'maxed' : ''} ${ready ? 'ready' : ''} ${evolved ? 'evolved' : ''} ${upgrade.bucket}`
     const route = evolved ? 'EVOLVED' : ready ? 'EVOLUTION READY' : catalyst ? `CATALYST: ${catalyst.name}` : upgrade.category === 'weapon' ? 'WEAPON SYSTEM' : 'SHIP SYSTEM'
-    const currentEffect = level > 0 ? ` // ${self['upgradeLevelDetail'](upgrade, level)}` : ''
+    const currentEffect = level > 0 ? ` // ${runtime['upgradeLevelDetail'](upgrade, level)}` : ''
     chip.innerHTML = `
       <div class="manifest-chip-head">
-        <strong>${self['escape'](upgrade.name)}</strong>
+        <strong>${runtime['escape'](upgrade.name)}</strong>
         <b>${level}/${upgrade.max}</b>
       </div>
-      <span>${self['escape'](route + currentEffect)}</span>
-      <em>${self['bucketLabel'](upgrade.bucket)}</em>
+      <span>${runtime['escape'](route + currentEffect)}</span>
+      <em>${runtime['bucketLabel'](upgrade.bucket)}</em>
     `
     chips.append(chip)
   }
-  wrap.append(title, renderManifestSummary(self), chips, renderManifestRelicLine(self))
+  const workbenchSelf = self as Parameters<typeof renderManifestSummary>[0]
+  wrap.append(title, renderManifestSummary(workbenchSelf), chips, renderManifestRelicLine(workbenchSelf))
   return wrap
 }
 
-export function showMothership(self: VectorShooter, options: { scrollTop?: number } = {}) {
-  self['state'] = 'mothership'
-  self['ui'].title.innerHTML = ''
-  self['ui'].title.className = 'screen mothership-screen'
-  const archiveRecordCount = Object.keys(self['mothership'].archive.records).length
-  const firstCommand = !self['debrief']
+export function showMothership(self: MothershipConsoleHost, options: { scrollTop?: number } = {}) {
+  const runtime = mothershipRuntime(self)
+  runtime['state'] = 'mothership'
+  runtime['ui'].title.innerHTML = ''
+  runtime['ui'].title.className = 'screen mothership-screen'
+  const archiveRecordCount = Object.keys(runtime['mothership'].archive.records).length
+  const firstCommand = !runtime['debrief']
     && archiveRecordCount === 0
-    && self['mothership'].resources.scrap === 0
-    && self['mothership'].resources.crystal === 0
-    && self['mothership'].resources.cores === 0
+    && runtime['mothership'].resources.scrap === 0
+    && runtime['mothership'].resources.crystal === 0
+    && runtime['mothership'].resources.cores === 0
   const shell = document.createElement('div')
   shell.className = `mothership-command ${firstCommand ? 'first-command' : ''}`
   const header = document.createElement('header')
@@ -62,18 +111,13 @@ export function showMothership(self: VectorShooter, options: { scrollTop?: numbe
   intro.innerHTML = firstCommand
     ? '<span>COMMAND DECK</span><h1>MOTHERSHIP</h1><p>First scout is hot. Find a signal world, crack one cache, and bring something impossible home.</p>'
     : '<span>COMMAND DECK</span><h1>MOTHERSHIP</h1><p>Scout systems docked. Spend recovered cargo, review the ship, then launch the next expedition.</p>'
-  if (self['debrief']) {
-    const lastRun = document.createElement('p')
-    lastRun.className = 'mothership-last-report'
-    lastRun.textContent = `${self['debrief'].title} // ${self['debrief'].discoveries.length} discoveries // Scrap ${self['debrief'].resources.recovered.scrap} // Crystals ${self['debrief'].resources.recovered.crystal} // Cores ${self['debrief'].resources.recovered.cores}`
-    intro.append(lastRun)
-  }
+  if (runtime['debrief']) intro.append(renderMothershipLastReport(self))
   const resources = document.createElement('div')
   resources.className = 'mothership-resources'
   resources.innerHTML = `
-    <span><b>Scrap</b>${self['mothership'].resources.scrap}</span>
-    <span><b>Crystals</b>${self['mothership'].resources.crystal}</span>
-    <span><b>Cores</b>${self['mothership'].resources.cores}</span>
+    <span><b>Scrap</b>${runtime['mothership'].resources.scrap}</span>
+    <span><b>Crystals</b>${runtime['mothership'].resources.crystal}</span>
+    <span><b>Cores</b>${runtime['mothership'].resources.cores}</span>
   `
   header.append(intro, resources)
 
@@ -81,11 +125,11 @@ export function showMothership(self: VectorShooter, options: { scrollTop?: numbe
   flight.className = 'mothership-flight'
   const status = document.createElement('div')
   status.className = 'mothership-launch-meters'
-  const hullPct = clamp(Math.max(0, self['player'].hull) / Math.max(1, self['player'].maxHull), 0, 1)
-  const xpPct = clamp(self['stats'].xp / Math.max(1, self['stats'].nextXp), 0, 1)
+  const hullPct = clamp(Math.max(0, runtime['player'].hull) / Math.max(1, runtime['player'].maxHull), 0, 1)
+  const xpPct = clamp(runtime['stats'].xp / Math.max(1, runtime['stats'].nextXp), 0, 1)
   status.append(
     mothershipMeter(self, 'Hull Integrity', `${Math.round(hullPct * 100)}%`, hullPct, 'health'),
-    mothershipMeter(self, 'Mutation XP', `LV ${self['stats'].level} // ${Math.floor(self['stats'].xp)}/${self['stats'].nextXp}`, xpPct, 'xp'),
+    mothershipMeter(self, 'Mutation XP', `LV ${runtime['stats'].level} // ${Math.floor(runtime['stats'].xp)}/${runtime['stats'].nextXp}`, xpPct, 'xp'),
     mothershipMeter(self, 'Archive Signal', `${archiveRecordCount} records`, clamp(archiveRecordCount / 18, 0, 1), 'archive')
   )
   const shipBay = document.createElement('div')
@@ -96,8 +140,8 @@ export function showMothership(self: VectorShooter, options: { scrollTop?: numbe
   ship.className = 'mothership-ship-art'
   const launch = document.createElement('button')
   launch.className = 'vector-button start-button mothership-launch'
-  launch.textContent = 'Launch Expedition'
-  launch.addEventListener('click', () => self['start']())
+  launch.textContent = 'Open Sector Map'
+  launch.addEventListener('click', () => runtime['start']())
   shipBay.append(ship, launch, status)
   const launchStack = document.createElement('div')
   launchStack.className = 'mothership-launch-stack'
@@ -107,8 +151,8 @@ export function showMothership(self: VectorShooter, options: { scrollTop?: numbe
   flight.append(launchStack)
 
   shell.append(header, flight)
-  self['ui'].title.append(shell)
-  self['showOnly']('title')
+  runtime['ui'].title.append(shell)
+  runtime['showOnly']('title')
   if (options.scrollTop !== undefined) {
     const restoreScroll = () => {
       shell.scrollTop = clamp(options.scrollTop ?? 0, 0, Math.max(0, shell.scrollHeight - shell.clientHeight))
@@ -118,21 +162,44 @@ export function showMothership(self: VectorShooter, options: { scrollTop?: numbe
   }
 }
 
-export function mothershipMeter(self: VectorShooter, label: string, value: string, pct: number, tone: string) {
+export function renderMothershipLastReport(self: MothershipConsoleHost) {
+  const runtime = mothershipRuntime(self)
+  const report = document.createElement('section')
+  report.className = 'mothership-last-report-card'
+  if (!runtime['debrief']) return report
+  const eyebrow = document.createElement('span')
+  eyebrow.textContent = runtime['debrief'].title
+  const title = document.createElement('b')
+  title.textContent = runtime['debrief'].journeyTitle
+  const highlights = document.createElement('ul')
+  highlights.className = 'mothership-last-report-highlights'
+  for (const highlight of runtime['debrief'].highlights.slice(0, 2)) {
+    const item = document.createElement('li')
+    item.textContent = highlight
+    highlights.append(item)
+  }
+  const cargo = document.createElement('em')
+  cargo.textContent = `Scrap ${runtime['debrief'].resources.recovered.scrap} // Crystals ${runtime['debrief'].resources.recovered.crystal} // Cores ${runtime['debrief'].resources.recovered.cores}`
+  report.append(eyebrow, title, highlights, cargo)
+  return report
+}
+export function mothershipMeter(self: MothershipConsoleHost, label: string, value: string, pct: number, tone: string) {
+  const runtime = mothershipRuntime(self)
   const meter = document.createElement('div')
   meter.className = `mothership-meter ${tone}`
   meter.innerHTML = `
-    <div><span>${self['escape'](label)}</span><b>${self['escape'](value)}</b></div>
+    <div><span>${runtime['escape'](label)}</span><b>${runtime['escape'](value)}</b></div>
     <i><em style="width:${clamp(pct, 0, 1) * 100}%"></em></i>
   `
   return meter
 }
 
-export function renderMothershipRoutePreview(self: VectorShooter) {
+export function renderMothershipRoutePreview(self: MothershipConsoleHost) {
+  const runtime = mothershipRuntime(self)
   const preview = document.createElement('section')
   preview.className = 'mothership-route-preview'
-  const choices = availableSectorChoices(self['sectorMap'])
-  const current = currentSectorNode(self['sectorMap'])
+  const choices = availableSectorChoices(runtime['sectorMap'])
+  const current = currentSectorNode(runtime['sectorMap'])
   const lines = [
     { x1: 8, y1: 52, x2: 28, y2: 24 },
     { x1: 8, y1: 52, x2: 28, y2: 52 },
@@ -145,7 +212,7 @@ export function renderMothershipRoutePreview(self: VectorShooter) {
   const nodeMarkup = [
     { label: 'M', x: 8, y: 52, className: 'current', text: 'MOTHERSHIP' },
     ...choices.slice(0, 3).map((node, index) => ({
-      label: self['sectorNodeGlyph'](node.kind),
+      label: sectorNodeGlyph(node.kind),
       x: 28,
       y: [24, 52, 78][index],
       className: `available ${node.kind}`,
@@ -156,38 +223,40 @@ export function renderMothershipRoutePreview(self: VectorShooter) {
   preview.innerHTML = `
     <div class="mothership-route-head">
       <b>SECTOR MAP</b>
-      <span>${self['escape'](current.label)} // ${choices.length} jump routes armed</span>
+      <span>${runtime['escape'](current.label)} // ${choices.length} jump routes armed</span>
     </div>
     <div class="mothership-route-map" aria-label="Sector route preview">
       <svg class="mothership-route-lines" viewBox="0 0 100 100" aria-hidden="true">
         ${lines.map((line, index) => `<line class="${index < 3 ? 'available' : ''}" x1="${line.x1}" y1="${line.y1}" x2="${line.x2}" y2="${line.y2}"></line>`).join('')}
       </svg>
       ${nodeMarkup.map((node) => `
-        <button class="mothership-route-node ${self['escape'](node.className)}" style="left:${node.x}%;top:${node.y}%" type="button" ${node.className.includes('available') ? '' : 'disabled'}>
-          <span>${self['escape'](node.label)}</span><em>${self['escape'](node.text)}</em>
+        <button class="mothership-route-node ${runtime['escape'](node.className)}" style="left:${node.x}%;top:${node.y}%" type="button" ${node.className.includes('available') ? '' : 'disabled'}>
+          <span>${runtime['escape'](node.label)}</span><em>${runtime['escape'](node.text)}</em>
         </button>
       `).join('')}
     </div>
   `
   preview.querySelectorAll<HTMLButtonElement>('.mothership-route-node.available').forEach((button, index) => {
     const node = choices[index]
+    button.setAttribute('aria-label', `Launch ${node.label}`)
     button.addEventListener('click', () => {
       if (!node) return
-      self['toast'](`${node.label}: ${node.description}`)
+      runtime['launchSectorNode'](node.id)
     })
   })
   return preview
 }
 
-export function refreshMetaPowerUps(self: VectorShooter, scrollTop?: number) {
-  if (self['state'] === 'powerups') {
-    self['showPowerUps']({ scrollTop })
+export function refreshMetaPowerUps(self: MothershipConsoleHost, scrollTop?: number) {
+  const runtime = mothershipRuntime(self)
+  if (runtime['state'] === 'powerups') {
+    runtime['showPowerUps']({ scrollTop })
     return
   }
   showMothership(self, { scrollTop })
 }
 
-export function renderFirstMothershipBriefing(self: VectorShooter) {
+export function renderFirstMothershipBriefing(self: MothershipConsoleHost) {
   const briefing = document.createElement('section')
   briefing.className = 'mothership-first-briefing'
   briefing.innerHTML = `
@@ -198,25 +267,26 @@ export function renderFirstMothershipBriefing(self: VectorShooter) {
   return briefing
 }
 
-export function renderMothershipConsoleStack(self: VectorShooter) {
+export function renderMothershipConsoleStack(self: MothershipConsoleHost) {
+  const runtime = mothershipRuntime(self)
   const consolePanel = document.createElement('div')
   consolePanel.className = 'mothership-console-stack'
   const tabs = document.createElement('div')
   tabs.className = 'mothership-console-tabs'
   tabs.append(
-    mothershipConsoleTab(self, 'Workbench', 'workbench', `${self['pendingUpgrades']} signals`),
+    mothershipConsoleTab(self, 'Workbench', 'workbench', `${runtime['pendingUpgrades']} signals`),
     mothershipConsoleTab(self, 'Build', 'manifest', 'systems')
   )
   const content = document.createElement('div')
-  content.className = `mothership-console-content ${self['mothershipConsoleView']}`
-  if (self['mothershipConsoleView'] === 'manifest') {
+  content.className = `mothership-console-content ${runtime['mothershipConsoleView']}`
+  if (runtime['mothershipConsoleView'] === 'manifest') {
     content.append(renderBuildManifest(self))
   } else {
     const panel = document.createElement('div')
     panel.className = 'mothership-console-panel'
     panel.innerHTML = `
       <b>Workbench Bay</b>
-      <span>${self['pendingUpgrades']} mutation signal${self['pendingUpgrades'] === 1 ? '' : 's'} banked</span>
+      <span>${runtime['pendingUpgrades']} mutation signal${runtime['pendingUpgrades'] === 1 ? '' : 's'} banked</span>
       <p>Mutation choices install during expeditions. Review current systems or inspect the permanent collection before launch.</p>
     `
     content.append(panel)
@@ -225,23 +295,24 @@ export function renderMothershipConsoleStack(self: VectorShooter) {
   return consolePanel
 }
 
-export function mothershipConsoleTab(self: VectorShooter, label: string, view: MothershipConsoleView, meta: string) {
+export function mothershipConsoleTab(self: MothershipConsoleHost, label: string, view: MothershipConsoleView, meta: string) {
+  const runtime = mothershipRuntime(self)
   const button = document.createElement('button')
   button.type = 'button'
-  button.className = `mothership-console-tab ${self['mothershipConsoleView'] === view ? 'active' : ''}`
+  button.className = `mothership-console-tab ${runtime['mothershipConsoleView'] === view ? 'active' : ''}`
   button.setAttribute('aria-label', `${label}: ${meta}`)
-  button.setAttribute('aria-pressed', String(self['mothershipConsoleView'] === view))
-  button.innerHTML = `<span>${self['escape'](label)}</span><b>${self['escape'](meta)}</b>`
+  button.setAttribute('aria-pressed', String(runtime['mothershipConsoleView'] === view))
+  button.innerHTML = `<span>${runtime['escape'](label)}</span><b>${runtime['escape'](meta)}</b>`
   button.addEventListener('click', () => {
-    if (self['mothershipConsoleView'] === view) return
-    self['mothershipConsoleView'] = view
-    const scrollTop = self['ui'].title.querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
+    if (runtime['mothershipConsoleView'] === view) return
+    runtime['mothershipConsoleView'] = view
+    const scrollTop = (runtime['ui'].title as HTMLElement).querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
     showMothership(self, { scrollTop })
   })
   return button
 }
 
-export function mothershipStation(self: VectorShooter, title: string, copy: string, actionLabel: string, action: () => void) {
+export function mothershipStation(self: MothershipConsoleHost, title: string, copy: string, actionLabel: string, action: () => void) {
   const card = document.createElement('div')
   card.className = 'station-card'
   const h = document.createElement('h2')
@@ -256,17 +327,19 @@ export function mothershipStation(self: VectorShooter, title: string, copy: stri
   return card
 }
 
-export function lockedStation(self: VectorShooter, title: string, copy: string) {
+export function lockedStation(self: MothershipConsoleHost, title: string, copy: string) {
+  const runtime = mothershipRuntime(self)
   const card = document.createElement('div')
   card.className = 'station-card locked'
-  card.innerHTML = `<h2>${self['escape'](title)}</h2><p>${self['escape'](copy)}</p><span>OFFLINE</span>`
+  card.innerHTML = `<h2>${runtime['escape'](title)}</h2><p>${runtime['escape'](copy)}</p><span>OFFLINE</span>`
   return card
 }
 
-export function renderMothershipMetaSystems(self: VectorShooter) {
+export function renderMothershipMetaSystems(self: MothershipConsoleHost) {
+  const runtime = mothershipRuntime(self)
   const departments: MothershipDepartmentId[] = ['scanner', 'workbench', 'archive', 'shipyard', 'signalCore', 'hangarCrew']
-  if (!departments.includes(self['selectedMothershipDepartment'])) self['selectedMothershipDepartment'] = 'scanner'
-  if (self['expandedMothershipDepartment'] && !departments.includes(self['expandedMothershipDepartment'])) self['expandedMothershipDepartment'] = null
+  if (!departments.includes(runtime['selectedMothershipDepartment'])) runtime['selectedMothershipDepartment'] = 'scanner'
+  if (runtime['expandedMothershipDepartment'] && !departments.includes(runtime['expandedMothershipDepartment'])) runtime['expandedMothershipDepartment'] = null
   const window = document.createElement('section')
   window.className = 'permanent-upgrades-window meta-upgrade-window'
   const rail = document.createElement('div')
@@ -276,29 +349,30 @@ export function renderMothershipMetaSystems(self: VectorShooter) {
   return window
 }
 
-export function metaDepartmentToggle(self: VectorShooter, id: MothershipDepartmentId) {
+export function metaDepartmentToggle(self: MothershipConsoleHost, id: MothershipDepartmentId) {
+  const runtime = mothershipRuntime(self)
   const definition = mothershipDepartments[id]
-  const tier = self['mothership'].departments[id]
+  const tier = runtime['mothership'].departments[id]
   const maxTier = definition.tiers.length
   const tierPct = clamp(tier / Math.max(1, maxTier), 0, 1)
   const next = definition.tiers[tier]
-  const unlocked = isMothershipDepartmentUnlocked(self['mothership'], id)
+  const unlocked = isMothershipDepartmentUnlocked(runtime['mothership'], id)
   const button = document.createElement('button')
   button.type = 'button'
   button.id = `mothership-department-${id}-toggle`
-  button.className = `meta-department-toggle ${self['expandedMothershipDepartment'] === id ? 'active' : ''} ${unlocked ? '' : 'locked'}`.trim()
+  button.className = `meta-department-toggle ${runtime['expandedMothershipDepartment'] === id ? 'active' : ''} ${unlocked ? '' : 'locked'}`.trim()
   button.setAttribute('aria-controls', `mothership-department-${id}-panel`)
-  button.setAttribute('aria-pressed', String(self['expandedMothershipDepartment'] === id))
-  button.setAttribute('aria-expanded', String(self['expandedMothershipDepartment'] === id))
+  button.setAttribute('aria-pressed', String(runtime['expandedMothershipDepartment'] === id))
+  button.setAttribute('aria-expanded', String(runtime['expandedMothershipDepartment'] === id))
   button.addEventListener('click', () => {
-    const scrollTop = self['state'] === 'powerups'
-      ? self['currentFrontScreenScrollTop']('powerups')
-      : self['ui'].title.querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
-    if (self['expandedMothershipDepartment'] === id) {
-      self['expandedMothershipDepartment'] = null
+    const scrollTop = runtime['state'] === 'powerups'
+      ? runtime['currentFrontScreenScrollTop']('powerups')
+      : (runtime['ui'].title as HTMLElement).querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
+    if (runtime['expandedMothershipDepartment'] === id) {
+      runtime['expandedMothershipDepartment'] = null
     } else {
-      self['selectedMothershipDepartment'] = id
-      self['expandedMothershipDepartment'] = id
+      runtime['selectedMothershipDepartment'] = id
+      runtime['expandedMothershipDepartment'] = id
     }
     refreshMetaPowerUps(self, scrollTop)
   })
@@ -311,34 +385,36 @@ export function metaDepartmentToggle(self: VectorShooter, id: MothershipDepartme
   meter.append(fill)
   const status = unlocked ? next ? `Next: ${next.name}` : 'Fully online' : `Locked: ${mothershipDepartmentUnlockText(id)}`
   button.innerHTML = `
-    <i class="meta-department-code">${self['escape'](definition.name.split(' ').map((part) => part[0] ?? '').join('').slice(0, 3).toUpperCase())}</i>
+    <i class="meta-department-code">${runtime['escape'](definition.name.split(' ').map((part) => part[0] ?? '').join('').slice(0, 3).toUpperCase())}</i>
     <div class="meta-department-copy">
       <div class="meta-department-topline">
-        <strong>${self['escape'](definition.name)}</strong>
+        <strong>${runtime['escape'](definition.name)}</strong>
         <b>${tier}/${maxTier}</b>
       </div>
-      <span>${self['escape'](status)}</span>
+      <span>${runtime['escape'](status)}</span>
     </div>
   `
   button.append(meter)
   return button
 }
 
-export function metaDepartmentEntry(self: VectorShooter, id: MothershipDepartmentId) {
+export function metaDepartmentEntry(self: MothershipConsoleHost, id: MothershipDepartmentId) {
+  const runtime = mothershipRuntime(self)
   const entry = document.createElement('div')
-  entry.className = `meta-department-entry ${self['expandedMothershipDepartment'] === id ? 'expanded' : ''}`
+  entry.className = `meta-department-entry ${runtime['expandedMothershipDepartment'] === id ? 'expanded' : ''}`
   entry.append(metaDepartmentToggle(self, id))
-  if (self['expandedMothershipDepartment'] === id) entry.append(metaDepartmentDetail(self, id))
+  if (runtime['expandedMothershipDepartment'] === id) entry.append(metaDepartmentDetail(self, id))
   return entry
 }
 
-export function metaDepartmentDetail(self: VectorShooter, id: MothershipDepartmentId) {
+export function metaDepartmentDetail(self: MothershipConsoleHost, id: MothershipDepartmentId) {
+  const runtime = mothershipRuntime(self)
   const definition = mothershipDepartments[id]
-  const tier = self['mothership'].departments[id]
+  const tier = runtime['mothership'].departments[id]
   const maxTier = definition.tiers.length
   const tierPct = clamp(tier / Math.max(1, maxTier), 0, 1)
   const next = definition.tiers[tier]
-  const unlocked = isMothershipDepartmentUnlocked(self['mothership'], id)
+  const unlocked = isMothershipDepartmentUnlocked(runtime['mothership'], id)
   const detail = document.createElement('article')
   detail.className = `meta-upgrade-detail ${unlocked ? '' : 'locked'}`.trim()
   detail.id = `mothership-department-${id}-panel`
@@ -348,8 +424,8 @@ export function metaDepartmentDetail(self: VectorShooter, id: MothershipDepartme
   header.className = 'meta-upgrade-detail-head'
   header.innerHTML = `
     <div>
-      <b>${self['escape'](definition.name)}</b>
-      <span>${self['escape'](unlocked ? definition.description : `Locked system. Unlock by completing ${mothershipDepartmentUnlockText(id)}.`)}</span>
+      <b>${runtime['escape'](definition.name)}</b>
+      <span>${runtime['escape'](unlocked ? definition.description : `Locked system. Unlock by completing ${mothershipDepartmentUnlockText(id)}.`)}</span>
     </div>
     <em>Tier ${tier}/${maxTier}</em>
   `
@@ -370,9 +446,9 @@ export function metaDepartmentDetail(self: VectorShooter, id: MothershipDepartme
       ? 'INSTALLED'
       : `Scrap ${candidate.cost.scrap} // Crystals ${candidate.cost.crystal} // Cores ${candidate.cost.cores}`
     row.innerHTML = `
-      <b>${index + 1}. ${self['escape'](candidate.name)}</b>
-      <span>${self['escape'](candidate.description)}</span>
-      <em>${self['escape'](cost)}</em>
+      <b>${index + 1}. ${runtime['escape'](candidate.name)}</b>
+      <span>${runtime['escape'](candidate.description)}</span>
+      <em>${runtime['escape'](cost)}</em>
     `
     ladder.append(row)
   })
@@ -385,17 +461,18 @@ export function metaDepartmentDetail(self: VectorShooter, id: MothershipDepartme
   return detail
 }
 
-export function buyMothershipDepartment(self: VectorShooter, id: MothershipDepartmentId) {
-  const scrollTop = self['state'] === 'powerups'
-    ? self['currentFrontScreenScrollTop']('powerups')
-    : self['ui'].title.querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
-  const result = purchaseMothershipTier(self['mothership'], id)
+export function buyMothershipDepartment(self: MothershipConsoleHost, id: MothershipDepartmentId) {
+  const runtime = mothershipRuntime(self)
+  const scrollTop = runtime['state'] === 'powerups'
+    ? runtime['currentFrontScreenScrollTop']('powerups')
+    : (runtime['ui'].title as HTMLElement).querySelector<HTMLElement>('.mothership-command')?.scrollTop ?? 0
+  const result = purchaseMothershipTier(runtime['mothership'], id)
   if (!result.ok) {
-    self['toast'](result.reason)
+    runtime['toast'](result.reason)
     return
   }
-  self['mothership'] = result.state
-  self['saveMothership']()
-  self['toast'](`${result.purchased.name.toUpperCase()} ONLINE`)
+  runtime['mothership'] = result.state
+  runtime['saveMothership']()
+  runtime['toast'](`${result.purchased.name.toUpperCase()} ONLINE`)
   refreshMetaPowerUps(self, scrollTop)
-}
+}

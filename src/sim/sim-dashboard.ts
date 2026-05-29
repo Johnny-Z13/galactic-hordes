@@ -16,6 +16,7 @@ let lastSummary: SimBatchSummary | null = null
 const presets = {
   quick10: { runs: 10, maxSeconds: 900, policy: 'balanced', difficulty: 'normal' },
   balance50: { runs: 50, maxSeconds: 1200, policy: 'balanced', difficulty: 'normal' },
+  fullArc: { runs: 100, maxSeconds: 1800, policy: 'balanced', difficulty: 'normal' },
   planetVariety: { runs: 30, maxSeconds: 1200, policy: 'planetHunter', difficulty: 'normal' },
   economySweep: { runs: 30, maxSeconds: 1200, policy: 'greedyCache', difficulty: 'normal' },
   latePressure: { runs: 20, maxSeconds: 1800, policy: 'stress', difficulty: 'stress' }
@@ -49,9 +50,15 @@ function renderSummary(summary: SimBatchSummary) {
   summaryEl.innerHTML = `
     ${metricCard('Median Survival', formatSeconds(summary.survival.medianSeconds))}
     ${metricCard('Best Survival', formatSeconds(summary.survival.bestSeconds))}
+    ${metricCard('10m Survival', `${Math.round(summary.survival.tenMinuteRate * 100)}%`)}
     ${metricCard('Destroyed', `${Math.round(summary.survival.destroyedRate * 100)}%`)}
+    ${metricCard('First Kill', formatSeconds(summary.firstMinute.medianFirstKillSec))}
+    ${metricCard('Kills 0-60s', summary.firstMinute.averageKillsFirst60Sec.toFixed(1))}
+    ${metricCard('First Landing', formatSeconds(summary.firstMinute.medianFirstLandingSec))}
+    ${metricCard('First Workbench', formatSeconds(summary.firstMinute.medianFirstWorkbenchSec))}
     ${metricCard('Avg Nodes', summary.route.averageNodesCleared.toFixed(1))}
     ${metricCard('Final Reached', `${summary.route.finalReached}/${summary.options.runs}`)}
+    ${metricCard('Median Final Clear', summary.route.medianFinalClearSeconds === null ? 'none' : formatSeconds(summary.route.medianFinalClearSeconds))}
     ${metricCard('Avg Planets', summary.planets.averageLandings.toFixed(1))}
     ${metricCard('Zero-Planet', `${Math.round(summary.planets.zeroLandingRate * 100)}%`)}
     ${metricCard('Avg Scrap', summary.economy.averageScrap.toFixed(0))}
@@ -75,6 +82,9 @@ function renderSummary(summary: SimBatchSummary) {
           <th>Seed</th>
           <th>Outcome</th>
           <th>Time</th>
+          <th>First Kill</th>
+          <th>First Landing</th>
+          <th>First Workbench</th>
           <th>Nodes</th>
           <th>Planets</th>
           <th>Damage</th>
@@ -89,6 +99,9 @@ function renderSummary(summary: SimBatchSummary) {
             <td>${run.seed}</td>
             <td>${escapeHtml(run.outcome)}</td>
             <td>${formatSeconds(run.seconds)}</td>
+            <td>${run.firstMinute.firstKillSec === null ? '-' : formatSeconds(run.firstMinute.firstKillSec)}</td>
+            <td>${run.firstMinute.firstLandingSec === null ? '-' : formatSeconds(run.firstMinute.firstLandingSec)}</td>
+            <td>${run.firstMinute.firstWorkbenchSec === null ? '-' : formatSeconds(run.firstMinute.firstWorkbenchSec)}</td>
             <td>${run.nodesCleared}</td>
             <td>${run.planetsLanded}</td>
             <td>${run.damageTaken}</td>

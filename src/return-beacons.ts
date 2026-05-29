@@ -5,6 +5,21 @@ export interface ReturnBeaconEligibilityInput {
   nextBeaconAt: number
 }
 
+export interface ReturnBeaconRouteReadinessInput extends ReturnBeaconEligibilityInput {
+  introNode: boolean
+}
+
+export interface ReturnBeaconState {
+  x: number
+  y: number
+  radius: number
+  hold: number
+  phase: number
+  age: number
+  reminded: boolean
+  assistTriggered: boolean
+}
+
 export interface ReturnBeaconAutopilotInput {
   dx: number
   dy: number
@@ -12,6 +27,8 @@ export interface ReturnBeaconAutopilotInput {
   vy: number
   radius: number
 }
+
+export type ReturnBeaconEvent = 'reminder' | 'assist' | 'skip' | 'complete'
 
 export const FIRST_BEACON_TIME = 240
 export const BEACON_INTERVAL = 210
@@ -28,6 +45,12 @@ export const returnBeaconEligible = (input: ReturnBeaconEligibilityInput) => {
   return true
 }
 
+export const returnBeaconReadyForRoute = (input: ReturnBeaconRouteReadinessInput) => {
+  if (input.activeBeacon) return false
+  if (input.introNode) return input.time >= input.nextBeaconAt
+  return returnBeaconEligible(input)
+}
+
 export const nextBeaconWindow = (currentTime: number) => currentTime + BEACON_INTERVAL
 
 export const beaconExtractionBonus = (skippedBeacons: number) => (
@@ -37,6 +60,25 @@ export const beaconExtractionBonus = (skippedBeacons: number) => (
 export const beaconSpawnDistance = (skippedBeacons: number) => (
   640 + Math.min(360, Math.max(0, skippedBeacons) * 90)
 )
+
+export const createReturnBeacon = (input: {
+  player: { x: number; y: number; angle: number }
+  skippedBeacons: number
+  randomRange: (min: number, max: number) => number
+}): ReturnBeaconState => {
+  const angle = input.player.angle + input.randomRange(-0.9, 0.9)
+  const distance = beaconSpawnDistance(input.skippedBeacons)
+  return {
+    x: input.player.x + Math.cos(angle) * distance,
+    y: input.player.y + Math.sin(angle) * distance,
+    radius: 132,
+    hold: 0,
+    phase: 0,
+    age: 0,
+    reminded: false,
+    assistTriggered: false
+  }
+}
 
 export const returnBeaconAutopilotVector = ({ dx, dy, vx, vy, radius }: ReturnBeaconAutopilotInput) => {
   const distance = Math.hypot(dx, dy)
@@ -53,4 +95,35 @@ export const returnBeaconAutopilotVector = ({ dx, dy, vx, vy, radius }: ReturnBe
   }
   if (distance <= 1) return { x: 0, y: 0 }
   return { x: dx / distance, y: dy / distance }
+}
+
+export const advanceReturnBeacon = (input: {
+  beacon: ReturnBeaconState
+  dt: number
+  distance: number
+  autoNavTargetBeacon: boolean
+}): { events: ReturnBeaconEvent[] } => {
+  const { beacon } = input
+  const events: ReturnBeaconEvent[] = []
+  beacon.phase += input.dt
+  beacon.age += input.dt
+  if (beacon.age > RETURN_BEACON_REMINDER_SECONDS && !beacon.reminded) {
+    beacon.reminded = true
+    events.push('reminder')
+  }
+  if (beacon.age > RETURN_BEACON_ASSIST_SECONDS && !beacon.assistTriggered && !input.autoNavTargetBeacon) {
+    beacon.assistTriggered = true
+    events.push('assist')
+  }
+  if (input.distance > RETURN_BEACON_SKIP_DISTANCE) {
+    events.push('skip')
+    return { events }
+  }
+  if (input.distance < beacon.radius) {
+    beacon.hold += input.dt
+    if (beacon.hold >= BEACON_HOLD_SECONDS) events.push('complete')
+  } else {
+    beacon.hold = Math.max(0, beacon.hold - input.dt * 1.5)
+  }
+  return { events }
 }

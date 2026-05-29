@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import { powerupBalance, upgrades } from '../src/powerup-balance'
 
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+const dashCombatSource = () => readFileSync(resolve(process.cwd(), 'src/space-dash-combat.ts'), 'utf8')
 const playerRender = () => readFileSync(resolve(process.cwd(), 'src/render/player.ts'), 'utf8')
 
 test('dash uses a short active burst instead of a one frame nudge', () => {
@@ -31,12 +32,16 @@ test('engine and phase upgrades make boost duration noticeably longer', () => {
 
 test('phase rudder enables controlled dash ramming', () => {
   const main = source()
+  const dashCombat = dashCombatSource()
   const phase = upgrades.find((upgrade) => upgrade.id === 'phase')
 
   expect(phase?.levels).toEqual(expect.arrayContaining(['+0.12s dash invulnerability', 'Dash ram shocks enemies']))
-  expect(main).toContain('private tryDashRam(e: Enemy)')
-  expect(main).toContain('this.player.dashTime <= 0 || this.build.phase <= 0')
-  expect(main).toContain('if (this.tryDashRam(e)) continue')
+  expect(dashCombat).toContain('export function applyDashRam')
+  expect(dashCombat).toContain('player.dashTime <= 0 || input.phaseRank <= 0')
+  expect(main).toContain('const dashRam = applyDashRam({')
+  expect(main).toContain('if (dashRam) {')
+  expect(main).toContain('if (dashRam.killed) this.killEnemy(e, true)')
+  expect(main).not.toContain('private tryDashRam(')
 })
 
 test('dash upgrades advertise longer boost burns and visible wake effects', () => {

@@ -90,13 +90,15 @@ const sectorMapMarkup = (css: string) => `
             <div class="sector-choice-list">
               <button class="sector-choice hostile" type="button">
                 <span class="sector-choice-head"><span class="sector-choice-kind">COMBAT</span><b class="sector-choice-title">SAFE DRIFT 1-1</b></span>
-                <small>Safe drift. Low pressure, modest rewards.</small>
-                <span class="sector-choice-metrics"><span><b>1-2</b><em>PLANETS</em></span><span><b>1</b><em>SCOUTS</em></span><span><b>x0.50</b><em>PRESSURE</em></span><span><b>CLEAR</b><em>HAZARDS</em></span></span>
-                <i class="sector-choice-readout">PLANETS 1-2 / WAVES 1 SCOUTS / HAZARDS CLEAR / PRESSURE x0.50</i>
+                <small>Opening route. Scouts, signal, station choice.</small>
+                <span class="sector-choice-intel"><span>SCOUTS</span><span>SIGNAL</span><span>LOW RISK</span></span>
+                <span class="sector-choice-metrics"><span><b>1-2</b><em>PLANETS</em></span><span><b>3</b><em>SCOUTS</em></span><span><b>14s</b><em>CONTACT</em></span><span><b>x0.50</b><em>PRESSURE</em></span><span><b>CLEAR</b><em>HAZARDS</em></span></span>
+                <i class="sector-choice-readout">PLANETS 1-2 / WAVES 3 SCOUTS / FIRST 14s / HAZARDS CLEAR / PRESSURE x0.50</i>
               </button>
               <button class="sector-choice planet" type="button">
                 <span class="sector-choice-head"><span class="sector-choice-kind">PLANET</span><b class="sector-choice-title">PLANET CLUSTER 1-2</b></span>
                 <small>Planet route. More landings, moderate pressure.</small>
+                <span class="sector-choice-intel"><span>LANDINGS</span><span>PLANETS</span><span>MED RISK</span></span>
                 <span class="sector-choice-metrics"><span><b>3-6</b><em>PLANETS</em></span><span><b>2</b><em>SWARM</em></span><span><b>x0.88</b><em>PRESSURE</em></span><span><b>CLEAR</b><em>HAZARDS</em></span></span>
                 <i class="sector-choice-readout">PLANETS 3-6 / WAVES 2 SWARM / HAZARDS CLEAR / PRESSURE x0.88</i>
               </button>
@@ -120,6 +122,16 @@ const gameOverMarkup = (css: string) => `
       <div class="panel debrief-panel">
         <h1 class="title">BLACK BOX RECOVERED</h1>
         <p class="copy">The scout ship was lost. The mothership recovered partial cargo and all transmitted discoveries.</p>
+        <section class="debrief-log">
+          <span>EXPEDITION LOG</span>
+          <b>LATHE RELAY DEEP ROUTE</b>
+          <ul>
+            <li>187 LY travelled across 4 route nodes.</li>
+            <li>2 planets surveyed with 3 discoveries logged.</li>
+            <li>Docked at LATHE RELAY.</li>
+            <li>Skipped 2 station beacons for deep-route recovery.</li>
+          </ul>
+        </section>
         <div class="debrief-grid">
           <div><b>320</b><span>Scrap Recovered</span></div>
           <div><b>24</b><span>Crystals Recovered</span></div>
@@ -135,6 +147,89 @@ const gameOverMarkup = (css: string) => `
           <button class="vector-button" type="button">Return to Title</button>
           <button class="vector-button secondary" type="button">Scores</button>
         </div>
+      </div>
+    </div>
+  </div>
+`
+
+const titleMarkup = (css: string) => `
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <style>${css}</style>
+  <div id="app">
+    <div class="screen title-screen visible">
+      <div class="title-panel">
+        <div class="front-menu-top">
+          <button class="front-menu-pill danger" type="button">Quit</button>
+          <div class="front-menu-cargo"><span></span><b>0</b></div>
+          <button class="front-menu-pill" type="button">Options</button>
+        </div>
+        <h1 class="title-wordmark"><span>GALACTIC</span><span>HORDES</span></h1>
+        <div class="front-menu-spacer"></div>
+        <div class="title-actions">
+          <button class="vector-button start-button" type="button">Launch Expedition</button>
+          <button class="vector-button secondary" type="button">Collection</button>
+          <button class="vector-button" type="button">Power Up</button>
+          <button class="vector-button secondary" type="button">Scores</button>
+          <button class="vector-button secondary danger tiny" type="button">Reset Progress</button>
+        </div>
+        <div class="front-menu-footer">
+          <span><b>0</b> discoveries</span>
+          <span><b>0</b> systems</span>
+          <span><b>0</b> best</span>
+        </div>
+      </div>
+    </div>
+  </div>
+`
+
+const mothershipMarkup = (css: string) => `
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <style>${css}</style>
+  <div id="app">
+    <div class="screen mothership-screen visible">
+      <div class="mothership-command first-command">
+        <header class="mothership-command-top">
+          <div class="mothership-command-title">
+            <span>COMMAND DECK</span>
+            <h1>MOTHERSHIP</h1>
+            <p>First scout is hot. Find a signal world, crack one cache, and bring something impossible home.</p>
+          </div>
+          <div class="mothership-resources">
+            <span><b>Scrap</b>0</span>
+            <span><b>Crystals</b>0</span>
+            <span><b>Cores</b>0</span>
+          </div>
+        </header>
+        <section class="mothership-flight">
+          <div class="mothership-launch-stack">
+            <div class="mothership-ship-bay">
+              <div class="mothership-ship-art"></div>
+              <button class="vector-button start-button mothership-launch" type="button">Open Sector Map</button>
+              <div class="mothership-launch-meters">
+                <div class="mothership-meter health"><div><span>Hull Integrity</span><b>100%</b></div><i><em style="width:100%"></em></i></div>
+                <div class="mothership-meter xp"><div><span>Mutation XP</span><b>LV 1 // 0/80</b></div><i><em style="width:0%"></em></i></div>
+                <div class="mothership-meter archive"><div><span>Archive Signal</span><b>0 records</b></div><i><em style="width:0%"></em></i></div>
+              </div>
+            </div>
+            <section class="mothership-route-preview">
+              <div class="mothership-route-head">
+                <b>SECTOR MAP</b>
+                <span>MOTHERSHIP // 3 jump routes armed</span>
+              </div>
+              <div class="mothership-route-map" aria-label="Sector route preview">
+                <svg class="mothership-route-lines" viewBox="0 0 100 100" aria-hidden="true">
+                  <line x1="8" y1="52" x2="28" y2="24"></line>
+                  <line x1="8" y1="52" x2="28" y2="52"></line>
+                  <line x1="8" y1="52" x2="28" y2="78"></line>
+                </svg>
+                <span class="mothership-route-node current" style="left:8%;top:52%"><b>M</b><em>MOTHERSHIP</em></span>
+                <span class="mothership-route-node available hostile" style="left:28%;top:24%"><b>H</b><em>SAFE DRIFT</em></span>
+                <span class="mothership-route-node available planet" style="left:28%;top:52%"><b>P</b><em>PLANET CLUSTER</em></span>
+                <span class="mothership-route-node locked final" style="left:88%;top:52%"><b>F</b><em>LAST STAND</em></span>
+              </div>
+            </section>
+          </div>
+        </section>
       </div>
     </div>
   </div>
@@ -181,6 +276,48 @@ test('touch dash control stays visible and in bounds on phone and tablet layouts
 test('desktop pointer layout keeps touch controls hidden', async ({ browser }) => {
   const { context, page } = await renderShell(browser, { name: 'desktop', width: 1440, height: 900, isMobile: false }, false)
   await expect(page.locator('.touch-controls.visible')).toHaveCSS('display', 'none')
+  await context.close()
+})
+
+test('title launch action stays readable across app breakpoints', async ({ browser }) => {
+  for (const viewport of [
+    ...touchViewports,
+    { name: 'desktop', width: 1440, height: 900, isMobile: false }
+  ]) {
+    const { context, page } = await renderShell(browser, viewport, viewport.isMobile)
+    await page.setContent(titleMarkup(styles()))
+
+    const buttonBox = await page.locator('.start-button').boundingBox()
+    const metrics = await page.locator('.start-button').evaluate((button) => ({
+      clientWidth: button.clientWidth,
+      scrollWidth: button.scrollWidth,
+      text: button.textContent?.trim()
+    }))
+
+    expect(buttonBox, `${viewport.name} launch action should render`).not.toBeNull()
+    expect(metrics.text).toBe('Launch Expedition')
+    expect(buttonBox!.x, `${viewport.name} launch action left edge`).toBeGreaterThanOrEqual(0)
+    expect(buttonBox!.x + buttonBox!.width, `${viewport.name} launch action right edge`).toBeLessThanOrEqual(viewport.width)
+    expect(metrics.scrollWidth, `${viewport.name} launch copy should fit`).toBeLessThanOrEqual(metrics.clientWidth)
+
+    await context.close()
+  }
+})
+
+test('mothership launch deck keeps route preview inside phone viewport', async ({ browser }) => {
+  const viewport = { name: 'iPhone portrait', width: 390, height: 844, isMobile: true }
+  const { context, page } = await renderShell(browser, viewport, true)
+  await page.setContent(mothershipMarkup(styles()))
+
+  const routePreviewBox = await page.locator('.mothership-route-preview').boundingBox()
+  const launchBox = await page.locator('.mothership-launch').boundingBox()
+
+  expect(launchBox, 'launch action should render').not.toBeNull()
+  expect(routePreviewBox, 'route preview should render').not.toBeNull()
+  expect(routePreviewBox!.y, 'route preview top').toBeGreaterThanOrEqual(0)
+  expect(routePreviewBox!.y + routePreviewBox!.height, 'route preview bottom').toBeLessThanOrEqual(viewport.height)
+  expect(launchBox!.x + launchBox!.width, 'launch action right edge').toBeLessThanOrEqual(viewport.width)
+
   await context.close()
 })
 

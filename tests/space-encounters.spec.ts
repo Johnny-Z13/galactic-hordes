@@ -97,6 +97,7 @@ test('derelict cache creates an off-route reward with guardians', () => {
 
 test('main space loop wires encounter events into update render and reset', () => {
   const main = source()
+  const renderer = readFileSync('src/render/space-hazards.ts', 'utf8')
 
   expect(main).toContain('private updateSpaceEncounters(dt: number)')
   expect(main).toContain('this.updateSpaceEncounters(dt)')
@@ -105,11 +106,13 @@ test('main space loop wires encounter events into update render and reset', () =
   expect(main).toContain('asteroidFieldAsteroids')
   expect(main).toContain('this.asteroidFieldTimer = 24')
   expect(main).toContain('this.seedAsteroidField')
-  expect(main).toContain('private damageSpaceHazard')
-  expect(main).toContain('this.renderSpaceHazards(ctx)')
-  expect(main).toContain('this.renderDerelictSignals(ctx)')
+  expect(main).toContain('damageSpaceHazardCombat({')
+  expect(main).toContain('drawSpaceHazards({')
+  expect(main).toContain('drawDerelictSignals({')
   expect(main).toContain('this.spaceHazards = []')
   expect(main).toContain('this.derelictSignals = []')
+  expect(renderer).toContain('renderSpaceHazards')
+  expect(renderer).toContain('renderDerelictSignals')
 })
 
 test('derelict cache chest persists long enough to collect after following the signal', () => {

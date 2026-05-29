@@ -28,3 +28,12 @@ test('README and balance design doc contain generated balance sections', () => {
     expect(doc).toContain('src/sector-map.ts')
   }
 })
+
+test('generated balance tables do not keep carriage returns inside cells', () => {
+  for (const path of ['README.md', 'docs/game-balance-design.md']) {
+    const doc = read(path)
+    const generated = doc.slice(doc.indexOf('<!-- BALANCE-GENERATED:START -->'), doc.indexOf('<!-- BALANCE-GENERATED:END -->'))
+
+    expect(generated).not.toContain('\r |')
+  }
+})

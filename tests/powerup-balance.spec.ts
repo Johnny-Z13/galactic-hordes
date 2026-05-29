@@ -14,6 +14,7 @@ import {
 
 const mainSource = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
 const workbenchSource = () => readFileSync(resolve(process.cwd(), 'src/ui/workbench.ts'), 'utf8')
+const workbenchChoicesSource = () => readFileSync(resolve(process.cwd(), 'src/workbench-choices.ts'), 'utf8')
 
 test('upgrade and relic definitions live in the powerup balance source', () => {
   expect(upgrades.length).toBeGreaterThan(20)
@@ -96,12 +97,13 @@ test('workbench upgrade cards distinguish next rank from current manifest rank',
   const main = mainSource()
 
   const workbench = workbenchSource()
+  const workbenchChoices = workbenchChoicesSource()
 
   const mothership = readFileSync(resolve(process.cwd(), 'src/ui/mothership-console.ts'), 'utf8')
 
   expect(main).toContain('INSTALL RANK ${level}/${choice.upgrade.max}')
-  expect(mothership).toContain("self['upgradeLevelDetail'](upgrade, level)")
-  expect(main).toContain('workbenchRollableUpgrades(upgrades, this.build, uiWorkbenchExtraUnlockedIds(this))')
+  expect(mothership).toContain("runtime['upgradeLevelDetail'](upgrade, level)")
+  expect(workbenchChoices).toContain('workbenchRollableUpgrades(upgrades, input.build, input.extraUnlockedIds)')
   expect(workbench).toContain('renderWorkbenchBayDetail')
   expect(workbench).toContain('renderWorkbenchUpgradeChip')
   expect(main).not.toContain('fourthChoiceChance')

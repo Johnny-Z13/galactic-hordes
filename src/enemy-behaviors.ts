@@ -3,7 +3,7 @@ import { balancedSpaceEnemyDefinition, enemyAttackCooldown } from './game-balanc
 import { spaceEnemyBehavior } from './space-enemy-behavior'
 import { norm, dist2, TAU } from './math-utils'
 
-// Per-enemy AI extracted VERBATIM from VectorShooter.updateEnemies in main.ts.
+// Per-enemy AI extracted from GalacticHordesGame.updateEnemies in main.ts.
 // Each entry is the body of one `if (e.kind === ...)` branch from the original
 // if-ladder, with only mechanical substitutions applied:
 //   this.player.x/y -> ctx.playerX/Y, this.stats.time -> ctx.time, hunger -> ctx.hunger,

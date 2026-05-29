@@ -3,9 +3,33 @@ import { orderArtifactArchiveCards } from '../artifact-archive'
 import { collectionCatalog, collectionIconAtlasColumns, collectionIconAtlasRows } from '../collection-catalog'
 import { relics } from '../powerup-balance'
 import type { PersistentArchiveRecord } from '../mothership-progression'
-import type { ArtifactKind, ArtifactRecord, MothershipCollectionFilter, VectorShooter } from '../main'
-import { clamp, hashString } from '../main'
-export function renderArtifactsCollection(self: VectorShooter, source: 'run' | 'mothership' = 'run') {
+import type { ArtifactKind, ArtifactRecord } from '../artifact-archive'
+import type { MothershipCollectionFilter } from './mothership-ui-types'
+import { clamp, hashString } from '../math-utils'
+
+interface CollectionView extends Object {}
+
+interface CollectionRuntime {
+  artifacts: Map<string, ArtifactRecord>
+  mothership: {
+    archive: {
+      records: Record<string, PersistentArchiveRecord>
+    }
+  }
+  selectedCollectionId: string | null
+  mothershipCollectionFilter: MothershipCollectionFilter
+  escape(value: string): string
+  artifactColor(kind: ArtifactKind, id: string): string
+  currentFrontScreenScrollTop(screen: 'collection'): number
+  showCollection(options?: { scrollTop?: number }): void
+}
+
+function collectionRuntime(self: CollectionView) {
+  return self as CollectionRuntime
+}
+
+export function renderArtifactsCollection(self: CollectionView, source: 'run' | 'mothership' = 'run') {
+  const runtime = collectionRuntime(self)
   const wrap = document.createElement('div')
   wrap.className = 'artifact-collection'
   const title = document.createElement('div')
@@ -14,8 +38,8 @@ export function renderArtifactsCollection(self: VectorShooter, source: 'run' | '
   const summary = document.createElement('div')
   summary.className = 'manifest-summary artifact-summary'
   const unlocked = source === 'run'
-    ? Array.from(self['artifacts'].values())
-    : Object.values(self['mothership'].archive.records).map((record) => normalizeArchiveRecord(self, record))
+    ? Array.from(runtime.artifacts.values())
+    : Object.values(runtime.mothership.archive.records).map((record) => normalizeArchiveRecord(self, record))
   const counts: Record<ArtifactKind, number> = { relic: 0, alien: 0, lore: 0, planet: 0, cache: 0, enemy: 0 }
   for (const artifact of unlocked) counts[artifact.kind] += 1
   summary.innerHTML = `
@@ -32,11 +56,12 @@ export function renderArtifactsCollection(self: VectorShooter, source: 'run' | '
   return wrap
 }
 
-export function artifactCards(self: VectorShooter, source: 'run' | 'mothership' = 'run') {
+export function artifactCards(self: CollectionView, source: 'run' | 'mothership' = 'run') {
+  const runtime = collectionRuntime(self)
   const cards: Array<{ record: ArtifactRecord; locked: boolean }> = []
   const archive = source === 'run'
-    ? self['artifacts']
-    : new Map(Object.values(self['mothership'].archive.records).map((record) => {
+    ? runtime.artifacts
+    : new Map(Object.values(runtime.mothership.archive.records).map((record) => {
       const normalized = normalizeArchiveRecord(self, record)
       return [normalized.id, normalized]
     }))
@@ -63,31 +88,33 @@ export function artifactCards(self: VectorShooter, source: 'run' | 'mothership' 
   return cards
 }
 
-export function normalizeArchiveRecord(self: VectorShooter, record: PersistentArchiveRecord): ArtifactRecord {
+export function normalizeArchiveRecord(self: CollectionView, record: PersistentArchiveRecord): ArtifactRecord {
+  const runtime = collectionRuntime(self)
   return {
     id: record.id,
     kind: record.kind,
     title: record.title,
     detail: record.detail ?? 'Signal detail unavailable.',
     source: record.source ?? 'Mothership archive',
-    color: record.color ?? self['artifactColor'](record.kind, record.id),
+    color: record.color ?? runtime.artifactColor(record.kind, record.id),
     icon: record.icon ?? hashString(record.id, 29) % 16,
     count: record.count ?? 1
   }
 }
 
-export function artifactCard(self: VectorShooter, record: ArtifactRecord, locked: boolean) {
+export function artifactCard(self: CollectionView, record: ArtifactRecord, locked: boolean) {
+  const runtime = collectionRuntime(self)
   const card = document.createElement('div')
   card.className = `artifact-card ${record.kind} ${locked ? 'locked' : 'found'}`
   const meta = document.createElement('div')
   meta.className = 'artifact-meta'
   const count = record.count > 1 ? ` x${record.count}` : ''
-  meta.innerHTML = `<strong>${self['escape'](record.title)}${count}</strong><span>${self['escape'](record.detail)}</span><em>${self['escape'](record.source)}</em>`
+  meta.innerHTML = `<strong>${runtime.escape(record.title)}${count}</strong><span>${runtime.escape(record.detail)}</span><em>${runtime.escape(record.source)}</em>`
   card.append(artifactIcon(self, record, locked), meta)
   return card
 }
 
-export function artifactIcon(self: VectorShooter, record: ArtifactRecord, locked = false) {
+export function artifactIcon(self: CollectionView, record: ArtifactRecord, locked = false) {
   const icon = document.createElement('div')
   icon.className = `artifact-icon ${record.kind} shape-${record.icon % 12} ${locked ? 'locked' : ''}`
   icon.style.setProperty('--artifact-color', locked ? 'rgba(215, 255, 247, 0.28)' : record.color)
@@ -100,17 +127,18 @@ export function artifactIcon(self: VectorShooter, record: ArtifactRecord, locked
   return icon
 }
 
-export function renderCollectionScreen(self: VectorShooter) {
+export function renderCollectionScreen(self: CollectionView) {
+  const runtime = collectionRuntime(self)
   const wrap = document.createElement('div')
   wrap.className = 'collection-screen'
   const allRecords = collectionCards(self)
   const foundCount = allRecords.filter((card) => !card.locked).length
   const records = filteredCollectionCards(self, allRecords)
   const firstFound = records.find((card) => !card.locked) ?? records[0]
-  if (!self['selectedCollectionId'] || !records.some((card) => card.record.id === self['selectedCollectionId'])) {
-    self['selectedCollectionId'] = firstFound?.record.id ?? null
+  if (!runtime.selectedCollectionId || !records.some((card) => card.record.id === runtime.selectedCollectionId)) {
+    runtime.selectedCollectionId = firstFound?.record.id ?? null
   }
-  const selected = records.find((card) => card.record.id === self['selectedCollectionId']) ?? firstFound
+  const selected = records.find((card) => card.record.id === runtime.selectedCollectionId) ?? firstFound
 
   const head = document.createElement('div')
   head.className = 'collection-head'
@@ -150,9 +178,9 @@ export function renderCollectionScreen(self: VectorShooter) {
     button.setAttribute('aria-label', card.locked ? `Unknown ${card.record.kind}` : card.record.title)
     button.append(collectionIcon(self, card.record, card.locked))
     button.addEventListener('click', () => {
-      self['selectedCollectionId'] = card.record.id
-      const scrollTop = self['currentFrontScreenScrollTop']('collection')
-      self['showCollection']({ scrollTop })
+      runtime.selectedCollectionId = card.record.id
+      const scrollTop = runtime.currentFrontScreenScrollTop('collection')
+      runtime.showCollection({ scrollTop })
     })
     grid.append(button)
   }
@@ -168,9 +196,9 @@ export function renderCollectionScreen(self: VectorShooter) {
     meta.className = 'collection-detail-meta'
     meta.innerHTML = `
       <small>${collectionKindLabel(self, selected.record.kind)} / ${selected.locked ? 'LOCKED' : 'DISCOVERED'}</small>
-      <b>${self['escape'](selected.record.title)}${count}</b>
-      <span>${self['escape'](selected.record.detail)}</span>
-      <em>${self['escape'](selected.record.source)}</em>
+      <b>${runtime.escape(selected.record.title)}${count}</b>
+      <span>${runtime.escape(selected.record.detail)}</span>
+      <em>${runtime.escape(selected.record.source)}</em>
     `
     detail.append(detailIcon, meta)
   } else {
@@ -181,8 +209,9 @@ export function renderCollectionScreen(self: VectorShooter) {
   return wrap
 }
 
-export function collectionCards(self: VectorShooter) {
-  const archive = new Map(Object.values(self['mothership'].archive.records).map((record) => {
+export function collectionCards(self: CollectionView) {
+  const runtime = collectionRuntime(self)
+  const archive = new Map(Object.values(runtime.mothership.archive.records).map((record) => {
     const normalized = normalizeArchiveRecord(self, record)
     return [normalized.id, normalized]
   }))
@@ -212,29 +241,32 @@ export function collectionCards(self: VectorShooter) {
   return orderArtifactArchiveCards(cards)
 }
 
-export function filteredCollectionCards(self: VectorShooter, cards: Array<{ record: ArtifactRecord; locked: boolean }>) {
-  if (self['mothershipCollectionFilter'] === 'found') return cards.filter((card) => !card.locked)
-  if (self['mothershipCollectionFilter'] === 'locked') return cards.filter((card) => card.locked)
-  if (self['mothershipCollectionFilter'] !== 'all') return cards.filter((card) => card.record.kind === self['mothershipCollectionFilter'])
+export function filteredCollectionCards(self: CollectionView, cards: Array<{ record: ArtifactRecord; locked: boolean }>) {
+  const runtime = collectionRuntime(self)
+  if (runtime.mothershipCollectionFilter === 'found') return cards.filter((card) => !card.locked)
+  if (runtime.mothershipCollectionFilter === 'locked') return cards.filter((card) => card.locked)
+  if (runtime.mothershipCollectionFilter !== 'all') return cards.filter((card) => card.record.kind === runtime.mothershipCollectionFilter)
   return cards
 }
 
-export function collectionFilterButton(self: VectorShooter, filter: MothershipCollectionFilter) {
+export function collectionFilterButton(self: CollectionView, filter: MothershipCollectionFilter) {
+  const runtime = collectionRuntime(self)
   const button = document.createElement('button')
   button.type = 'button'
-  button.className = `collection-filter-chip ${self['mothershipCollectionFilter'] === filter ? 'active' : ''}`
+  button.className = `collection-filter-chip ${runtime.mothershipCollectionFilter === filter ? 'active' : ''}`
   button.textContent = collectionFilterLabel(self, filter)
-  button.setAttribute('aria-pressed', String(self['mothershipCollectionFilter'] === filter))
+  button.setAttribute('aria-pressed', String(runtime.mothershipCollectionFilter === filter))
   button.addEventListener('click', () => {
-    self['mothershipCollectionFilter'] = filter
-    self['selectedCollectionId'] = null
-    const scrollTop = self['currentFrontScreenScrollTop']('collection')
-    self['showCollection']({ scrollTop })
+    runtime.mothershipCollectionFilter = filter
+    runtime.selectedCollectionId = null
+    const scrollTop = runtime.currentFrontScreenScrollTop('collection')
+    runtime.showCollection({ scrollTop })
   })
   return button
 }
 
-export function collectionFilterLabel(self: VectorShooter, filter: MothershipCollectionFilter = self['mothershipCollectionFilter']) {
+export function collectionFilterLabel(self: CollectionView, filter?: MothershipCollectionFilter) {
+  const runtime = collectionRuntime(self)
   return {
     all: 'ALL',
     found: 'FOUND',
@@ -245,10 +277,10 @@ export function collectionFilterLabel(self: VectorShooter, filter: MothershipCol
     lore: 'LORE',
     planet: 'PLANETS',
     cache: 'CACHES'
-  }[filter]
+  }[filter ?? runtime.mothershipCollectionFilter]
 }
 
-export function collectionKindLabel(self: VectorShooter, kind: ArtifactKind) {
+export function collectionKindLabel(self: CollectionView, kind: ArtifactKind) {
   return {
     relic: 'RELIC',
     enemy: 'ENEMY',
@@ -259,7 +291,7 @@ export function collectionKindLabel(self: VectorShooter, kind: ArtifactKind) {
   }[kind]
 }
 
-export function collectionIcon(self: VectorShooter, record: ArtifactRecord, locked = false) {
+export function collectionIcon(self: CollectionView, record: ArtifactRecord, locked = false) {
   const icon = document.createElement('span')
   if (locked) {
     icon.className = `collection-icon ${record.kind} locked`

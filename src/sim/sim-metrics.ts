@@ -12,6 +12,10 @@ function median(values: number[]) {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
 }
 
+function nullableMedian(values: Array<number | null>) {
+  return median(values.filter((value): value is number => value !== null))
+}
+
 function mergeCounts(records: Array<Record<string, number>>) {
   const merged: Record<string, number> = {}
   for (const record of records) {
@@ -29,6 +33,10 @@ function deathCauseCounts(runs: SimRunResult[]) {
     counts[run.deathCause] = (counts[run.deathCause] ?? 0) + 1
   }
   return counts
+}
+
+function upgradeChoiceCount(run: SimRunResult) {
+  return Object.values(run.coverage.upgradesChosen).reduce((sum, count) => sum + count, 0)
 }
 
 function addTargetFlags(summary: Omit<SimBatchSummary, 'balanceFlags'>, flags: string[]) {
@@ -51,6 +59,25 @@ function addTargetFlags(summary: Omit<SimBatchSummary, 'balanceFlags'>, flags: s
   if (summary.route.averageNodesCleared < target.averageNodesMin) {
     flags.push(`Average nodes cleared ${summary.route.averageNodesCleared.toFixed(1)} is below ${target.averageNodesMin.toFixed(1)} for ${summary.options.policy}.`)
   }
+  if (
+    summary.route.medianFinalClearSeconds !== null
+    && target.medianFinalClearMin > 0
+    && summary.route.medianFinalClearSeconds < target.medianFinalClearMin
+  ) {
+    flags.push(`Median final clear ${formatSeconds(summary.route.medianFinalClearSeconds)} is below ${formatSeconds(target.medianFinalClearMin)} for ${summary.options.policy}.`)
+  }
+  if (summary.firstMinute.averageKillsFirst60Sec < target.averageKillsFirst60SecMin) {
+    flags.push(`Opening kills ${summary.firstMinute.averageKillsFirst60Sec.toFixed(1)} is below ${target.averageKillsFirst60SecMin.toFixed(1)} in the first 60 seconds for ${summary.options.policy}.`)
+  }
+  if (summary.firstMinute.medianFirstKillSec > target.medianFirstKillMax) {
+    flags.push(`First kill ${formatSeconds(summary.firstMinute.medianFirstKillSec)} is later than ${formatSeconds(target.medianFirstKillMax)} for ${summary.options.policy}.`)
+  }
+  if (summary.firstMinute.medianFirstLandingSec > target.medianFirstLandingMax) {
+    flags.push(`First landing ${formatSeconds(summary.firstMinute.medianFirstLandingSec)} is later than ${formatSeconds(target.medianFirstLandingMax)} for ${summary.options.policy}.`)
+  }
+  if (summary.firstMinute.medianFirstWorkbenchSec > target.medianFirstWorkbenchMax) {
+    flags.push(`First workbench ${formatSeconds(summary.firstMinute.medianFirstWorkbenchSec)} is later than ${formatSeconds(target.medianFirstWorkbenchMax)} for ${summary.options.policy}.`)
+  }
   if (Object.keys(summary.route.templateCounts).length < target.routeTemplateVarietyMin) {
     flags.push(`Low route template variety across batch; expected at least ${target.routeTemplateVarietyMin} template families.`)
   }
@@ -61,6 +88,9 @@ function addTargetFlags(summary: Omit<SimBatchSummary, 'balanceFlags'>, flags: s
 
 export function summarizeSimBatch(options: SimBatchOptions, runs: SimRunResult[]): SimBatchSummary {
   const seconds = runs.map((run) => run.seconds)
+  const finalClearSeconds = runs
+    .filter((run) => run.outcome === 'finalCleared' || run.finalReached)
+    .map((run) => run.seconds)
   const templateCounts = mergeCounts(runs.map((run) => run.coverage.routeTemplates))
   const archetypeCounts = mergeCounts(runs.map((run) => run.coverage.planetArchetypes))
   const deathCounts = deathCauseCounts(runs)
@@ -71,11 +101,13 @@ export function summarizeSimBatch(options: SimBatchOptions, runs: SimRunResult[]
       averageSeconds: average(seconds),
       medianSeconds: median(seconds),
       bestSeconds: Math.max(0, ...seconds),
+      tenMinuteRate: runs.filter((run) => run.seconds >= 600).length / Math.max(1, runs.length),
       destroyedRate: runs.filter((run) => run.outcome === 'destroyed').length / Math.max(1, runs.length)
     },
     route: {
       averageNodesCleared: average(runs.map((run) => run.nodesCleared)),
       finalReached: runs.filter((run) => run.finalReached).length,
+      medianFinalClearSeconds: finalClearSeconds.length ? median(finalClearSeconds) : null,
       templateCounts,
       stationServiceCounts: mergeCounts(runs.map((run) => run.coverage.stationServices))
     },
@@ -97,7 +129,14 @@ export function summarizeSimBatch(options: SimBatchOptions, runs: SimRunResult[]
       averageDamageTaken: average(runs.map((run) => run.damageTaken)),
       deathCauseCounts: deathCounts
     },
+    firstMinute: {
+      averageKillsFirst60Sec: average(runs.map((run) => run.firstMinute.killsFirst60Sec)),
+      medianFirstKillSec: nullableMedian(runs.map((run) => run.firstMinute.firstKillSec)),
+      medianFirstLandingSec: nullableMedian(runs.map((run) => run.firstMinute.firstLandingSec)),
+      medianFirstWorkbenchSec: nullableMedian(runs.map((run) => run.firstMinute.firstWorkbenchSec))
+    },
     upgrades: {
+      averageChosen: average(runs.map(upgradeChoiceCount)),
       chosenCounts: mergeCounts(runs.map((run) => run.coverage.upgradesChosen))
     }
   }
@@ -114,8 +153,9 @@ export function summarizeSimBatch(options: SimBatchOptions, runs: SimRunResult[]
 }
 
 export function formatSeconds(seconds: number) {
-  const minutes = Math.floor(seconds / 60)
-  const secs = Math.round(seconds % 60).toString().padStart(2, '0')
+  const roundedSeconds = Math.round(seconds)
+  const minutes = Math.floor(roundedSeconds / 60)
+  const secs = (roundedSeconds % 60).toString().padStart(2, '0')
   return `${minutes}:${secs}`
 }
 

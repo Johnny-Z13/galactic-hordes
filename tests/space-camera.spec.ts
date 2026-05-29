@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { cameraTargetFor, spaceProjectileLifeForOffscreenTravel, spaceProjectileLifeScale, spaceViewportScale, screenToWorld, worldToScreen } from '../src/space-camera'
+import { cameraTargetFor, followSpaceCamera, spaceProjectileLifeForOffscreenTravel, spaceProjectileLifeScale, spaceViewportScale, screenToWorld, worldToScreen } from '../src/space-camera'
 
 test('portrait mobile camera zooms out to show more world around the ship', () => {
   const scale = spaceViewportScale(390, 844)
@@ -20,6 +20,26 @@ test('desktop camera keeps the existing one-to-one framing', () => {
   expect(scale).toBe(1)
   expect(target).toEqual({ x: 560, y: -700 })
   expect(screenToWorld({ x: 640, y: 360 }, target, scale)).toEqual({ x: 1200, y: -340 })
+})
+
+test('space follow camera eases toward target and decays shake', () => {
+  const camera = followSpaceCamera({
+    camera: { x: 0, y: 0, shake: 12 },
+    target: { x: 100, y: -50 },
+    dt: 0.1
+  })
+
+  expect(camera.x).toBeCloseTo(70)
+  expect(camera.y).toBeCloseTo(-35)
+  expect(camera.shake).toBeCloseTo(8.5)
+
+  const settled = followSpaceCamera({
+    camera: { x: 0, y: 0, shake: 1 },
+    target: { x: 100, y: 100 },
+    dt: 1
+  })
+
+  expect(settled).toEqual({ x: 100, y: 100, shake: 0 })
 })
 
 test('projectile life scale keeps mobile compact but lets desktop use the wider view', () => {
