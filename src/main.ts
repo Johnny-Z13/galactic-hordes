@@ -44,6 +44,7 @@ import { runBalance } from './run-balance'
 import { resolveFinishedRun } from './run/finish-run'
 import { scoreEntryFromRun, type ScoreEntry } from './score-history'
 import { advanceScorePopups, appendScorePopup, createInstallPopup, createScorePopup, createSignalPopup, type ScorePopupModel } from './score-popups'
+import { resolveShipFlightStats } from './ship-flight-stats'
 import { rollWorkbenchChoices, type WorkbenchChoice } from './workbench-choices'
 import {
   pickupBalance,
@@ -1127,14 +1128,13 @@ export class VectorShooter {
   private updatePlayer(dt: number) {
     const input = this.getInput()
     const move = this.resolveNavigationMove(input.move, input.moveActive, dt)
-    const accel = (
-      powerupBalance.ship.accelerationBase
-      + this.build.engine * powerupBalance.ship.accelerationPerEngineRank
-      + this.build.nav * powerupBalance.ship.accelerationPerNavRank
-    ) * dt
-    const maxSpeed = this.player.speed
-      + this.build.engine * powerupBalance.ship.maxSpeedPerEngineRank
-      + this.build.nav * powerupBalance.ship.maxSpeedPerNavRank
+    const flightStats = resolveShipFlightStats({
+      baseSpeed: this.player.speed,
+      engine: this.build.engine,
+      nav: this.build.nav
+    })
+    const accel = flightStats.acceleration * dt
+    const maxSpeed = flightStats.maxSpeed
     this.player.vx += move.x * accel
     this.player.vy += move.y * accel
     const speed = len(this.player.vx, this.player.vy)
