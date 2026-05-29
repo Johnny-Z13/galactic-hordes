@@ -4,6 +4,7 @@ import {
   advanceImpactPulses,
   appendImpactPulse,
   createImpactPulse,
+  createImpactSparkParticle,
   type ImpactPulse
 } from '../src/combat/impact-feedback'
 
@@ -76,6 +77,61 @@ test('impact pulse append skips null pulses and enforces a rolling cap', () => {
   expect(pulses.map((pulse) => pulse.x)).toEqual([2, 3])
 })
 
+test('impact spark particles use deterministic low-load hit feedback', () => {
+  const rolls = [0.1, 0.25, 0.75]
+  const particle = createImpactSparkParticle({
+    x: 10,
+    y: 20,
+    color: '#57fff3',
+    highLoad: false,
+    particleCount: 4,
+    maxParticles: 12,
+    random: () => rolls.shift() ?? 0
+  })
+
+  expect(particle).toEqual({
+    x: 10,
+    y: 20,
+    vx: -40,
+    vy: 40,
+    life: 0.22,
+    maxLife: 0.22,
+    color: '#57fff3',
+    size: 2,
+    glow: 10
+  })
+})
+
+test('impact spark particles are suppressed under load, at cap, or after missed rolls', () => {
+  expect(createImpactSparkParticle({
+    x: 0,
+    y: 0,
+    color: '#57fff3',
+    highLoad: true,
+    particleCount: 0,
+    maxParticles: 12,
+    random: () => 0
+  })).toBeNull()
+  expect(createImpactSparkParticle({
+    x: 0,
+    y: 0,
+    color: '#57fff3',
+    highLoad: false,
+    particleCount: 12,
+    maxParticles: 12,
+    random: () => 0
+  })).toBeNull()
+  expect(createImpactSparkParticle({
+    x: 0,
+    y: 0,
+    color: '#57fff3',
+    highLoad: false,
+    particleCount: 0,
+    maxParticles: 12,
+    random: () => 0.2
+  })).toBeNull()
+})
+
 test('main wires space impact pulses through damage kill update and render', () => {
   const main = readFileSync('src/main.ts', 'utf8')
   const renderer = readFileSync('src/render/impact-pulses.ts', 'utf8')
@@ -87,7 +143,10 @@ test('main wires space impact pulses through damage kill update and render', () 
   expect(main).toContain("kind: 'hit'")
   expect(main).toContain("kind: 'kill'")
   expect(main).toContain('appendImpactPulse({')
+  expect(main).toContain('createImpactSparkParticle({')
   expect(main).not.toContain('this.impactPulses.length > 96')
+  expect(main).not.toContain('Math.random() < 0.2')
+  expect(main).not.toContain('life: 0.22, maxLife: 0.22, color, size: 2, glow: 10')
   expect(main).toContain('this.renderImpactPulses(ctx)')
   expect(main).toContain('drawImpactPulses({')
   expect(renderer).toContain('export function renderImpactPulses')

@@ -3,7 +3,7 @@ import { AudioDirector, type PlanetAudioMood } from './audio/audio-director'
 import { sfxSamples } from './audio/sfx-samples'
 import { uiClickSoundForButton } from './audio/ui-click-cues'
 import { damageFeedbackConfig } from './combat/damage-feedback'
-import { advanceImpactPulses, appendImpactPulse, createImpactPulse, type ImpactPulse } from './combat/impact-feedback'
+import { advanceImpactPulses, appendImpactPulse, createImpactPulse, createImpactSparkParticle, type ImpactPulse } from './combat/impact-feedback'
 import { damageShipPlayer, damageSurfacePilot as damageSuitPilot } from './combat/player-damage-resolution'
 import { advancePlayerDamageFlash, type PlayerDamageFlash } from './combat/player-damage-feedback'
 import { weaponSoundKindFor } from './combat/weapon-sound'
@@ -2202,9 +2202,16 @@ export class VectorShooter {
       highLoad
     })
     appendImpactPulse({ pulses: this.impactPulses, pulse, cap: 96 })
-    if (!highLoad && this.particles.length < MAX_PARTICLES && Math.random() < 0.2) {
-      this.particles.push({ x: e.x, y: e.y, vx: rand(-80, 80), vy: rand(-80, 80), life: 0.22, maxLife: 0.22, color, size: 2, glow: 10 })
-    }
+    const spark = createImpactSparkParticle({
+      x: e.x,
+      y: e.y,
+      color,
+      highLoad,
+      particleCount: this.particles.length,
+      maxParticles: MAX_PARTICLES,
+      random: Math.random
+    })
+    if (spark) this.particles.push(spark)
     if (e.hp <= 0) this.killEnemy(e, true)
   }
 

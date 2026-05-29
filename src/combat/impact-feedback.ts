@@ -11,6 +11,20 @@ export interface ImpactPulse {
   lineWidth: number
 }
 
+export interface ImpactSparkParticle {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  life: number
+  maxLife: number
+  color: string
+  size: number
+  glow: number
+}
+
+const randomBetween = (min: number, max: number, random: () => number) => min + random() * (max - min)
+
 export function createImpactPulse(input: {
   kind: ImpactPulseKind
   x: number
@@ -66,4 +80,28 @@ export function appendImpactPulse(input: {
   if (!input.pulse) return
   input.pulses.push(input.pulse)
   if (input.pulses.length > input.cap) input.pulses.shift()
+}
+
+export function createImpactSparkParticle(input: {
+  x: number
+  y: number
+  color: string
+  highLoad: boolean
+  particleCount: number
+  maxParticles: number
+  random: () => number
+}): ImpactSparkParticle | null {
+  if (input.highLoad || input.particleCount >= input.maxParticles) return null
+  if (input.random() >= 0.2) return null
+  return {
+    x: input.x,
+    y: input.y,
+    vx: randomBetween(-80, 80, input.random),
+    vy: randomBetween(-80, 80, input.random),
+    life: 0.22,
+    maxLife: 0.22,
+    color: input.color,
+    size: 2,
+    glow: 10
+  }
 }
