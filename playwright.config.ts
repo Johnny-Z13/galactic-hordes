@@ -1,5 +1,5 @@
 import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
-  workers: process.env.CI ? 2 : 8
+  workers: process.env.CI ? 2 : 4
 })

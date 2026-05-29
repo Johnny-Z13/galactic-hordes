@@ -1,13 +1,9 @@
 import { expect, test } from '@playwright/test'
-
-const HARNESS_URL = 'http://127.0.0.1:5176/?harness=1'
-const READY_TIMEOUT = 10_000
+import { loadHarnessPage, waitForHarnessFunction } from './harness-page'
 
 test('intro waypoint activates on a fresh first-ever run', async ({ page }) => {
-  await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
-  await page.evaluate(() => localStorage.clear())
-  await page.reload({ waitUntil: 'networkidle' })
-  await page.waitForFunction(() => typeof (window as unknown as { debugIntroWaypointState?: unknown }).debugIntroWaypointState === 'function', null, { timeout: READY_TIMEOUT })
+  await loadHarnessPage(page)
+  await waitForHarnessFunction(page, 'debugIntroWaypointState')
   const result = await page.evaluate(async () => {
     const w = window as unknown as {
       debugForceFirstEverRun: () => void
@@ -30,10 +26,8 @@ test('intro waypoint activates on a fresh first-ever run', async ({ page }) => {
 })
 
 test('intro waypoint deactivates after landing', async ({ page }) => {
-  await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
-  await page.evaluate(() => localStorage.clear())
-  await page.reload({ waitUntil: 'networkidle' })
-  await page.waitForFunction(() => typeof (window as unknown as { debugIntroWaypointState?: unknown }).debugIntroWaypointState === 'function', null, { timeout: READY_TIMEOUT })
+  await loadHarnessPage(page)
+  await waitForHarnessFunction(page, 'debugIntroWaypointState')
   const result = await page.evaluate(async () => {
     const w = window as unknown as {
       debugForceFirstEverRun: () => void
@@ -55,10 +49,8 @@ test('intro waypoint deactivates after landing', async ({ page }) => {
 })
 
 test('intro waypoint stays active past its reminder timer until first landing', async ({ page }) => {
-  await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
-  await page.evaluate(() => localStorage.clear())
-  await page.reload({ waitUntil: 'networkidle' })
-  await page.waitForFunction(() => typeof (window as unknown as { debugIntroWaypointState?: unknown }).debugIntroWaypointState === 'function', null, { timeout: READY_TIMEOUT })
+  await loadHarnessPage(page)
+  await waitForHarnessFunction(page, 'debugIntroWaypointState')
   const result = await page.evaluate(async () => {
     const w = window as unknown as {
       debugForceFirstEverRun: () => void
@@ -83,10 +75,8 @@ test('intro waypoint stays active past its reminder timer until first landing', 
 })
 
 test('intro waypoint does NOT activate on a second run (debrief present)', async ({ page }) => {
-  await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
-  await page.evaluate(() => localStorage.clear())
-  await page.reload({ waitUntil: 'networkidle' })
-  await page.waitForFunction(() => typeof (window as unknown as { debugIntroWaypointState?: unknown }).debugIntroWaypointState === 'function', null, { timeout: READY_TIMEOUT })
+  await loadHarnessPage(page)
+  await waitForHarnessFunction(page, 'debugIntroWaypointState')
   const result = await page.evaluate(async () => {
     const w = window as unknown as {
       debugIntroWaypointState: () => { active: boolean; timer: number; targetPlanetId: string | null } | null

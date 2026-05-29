@@ -1,10 +1,9 @@
 import { expect, test } from '@playwright/test'
+import { loadHarnessPage, waitForHarnessFunction } from './harness-page'
 
 // REQUIRES: `npm run dev` (Vite on 127.0.0.1:5176) running before this test.
 // This is the only spec that drives the live game over the dev server; the other
 // specs are self-contained. Port is fixed by vite.config.ts.
-const HARNESS_URL = 'http://127.0.0.1:5176/?harness=1'
-const READY_TIMEOUT = 10_000
 
 // Characterization test: drives the REAL updateEnemies via the debug harness so that
 // any future extraction of updateEnemies into a new module will be caught immediately.
@@ -15,13 +14,7 @@ const READY_TIMEOUT = 10_000
 // objects. If updateEnemies becomes a no-op, the distance stays at 400 and the test fails.
 
 test('chaser enemy closes distance when updateEnemies is stepped forward', async ({ page }) => {
-  await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
-
-  // Wait until the harness hook is live on window
-  await page.waitForFunction(
-    () => typeof (window as unknown as Record<string, unknown>).debugStepEnemies === 'function',
-    { timeout: READY_TIMEOUT }
-  )
+  await readyHooks(page)
 
   // Sanity: confirm all four hooks are present as functions (this IS a behavior check — we
   // need them callable, not just present as source strings)
@@ -75,11 +68,8 @@ test('chaser enemy closes distance when updateEnemies is stepped forward', async
 //   dreadnought (giant, range-holding, stays alive).
 
 const readyHooks = async (page: import('@playwright/test').Page) => {
-  await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
-  await page.waitForFunction(
-    () => typeof (window as unknown as Record<string, unknown>).debugStepEnemies === 'function',
-    { timeout: READY_TIMEOUT }
-  )
+  await loadHarnessPage(page)
+  await waitForHarnessFunction(page, 'debugStepEnemies')
 }
 
 test('brute enemy closes distance (pure pursuit) when stepped forward', async ({ page }) => {

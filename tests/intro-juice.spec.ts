@@ -1,8 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-
-const HARNESS_URL = 'http://127.0.0.1:5176/?harness=1'
-const READY_TIMEOUT = 10_000
+import { loadHarnessPage, waitForHarnessFunction } from './harness-page'
 
 test('surface threat renderers use the shared red hit-flash color', () => {
   const surfaceThreats = readFileSync('src/surface/render-threats.ts', 'utf8')
@@ -21,14 +19,8 @@ test('first safeDrift node consumes intro spawn pressure helpers at runtime', ()
 })
 
 test('score popups appear after a kill and clear after popup lifetime elapses', async ({ page }) => {
-  await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
-  await page.evaluate(() => localStorage.clear())
-  await page.reload({ waitUntil: 'networkidle' })
-  await page.waitForFunction(
-    () => typeof (window as unknown as { debugScorePopupsSnapshot?: unknown }).debugScorePopupsSnapshot === 'function',
-    null,
-    { timeout: READY_TIMEOUT }
-  )
+  await loadHarnessPage(page)
+  await waitForHarnessFunction(page, 'debugScorePopupsSnapshot')
   const result = await page.evaluate(() => {
     const w = window as unknown as {
       debugSpawnSingleEnemy: (kind: string, dx: number, dy: number) => void
@@ -54,14 +46,8 @@ test('score popups appear after a kill and clear after popup lifetime elapses', 
 })
 
 test('hitstop fires on giant-kind kill but not on chaser kill', async ({ page }) => {
-  await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
-  await page.evaluate(() => localStorage.clear())
-  await page.reload({ waitUntil: 'networkidle' })
-  await page.waitForFunction(
-    () => typeof (window as unknown as { debugHitstopUntil?: unknown }).debugHitstopUntil === 'function',
-    null,
-    { timeout: READY_TIMEOUT }
-  )
+  await loadHarnessPage(page)
+  await waitForHarnessFunction(page, 'debugHitstopUntil')
   const result = await page.evaluate(() => {
     const w = window as unknown as {
       debugSpawnSingleEnemy: (kind: string, dx: number, dy: number) => void
@@ -87,14 +73,8 @@ test('hitstop fires on giant-kind kill but not on chaser kill', async ({ page })
 })
 
 test('enemy.flash is stamped by damage with the configured hitFlash duration', async ({ page }) => {
-  await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
-  await page.evaluate(() => localStorage.clear())
-  await page.reload({ waitUntil: 'networkidle' })
-  await page.waitForFunction(
-    () => typeof (window as unknown as { debugSpawnSingleEnemy?: unknown }).debugSpawnSingleEnemy === 'function',
-    null,
-    { timeout: READY_TIMEOUT }
-  )
+  await loadHarnessPage(page)
+  await waitForHarnessFunction(page, 'debugSpawnSingleEnemy')
   const result = await page.evaluate(async () => {
     const w = window as unknown as {
       debugSpawnSingleEnemy: (kind: string, dx: number, dy: number) => void
@@ -118,14 +98,7 @@ test('enemy.flash is stamped by damage with the configured hitFlash duration', a
 })
 
 test('pickup magnet glint uses a dedicated cyan signal color while pulled', async ({ page }) => {
-  await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
-  await page.evaluate(() => localStorage.clear())
-  await page.reload({ waitUntil: 'networkidle' })
-  await page.waitForFunction(
-    () => typeof (window as unknown as { __vectorShooter?: unknown }).__vectorShooter === 'object',
-    null,
-    { timeout: READY_TIMEOUT }
-  )
+  await loadHarnessPage(page)
   const result = await page.evaluate(() => {
     const g = (window as unknown as { __vectorShooter: any }).__vectorShooter
     g.state = 'playing'
@@ -144,14 +117,7 @@ test('pickup magnet glint uses a dedicated cyan signal color while pulled', asyn
 })
 
 test('banked mutation signals create visible decision feedback', async ({ page }) => {
-  await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
-  await page.evaluate(() => localStorage.clear())
-  await page.reload({ waitUntil: 'networkidle' })
-  await page.waitForFunction(
-    () => typeof (window as unknown as { __vectorShooter?: unknown }).__vectorShooter === 'object',
-    null,
-    { timeout: READY_TIMEOUT }
-  )
+  await loadHarnessPage(page)
   const result = await page.evaluate(() => {
     const g = (window as unknown as { __vectorShooter: any }).__vectorShooter
     g.state = 'playing'
@@ -172,14 +138,7 @@ test('banked mutation signals create visible decision feedback', async ({ page }
 })
 
 test('banked mutation signal lets the starter ship lock a planet for install', async ({ page }) => {
-  await page.goto(HARNESS_URL, { waitUntil: 'networkidle' })
-  await page.evaluate(() => localStorage.clear())
-  await page.reload({ waitUntil: 'networkidle' })
-  await page.waitForFunction(
-    () => typeof (window as unknown as { __vectorShooter?: unknown }).__vectorShooter === 'object',
-    null,
-    { timeout: READY_TIMEOUT }
-  )
+  await loadHarnessPage(page)
   const result = await page.evaluate(() => {
     const g = (window as unknown as { __vectorShooter: any }).__vectorShooter
     g.state = 'playing'

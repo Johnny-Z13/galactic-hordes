@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { RESET_HARNESS_URL, waitForHarnessReady } from './harness-page'
 
 const mainSource = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
 const harnessSource = () => readFileSync(resolve(process.cwd(), 'src/playtest-harness.ts'), 'utf8')
-const HARNESS_URL = 'http://127.0.0.1:5176/?harness=1&resetProgress=1'
 
 test('browser playthrough harness is guarded behind a harness query flag', () => {
   const main = mainSource()
@@ -42,8 +42,8 @@ test('browser playthrough harness exposes a compact runtime snapshot', () => {
 
 test('browser playthrough harness is live during a launched expedition', async ({ page }) => {
   test.setTimeout(60_000)
-  await page.goto(HARNESS_URL, { waitUntil: 'domcontentloaded' })
-  await page.waitForFunction(() => typeof window.__galacticHarness?.snapshot === 'function')
+  await page.goto(RESET_HARNESS_URL, { waitUntil: 'domcontentloaded' })
+  await waitForHarnessReady(page)
 
   await page.getByRole('button', { name: 'Launch Expedition', exact: true }).click()
   await page.getByRole('button', { name: 'Open Sector Map', exact: true }).click()
