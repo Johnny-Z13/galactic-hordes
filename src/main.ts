@@ -150,7 +150,7 @@ import { resolveSurfaceSignalBank, surfaceSignalCap } from './surface/signal-buf
 import { surfaceGunCooldown, surfaceGunDamage, surfaceGunSpeed, surfaceLowOxygenRatio, surfaceMaxHealth, surfaceMaxOxygen } from './surface/suit-stats'
 import { createSurfaceAliens as createSurfaceAliensFactory, createSurfaceLoreSites as createSurfaceLoreSitesFactory, type SurfaceAlienModel, type SurfaceLoreSiteModel } from './surface/discovery-factory'
 import { createGenericSurfaceThreat as createGenericSurfaceThreatFactory, createGlassMiteOracleThreat as createGlassMiteOracleThreatFactory, createPlanetBossThreat as createPlanetBossThreatFactory } from './surface/threat-factory'
-import { safeSurfaceThreatPoint, surfaceThreatKeepouts } from './surface/threat-placement'
+import { safeSurfaceThreatPoint, surfaceThreatKeepouts, type SurfaceThreatKeepout } from './surface/threat-placement'
 import { spawnSurfaceSplitterChildren, updateSurfaceThreatMotion } from './surface/threat-behavior'
 import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, surfaceWaveSpawnPoints, surfaceWaveTelegraphPoint, updateSurfaceWaveDirector, type SurfaceWaveState, type SurfaceWaveTelegraph } from './surface/wave-director'
 import { renderPlayer as drawPlayer } from './render/player'
@@ -2755,11 +2755,11 @@ export class VectorShooter {
     return surfaceThreatKeepouts(pilot, ship)
   }
 
-  private safeSurfaceThreatPoint(candidate: Vec, keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>, clearance: number = surfaceRunBalance.threatPlacement.safeDefaultClearance, fallbackAngle = 0) {
+  private safeSurfaceThreatPoint(candidate: Vec, keepouts: SurfaceThreatKeepout[], clearance: number = surfaceRunBalance.threatPlacement.safeDefaultClearance, fallbackAngle = 0) {
     return safeSurfaceThreatPoint(candidate, keepouts, clearance, fallbackAngle)
   }
 
-  private createGenericSurfaceThreat(planet: Planet, event: SurfaceEventKind, i: number, total: number, keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>): SurfaceThreat {
+  private createGenericSurfaceThreat(planet: Planet, event: SurfaceEventKind, i: number, total: number, keepouts: SurfaceThreatKeepout[]): SurfaceThreat {
     const { threat, discovery } = createGenericSurfaceThreatFactory({
       planet,
       event,
@@ -2773,7 +2773,7 @@ export class VectorShooter {
     return threat
   }
 
-  private createPlanetBossThreat(planet: Planet, crowded: boolean, keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>): SurfaceThreat {
+  private createPlanetBossThreat(planet: Planet, crowded: boolean, keepouts: SurfaceThreatKeepout[]): SurfaceThreat {
     const { threat, discovery } = createPlanetBossThreatFactory({
       planet,
       crowded,
@@ -2787,7 +2787,7 @@ export class VectorShooter {
     return threat
   }
 
-  private createGlassMiteOracleThreat(keepouts: ReturnType<VectorShooter['surfaceThreatKeepouts']>): SurfaceThreat {
+  private createGlassMiteOracleThreat(keepouts: SurfaceThreatKeepout[]): SurfaceThreat {
     const { threat, discovery } = createGlassMiteOracleThreatFactory({
       keepouts,
       time: this.stats.time,

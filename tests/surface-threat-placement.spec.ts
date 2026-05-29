@@ -34,6 +34,8 @@ test('main delegates surface threat placement to a focused surface module', () =
   expect(placement).toContain('export function surfaceThreatKeepouts')
   expect(placement).toContain('export function safeSurfaceThreatPoint')
   expect(main).toContain("from './surface/threat-placement'")
+  expect(main).toContain('type SurfaceThreatKeepout')
+  expect(main).not.toContain("ReturnType<VectorShooter['surfaceThreatKeepouts']>")
   expect(main).toContain('return surfaceThreatKeepouts(pilot, ship)')
   expect(main).toContain('return safeSurfaceThreatPoint(')
 })
