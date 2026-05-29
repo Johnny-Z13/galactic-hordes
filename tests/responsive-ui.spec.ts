@@ -55,13 +55,21 @@ const sectorMapMarkup = (css: string) => `
           </div>
         </div>
         <div class="sector-map-body">
+          <div class="sector-map-current">
+            <span>CURRENT NODE</span>
+            <h2>MOTHERSHIP</h2>
+            <p>Safe launch node with light scouts and normal route access.</p>
+          </div>
           <div class="sector-map-graph sector-map-hexchart">
             <div class="sector-map-graph-header"><span>LOCAL HEX FRONTIER</span><b>2 ADJACENT JUMPS</b></div>
             <div class="sector-route-string">MOTHERSHIP</div>
             <svg class="sector-map-lines" viewBox="0 0 100 100">
+              <polygon class="sector-wire-hex current" points="46,45 54,45 58,50 54,55 46,55 42,50"></polygon>
+              <polygon class="sector-wire-hex available" points="57,45 65,45 69,50 65,55 57,55 53,50"></polygon>
+              <polygon class="sector-wire-hex available" points="52,55 60,55 64,60 60,65 52,65 48,60"></polygon>
+              <polygon class="sector-wire-hex frontier" points="80,45 88,45 92,50 88,55 80,55 76,50"></polygon>
               <line class="available" x1="50" y1="50" x2="61" y2="50"></line>
               <line class="available" x1="50" y1="50" x2="56" y2="60"></line>
-              <line class="locked" x1="61" y1="50" x2="67" y2="60"></line>
             </svg>
             <button class="sector-node mothership completed current" style="left: 50%; top: 50%" type="button" disabled>
               <span class="sector-node-core" aria-hidden="true"></span><span class="sector-node-label">MOTHERSHIP</span><span class="sector-node-state">HERE</span>
@@ -83,11 +91,6 @@ const sectorMapMarkup = (css: string) => `
             </div>
           </div>
           <div class="sector-map-details">
-            <div class="sector-map-current">
-              <span>CURRENT NODE</span>
-              <h2>MOTHERSHIP</h2>
-              <p>Safe launch node with light scouts and normal route access.</p>
-            </div>
             <div class="sector-selection-readout">
               <span>JUMP TARGET</span>
               <h2>Select Adjacent Hex</h2>
@@ -373,15 +376,19 @@ test('sector map route planner keeps graph and first route visible across app br
     await page.setContent(sectorMapMarkup(styles()))
 
     const graphBox = await page.locator('.sector-map-graph').boundingBox()
+    const currentBox = await page.locator('.sector-map-current').boundingBox()
     const readoutBox = await page.locator('.sector-selection-readout').boundingBox()
     const launchBox = await page.locator('.sector-launch-button').boundingBox()
     const detailsDisplay = await page.locator('.sector-map-body').evaluate((el) => getComputedStyle(el).gridTemplateColumns)
     const debugOpen = await page.locator('.sector-debug-readout').evaluate((el) => (el as HTMLDetailsElement).open)
 
     expect(graphBox, `${viewport.name} sector graph should render`).not.toBeNull()
+    expect(currentBox, `${viewport.name} current sector should render`).not.toBeNull()
     expect(readoutBox, `${viewport.name} sector readout should render`).not.toBeNull()
     expect(launchBox, `${viewport.name} launch action should render`).not.toBeNull()
     expect(readoutBox!.y, `${viewport.name} readout top`).toBeGreaterThanOrEqual(0)
+    expect(currentBox!.y + currentBox!.height, `${viewport.name} current panel sits above graph`).toBeLessThanOrEqual(graphBox!.y)
+    expect(graphBox!.y + graphBox!.height, `${viewport.name} readout sits below graph`).toBeLessThanOrEqual(readoutBox!.y)
     expect(readoutBox!.y, `${viewport.name} readout starts inside first viewport`).toBeLessThan(viewport.height)
     expect(readoutBox!.x + readoutBox!.width, `${viewport.name} readout right edge`).toBeLessThanOrEqual(viewport.width)
     expect(launchBox!.x + launchBox!.width, `${viewport.name} launch right edge`).toBeLessThanOrEqual(viewport.width)

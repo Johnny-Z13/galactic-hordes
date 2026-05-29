@@ -16,6 +16,7 @@ const optionalSource = (path: string) => {
 const stationDockSource = () => optionalSource('src/ui/station-dock.ts')
 const stationDockReportSource = () => optionalSource('src/station-dock-report.ts')
 const sectorMapScreenSource = () => optionalSource('src/ui/sector-map-screen.ts')
+const cssSource = () => optionalSource('src/style.css')
 
 test('sector map is a first class screen between mothership and expeditions', () => {
   const main = mainSource()
@@ -41,6 +42,7 @@ test('sector map is a first class screen between mothership and expeditions', ()
 test('sector map choices expose wave and hazard readouts before launch', () => {
   const main = mainSource()
   const sectorMapScreen = sectorMapScreenSource()
+  const css = cssSource()
 
   expect(main).not.toContain("panel.className = 'sector-map-panel'")
   expect(main).not.toContain('private sectorNodePosition(')
@@ -55,8 +57,12 @@ test('sector map choices expose wave and hazard readouts before launch', () => {
   expect(sectorMapScreen).toContain('sector-map-hexchart')
   expect(sectorMapScreen).toContain('sector-map-legend')
   expect(sectorMapScreen).toContain('sector-route-string')
+  expect(sectorMapScreen).toContain('sector-wire-hex')
+  expect(sectorMapScreen).toContain('function sectorWireHexPoints(')
+  expect(sectorMapScreen).toContain('body.append(currentPanel, graph, details)')
   expect(sectorMapScreen).toContain('sector-station-edges')
   expect(sectorMapScreen).not.toContain('sector-node-glyph">${sectorNodeGlyph(node.kind)}')
+  expect(css).toContain('radial-gradient(circle at 12% 18%, rgba(246, 255, 254, 0.32) 0 1px, transparent 1.6px)')
   expect(sectorMapScreen).toContain('sectorStationEdgeMarkers(node, runtime.sectorMap.currentNodeId, isAvailable)')
   expect(sectorMapScreen).toContain('sector-selection-readout')
   expect(sectorMapScreen).toContain('sector-launch-button')

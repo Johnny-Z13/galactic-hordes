@@ -73,6 +73,16 @@ export function showSectorMap(self: SectorMapView, message: string) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   svg.classList.add('sector-map-lines')
   svg.setAttribute('viewBox', '0 0 100 100')
+  for (const node of runtime.sectorMap.nodes) {
+    const pos = sectorNodePosition(runtime.sectorMap, node)
+    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon')
+    polygon.setAttribute('points', sectorWireHexPoints(pos.x, pos.y))
+    polygon.classList.add('sector-wire-hex')
+    if (node.frontier) polygon.classList.add('frontier')
+    if (node.id === current.id) polygon.classList.add('current')
+    if (choices.some((choice) => choice.id === node.id)) polygon.classList.add('available')
+    svg.append(polygon)
+  }
   const renderedEdges = new Set<string>()
   const legalEdgeKeys = new Set(choices.map((choice) => sectorEdgeKey(current.id, choice.id)))
   for (const edge of runtime.sectorMap.edges) {
@@ -91,7 +101,9 @@ export function showSectorMap(self: SectorMapView, message: string) {
     line.setAttribute('y2', `${b.y}`)
     line.dataset.edgeKey = edgeKey
     const legalJump = legalEdgeKeys.has(edgeKey)
-    line.classList.add(from.completed && to.completed ? 'completed' : legalJump ? 'available' : 'locked')
+    const completedRoute = from.completed && to.completed
+    if (!legalJump && !completedRoute) continue
+    line.classList.add(completedRoute ? 'completed' : 'available')
     svg.append(line)
   }
   graph.append(svg)
@@ -133,9 +145,9 @@ export function showSectorMap(self: SectorMapView, message: string) {
 
   const details = document.createElement('div')
   details.className = 'sector-map-details'
-  const heading = document.createElement('div')
-  heading.className = 'sector-map-current'
-  heading.innerHTML = currentStationVisit
+  const currentPanel = document.createElement('div')
+  currentPanel.className = 'sector-map-current'
+  currentPanel.innerHTML = currentStationVisit
     ? `<span>CURRENT NODE // DOCKED</span><h2>${runtime.escape(currentStationVisit.stationName)}</h2><p>${runtime.escape(`${currentStationVisit.contactName}, ${currentStationVisit.contactRole}: ${currentStationVisit.rumor}`)}</p>`
     : `<span>CURRENT NODE</span><h2>${runtime.escape(current.label)}</h2><p>${runtime.escape(current.description)}</p>`
   const selectionReadout = document.createElement('div')
@@ -149,8 +161,8 @@ export function showSectorMap(self: SectorMapView, message: string) {
     if (!selectedNodeId) return
     runtime.launchSectorNode(selectedNodeId)
   })
-  details.append(heading, selectionReadout, launchButton, sectorMapDebugReadout(runtime))
-  body.append(graph, details)
+  details.append(selectionReadout, launchButton, sectorMapDebugReadout(runtime))
+  body.append(currentPanel, graph, details)
   panel.append(top, body)
   runtime.ui.sectorMap.append(panel)
   runtime.showOnly('sectorMap')
@@ -181,6 +193,23 @@ export function showSectorMap(self: SectorMapView, message: string) {
 
 function sectorEdgeKey(a: string, b: string) {
   return [a, b].sort().join('::')
+}
+
+function sectorWireHexPoints(x: number, y: number) {
+  const width = 8.4
+  const height = 9.2
+  const left = x - width / 2
+  const right = x + width / 2
+  const top = y - height / 2
+  const bottom = y + height / 2
+  return [
+    [left + width * 0.25, top + height * 0.05],
+    [left + width * 0.75, top + height * 0.05],
+    [right, y],
+    [left + width * 0.75, top + height * 0.95],
+    [left + width * 0.25, top + height * 0.95],
+    [left, y]
+  ].map(([px, py]) => `${px.toFixed(2)},${py.toFixed(2)}`).join(' ')
 }
 
 function sectorNodePosition(sectorMap: SectorMap, node: SectorNode) {
