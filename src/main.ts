@@ -93,6 +93,7 @@ import { resolveStationServices } from './station-services'
 import { advanceSpawnEntryPings, createSpawnEntryPing, type SpawnEntryPing } from './spawn-entry-feedback'
 import {
   cameraTargetFor,
+  followSpaceCamera,
   screenToWorld as spaceScreenToWorld,
   spaceViewportScale,
   worldToScreen as spaceWorldToScreen
@@ -3411,11 +3412,7 @@ export class VectorShooter {
 
   private updateCamera(dt: number) {
     const target = cameraTargetFor(this.player, this.width, this.height, this.spaceScale())
-    const targetX = target.x
-    const targetY = target.y
-    this.camera.x += (targetX - this.camera.x) * clamp(dt * 7, 0, 1)
-    this.camera.y += (targetY - this.camera.y) * clamp(dt * 7, 0, 1)
-    this.camera.shake = Math.max(0, this.camera.shake - dt * 35)
+    Object.assign(this.camera, followSpaceCamera({ camera: this.camera, target, dt }))
   }
 
   private spaceScale() {

@@ -33,6 +33,23 @@ export function cameraTargetFor(center: Vec, width: number, height: number, scal
   }
 }
 
+export interface SpaceCameraState extends Vec {
+  shake: number
+}
+
+export function followSpaceCamera(input: {
+  camera: SpaceCameraState
+  target: Vec
+  dt: number
+}): SpaceCameraState {
+  const ease = Math.max(0, Math.min(1, input.dt * 7))
+  return {
+    x: input.camera.x + (input.target.x - input.camera.x) * ease,
+    y: input.camera.y + (input.target.y - input.camera.y) * ease,
+    shake: Math.max(0, input.camera.shake - input.dt * 35)
+  }
+}
+
 export function worldToScreen(point: Vec, camera: Vec, scale: number): Vec {
   return {
     x: (point.x - camera.x) * scale,
