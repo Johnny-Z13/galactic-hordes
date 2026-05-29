@@ -33,6 +33,7 @@ import {
   spaceSpawnBalance,
   spawnPressureMinutes
 } from './game-balance'
+import { resolveDashStats } from './dash-stats'
 import { navigationCruiseScalar, navigationTrailProfile } from './navigation-cruise'
 import { canLockPlanetCourse, nearestPlanetCourseTarget, planetCourseLockToast } from './navigation-planet-lock'
 import { applyMutationXp } from './mutation-progress'
@@ -1191,34 +1192,19 @@ export class VectorShooter {
   }
 
   private dashDuration() {
-    return clamp(
-      powerupBalance.dash.durationBase
-        + this.build.engine * powerupBalance.dash.durationPerEngineRank
-        + this.build.phase * powerupBalance.dash.durationPerPhaseRank,
-      powerupBalance.dash.durationBase,
-      powerupBalance.dash.durationMax
-    )
+    return resolveDashStats(this.build).duration
   }
 
   private dashSpeed() {
-    return powerupBalance.dash.speedBase
-      + this.build.engine * powerupBalance.dash.speedPerEngineRank
-      + this.build.phase * powerupBalance.dash.speedPerPhaseRank
+    return resolveDashStats(this.build).speed
   }
 
   private dashCooldown() {
-    return clamp(
-      powerupBalance.dash.cooldownBase
-        - this.build.engine * powerupBalance.dash.cooldownReductionPerEngineRank
-        - this.build.heat * powerupBalance.dash.cooldownReductionPerHeatRank,
-      powerupBalance.dash.cooldownMin,
-      powerupBalance.dash.cooldownBase
-    )
+    return resolveDashStats(this.build).cooldown
   }
 
   private dashInvulnerability() {
-    const engineBonus = this.build.engine >= powerupBalance.dash.engineInvulnerabilityThreshold ? powerupBalance.dash.engineInvulnerabilityBonus : 0
-    return powerupBalance.dash.invulnerabilityBase + engineBonus + this.build.phase * powerupBalance.dash.invulnerabilityPerPhaseRank
+    return resolveDashStats(this.build).invulnerability
   }
 
   private resolveNavigationMove(move: Vec, moveActive: boolean, dt: number): Vec {
