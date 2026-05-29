@@ -143,7 +143,7 @@ test('route station docking course clearing is centralized', () => {
   const main = source()
 
   expect(main).toContain('private clearReturnBeaconCourse()')
-  expect(occurrences(main, 'this.clearReturnBeaconCourse()')).toBe(6)
+  expect(occurrences(main, 'this.clearReturnBeaconCourse()')).toBe(4)
   expect(occurrences(main, 'this.autoNavTargetBeacon = false')).toBe(1)
 })
 

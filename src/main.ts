@@ -4246,8 +4246,7 @@ export class GalacticHordesGame {
     this.mothership = finished.mothership
     this.saveMothership()
     this.debrief = finished.debrief
-    this.returnBeacon = null
-    this.clearReturnBeaconCourse()
+    this.clearAutoNavigationState()
     this.state = 'debrief'
     this.renderDebrief()
   }
@@ -4348,7 +4347,15 @@ export class GalacticHordesGame {
     this.showSectorMap(report ? `${report.stationName}: Departure lane open. Choose the next jump.` : 'Choose the next jump.')
   }
 
-  private clearSpaceRuntimeState() {
+  private clearAutoNavigationState(options: { resetHeading?: boolean } = {}) {
+    this.returnBeacon = null
+    this.autoNavActive = false
+    if (options.resetHeading) this.autoNavHeading = 0
+    this.clearPlanetCourse()
+    this.clearReturnBeaconCourse()
+  }
+
+  private clearSpaceRuntimeState(options: { resetNavigationHeading?: boolean } = {}) {
     this.bullets = []
     this.enemies = []
     this.enemyGrid.clear()
@@ -4367,10 +4374,7 @@ export class GalacticHordesGame {
     this.stars = []
     this.planets = []
     this.activeChunkKey = ''
-    this.returnBeacon = null
-    this.autoNavActive = false
-    this.clearPlanetCourse()
-    this.clearReturnBeaconCourse()
+    this.clearAutoNavigationState({ resetHeading: options.resetNavigationHeading })
   }
 
   private prepareSectorNode(node: SectorNode) {
@@ -4418,9 +4422,7 @@ export class GalacticHordesGame {
       return
     }
     this.sectorMap = completeSectorNode(this.sectorMap)
-    this.returnBeacon = null
-    this.clearReturnBeaconCourse()
-    this.autoNavActive = false
+    this.clearAutoNavigationState()
     this.showStationDock(this.routeStationDockReport(node))
   }
 
@@ -4451,9 +4453,8 @@ export class GalacticHordesGame {
     this.player.maxHull += launchLoadout.hullBonus
     this.player.hull = this.player.maxHull
     this.player.speed += launchLoadout.speedBonus
-    this.clearSpaceRuntimeState()
+    this.clearSpaceRuntimeState({ resetNavigationHeading: true })
     this.visitedPlanets.clear()
-    this.autoNavHeading = 0
     this.sectorNodeStartedAt = 0
     this.orbitReturnPoint = null
     this.surface = null
