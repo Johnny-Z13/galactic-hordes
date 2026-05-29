@@ -4309,7 +4309,7 @@ export class GalacticHordesGame {
     this.showSectorMap(report ? `${report.stationName}: Departure lane open. Choose the next jump.` : 'Choose the next jump.')
   }
 
-  private prepareSectorNode(node: SectorNode) {
+  private clearSpaceRuntimeState() {
     this.bullets = []
     this.enemies = []
     this.enemyGrid.clear()
@@ -4332,6 +4332,10 @@ export class GalacticHordesGame {
     this.autoNavActive = false
     this.autoNavTargetPlanetId = null
     this.autoNavTargetBeacon = false
+  }
+
+  private prepareSectorNode(node: SectorNode) {
+    this.clearSpaceRuntimeState()
     this.player.x = 0
     this.player.y = 0
     this.player.vx = 0
@@ -4408,33 +4412,12 @@ export class GalacticHordesGame {
     this.player.maxHull += launchLoadout.hullBonus
     this.player.hull = this.player.maxHull
     this.player.speed += launchLoadout.speedBonus
-    this.bullets = []
-    this.enemies = []
-    this.enemyGrid.clear()
-    this.pickups = []
-    this.particles = []
-    this.shockwaves = []
-    this.impactPulses = []
-    this.playerDamageFlash = null
-    this.spawnEntryPings = []
-    this.spaceHazards = []
-    this.asteroidFieldTimer = 0
-    this.asteroidFieldSpawnTimer = 0
-    this.derelictSignals = []
-    this.chunks.clear()
-    this.stars = []
-    this.planets = []
+    this.clearSpaceRuntimeState()
     this.visitedPlanets.clear()
-    this.activeChunkKey = ''
     this.autoNavHeading = 0
     this.sectorNodeStartedAt = 0
-    this.firedSectorWaves.clear()
-    this.autoNavActive = false
-    this.autoNavTargetPlanetId = null
-    this.autoNavTargetBeacon = false
     this.orbitReturnPoint = null
     this.surface = null
-    this.returnBeacon = null
     this.stationDockReport = null
     this.stationVisits = []
     this.nextReturnBeaconAt = 0
