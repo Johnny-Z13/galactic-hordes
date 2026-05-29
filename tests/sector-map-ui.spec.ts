@@ -95,6 +95,14 @@ test('station docking advances the sector map instead of always ending the run',
   expect(main).toContain('Departure lane open. Choose the next jump.')
 })
 
+test('route node completion state mutation is centralized', () => {
+  const main = mainSource()
+
+  expect(main).toContain('private completeCurrentSectorNode()')
+  expect(main).toContain('this.completeCurrentSectorNode()')
+  expect((main.match(/this\.sectorMap = completeSectorNode\(this\.sectorMap\)/g) ?? []).length).toBe(1)
+})
+
 test('route launch toast uses authored node objective copy', () => {
   const main = mainSource()
 

@@ -4271,7 +4271,7 @@ export class GalacticHordesGame {
     this.sectorNodeProfile = sectorNodeRunProfile(selected)
     if (selected.kind === 'station') {
       const report = this.applySectorStationServices(selected)
-      this.sectorMap = completeSectorNode(this.sectorMap)
+      this.completeCurrentSectorNode()
       this.showStationDock(report)
       return
     }
@@ -4284,6 +4284,10 @@ export class GalacticHordesGame {
     this.showOnly(null)
     this.updateHud()
     this.toast(`${node.label}: ${node.config.objective}`)
+  }
+
+  private completeCurrentSectorNode() {
+    this.sectorMap = completeSectorNode(this.sectorMap)
   }
 
   private recordStationVisit(node: SectorNode, repaired: number, workbenchSignals: number, scrap: number, crystal: number) {
@@ -4425,7 +4429,7 @@ export class GalacticHordesGame {
       this.finishRun('cleanExtraction')
       return
     }
-    this.sectorMap = completeSectorNode(this.sectorMap)
+    this.completeCurrentSectorNode()
     this.clearAutoNavigationState()
     this.showStationDock(this.routeStationDockReport(node))
   }
