@@ -10,7 +10,7 @@ export const introHookConfig = {
   popup: { lifeSeconds: 0.6, riseSpeed: 40, fontPx: 13, cap: 60, color: '#fff27a' },
   hitFlash: damageFeedbackConfig.hitFlash,
   hitstop: { durationSeconds: 0.04, giantKindsOnly: true },
-  magnetGlint: { frameInterval: 4, particleSpeed: 30, color: '#57fff3' },
+  magnetGlint: { frameInterval: 6, particleSpeed: 18, color: '#57fff3' },
   safeDriftFirstNode: { spawnMultiplier: 1.25, extraStartingSpawns: 2 },
   firstPlanetPayoff: { cacheMultiplier: 1.4, guaranteedRelic: true, extraLoreSites: 1 }
 } as const

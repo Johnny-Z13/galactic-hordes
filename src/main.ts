@@ -43,6 +43,7 @@ import { blendedNavigationMove, driftNavigationHeading, isManualNavigationActive
 import { navigationThreatWeaveVector } from './navigation-threat-weave'
 import { applyMutationXp } from './mutation-progress'
 import { createChunkPlanet, type GeneratedPlanet } from './planet-generation'
+import { createPickupGlintParticle } from './pickup-glint'
 import { collectPickup, dropPickup, updatePickupsPhysics, type Pickup, type PickupKind } from './pickups'
 import { runBalance } from './run-balance'
 import { resolveFinishedRun } from './run/finish-run'
@@ -83,6 +84,7 @@ import {
   completeSectorNode,
   createSectorMap,
   currentSectorNode,
+  hexDistance,
   sectorNodeRunProfile,
   selectSectorNode,
   type SectorMap,
@@ -1352,7 +1354,7 @@ export class GalacticHordesGame {
   }
 
   private isIntroSectorNode(node: SectorNode) {
-    return node.column === 1
+    return hexDistance({ q: 0, r: 0 }, node) === 1
   }
 
   private setPlanetCourse(target: Planet) {
@@ -1837,7 +1839,7 @@ export class GalacticHordesGame {
       },
       glintEvery: introHookConfig.magnetGlint.frameInterval
     })
-    for (const glint of result.glints) this.burst(glint.x, glint.y, introHookConfig.magnetGlint.color, 1, introHookConfig.magnetGlint.particleSpeed)
+    for (const glint of result.glints) this.emitPickupGlint(glint.x, glint.y)
     for (const pickup of result.collected) this.collect(pickup)
   }
 
@@ -3513,6 +3515,17 @@ export class GalacticHordesGame {
         glow: glow ? (shard ? 32 : 24) : shard ? 18 : 12
       })
     }
+  }
+
+  private emitPickupGlint(x: number, y: number) {
+    if (this.particles.length >= MAX_PARTICLES) this.particles.shift()
+    this.particles.push(createPickupGlintParticle({
+      x,
+      y,
+      color: introHookConfig.magnetGlint.color,
+      glow: this.allowGlow(),
+      maxSpeed: introHookConfig.magnetGlint.particleSpeed
+    }))
   }
 
   private screenToWorld(x: number, y: number): Vec {

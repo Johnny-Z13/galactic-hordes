@@ -58,18 +58,26 @@ export function showSectorMap(self: SectorMapView, message: string) {
   const body = document.createElement('div')
   body.className = 'sector-map-body'
   const graph = document.createElement('div')
-  graph.className = 'sector-map-graph sector-map-starchart'
+  graph.className = 'sector-map-graph sector-map-hexchart'
   const graphHeader = document.createElement('div')
   graphHeader.className = 'sector-map-graph-header'
-  graphHeader.innerHTML = `<span>LOCAL STARCHART</span><b>${choices.length} ROUTES OPEN</b>`
+  graphHeader.innerHTML = `<span>LOCAL HEX FRONTIER</span><b>${choices.length} ADJACENT JUMPS</b>`
   graph.append(graphHeader)
+  const routeString = document.createElement('div')
+  routeString.className = 'sector-route-string'
+  routeString.textContent = sectorRouteString(runtime.sectorMap)
+  graph.append(routeString)
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   svg.classList.add('sector-map-lines')
   svg.setAttribute('viewBox', '0 0 100 100')
+  const renderedEdges = new Set<string>()
   for (const edge of runtime.sectorMap.edges) {
     const from = runtime.sectorMap.nodes.find((node) => node.id === edge.from)
     const to = runtime.sectorMap.nodes.find((node) => node.id === edge.to)
     if (!from || !to) continue
+    const edgeKey = [from.id, to.id].sort().join('::')
+    if (renderedEdges.has(edgeKey)) continue
+    renderedEdges.add(edgeKey)
     const a = sectorNodePosition(runtime.sectorMap, from)
     const b = sectorNodePosition(runtime.sectorMap, to)
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
@@ -77,7 +85,8 @@ export function showSectorMap(self: SectorMapView, message: string) {
     line.setAttribute('y1', `${a.y}`)
     line.setAttribute('x2', `${b.x}`)
     line.setAttribute('y2', `${b.y}`)
-    line.classList.add(from.completed && to.completed ? 'completed' : from.id === runtime.sectorMap.currentNodeId ? 'available' : 'locked')
+    const available = choices.some((choice) => choice.id === from.id || choice.id === to.id)
+    line.classList.add(from.completed && to.completed ? 'completed' : available ? 'available' : 'locked')
     svg.append(line)
   }
   graph.append(svg)
@@ -97,6 +106,7 @@ export function showSectorMap(self: SectorMapView, message: string) {
         <span class="sector-node-core"><span class="sector-node-glyph">${sectorNodeGlyph(node.kind)}</span></span>
         <span class="sector-node-label">${runtime.escape(node.label.replace(/\s+\d+-\d+$/, ''))}</span>
         <span class="sector-node-state">${stateLabel}</span>
+        ${sectorStationEdgeMarkers(node, runtime.sectorMap.currentNodeId, isAvailable)}
       `
     button.title = stationVisit ? `${stationVisit.stationName}: ${stationVisit.contactName}, ${stationVisit.contactRole}` : `${node.label}: ${node.description}`
     button.disabled = !isAvailable
@@ -170,8 +180,10 @@ export function showSectorMap(self: SectorMapView, message: string) {
 }
 
 function sectorNodePosition(sectorMap: SectorMap, node: SectorNode) {
-  const x = 8 + (node.column / Math.max(1, sectorMap.columns - 1)) * 84
-  const y = node.id === 'mothership' ? 48 : node.kind === 'final' ? 48 : 18 + node.row * 20
+  const radius = Math.max(1, Math.floor((sectorMap.columns - 1) / 2))
+  const hexX = node.q + node.r * 0.5
+  const x = 50 + hexX * (34 / radius)
+  const y = 50 + node.r * (30 / radius)
   return { x, y }
 }
 
@@ -181,8 +193,32 @@ function sectorNodeClass(sectorMap: SectorMap, node: SectorNode, choices: Sector
   if (node.completed) classes.push('completed')
   if (node.id === sectorMap.currentNodeId) classes.push('current')
   if (available) classes.push('available')
+  if (node.frontier) classes.push('sector-node-frontier')
   if (!node.completed && node.id !== sectorMap.currentNodeId && !available) classes.push('locked')
   return classes.join(' ')
+}
+
+function sectorStationEdgeMarkers(node: SectorNode, currentNodeId = '', available = false) {
+  const visibleEdges = available
+    ? node.stationEdges.filter((edge) => edge.from === currentNodeId && edge.to === node.id)
+    : node.id === currentNodeId
+      ? node.stationEdges.filter((edge) => edge.from === node.id)
+      : []
+  const uniqueDirections = [...new Set(visibleEdges.map((edge) => edge.direction))]
+  if (!uniqueDirections.length) return ''
+  return `
+        <span class="sector-station-edges" aria-hidden="true">
+          ${uniqueDirections.map((direction) => `<i class="station-edge ${direction.toLowerCase()}"></i>`).join('')}
+        </span>
+      `
+}
+
+function sectorRouteString(sectorMap: SectorMap) {
+  const route = sectorMap.nodes
+    .filter((node) => node.completed || node.id === sectorMap.currentNodeId)
+    .sort((a, b) => a.config.depth - b.config.depth || a.label.localeCompare(b.label))
+    .map((node) => node.label.replace(/\s+\d+-\d+$/, ''))
+  return route.length ? route.join('  /  ') : 'UNCHARTED LOCAL SPACE'
 }
 
 export function sectorNodeGlyph(kind: SectorNode['kind']) {

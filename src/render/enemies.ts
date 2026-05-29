@@ -58,10 +58,15 @@ export function renderEnemies(view: EnemiesView): void {
       ctx.lineTo(0, e.radius)
       ctx.lineTo(-e.radius, 0)
     } else if (e.kind === 'lancer') {
-      ctx.moveTo(e.radius * 1.35, 0)
-      ctx.lineTo(-e.radius, -e.radius * 0.55)
-      ctx.lineTo(-e.radius * 0.45, 0)
-      ctx.lineTo(-e.radius, e.radius * 0.55)
+      ctx.moveTo(e.radius * 1.45, -e.radius * 0.1)
+      ctx.lineTo(-e.radius * 0.72, -e.radius * 0.82)
+      ctx.lineTo(-e.radius * 0.42, -e.radius * 0.28)
+      ctx.lineTo(-e.radius * 1.08, 0)
+      ctx.lineTo(-e.radius * 0.42, e.radius * 0.28)
+      ctx.lineTo(-e.radius * 0.72, e.radius * 0.82)
+      ctx.lineTo(e.radius * 0.42, e.radius * 0.36)
+      ctx.lineTo(e.radius * 0.18, 0)
+      ctx.lineTo(e.radius * 0.42, -e.radius * 0.36)
     } else if (e.kind === 'mine') {
       for (let i = 0; i < 8; i += 1) {
         const a = (i / 8) * TAU
@@ -219,7 +224,7 @@ function renderHordeEnemies(view: EnemiesView): void {
   ctx.lineWidth = 1.45
   strokeEnemyBatch(view, 'chaser', '#8fff7d')
   strokeEnemyBatch(view, 'splinter', '#70a8ff')
-  strokeEnemyBatch(view, 'lancer', '#fff27a')
+  strokeEnemyBatch(view, 'lancer', '#ff7a3d')
   strokeEnemyBatch(view, 'mine', '#ff5d73')
   strokeEnemyBatch(view, 'shooter', '#ff61d8')
   strokeEnemyBatch(view, 'razor', '#57fff3')
@@ -273,10 +278,15 @@ function addEnemyGlyph(view: EnemiesView, e: Enemy, x: number, y: number): void 
     const uy = dy / m
     const px = -uy
     const py = ux
-    ctx.moveTo(x + ux * r * 1.2, y + uy * r * 1.2)
-    ctx.lineTo(x - ux * r * 0.78 + px * r * 0.48, y - uy * r * 0.78 + py * r * 0.48)
-    ctx.lineTo(x - ux * r * 0.42, y - uy * r * 0.42)
-    ctx.lineTo(x - ux * r * 0.78 - px * r * 0.48, y - uy * r * 0.78 - py * r * 0.48)
+    ctx.moveTo(x + ux * r * 1.45, y + uy * r * 1.45)
+    ctx.lineTo(x - ux * r * 0.68 + px * r * 0.78, y - uy * r * 0.68 + py * r * 0.78)
+    ctx.lineTo(x - ux * r * 0.36 + px * r * 0.28, y - uy * r * 0.36 + py * r * 0.28)
+    ctx.lineTo(x - ux * r * 1.06, y - uy * r * 1.06)
+    ctx.lineTo(x - ux * r * 0.36 - px * r * 0.28, y - uy * r * 0.36 - py * r * 0.28)
+    ctx.lineTo(x - ux * r * 0.68 - px * r * 0.78, y - uy * r * 0.68 - py * r * 0.78)
+    ctx.lineTo(x + ux * r * 0.25 - px * r * 0.44, y + uy * r * 0.25 - py * r * 0.44)
+    ctx.lineTo(x + ux * r * 0.08, y + uy * r * 0.08)
+    ctx.lineTo(x + ux * r * 0.25 + px * r * 0.44, y + uy * r * 0.25 + py * r * 0.44)
     ctx.closePath()
   } else if (e.kind === 'mine') {
     ctx.rect(x - r * 0.58, y - r * 0.58, r * 1.16, r * 1.16)
@@ -413,10 +423,15 @@ function renderEnemyLod(view: EnemiesView, e: Enemy, p: Vec): void {
   const r = e.radius
   ctx.beginPath()
   if (e.kind === 'lancer') {
-    ctx.moveTo(r * 1.25, 0)
-    ctx.lineTo(-r * 0.8, -r * 0.45)
-    ctx.lineTo(-r * 0.55, 0)
-    ctx.lineTo(-r * 0.8, r * 0.45)
+    ctx.moveTo(r * 1.45, 0)
+    ctx.lineTo(-r * 0.68, r * 0.78)
+    ctx.lineTo(-r * 0.36, r * 0.28)
+    ctx.lineTo(-r * 1.06, 0)
+    ctx.lineTo(-r * 0.36, -r * 0.28)
+    ctx.lineTo(-r * 0.68, -r * 0.78)
+    ctx.lineTo(r * 0.24, -r * 0.42)
+    ctx.lineTo(r * 0.08, 0)
+    ctx.lineTo(r * 0.24, r * 0.42)
   } else if (e.kind === 'mine') {
     ctx.rect(-r * 0.55, -r * 0.55, r * 1.1, r * 1.1)
   } else if (e.kind === 'brute') {

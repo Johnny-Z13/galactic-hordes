@@ -102,19 +102,33 @@ export interface SectorNodeTemplate {
 
 export interface SectorNode {
   id: string
+  q: number
+  r: number
   column: number
   row: number
   kind: SectorNodeKind
   label: string
   description: string
   completed: boolean
+  charted: boolean
+  frontier: boolean
+  stationEdges: SectorStationEdge[]
   stationServices: SectorStationService[]
   config: SectorNodeConfig
+}
+
+export type SectorHexDirection = 'E' | 'NE' | 'NW' | 'W' | 'SW' | 'SE'
+
+export interface SectorStationEdge {
+  direction: SectorHexDirection
+  from: string
+  to: string
 }
 
 export interface SectorEdge {
   from: string
   to: string
+  direction?: SectorHexDirection
 }
 
 export interface SectorMap {
@@ -149,6 +163,16 @@ export interface SectorNodeDecisionIntel {
 
 const nodeRows = [0, 1, 2, 3] as const
 const sectorColumnCount = 7
+const localHexRadius = 3
+
+const hexDirections: Array<{ direction: SectorHexDirection; q: number; r: number }> = [
+  { direction: 'E', q: 1, r: 0 },
+  { direction: 'NE', q: 1, r: -1 },
+  { direction: 'NW', q: 0, r: -1 },
+  { direction: 'W', q: -1, r: 0 },
+  { direction: 'SW', q: -1, r: 1 },
+  { direction: 'SE', q: 0, r: 1 }
+]
 
 export const sectorNodeTemplateCatalog: Record<SectorNodeTemplateId, SectorNodeTemplate> = {
   mothership: {
@@ -242,6 +266,28 @@ const rngFrom = (seed: number) => {
     return ((r ^ (r >>> 14)) >>> 0) / 4294967296
   }
 }
+
+export const hexDistance = (a: { q: number; r: number }, b: { q: number; r: number }) => {
+  const dq = a.q - b.q
+  const dr = a.r - b.r
+  const ds = -a.q - a.r - (-b.q - b.r)
+  return Math.max(Math.abs(dq), Math.abs(dr), Math.abs(ds))
+}
+
+const hexKey = (q: number, r: number) => `${q},${r}`
+
+const axialCoordinates = (radius: number) => {
+  const coords: Array<{ q: number; r: number }> = []
+  for (let q = -radius; q <= radius; q += 1) {
+    const minR = Math.max(-radius, -q - radius)
+    const maxR = Math.min(radius, -q + radius)
+    for (let r = minR; r <= maxR; r += 1) coords.push({ q, r })
+  }
+  return coords
+}
+
+const displayColumnFor = (q: number, r: number) => hexDistance({ q: 0, r: 0 }, { q, r }) * 2
+const displayRowFor = (q: number, r: number) => r + localHexRadius
 
 const labelFor = (kind: SectorNodeKind, column: number, row: number, templateId: SectorNodeTemplateId) => {
   if (kind === 'mothership') return 'MOTHERSHIP'
@@ -665,65 +711,90 @@ const templateFor = (column: number, row: number, random: () => number, usedInCo
   ], random, usedInColumn)
 }
 
-const nodeId = (column: number, row: number, columns: number) => column === 0 ? 'mothership' : column === columns - 1 ? 'final' : `c${column}r${row}`
+const nodeId = (q: number, r: number) => q === 0 && r === 0 ? 'mothership' : q === localHexRadius && r === 0 ? 'final' : `h:${q}:${r}`
+
+const templateForHex = (
+  q: number,
+  r: number,
+  random: () => number,
+  usedAtDistance: Set<SectorNodeTemplateId>
+): SectorNodeTemplateId => {
+  const distance = hexDistance({ q: 0, r: 0 }, { q, r })
+  if (distance === 0) return 'mothership'
+  if (q === localHexRadius && r === 0) return 'finalStand'
+  if (distance === 1 && q === 1 && r === 0) return 'safeDrift'
+  if (distance === 1 && q === 0 && r === 1) return 'planetCluster'
+  if (distance === 2 && q === 2 && r === -1) return 'freeport'
+  if (distance === localHexRadius && q === 0 && r === localHexRadius) return 'freeport'
+  if (distance === localHexRadius && q === -localHexRadius && r === 0) return 'freeport'
+  if (distance === localHexRadius && ((q - r + localHexRadius) % 2 === 0)) return 'bossGate'
+  if (distance === 1) return weightedTemplate([
+    ['derelictField', 1.15],
+    ['hunterLane', 0.9],
+    ['planetCluster', 0.7],
+    ['asteroidBelt', 0.35]
+  ], random, usedAtDistance)
+  if (distance === 2) return weightedTemplate([
+    ['planetCluster', 1.1],
+    ['derelictField', 1],
+    ['hunterLane', 1],
+    ['nebulaAnomaly', 0.75],
+    ['asteroidBelt', 0.55],
+    ['freeport', 0.32]
+  ], random, usedAtDistance)
+  return weightedTemplate([
+    ['nebulaAnomaly', 1.05],
+    ['asteroidBelt', 0.95],
+    ['hunterLane', 0.85],
+    ['bossGate', 0.7],
+    ['derelictField', 0.45]
+  ], random, usedAtDistance)
+}
 
 export const createSectorMap = (seed = Date.now()): SectorMap => {
   const random = rngFrom(seed)
   const columns = sectorColumnCount
-  const nodes: SectorNode[] = [
-    {
-      id: 'mothership',
-      column: 0,
-      row: 1,
-      kind: 'mothership',
-      label: 'MOTHERSHIP',
-      description: descriptionFor('mothership'),
-      completed: true,
-      stationServices: [],
-      config: applyProceduralSectorTexture(configFor('mothership', 0, random, columns), random)
+  const coords = axialCoordinates(localHexRadius)
+  const usedByDistance = new Map<number, Set<SectorNodeTemplateId>>()
+  const nodes: SectorNode[] = coords.map(({ q, r }) => {
+    const distance = hexDistance({ q: 0, r: 0 }, { q, r })
+    const usedAtDistance = usedByDistance.get(distance) ?? new Set<SectorNodeTemplateId>()
+    usedByDistance.set(distance, usedAtDistance)
+    const templateId = templateForHex(q, r, random, usedAtDistance)
+    usedAtDistance.add(templateId)
+    const kind = sectorNodeTemplateCatalog[templateId].kind
+    const column = displayColumnFor(q, r)
+    const row = displayRowFor(q, r)
+    const id = nodeId(q, r)
+    return {
+      id,
+      q,
+      r,
+      column,
+      row,
+      kind,
+      label: labelFor(kind, Math.max(1, distance), row, templateId),
+      description: descriptionFor(templateId),
+      completed: id === 'mothership',
+      charted: true,
+      frontier: distance === localHexRadius,
+      stationEdges: [],
+      stationServices: kind === 'station' ? ['repair', 'workbench', 'trade', 'scan'] : [],
+      config: applyProceduralSectorTexture(configFor(templateId, column, random, columns), random)
     }
-  ]
-
-  for (let column = 1; column < columns - 1; column += 1) {
-    const usedInColumn = new Set<SectorNodeTemplateId>()
-    for (const row of nodeRows) {
-      const templateId = templateFor(column, row, random, usedInColumn, columns)
-      usedInColumn.add(templateId)
-      const kind = sectorNodeTemplateCatalog[templateId].kind
-      nodes.push({
-        id: nodeId(column, row, columns),
-        column,
-        row,
-        kind,
-        label: labelFor(kind, column, row, templateId),
-        description: descriptionFor(templateId),
-        completed: false,
-        stationServices: kind === 'station' ? ['repair', 'workbench', 'trade', 'scan'] : [],
-        config: applyProceduralSectorTexture(configFor(templateId, column, random, columns), random)
-      })
-    }
-  }
-
-  nodes.push({
-    id: 'final',
-    column: columns - 1,
-    row: 1,
-    kind: 'final',
-    label: 'THE LAST STAND',
-    description: descriptionFor('finalStand'),
-    completed: false,
-    stationServices: [],
-    config: applyProceduralSectorTexture(configFor('finalStand', columns - 1, random, columns), random)
   })
 
+  const nodeByCoord = new Map(nodes.map((node) => [hexKey(node.q, node.r), node]))
   const edges: SectorEdge[] = []
   for (const node of nodes) {
-    if (node.column >= columns - 1) continue
-    const next = nodes.filter((candidate) => candidate.column === node.column + 1)
-    const reachable = next.filter((candidate) => Math.abs(candidate.row - node.row) <= 1)
-    const fallback = next.sort((a, b) => Math.abs(a.row - node.row) - Math.abs(b.row - node.row)).slice(0, 1)
-    const targets = reachable.length ? reachable : fallback
-    for (const target of targets) edges.push({ from: node.id, to: target.id })
+    for (const { direction, q, r } of hexDirections) {
+      const target = nodeByCoord.get(hexKey(node.q + q, node.r + r))
+      if (!target) continue
+      const edge = { from: node.id, to: target.id, direction }
+      edges.push(edge)
+      node.stationEdges.push(edge)
+      target.stationEdges.push(edge)
+    }
   }
 
   return { seed, columns, currentNodeId: 'mothership', nodes, edges }

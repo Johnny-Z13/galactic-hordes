@@ -94,6 +94,18 @@ test('high-load renderer batches every sprite enemy kind', () => {
   expect(source).toContain('renderPrioritySpriteEnemies(view)')
 })
 
+test('lancer enemy reads as a hostile craft instead of yellow docking UI', () => {
+  const renderer = readFileSync('src/render/enemies.ts', 'utf8')
+
+  expect(spaceEnemyDefinitions.lancer.color).toBe('#ff7a3d')
+  expect(spaceEnemyDefinitions.lancer.color).not.toBe('#fff27a')
+  expect(renderer).toContain("strokeEnemyBatch(view, 'lancer', '#ff7a3d')")
+  expect(renderer).not.toContain("strokeEnemyBatch(view, 'lancer', '#fff27a')")
+  expect(renderer).toContain('e.radius * 0.28')
+  expect(renderer).toContain('r * 0.28')
+  expect(renderer).toContain('r * 1.45')
+})
+
 test('giant boss enemies have dedicated attack routines', () => {
   const source = readFileSync('src/space-enemy-attacks.ts', 'utf8')
   const main = readFileSync('src/main.ts', 'utf8')

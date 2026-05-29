@@ -633,13 +633,13 @@ canvas {
 }
 
 .sector-map-graph::before {
-  content: "MOTHERSHIP";
+  content: "LOCAL FRONTIER";
   left: 16px;
   top: 46px;
 }
 
 .sector-map-graph::after {
-  content: "LAST STAND";
+  content: "UNCHARTED EDGE";
   right: 16px;
   top: 46px;
   color: rgba(255, 242, 122, 0.62);
@@ -667,6 +667,23 @@ canvas {
 .sector-map-graph-header b {
   color: var(--cyan);
   font-size: 11px;
+}
+
+.sector-route-string {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 34px;
+  z-index: 4;
+  overflow: hidden;
+  color: rgba(215, 255, 247, 0.46);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .sector-map-lines {
@@ -712,12 +729,14 @@ canvas {
 }
 
 .sector-node-core {
+  position: relative;
   display: grid;
   place-items: center;
   width: clamp(42px, 4.4vw, 58px);
   height: clamp(42px, 4.4vw, 58px);
   border: 2px solid rgba(215, 255, 247, 0.52);
-  border-radius: 50%;
+  border-radius: 0;
+  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%);
   background:
     linear-gradient(180deg, rgba(9, 31, 38, 0.96), rgba(1, 7, 11, 0.94));
   box-shadow:
@@ -815,9 +834,66 @@ canvas {
   color: #dfffe0;
 }
 
+.sector-node-frontier .sector-node-core {
+  border-style: dashed;
+  border-color: rgba(215, 255, 247, 0.35);
+  background: rgba(2, 9, 14, 0.82);
+}
+
+.sector-node-frontier .sector-node-state {
+  color: rgba(255, 242, 122, 0.64);
+}
+
 .sector-node.locked {
   opacity: 0.44;
   cursor: default;
+}
+
+.sector-station-edges {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.station-edge {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgba(255, 242, 122, 0.92);
+  border-radius: 50%;
+  background: rgba(255, 242, 122, 0.76);
+  box-shadow: 0 0 10px rgba(255, 242, 122, 0.35);
+}
+
+.station-edge.e {
+  right: 11px;
+  top: 45%;
+}
+
+.station-edge.ne {
+  right: 24px;
+  top: 5px;
+}
+
+.station-edge.nw {
+  left: 24px;
+  top: 5px;
+}
+
+.station-edge.w {
+  left: 11px;
+  top: 45%;
+}
+
+.station-edge.sw {
+  left: 24px;
+  bottom: 17px;
+}
+
+.station-edge.se {
+  right: 24px;
+  bottom: 17px;
 }
 
 .sector-map-legend {

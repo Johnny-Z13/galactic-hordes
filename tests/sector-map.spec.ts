@@ -3,6 +3,7 @@ import {
   availableSectorChoices,
   completeSectorNode,
   createSectorMap,
+  hexDistance,
   sectorNodeDecisionIntel,
   sectorNodeRunProfile,
   sectorNodeTemplateCatalog,
@@ -10,14 +11,18 @@ import {
 } from '../src/sector-map'
 import { spaceEncounterWeights } from '../src/space-encounters'
 
-test('sector map starts at the mothership and ends at a final node', () => {
+test('sector map starts at the mothership origin in a local axial hex cluster', () => {
   const map = createSectorMap(42)
   const start = map.nodes.find((node) => node.kind === 'mothership')
   const final = map.nodes.find((node) => node.kind === 'final')
+  const rim = map.nodes.filter((node) => node.frontier)
 
   expect(map.columns).toBeGreaterThanOrEqual(7)
-  expect(start).toMatchObject({ id: 'mothership', column: 0, completed: true })
-  expect(final?.column).toBe(map.columns - 1)
+  expect(start).toMatchObject({ id: 'mothership', q: 0, r: 0, completed: true, charted: true })
+  expect(map.nodes.every((node) => Number.isFinite(node.q) && Number.isFinite(node.r))).toBe(true)
+  expect(rim.length).toBeGreaterThanOrEqual(12)
+  expect(rim.every((node) => hexDistance(start!, node) === 3)).toBe(true)
+  expect(final).toMatchObject({ q: 3, r: 0, frontier: true })
   expect(final?.label).toContain('LAST STAND')
   expect(map.currentNodeId).toBe('mothership')
 })
@@ -75,7 +80,10 @@ test('sector procedural texture is seeded but changes route personality across r
 
 test('wave grammar gets bounded seeded jitter instead of identical route clocks', () => {
   const safeDriftWaveTimes = Array.from({ length: 20 }, (_, seed) => createSectorMap(seed + 500))
-    .map((map) => map.nodes.find((node) => node.column === 1 && node.config.templateId === 'safeDrift')?.config.waves.map((wave) => wave.atSeconds) ?? [])
+    .map((map) => {
+      const origin = map.nodes.find((node) => node.id === 'mothership')!
+      return map.nodes.find((node) => hexDistance(origin, node) === 1 && node.config.templateId === 'safeDrift')?.config.waves.map((wave) => wave.atSeconds) ?? []
+    })
     .filter((times) => times.length > 0)
 
   expect(new Set(safeDriftWaveTimes.map((times) => times.join(','))).size).toBeGreaterThan(3)
@@ -84,7 +92,8 @@ test('wave grammar gets bounded seeded jitter instead of identical route clocks'
 
 test('first safe drift creates a three beat opening combat arc', () => {
   const map = createSectorMap(17)
-  const safe = map.nodes.find((node) => node.column === 1 && node.config.templateId === 'safeDrift')!
+  const origin = map.nodes.find((node) => node.id === 'mothership')!
+  const safe = map.nodes.find((node) => hexDistance(origin, node) === 1 && node.config.templateId === 'safeDrift')!
   const waveTimes = safe.config.waves.map((wave) => wave.atSeconds)
   const waveLabels = safe.config.waves.map((wave) => wave.label)
 
@@ -100,9 +109,10 @@ test('first safe drift creates a three beat opening combat arc', () => {
   expect(waveLabels.join(' // ')).toContain('Decision')
 })
 
-test('sector map creates connected forward routes with stations before the final gate', () => {
+test('sector map creates connected adjacent hex routes with station edge metadata', () => {
   const map = createSectorMap(13)
   const stationNodes = map.nodes.filter((node) => node.kind === 'station')
+  const origin = map.nodes.find((node) => node.id === 'mothership')!
 
   expect(stationNodes.length).toBeGreaterThanOrEqual(2)
   expect(stationNodes.every((node) => node.stationServices.length > 0)).toBe(true)
@@ -113,16 +123,24 @@ test('sector map creates connected forward routes with stations before the final
 
     expect(from).toBeTruthy()
     expect(to).toBeTruthy()
-    expect(to!.column).toBe(from!.column + 1)
+    expect(hexDistance(from!, to!)).toBe(1)
   }
+
+  const firstChoices = availableSectorChoices(map)
+  expect(firstChoices.length).toBeGreaterThanOrEqual(3)
+  expect(firstChoices.every((node) => hexDistance(origin, node) === 1)).toBe(true)
+  expect(firstChoices.every((node) => node.stationEdges.some((edge) => edge.from === origin.id && edge.to === node.id))).toBe(true)
 })
 
-test('sector choices only include connected unvisited next nodes', () => {
+test('sector choices only include adjacent unvisited hexes', () => {
   const map = createSectorMap(7)
+  const origin = map.nodes.find((node) => node.id === 'mothership')!
   const choices = availableSectorChoices(map)
+  const distant = map.nodes.find((node) => node.id !== 'mothership' && hexDistance(origin, node) > 1)!
 
   expect(choices.length).toBeGreaterThanOrEqual(2)
-  expect(choices.every((node) => node.column === 1)).toBe(true)
+  expect(choices.every((node) => hexDistance(origin, node) === 1)).toBe(true)
+  expect(selectSectorNode(map, distant.id)).toBe(map)
 
   const selected = selectSectorNode(map, choices[0].id)
   expect(selected.currentNodeId).toBe(choices[0].id)
@@ -130,7 +148,7 @@ test('sector choices only include connected unvisited next nodes', () => {
 
   const completed = completeSectorNode(selected)
   expect(completed.nodes.find((node) => node.id === choices[0].id)?.completed).toBe(true)
-  expect(availableSectorChoices(completed).every((node) => node.column === 2)).toBe(true)
+  expect(availableSectorChoices(completed).every((node) => hexDistance(choices[0], node) === 1)).toBe(true)
 })
 
 test('sector node profiles provide enemy recipes planet bias and station services', () => {
@@ -182,7 +200,8 @@ test('sector decision intel translates route configs into quick reward and risk 
 
 test('safe drift objective frames combat collection and station choice', () => {
   const map = createSectorMap(22)
-  const safe = map.nodes.find((node) => node.column === 1 && node.config.templateId === 'safeDrift')!
+  const origin = map.nodes.find((node) => node.id === 'mothership')!
+  const safe = map.nodes.find((node) => hexDistance(origin, node) === 1 && node.config.templateId === 'safeDrift')!
 
   expect(safe.config.objective).toBe('Clear scouts, bank signal, then dock or chase cache.')
   expect(safe.config.readout).toMatch(/^Opening route\. Scouts, signal, station choice\./)
@@ -190,20 +209,21 @@ test('safe drift objective frames combat collection and station choice', () => {
 
 test('sector generation guarantees early safety exploration anchors and late route checks', () => {
   const map = createSectorMap(123)
-  const columnOneTemplates = new Set(map.nodes.filter((node) => node.column === 1).map((node) => node.config.templateId))
-  const routeCheckColumn = map.columns - 2
-  const routeCheckTemplates = new Set(map.nodes.filter((node) => node.column === routeCheckColumn).map((node) => node.config.templateId))
+  const origin = map.nodes.find((node) => node.id === 'mothership')!
+  const nearTemplates = new Set(map.nodes.filter((node) => hexDistance(origin, node) === 1).map((node) => node.config.templateId))
+  const rimTemplates = new Set(map.nodes.filter((node) => node.frontier).map((node) => node.config.templateId))
 
-  expect([...columnOneTemplates]).toEqual(expect.arrayContaining(['safeDrift', 'planetCluster']))
-  expect(columnOneTemplates.size).toBeGreaterThanOrEqual(3)
-  expect([...routeCheckTemplates]).toEqual(expect.arrayContaining(['bossGate', 'freeport']))
-  expect(routeCheckTemplates.size).toBeGreaterThanOrEqual(3)
+  expect([...nearTemplates]).toEqual(expect.arrayContaining(['safeDrift', 'planetCluster']))
+  expect(nearTemplates.size).toBeGreaterThanOrEqual(3)
+  expect([...rimTemplates]).toEqual(expect.arrayContaining(['bossGate', 'freeport']))
+  expect(rimTemplates.size).toBeGreaterThanOrEqual(4)
 })
 
 test('node depth increases pressure and reward readability deeper into the route', () => {
   const map = createSectorMap(123)
-  const early = map.nodes.find((node) => node.column === 1 && node.config.templateId === 'safeDrift')!
-  const late = map.nodes.find((node) => node.column === map.columns - 2 && node.config.templateId === 'bossGate')!
+  const origin = map.nodes.find((node) => node.id === 'mothership')!
+  const early = map.nodes.find((node) => hexDistance(origin, node) === 1 && node.config.templateId === 'safeDrift')!
+  const late = map.nodes.find((node) => node.frontier && node.config.templateId === 'bossGate')!
 
   expect(early.config.depth).toBeLessThan(late.config.depth)
   expect(early.config.rewards.resourceMultiplier).toBeLessThan(late.config.rewards.resourceMultiplier)

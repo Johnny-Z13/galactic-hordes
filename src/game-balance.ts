@@ -88,7 +88,7 @@ export interface SpaceEnemyBalance {
 export const spaceEnemyBalance: Record<SpaceEnemyKind, SpaceEnemyBalance> = {
   chaser: { hp: 34, radius: 17, speed: 123, value: 7, color: '#8fff7d', contactDamage: 13, timeGateSeconds: 0, spawnRollCeiling: 1, forwardAmbush: false },
   splinter: { hp: 23, radius: 14, speed: 158, value: 5, color: '#70a8ff', contactDamage: 13, timeGateSeconds: 25, spawnRollCeiling: 0.82, forwardAmbush: false },
-  lancer: { hp: 60, radius: 18, speed: 154, value: 13, color: '#fff27a', contactDamage: 13, timeGateSeconds: 55, spawnRollCeiling: 0.7, attackCooldownSeconds: 2.2, maxSpeed: 460, forwardAmbush: false },
+  lancer: { hp: 60, radius: 18, speed: 154, value: 13, color: '#ff7a3d', contactDamage: 13, timeGateSeconds: 55, spawnRollCeiling: 0.7, attackCooldownSeconds: 2.2, maxSpeed: 460, forwardAmbush: false },
   mine: { hp: 46, radius: 22, speed: 68, value: 10, color: '#ff5d73', contactDamage: 23, timeGateSeconds: 100, spawnRollCeiling: 0.58, forwardAmbush: false },
   brute: { hp: 170, radius: 34, speed: 98, value: 24, color: '#ff9d5c', contactDamage: 19, timeGateSeconds: 180, spawnRollCeiling: 0.39, forwardAmbush: false },
   shooter: { hp: 72, radius: 21, speed: 118, value: 18, color: '#ff61d8', contactDamage: 13, timeGateSeconds: 120, spawnRollCeiling: 0.49, projectileDamage: 10, projectileSpeed: 310, attackCooldownSeconds: 2.35, minimumAttackCooldownSeconds: 1.35, attackCooldownReductionPerSecond: 0.00385, attackRange: 760, forwardAmbush: false },
