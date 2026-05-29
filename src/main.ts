@@ -111,6 +111,7 @@ import { alienGiftOfferCopy, createBadAlienGiftThreats } from './surface/alien-g
 import { createSurfaceCacheArtifact, resolveSurfaceCacheReward, surfaceCacheAmbushChance } from './surface/cache-rewards'
 import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurfaceBulletsAndThreatDamage } from './surface/bullet-combat'
 import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction, surfaceTakeoffRequest, surfaceTransitionProgress } from './surface/lifecycle'
+import { surfaceRunInterest } from './surface/interest'
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
 import { createSurfaceResourceNodes, surfaceEventMessage } from './surface/run-setup'
 import { resolveSurfaceResourcePickup } from './surface/resource-pickup'
@@ -2839,13 +2840,7 @@ export class VectorShooter {
   }
 
   private surfaceInterest() {
-    return clamp(
-      this.stats.time / surfaceRunBalance.interest.timeDivisor
-        + this.stats.planets * surfaceRunBalance.interest.perPlanet
-        + this.stats.level * surfaceRunBalance.interest.perLevel,
-      0,
-      1
-    )
+    return surfaceRunInterest(this.stats)
   }
 
   private surfaceMaxHealth() {
