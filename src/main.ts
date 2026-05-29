@@ -136,7 +136,7 @@ import { alienGiftOfferCopy, createBadAlienGiftThreats, isAlienGiftGood } from '
 import { createSurfaceCacheArtifact, resolveSurfaceCacheReward, surfaceCacheAmbushChance } from './surface/cache-rewards'
 import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurfaceBulletsAndThreatDamage } from './surface/bullet-combat'
 import { followSurfaceCamera, initialSurfaceCamera as createInitialSurfaceCamera } from './surface/camera'
-import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction, surfaceTakeoffRequest, surfaceTransitionProgress } from './surface/lifecycle'
+import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction, surfaceTakeoffCompletion, surfaceTakeoffRequest, surfaceTransitionProgress } from './surface/lifecycle'
 import { surfaceRunInterest } from './surface/interest'
 import { findNearbySurfaceAlien, findNearbySurfaceLoreSite } from './surface/interaction-targets'
 import { resolveSurfaceLoreReward } from './surface/lore-rewards'
@@ -3392,17 +3392,17 @@ export class VectorShooter {
     this.orbitReturnPoint = null
     this.state = 'playing'
     this.showOnly(null)
-    if (this.summonReturnBeaconAfterTakeoff && !this.returnBeacon) {
-      this.summonReturnBeaconAfterTakeoff = false
+    const completion = surfaceTakeoffCompletion({
+      planetName,
+      summonReturnBeacon: this.summonReturnBeaconAfterTakeoff,
+      returnBeaconActive: Boolean(this.returnBeacon),
+      installedBeforeTakeoff
+    })
+    this.summonReturnBeaconAfterTakeoff = false
+    if (completion.summonReturnBeacon) {
       this.spawnReturnBeacon()
-      this.toast(`${planetName}: SPACE STATION WOKEN`)
-    } else if (installedBeforeTakeoff) {
-      this.summonReturnBeaconAfterTakeoff = false
-      this.toast(`${planetName}: SIGNAL INSTALLED // ROUTE RESUMED`)
-    } else {
-      this.summonReturnBeaconAfterTakeoff = false
-      this.toast(`${planetName}: SURFACE CACHE EXTRACTED`)
     }
+    this.toast(completion.toast)
     if (this.relics.has('deadSunCoin') && Math.random() < 0.75) {
       this.spawnEnemy('warden')
       this.toast('DEAD SUN HUNTER FOUND YOUR WAKE')

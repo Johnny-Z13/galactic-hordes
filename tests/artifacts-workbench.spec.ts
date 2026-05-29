@@ -17,6 +17,7 @@ const frontSubscreensSource = () => readFileSync(resolve(process.cwd(), 'src/ui/
 const titleSource = () => readFileSync(resolve(process.cwd(), 'src/ui/title-screen.ts'), 'utf8')
 const workbenchSource = () => readFileSync(resolve(process.cwd(), 'src/ui/workbench.ts'), 'utf8')
 const workbenchChoicesSource = () => readFileSync(resolve(process.cwd(), 'src/workbench-choices.ts'), 'utf8')
+const surfaceLifecycleSource = () => readFileSync(resolve(process.cwd(), 'src/surface/lifecycle.ts'), 'utf8')
 const collectionSource = () => readFileSync(resolve(process.cwd(), 'src/ui/collection.ts'), 'utf8')
 const artifactArchiveSource = () => readFileSync(resolve(process.cwd(), 'src/artifact-archive.ts'), 'utf8')
 const mothershipSource = () => readFileSync(resolve(process.cwd(), 'src/ui/mothership-console.ts'), 'utf8')
@@ -516,6 +517,7 @@ test('workbench install refresh keeps the current bay set and scroll position', 
 
 test('surface workbench install preserves payoff through takeoff handoff', () => {
   const main = source()
+  const lifecycle = surfaceLifecycleSource()
   const applyChoice = main.slice(main.indexOf('private applyWorkbenchChoice'), main.indexOf('private applyUpgrade'))
   const finishTakeoff = main.slice(main.indexOf('private finishTakeoff'), main.indexOf('private updateCamera'))
 
@@ -525,7 +527,8 @@ test('surface workbench install preserves payoff through takeoff handoff', () =>
   expect(applyChoice).toContain('this.startTakeoff()')
   expect(applyChoice.indexOf('this.surfaceInstallCompleted = true')).toBeLessThan(applyChoice.indexOf('this.startTakeoff()'))
   expect(finishTakeoff).toContain('const installedBeforeTakeoff = this.surfaceInstallCompleted')
-  expect(finishTakeoff).toContain('SIGNAL INSTALLED // ROUTE RESUMED')
+  expect(finishTakeoff).toContain('surfaceTakeoffCompletion({')
+  expect(lifecycle).toContain('SIGNAL INSTALLED // ROUTE RESUMED')
 })
 
 test('planet discoveries unlock the first spacesuit workbench path', () => {

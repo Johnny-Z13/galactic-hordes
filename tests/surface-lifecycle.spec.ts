@@ -4,6 +4,7 @@ import {
   advanceSurfaceOxygen,
   surfaceExtractionScore,
   surfaceInteractionAction,
+  surfaceTakeoffCompletion,
   surfaceTakeoffRequest,
   surfaceTransitionProgress
 } from '../src/surface/lifecycle'
@@ -39,6 +40,38 @@ test('surface extraction score keeps first visit and revisit formulas explicit',
   expect(surfaceExtractionScore({ firstVisit: true, collected: 3 })).toBeGreaterThan(surfaceExtractionScore({ firstVisit: false, collected: 3 }))
 })
 
+test('surface takeoff completion copy prioritizes station wakeups over installed signals', () => {
+  expect(surfaceTakeoffCompletion({
+    planetName: 'Eos Cache',
+    summonReturnBeacon: true,
+    returnBeaconActive: false,
+    installedBeforeTakeoff: true
+  })).toEqual({
+    summonReturnBeacon: true,
+    toast: 'Eos Cache: SPACE STATION WOKEN'
+  })
+
+  expect(surfaceTakeoffCompletion({
+    planetName: 'Eos Cache',
+    summonReturnBeacon: true,
+    returnBeaconActive: true,
+    installedBeforeTakeoff: true
+  })).toEqual({
+    summonReturnBeacon: false,
+    toast: 'Eos Cache: SIGNAL INSTALLED // ROUTE RESUMED'
+  })
+
+  expect(surfaceTakeoffCompletion({
+    planetName: 'Eos Cache',
+    summonReturnBeacon: false,
+    returnBeaconActive: false,
+    installedBeforeTakeoff: false
+  })).toEqual({
+    summonReturnBeacon: false,
+    toast: 'Eos Cache: SURFACE CACHE EXTRACTED'
+  })
+})
+
 test('main delegates surface lifecycle decisions', () => {
   const main = readFileSync('src/main.ts', 'utf8')
 
@@ -48,5 +81,6 @@ test('main delegates surface lifecycle decisions', () => {
   expect(main).toContain('surfaceTakeoffRequest({')
   expect(main).toContain('surfaceTransitionProgress({')
   expect(main).toContain('surfaceExtractionScore({')
+  expect(main).toContain('surfaceTakeoffCompletion({')
   expect(main).not.toContain('private updateSurfaceOxygen(')
 })

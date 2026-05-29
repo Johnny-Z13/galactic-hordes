@@ -65,3 +65,27 @@ export function surfaceExtractionScore(input: {
     ? runBalance.landing.surfaceExtractScoreBase + input.collected * runBalance.landing.surfaceExtractScorePerResource
     : input.collected * runBalance.landing.surfaceRevisitScorePerResource
 }
+
+export function surfaceTakeoffCompletion(input: {
+  planetName: string
+  summonReturnBeacon: boolean
+  returnBeaconActive: boolean
+  installedBeforeTakeoff: boolean
+}): { summonReturnBeacon: boolean; toast: string } {
+  if (input.summonReturnBeacon && !input.returnBeaconActive) {
+    return {
+      summonReturnBeacon: true,
+      toast: `${input.planetName}: SPACE STATION WOKEN`
+    }
+  }
+  if (input.installedBeforeTakeoff) {
+    return {
+      summonReturnBeacon: false,
+      toast: `${input.planetName}: SIGNAL INSTALLED // ROUTE RESUMED`
+    }
+  }
+  return {
+    summonReturnBeacon: false,
+    toast: `${input.planetName}: SURFACE CACHE EXTRACTED`
+  }
+}
