@@ -122,7 +122,7 @@ import { createSurfaceAliens as createSurfaceAliensFactory, createSurfaceLoreSit
 import { createGenericSurfaceThreat as createGenericSurfaceThreatFactory, createGlassMiteOracleThreat as createGlassMiteOracleThreatFactory, createPlanetBossThreat as createPlanetBossThreatFactory } from './surface/threat-factory'
 import { safeSurfaceThreatPoint, surfaceThreatKeepouts } from './surface/threat-placement'
 import { spawnSurfaceSplitterChildren, updateSurfaceThreatMotion } from './surface/threat-behavior'
-import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, updateSurfaceWaveDirector, type SurfaceWaveState, type SurfaceWaveTelegraph } from './surface/wave-director'
+import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, surfaceWaveTelegraphPoint, updateSurfaceWaveDirector, type SurfaceWaveState, type SurfaceWaveTelegraph } from './surface/wave-director'
 import { renderPlayer as drawPlayer } from './render/player'
 import { renderEnemies as drawEnemies } from './render/enemies'
 import { renderThreatIndicators as drawThreatIndicators } from './render/threat-indicators'
@@ -3130,17 +3130,14 @@ export class VectorShooter {
 
   private surfaceWaveTelegraphPoint(): Vec {
     if (!this.surface) return { x: 0, y: 0 }
-    const pressureDistance = this.surface.event === 'horde'
-      ? 460
-      : this.surface.event === 'swarm'
-        ? 420
-        : 360
-    const angle = this.surface.wave.waveIndex * 1.618 + this.stats.time * 0.13
     const keepouts = this.surfaceThreatKeepouts(this.surface.pilot, this.surface.ship)
-    return this.safeSurfaceThreatPoint({
-      x: this.surface.pilot.x + Math.cos(angle) * pressureDistance,
-      y: this.surface.pilot.y + Math.sin(angle) * pressureDistance
-    }, keepouts, surfaceRunBalance.threatPlacement.swarmClearance, angle)
+    return surfaceWaveTelegraphPoint({
+      event: this.surface.event,
+      waveIndex: this.surface.wave.waveIndex,
+      time: this.stats.time,
+      pilot: this.surface.pilot,
+      safeThreatPoint: (point, clearance, fallbackAngle) => this.safeSurfaceThreatPoint(point, keepouts, clearance, fallbackAngle)
+    })
   }
 
   private spawnSurfaceWaveThreats(anchor: { x: number; y: number; spawnCount: number }) {

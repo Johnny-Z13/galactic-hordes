@@ -1,7 +1,13 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { surfaceWaveDirectorBalance } from '../src/surface-balance'
-import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, surfaceWavePressureReadout, updateSurfaceWaveDirector } from '../src/surface/wave-director'
+import { surfaceRunBalance, surfaceWaveDirectorBalance } from '../src/surface-balance'
+import {
+  advanceSurfaceWaveTelegraphs,
+  createSurfaceWaveState,
+  surfaceWavePressureReadout,
+  surfaceWaveTelegraphPoint,
+  updateSurfaceWaveDirector
+} from '../src/surface/wave-director'
 
 test('friendly surface waves wait through the opening grace window', () => {
   const wave = createSurfaceWaveState({ event: 'relic', scenario: 'friendly' })
@@ -178,6 +184,47 @@ test('surface wave director ramps pack size as surface time and collection press
   expect(lateResult.telegraph?.spawnCount).toBeGreaterThan(earlyResult.telegraph?.spawnCount ?? 0)
 })
 
+test('surface wave telegraph point places pressure around the pilot by event intensity', () => {
+  const calls: Array<{ point: { x: number; y: number }; clearance?: number; fallbackAngle?: number }> = []
+  const point = surfaceWaveTelegraphPoint({
+    event: 'horde',
+    waveIndex: 2,
+    time: 30,
+    pilot: { x: 1000, y: 900 },
+    safeThreatPoint: (candidate, clearance, fallbackAngle) => {
+      calls.push({ point: candidate, clearance, fallbackAngle })
+      return candidate
+    }
+  })
+  const angle = 2 * 1.618 + 30 * 0.13
+
+  expect(point.x).toBeCloseTo(1000 + Math.cos(angle) * 460)
+  expect(point.y).toBeCloseTo(900 + Math.sin(angle) * 460)
+  expect(calls[0].clearance).toBe(surfaceRunBalance.threatPlacement.swarmClearance)
+  expect(calls[0].fallbackAngle).toBeCloseTo(angle)
+})
+
+test('surface wave telegraph point keeps standard and swarm waves closer than horde waves', () => {
+  const safeThreatPoint = (point: { x: number; y: number }) => point
+  const standard = surfaceWaveTelegraphPoint({
+    event: 'standard',
+    waveIndex: 0,
+    time: 0,
+    pilot: { x: 100, y: 100 },
+    safeThreatPoint
+  })
+  const swarm = surfaceWaveTelegraphPoint({
+    event: 'swarm',
+    waveIndex: 0,
+    time: 0,
+    pilot: { x: 100, y: 100 },
+    safeThreatPoint
+  })
+
+  expect(standard.x).toBe(460)
+  expect(swarm.x).toBe(520)
+})
+
 test('main delegates surface wave timing to the surface module', () => {
   const main = readFileSync('src/main.ts', 'utf8')
   const director = readFileSync('src/surface/wave-director.ts', 'utf8')
@@ -188,11 +235,13 @@ test('main delegates surface wave timing to the surface module', () => {
   expect(main).toContain('createSurfaceWaveState({')
   expect(main).toContain('updateSurfaceWaveDirector({')
   expect(main).toContain('advanceSurfaceWaveTelegraphs({')
+  expect(main).toContain('surfaceWaveTelegraphPoint({')
   expect(main).toContain('drawSurfaceWaveTelegraphs({')
   expect(main).toContain('private updateSurfaceWaves(')
   expect(main).not.toContain('private renderSurfaceWaveTelegraphs(')
   expect(main).not.toContain('private renderSurfacePressureHud(')
   expect(director).toContain('surfaceWaveDirectorBalance')
+  expect(director).toContain('export function surfaceWaveTelegraphPoint')
   expect(hudRenderer).toContain('surfaceWavePressureReadout({')
   expect(renderer).toContain('surfaceWaveDirectorBalance.telegraph.radius')
 })

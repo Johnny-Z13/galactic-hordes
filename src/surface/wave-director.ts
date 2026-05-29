@@ -1,4 +1,5 @@
-import { surfaceWaveDirectorBalance } from '../surface-balance'
+import type { Vec } from '../main-types'
+import { surfaceRunBalance, surfaceWaveDirectorBalance } from '../surface-balance'
 import type { SurfaceEventKind, SurfaceScenarioKind } from '../surface-encounters'
 
 export interface SurfaceWaveState {
@@ -139,6 +140,25 @@ export function surfaceWavePressureReadout(input: {
     queuedThreats: input.queuedThreats,
     threatCap
   }
+}
+
+export function surfaceWaveTelegraphPoint(input: {
+  event: SurfaceEventKind
+  waveIndex: number
+  time: number
+  pilot: Vec
+  safeThreatPoint: (point: Vec, clearance?: number, fallbackAngle?: number) => Vec
+}): Vec {
+  const pressureDistance = input.event === 'horde'
+    ? 460
+    : input.event === 'swarm'
+      ? 420
+      : 360
+  const angle = input.waveIndex * 1.618 + input.time * 0.13
+  return input.safeThreatPoint({
+    x: input.pilot.x + Math.cos(angle) * pressureDistance,
+    y: input.pilot.y + Math.sin(angle) * pressureDistance
+  }, surfaceRunBalance.threatPlacement.swarmClearance, angle)
 }
 
 function noSurfaceWaveSpawn(): SurfaceWaveResult {
