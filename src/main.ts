@@ -166,6 +166,7 @@ import { renderShockwaves as drawShockwaves } from './render/shockwaves'
 import { renderOrbitals as drawOrbitals } from './render/orbitals'
 import { renderBullets as drawBullets, renderBulletsSimple as drawBulletsSimple } from './render/bullets'
 import { renderAutopilot as drawAutopilot, renderReturnBeacon as drawReturnBeacon } from './render/navigation-aids'
+import type { MothershipCollectionFilter, MothershipConsoleView } from './ui/mothership-ui-types'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
 import { fireCathedralLattice, fireDreadnoughtBroadside, fireHelixSpikes, firePrismFan, fireSiphonVortex, type SpaceEnemyAttackContext } from './space-enemy-attacks'
 import { spaceEnemyBehavior } from './space-enemy-behavior'
@@ -258,9 +259,6 @@ export type { AudioUpgradeCue } from './audio/audio-director'
 export type { ArtifactKind, ArtifactRecord } from './artifact-archive'
 
 type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
-export type MothershipConsoleView = 'workbench' | 'manifest'
-export type MothershipCollectionFilter = 'all' | 'found' | 'locked' | ArtifactKind
-
 interface Particle {
   x: number
   y: number

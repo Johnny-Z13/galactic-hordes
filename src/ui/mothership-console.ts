@@ -8,8 +8,9 @@ import {
   type MothershipDepartmentId
 } from '../mothership-progression'
 import { availableSectorChoices, currentSectorNode } from '../sector-map'
-import type { MothershipConsoleView, VectorShooter } from '../main'
+import type { VectorShooter } from '../main'
 import { clamp } from '../math-utils'
+import type { MothershipConsoleView } from './mothership-ui-types'
 import { renderManifestRelicLine, renderManifestSummary } from './workbench'
 import { renderCollectionScreen } from './collection'
 import { sectorNodeGlyph } from './sector-map-screen'

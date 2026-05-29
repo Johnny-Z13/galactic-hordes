@@ -3,7 +3,9 @@ import { orderArtifactArchiveCards } from '../artifact-archive'
 import { collectionCatalog, collectionIconAtlasColumns, collectionIconAtlasRows } from '../collection-catalog'
 import { relics } from '../powerup-balance'
 import type { PersistentArchiveRecord } from '../mothership-progression'
-import type { ArtifactKind, ArtifactRecord, MothershipCollectionFilter, VectorShooter } from '../main'
+import type { ArtifactKind, ArtifactRecord } from '../artifact-archive'
+import type { VectorShooter } from '../main'
+import type { MothershipCollectionFilter } from './mothership-ui-types'
 import { clamp, hashString } from '../math-utils'
 export function renderArtifactsCollection(self: VectorShooter, source: 'run' | 'mothership' = 'run') {
   const wrap = document.createElement('div')
