@@ -161,6 +161,21 @@ export function surfaceWaveTelegraphPoint(input: {
   }, surfaceRunBalance.threatPlacement.swarmClearance, angle)
 }
 
+export function surfaceWaveSpawnPoints(input: {
+  anchor: SurfaceWaveSpawnAnchor
+  elapsed: number
+  safeThreatPoint: (point: Vec, clearance?: number, fallbackAngle?: number) => Vec
+}): Vec[] {
+  const scatter = input.anchor.spawnCount > 1 ? 54 : 0
+  return Array.from({ length: input.anchor.spawnCount }, (_, index) => {
+    const angle = (index / Math.max(1, input.anchor.spawnCount)) * Math.PI * 2 + input.elapsed * 0.7
+    return input.safeThreatPoint({
+      x: input.anchor.x + Math.cos(angle) * scatter,
+      y: input.anchor.y + Math.sin(angle) * scatter
+    }, surfaceRunBalance.threatPlacement.swarmClearance, angle)
+  })
+}
+
 function noSurfaceWaveSpawn(): SurfaceWaveResult {
   return { spawnCount: 0, telegraph: null }
 }

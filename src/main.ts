@@ -122,7 +122,7 @@ import { createSurfaceAliens as createSurfaceAliensFactory, createSurfaceLoreSit
 import { createGenericSurfaceThreat as createGenericSurfaceThreatFactory, createGlassMiteOracleThreat as createGlassMiteOracleThreatFactory, createPlanetBossThreat as createPlanetBossThreatFactory } from './surface/threat-factory'
 import { safeSurfaceThreatPoint, surfaceThreatKeepouts } from './surface/threat-placement'
 import { spawnSurfaceSplitterChildren, updateSurfaceThreatMotion } from './surface/threat-behavior'
-import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, surfaceWaveTelegraphPoint, updateSurfaceWaveDirector, type SurfaceWaveState, type SurfaceWaveTelegraph } from './surface/wave-director'
+import { advanceSurfaceWaveTelegraphs, createSurfaceWaveState, surfaceWaveSpawnPoints, surfaceWaveTelegraphPoint, updateSurfaceWaveDirector, type SurfaceWaveState, type SurfaceWaveTelegraph } from './surface/wave-director'
 import { renderPlayer as drawPlayer } from './render/player'
 import { renderEnemies as drawEnemies } from './render/enemies'
 import { renderThreatIndicators as drawThreatIndicators } from './render/threat-indicators'
@@ -3145,13 +3145,13 @@ export class VectorShooter {
     const keepouts = this.surfaceThreatKeepouts(this.surface.pilot, this.surface.ship)
     const start = this.surface.threats.length
     const total = Math.max(1, start + anchor.spawnCount)
-    const scatter = anchor.spawnCount > 1 ? 54 : 0
-    for (let i = 0; i < anchor.spawnCount; i += 1) {
-      const angle = (i / Math.max(1, anchor.spawnCount)) * TAU + this.surface.wave.elapsed * 0.7
-      const point = this.safeSurfaceThreatPoint({
-        x: anchor.x + Math.cos(angle) * scatter,
-        y: anchor.y + Math.sin(angle) * scatter
-      }, keepouts, surfaceRunBalance.threatPlacement.swarmClearance, angle)
+    const points = surfaceWaveSpawnPoints({
+      anchor,
+      elapsed: this.surface.wave.elapsed,
+      safeThreatPoint: (point, clearance, fallbackAngle) => this.safeSurfaceThreatPoint(point, keepouts, clearance, fallbackAngle)
+    })
+    for (let i = 0; i < points.length; i += 1) {
+      const point = points[i]
       const threat = this.createGenericSurfaceThreat(this.surface.planet, this.surface.event, start + i, total, keepouts)
       threat.x = point.x
       threat.y = point.y

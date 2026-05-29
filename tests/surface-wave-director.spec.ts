@@ -5,6 +5,7 @@ import {
   advanceSurfaceWaveTelegraphs,
   createSurfaceWaveState,
   surfaceWavePressureReadout,
+  surfaceWaveSpawnPoints,
   surfaceWaveTelegraphPoint,
   updateSurfaceWaveDirector
 } from '../src/surface/wave-director'
@@ -225,6 +226,35 @@ test('surface wave telegraph point keeps standard and swarm waves closer than ho
   expect(swarm.x).toBe(520)
 })
 
+test('surface wave spawn points scatter around multi-threat anchors', () => {
+  const calls: Array<{ point: { x: number; y: number }; clearance?: number; fallbackAngle?: number }> = []
+  const points = surfaceWaveSpawnPoints({
+    anchor: { x: 800, y: 600, spawnCount: 2 },
+    elapsed: 0,
+    safeThreatPoint: (candidate, clearance, fallbackAngle) => {
+      calls.push({ point: candidate, clearance, fallbackAngle })
+      return candidate
+    }
+  })
+
+  expect(points[0]).toEqual({ x: 854, y: 600 })
+  expect(points[1].x).toBeCloseTo(746)
+  expect(points[1].y).toBeCloseTo(600)
+  expect(calls.every((call) => call.clearance === surfaceRunBalance.threatPlacement.swarmClearance)).toBe(true)
+  expect(calls[0].fallbackAngle).toBeCloseTo(0)
+  expect(calls[1].fallbackAngle).toBeCloseTo(Math.PI)
+})
+
+test('single surface wave spawn point stays on its anchor before keepout adjustment', () => {
+  const points = surfaceWaveSpawnPoints({
+    anchor: { x: 420, y: 360, spawnCount: 1 },
+    elapsed: 99,
+    safeThreatPoint: (candidate) => candidate
+  })
+
+  expect(points).toEqual([{ x: 420, y: 360 }])
+})
+
 test('main delegates surface wave timing to the surface module', () => {
   const main = readFileSync('src/main.ts', 'utf8')
   const director = readFileSync('src/surface/wave-director.ts', 'utf8')
@@ -236,12 +266,14 @@ test('main delegates surface wave timing to the surface module', () => {
   expect(main).toContain('updateSurfaceWaveDirector({')
   expect(main).toContain('advanceSurfaceWaveTelegraphs({')
   expect(main).toContain('surfaceWaveTelegraphPoint({')
+  expect(main).toContain('surfaceWaveSpawnPoints({')
   expect(main).toContain('drawSurfaceWaveTelegraphs({')
   expect(main).toContain('private updateSurfaceWaves(')
   expect(main).not.toContain('private renderSurfaceWaveTelegraphs(')
   expect(main).not.toContain('private renderSurfacePressureHud(')
   expect(director).toContain('surfaceWaveDirectorBalance')
   expect(director).toContain('export function surfaceWaveTelegraphPoint')
+  expect(director).toContain('export function surfaceWaveSpawnPoints')
   expect(hudRenderer).toContain('surfaceWavePressureReadout({')
   expect(renderer).toContain('surfaceWaveDirectorBalance.telegraph.radius')
 })
