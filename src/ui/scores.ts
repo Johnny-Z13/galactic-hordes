@@ -1,8 +1,26 @@
-import type { VectorShooter } from '../main'
+import type { GameState } from '../game-states'
 import { scoreExpeditionLogEntries, type ScoreEntry } from '../score-history'
 import { formatTime } from '../time-format'
 
-function renderScoreExpeditionLog(self: VectorShooter, entries: ScoreEntry[]) {
+interface ScoresScreenView extends Object {}
+
+interface ScoresScreenRuntime {
+  state: GameState
+  ui: {
+    scores: HTMLElement
+  }
+  highs: ScoreEntry[]
+  escape(value: string): string
+  showTitle(): void
+  resetPersistentProgress(): void
+  showOnly(which: GameState): void
+}
+
+function scoresRuntime(self: ScoresScreenView) {
+  return self as ScoresScreenRuntime
+}
+
+function renderScoreExpeditionLog(runtime: ScoresScreenRuntime, entries: ScoreEntry[]) {
   const storyEntries = scoreExpeditionLogEntries(entries)
   if (!storyEntries.length) return null
   const log = document.createElement('section')
@@ -22,7 +40,7 @@ function renderScoreExpeditionLog(self: VectorShooter, entries: ScoreEntry[]) {
     const name = document.createElement('b')
     name.textContent = entry.journeyTitle ?? 'Expedition'
     const meta = document.createElement('span')
-    meta.textContent = `${self['escape'](entry.name)} // ${entry.score} pts // ${formatTime(entry.time)} // ${entry.lightYears ?? 0} LY`
+    meta.textContent = `${runtime.escape(entry.name)} // ${entry.score} pts // ${formatTime(entry.time)} // ${entry.lightYears ?? 0} LY`
     const highlight = document.createElement('p')
     highlight.textContent = entry.highlights?.[0] ?? ''
     const resources = document.createElement('em')
@@ -34,9 +52,10 @@ function renderScoreExpeditionLog(self: VectorShooter, entries: ScoreEntry[]) {
   return log
 }
 
-export function showScores(self: VectorShooter) {
-  self['state'] = 'scores'
-  self['ui'].scores.innerHTML = ''
+export function showScores(self: ScoresScreenView) {
+  const runtime = scoresRuntime(self)
+  runtime.state = 'scores'
+  runtime.ui.scores.innerHTML = ''
   const panel = document.createElement('div')
   panel.className = 'panel'
   const h = document.createElement('h1')
@@ -46,9 +65,9 @@ export function showScores(self: VectorShooter) {
   table.className = 'score-table'
   table.innerHTML = '<thead><tr><th>Pilot</th><th>Score</th><th>Time</th><th>Level</th><th>Kills</th></tr></thead>'
   const body = document.createElement('tbody')
-  for (const s of self['highs'].slice(0, 8)) {
+  for (const s of runtime.highs.slice(0, 8)) {
     const tr = document.createElement('tr')
-    tr.innerHTML = `<td>${self['escape'](s.name)}</td><td>${s.score}</td><td>${formatTime(s.time)}</td><td>${s.level}</td><td>${s.kills}</td>`
+    tr.innerHTML = `<td>${runtime.escape(s.name)}</td><td>${s.score}</td><td>${formatTime(s.time)}</td><td>${s.level}</td><td>${s.kills}</td>`
     body.append(tr)
   }
   if (!body.children.length) {
@@ -62,23 +81,23 @@ export function showScores(self: VectorShooter) {
   const back = document.createElement('button')
   back.className = 'vector-button'
   back.textContent = 'Back'
-  back.addEventListener('click', () => self['showTitle']())
+  back.addEventListener('click', () => runtime.showTitle())
   const reset = document.createElement('button')
   reset.className = 'vector-button secondary danger'
   reset.textContent = 'Reset Save'
   reset.addEventListener('click', () => {
     if (reset.dataset.confirm === 'true') {
-      self['resetPersistentProgress']()
+      runtime.resetPersistentProgress()
       return
     }
     reset.dataset.confirm = 'true'
     reset.textContent = 'Confirm Reset'
   })
   row.append(back, reset)
-  const log = renderScoreExpeditionLog(self, self['highs'])
+  const log = renderScoreExpeditionLog(runtime, runtime.highs)
   panel.append(h, table)
   if (log) panel.append(log)
   panel.append(row)
-  self['ui'].scores.append(panel)
-  self['showOnly']('scores')
+  runtime.ui.scores.append(panel)
+  runtime.showOnly('scores')
 }
