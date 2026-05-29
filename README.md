@@ -1,11 +1,11 @@
 # Galactic Hordes
 
-Galactic Hordes is a mobile-first portrait survival shooter: Vampire Survivors pressure, Asteroids movement, and Vectrex-style vector graphics. The ship auto-fires, so the player focuses on steering through hordes, landing on planets, salvaging mystery caches, and evolving the build at the ship workbench.
+Galactic Hordes is a desktop-first survival shooter that should remain comfortable on mobile: Vampire Survivors pressure, Asteroids movement, and Vectrex-style vector graphics. The ship auto-fires, so the player focuses on steering through hordes, landing on planets, salvaging mystery caches, and evolving the build at the ship workbench.
 
 ## Current Prototype
 
-- Portrait-first 2D canvas game built with Vite and TypeScript.
-- Thumb-anywhere mobile movement: drag in the playfield to steer.
+- Desktop-first 2D canvas game built with Vite and TypeScript, with mobile controls kept as a supported play path.
+- Mouse, keyboard, gamepad, and touch input all feed the same core survival loop.
 - Baseline auto-cruise: release your thumb and the ship keeps travelling, then nudge the route when you touch again.
 - `Nav Ghost` upgrades make cruise faster, smarter, able to lock onto planet beacons, and leave stronger vector trails.
 - Auto-targeting ship fire with keyboard, touch, mouse, and gamepad support.
@@ -30,7 +30,7 @@ Galactic Hordes is a mobile-first portrait survival shooter: Vampire Survivors p
 
 ## Mobile Controls
 
-The default experience is designed for an iPhone-style portrait screen.
+Mobile is supported, but desktop is the lead platform for iteration. Phone and tablet controls should stay readable, responsive, and playable without forcing every UI or balance decision to fit portrait first.
 
 - Drag anywhere in the playfield to bend the ship's cruise heading.
 - Release to keep travelling on the last heading.
@@ -44,6 +44,8 @@ The default experience is designed for an iPhone-style portrait screen.
 The lower-right action buttons are protected from movement input, so tapping them will not accidentally steer the player.
 
 ## Desktop and Gamepad Controls
+
+Desktop is the primary development target. Keyboard, mouse, and gamepad workflows should be fast to test, easy to read, and resilient as the route map, mothership, workbench, and surface systems expand.
 
 Keyboard:
 
@@ -294,7 +296,7 @@ http://127.0.0.1:5176/
 
 ## Design Direction
 
-The goal is an addictive mobile survival loop:
+The goal is an addictive desktop survival loop that still works well on touch screens:
 
 > one more horde, one more planet, one more cache, one more mutation.
 
