@@ -24,6 +24,13 @@ export interface SpaceEnemyBonusDrop {
   value: number
 }
 
+export interface SpaceEnemySplitChildSpawnInput {
+  kind: SpaceEnemyKind
+  enemyCount: number
+  maxEnemies: number
+  random: () => number
+}
+
 function spaceEnemyXpCount(kind: SpaceEnemyKind) {
   if (isGiantEnemyKind(kind)) return spaceEnemyBehavior.rewards.xpCount.giant
   if (kind === 'warden') return spaceEnemyBehavior.rewards.xpCount.warden
@@ -62,4 +69,11 @@ export function resolveSpaceEnemyBonusDrops(input: SpaceEnemyBonusDropInput): Sp
     drops.push({ kind: 'magnet', value: powerupBalance.upgradeApply.magnetDropValue })
   }
   return drops
+}
+
+export function resolveSpaceEnemySplitChildSpawnCount(input: SpaceEnemySplitChildSpawnInput): number {
+  if (input.kind !== 'splinter') return 0
+  if (input.enemyCount >= input.maxEnemies - spaceEnemyBehavior.splitChild.count) return 0
+  if (input.random() >= spaceEnemyBehavior.splitChild.chance) return 0
+  return spaceEnemyBehavior.splitChild.count
 }

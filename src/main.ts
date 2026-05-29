@@ -92,7 +92,11 @@ import { createDashWakeEffects } from './space-dash-wake'
 import { createSpaceEnemy, createSplitChildEnemy } from './space-enemy-factory'
 import { createEnemyTrailParticle } from './space-enemy-trails'
 import { EnemySpatialGrid } from './space-enemy-grid'
-import { resolveSpaceEnemyBonusDrops, resolveSpaceEnemyKillReward } from './space-enemy-rewards'
+import {
+  resolveSpaceEnemyBonusDrops,
+  resolveSpaceEnemyKillReward,
+  resolveSpaceEnemySplitChildSpawnCount
+} from './space-enemy-rewards'
 import { damageSpaceHazard as damageSpaceHazardCombat } from './space-hazard-combat'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
@@ -2246,11 +2250,15 @@ export class VectorShooter {
       const killReward = resolveSpaceEnemyKillReward({ kind: e.kind, highLoad })
       for (let i = 0; i < killReward.xpDrops; i += 1) this.drop('xp', e.x, e.y, killReward.xpValue)
       if (killReward.chest) this.drop('chest', e.x, e.y, 1)
-      if (e.kind === 'splinter' && this.enemies.length < MAX_ENEMIES - spaceEnemyBehavior.splitChild.count && Math.random() < spaceEnemyBehavior.splitChild.chance) {
-        for (let k = 0; k < spaceEnemyBehavior.splitChild.count; k += 1) {
-          const child = this.spawnChild(e.x, e.y)
-          this.enemies.push(child)
-        }
+      const splitChildCount = resolveSpaceEnemySplitChildSpawnCount({
+        kind: e.kind,
+        enemyCount: this.enemies.length,
+        maxEnemies: MAX_ENEMIES,
+        random: Math.random
+      })
+      for (let k = 0; k < splitChildCount; k += 1) {
+        const child = this.spawnChild(e.x, e.y)
+        this.enemies.push(child)
       }
       const bonusDrops = resolveSpaceEnemyBonusDrops({
         vampireRank: this.build.vampire,
