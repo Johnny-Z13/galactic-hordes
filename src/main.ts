@@ -1219,7 +1219,7 @@ export class GalacticHordesGame {
       this.autoNavHeading = this.autoNavActive ? angleLerp(this.autoNavHeading, target, clamp(dt * (3.6 + level * 0.42), 0, 0.38)) : target
       this.autoNavActive = true
       this.clearPlanetCourse()
-      this.autoNavTargetBeacon = false
+      this.clearReturnBeaconCourse()
     } else if (!this.autoNavActive) {
       const speed = len(this.player.vx, this.player.vy)
       this.autoNavHeading = speed > 20 ? Math.atan2(this.player.vy, this.player.vx) : this.player.angle
@@ -1338,7 +1338,7 @@ export class GalacticHordesGame {
 
   private setPlanetCourse(target: Planet) {
     this.autoNavTargetPlanetId = target.id
-    this.autoNavTargetBeacon = false
+    this.clearReturnBeaconCourse()
     this.autoNavActive = true
     this.autoNavHeading = Math.atan2(target.y - this.player.y, target.x - this.player.x)
   }
@@ -1360,10 +1360,14 @@ export class GalacticHordesGame {
     return true
   }
 
+  private clearReturnBeaconCourse() {
+    this.autoNavTargetBeacon = false
+  }
+
   private skipReturnBeacon() {
     if (!this.returnBeacon) return
     this.returnBeacon = null
-    this.autoNavTargetBeacon = false
+    this.clearReturnBeaconCourse()
     this.skippedReturnBeacons += 1
     this.nextReturnBeaconAt = nextBeaconWindow(this.stats.time)
     this.toast('SPACE STATION SKIPPED. DEEP ROUTE BONUS RISING.')
@@ -4223,7 +4227,7 @@ export class GalacticHordesGame {
     this.saveMothership()
     this.debrief = finished.debrief
     this.returnBeacon = null
-    this.autoNavTargetBeacon = false
+    this.clearReturnBeaconCourse()
     this.state = 'debrief'
     this.renderDebrief()
   }
@@ -4346,7 +4350,7 @@ export class GalacticHordesGame {
     this.returnBeacon = null
     this.autoNavActive = false
     this.clearPlanetCourse()
-    this.autoNavTargetBeacon = false
+    this.clearReturnBeaconCourse()
   }
 
   private prepareSectorNode(node: SectorNode) {
@@ -4395,7 +4399,7 @@ export class GalacticHordesGame {
     }
     this.sectorMap = completeSectorNode(this.sectorMap)
     this.returnBeacon = null
-    this.autoNavTargetBeacon = false
+    this.clearReturnBeaconCourse()
     this.autoNavActive = false
     this.showStationDock(this.routeStationDockReport(node))
   }

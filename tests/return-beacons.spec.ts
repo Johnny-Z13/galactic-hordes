@@ -139,6 +139,14 @@ test('route station docking course setup is shared by assist and dock lock paths
   expect(main).toContain('DOCKING COURSE LOCKED')
 })
 
+test('route station docking course clearing is centralized', () => {
+  const main = source()
+
+  expect(main).toContain('private clearReturnBeaconCourse()')
+  expect(occurrences(main, 'this.clearReturnBeaconCourse()')).toBe(6)
+  expect(occurrences(main, 'this.autoNavTargetBeacon = false')).toBe(1)
+})
+
 test('route station renders as a large octagonal docking structure', () => {
   const renderStation = readFileSync('src/render/navigation-aids.ts', 'utf8')
 
