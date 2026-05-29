@@ -117,6 +117,7 @@ import { initialSurfaceCamera as createInitialSurfaceCamera } from './surface/ca
 import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction, surfaceTakeoffRequest, surfaceTransitionProgress } from './surface/lifecycle'
 import { surfaceRunInterest } from './surface/interest'
 import { findNearbySurfaceAlien, findNearbySurfaceLoreSite } from './surface/interaction-targets'
+import { resolveSurfaceLoreReward } from './surface/lore-rewards'
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
 import { createSurfaceResourceNodes, surfaceEventMessage } from './surface/run-setup'
 import { resolveSurfaceResourcePickup } from './surface/resource-pickup'
@@ -3175,9 +3176,13 @@ export class VectorShooter {
     this.state = 'lore'
     site.resolved = true
     this.surface.message = `${site.title}: ${site.copy}`
-    const score = runBalance.scoring.loreBaseScore + this.stats.level * runBalance.scoring.loreScorePerLevel
-    this.stats.score += score
-    this.resources.crystal += surfaceRunBalance.lore.crystalReward
+    const reward = resolveSurfaceLoreReward({
+      level: this.stats.level,
+      surveyRank: this.build.survey,
+      random: Math.random
+    })
+    this.stats.score += reward.score
+    this.resources.crystal += reward.crystal
     this.recordArtifact({
       id: `lore:${site.kind}`,
       kind: 'lore',
@@ -3188,7 +3193,7 @@ export class VectorShooter {
       icon: hashString(`${site.kind}:${site.title}`, 31) % 16
     })
     let decodedSignal = false
-    if (Math.random() < powerupBalance.upgradeApply.loreSignalBaseChance + this.build.survey * powerupBalance.upgradeApply.loreSignalSurveyChancePerRank) {
+    if (reward.signalDecoded) {
       decodedSignal = this.bankSurfaceUpgrade('OLD SIGNAL DECODED: MUTATION SIGNAL BANKED')
     } else {
       this.toast(`${site.title} INSPECTED`)
@@ -3206,9 +3211,11 @@ export class VectorShooter {
     const copy = document.createElement('p')
     copy.className = 'copy'
     copy.textContent = site.copy
-    const reward = document.createElement('p')
-    reward.className = 'copy'
-    reward.textContent = decodedSignal ? `Recovered 1 crystal, ${score} score, and a mutation signal.` : `Recovered 1 crystal and ${score} score.`
+    const rewardLine = document.createElement('p')
+    rewardLine.className = 'copy'
+    rewardLine.textContent = decodedSignal
+      ? `Recovered ${reward.crystal} crystal, ${reward.score} score, and a mutation signal.`
+      : `Recovered ${reward.crystal} crystal and ${reward.score} score.`
     const row = document.createElement('div')
     row.className = 'button-row'
     const close = document.createElement('button')
@@ -3219,7 +3226,7 @@ export class VectorShooter {
       this.showOnly(null)
     })
     row.append(close)
-    panel.append(h, copy, reward, row)
+    panel.append(h, copy, rewardLine, row)
     this.ui.planet.append(panel)
     this.showOnly('planet')
   }
