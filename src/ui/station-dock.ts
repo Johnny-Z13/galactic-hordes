@@ -1,29 +1,54 @@
-import type { SectorStationService } from '../sector-map'
-import { availableSectorChoices } from '../sector-map'
+import type { GameState } from '../game-states'
+import { availableSectorChoices, type SectorMap, type SectorStationService } from '../sector-map'
 import type { StationDockReport } from '../station-dock-report'
-import type { VectorShooter } from '../main'
 import { sectorNodeGlyph } from './sector-map-screen'
 
-export function showStationDock(self: VectorShooter, report: StationDockReport) {
-  self['stationDockReport'] = report
-  self['state'] = 'station'
-  self['ui'].station.innerHTML = ''
-  self['ui'].station.className = 'screen station-dock-screen'
+interface StationDockView extends Object {}
+
+interface StationDockRuntime {
+  stationDockReport: StationDockReport | null
+  state: GameState
+  ui: {
+    station: HTMLElement
+  }
+  pendingUpgrades: number
+  resources: {
+    scrap: number
+    crystal: number
+    cores: number
+  }
+  sectorMap: SectorMap
+  escape(value: string): string
+  openStationWorkbench(): void
+  leaveStationForSectorMap(): void
+  showOnly(which: GameState): void
+}
+
+function stationDockRuntime(self: StationDockView) {
+  return self as StationDockRuntime
+}
+
+export function showStationDock(self: StationDockView, report: StationDockReport) {
+  const runtime = stationDockRuntime(self)
+  runtime.stationDockReport = report
+  runtime.state = 'station'
+  runtime.ui.station.innerHTML = ''
+  runtime.ui.station.className = 'screen station-dock-screen'
   const panel = document.createElement('div')
   panel.className = 'station-command-panel'
-  const signalCopy = self['pendingUpgrades'] > 0
-    ? `${self['pendingUpgrades']} mutation signal${self['pendingUpgrades'] === 1 ? '' : 's'} banked`
+  const signalCopy = runtime.pendingUpgrades > 0
+    ? `${runtime.pendingUpgrades} mutation signal${runtime.pendingUpgrades === 1 ? '' : 's'} banked`
     : 'No mutation signals banked'
   panel.innerHTML = `
       <div class="station-command-header">
         <span>STATION COMMAND</span>
-        <h1>${self['escape'](report.stationName)}</h1>
-        <p>${self['escape'](report.fiction)}</p>
+        <h1>${runtime.escape(report.stationName)}</h1>
+        <p>${runtime.escape(report.fiction)}</p>
       </div>
       <div class="station-command-status">
-        <div><b>${self['escape'](report.nodeLabel)}</b><span>route berth</span></div>
+        <div><b>${runtime.escape(report.nodeLabel)}</b><span>route berth</span></div>
         <div><b>${Math.max(0, report.repaired)}</b><span>hull repaired</span></div>
-        <div><b>${self['resources'].scrap}</b><span>scrap manifest</span></div>
+        <div><b>${runtime.resources.scrap}</b><span>scrap manifest</span></div>
         <div><b>${signalCopy}</b><span>workbench buffer</span></div>
       </div>
     `
@@ -44,23 +69,23 @@ export function showStationDock(self: VectorShooter, report: StationDockReport) 
   workbench.type = 'button'
   workbench.className = 'station-command-button primary'
   workbench.textContent = 'Open Workbench'
-  workbench.disabled = self['pendingUpgrades'] <= 0
-  workbench.addEventListener('click', () => self['openStationWorkbench']())
+  workbench.disabled = runtime.pendingUpgrades <= 0
+  workbench.addEventListener('click', () => runtime.openStationWorkbench())
   serviceActions.append(workbench)
   const contact = document.createElement('div')
   contact.className = 'station-contact-panel'
   contact.innerHTML = `
-      <b>${self['escape'](report.contactName)}</b>
-      <span>${self['escape'](report.contactRole)}</span>
-      <p>${self['escape'](report.rumor)}</p>
+      <b>${runtime.escape(report.contactName)}</b>
+      <span>${runtime.escape(report.contactRole)}</span>
+      <p>${runtime.escape(report.rumor)}</p>
     `
   const cargo = document.createElement('div')
   cargo.className = 'station-cargo-grid'
   cargo.innerHTML = `
-      <div><b>${self['resources'].scrap}</b><span>SCRAP</span></div>
-      <div><b>${self['resources'].crystal}</b><span>CRYSTALS</span></div>
-      <div><b>${self['resources'].cores}</b><span>CORES</span></div>
-      <div><b>${self['pendingUpgrades']}</b><span>SIGNALS</span></div>
+      <div><b>${runtime.resources.scrap}</b><span>SCRAP</span></div>
+      <div><b>${runtime.resources.crystal}</b><span>CRYSTALS</span></div>
+      <div><b>${runtime.resources.cores}</b><span>CORES</span></div>
+      <div><b>${runtime.pendingUpgrades}</b><span>SIGNALS</span></div>
     `
   const routeStatus = document.createElement('p')
   routeStatus.textContent = report.routeStatus
@@ -70,34 +95,34 @@ export function showStationDock(self: VectorShooter, report: StationDockReport) 
   route.type = 'button'
   route.className = 'station-command-button'
   route.textContent = 'Route Map'
-  route.addEventListener('click', () => self['leaveStationForSectorMap']())
+  route.addEventListener('click', () => runtime.leaveStationForSectorMap())
   routeActions.append(route)
   sections.append(
-    stationCommandSection(self, 'SERVICES', 'repair / trade / workbench', [serviceList, serviceCopy, serviceActions], true),
-    stationCommandSection(self, 'CONTACT', report.contactRole.toUpperCase(), [contact], false),
-    stationCommandSection(self, 'CARGO MANIFEST', `${self['resources'].scrap} scrap / ${self['resources'].crystal} crystal`, [cargo], false),
-    stationCommandSection(self, 'ROUTE MAP', 'departure lane ready', [stationRouteMap(self, report), routeStatus, routeActions], false)
+    stationCommandSection(runtime, 'SERVICES', 'repair / trade / workbench', [serviceList, serviceCopy, serviceActions], true),
+    stationCommandSection(runtime, 'CONTACT', report.contactRole.toUpperCase(), [contact], false),
+    stationCommandSection(runtime, 'CARGO MANIFEST', `${runtime.resources.scrap} scrap / ${runtime.resources.crystal} crystal`, [cargo], false),
+    stationCommandSection(runtime, 'ROUTE MAP', 'departure lane ready', [stationRouteMap(runtime, report), routeStatus, routeActions], false)
   )
   panel.append(sections)
-  self['ui'].station.append(panel)
-  self['showOnly']('station')
+  runtime.ui.station.append(panel)
+  runtime.showOnly('station')
 }
 
-function stationCommandSection(self: VectorShooter, title: string, status: string, children: HTMLElement[], open: boolean) {
+function stationCommandSection(runtime: StationDockRuntime, title: string, status: string, children: HTMLElement[], open: boolean) {
   const section = document.createElement('details')
   section.className = 'station-command-section'
   section.open = open
   const summary = document.createElement('summary')
-  summary.innerHTML = `<span>${self['escape'](title)}</span><b>${self['escape'](status)}</b>`
+  summary.innerHTML = `<span>${runtime.escape(title)}</span><b>${runtime.escape(status)}</b>`
   section.append(summary, ...children)
   return section
 }
 
-function stationRouteMap(self: VectorShooter, report: StationDockReport) {
+function stationRouteMap(runtime: StationDockRuntime, report: StationDockReport) {
   const map = document.createElement('div')
   map.className = 'station-route-map'
-  const availableChoices = availableSectorChoices(self['sectorMap'])
-  for (const node of self['sectorMap'].nodes) {
+  const availableChoices = availableSectorChoices(runtime.sectorMap)
+  for (const node of runtime.sectorMap.nodes) {
     const marker = document.createElement('span')
     const state = node.id === report.nodeId
       ? 'current'
