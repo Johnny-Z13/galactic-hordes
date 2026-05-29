@@ -113,6 +113,7 @@ import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurf
 import { initialSurfaceCamera as createInitialSurfaceCamera } from './surface/camera'
 import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction, surfaceTakeoffRequest, surfaceTransitionProgress } from './surface/lifecycle'
 import { surfaceRunInterest } from './surface/interest'
+import { findNearbySurfaceAlien, findNearbySurfaceLoreSite } from './surface/interaction-targets'
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
 import { createSurfaceResourceNodes, surfaceEventMessage } from './surface/run-setup'
 import { resolveSurfaceResourcePickup } from './surface/resource-pickup'
@@ -3177,12 +3178,18 @@ export class VectorShooter {
 
   private findNearbyAlien() {
     if (!this.surface) return null
-    return this.surface.aliens.find((alien) => !alien.resolved && Math.sqrt(dist2(alien, this.surface!.pilot)) < alien.radius + surfaceRunBalance.alien.interactionRadiusBonus) ?? null
+    return findNearbySurfaceAlien({
+      aliens: this.surface.aliens,
+      pilot: this.surface.pilot
+    })
   }
 
   private findNearbyLoreSite() {
     if (!this.surface) return null
-    return this.surface.loreSites.find((site) => !site.resolved && Math.sqrt(dist2(site, this.surface!.pilot)) < site.radius + surfaceRunBalance.lore.interactionRadiusBonus) ?? null
+    return findNearbySurfaceLoreSite({
+      loreSites: this.surface.loreSites,
+      pilot: this.surface.pilot
+    })
   }
 
   private inspectLoreSite(site: SurfaceLoreSite) {
