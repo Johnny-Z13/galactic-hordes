@@ -38,6 +38,7 @@ import { navigationCruiseScalar, navigationTrailProfile } from './navigation-cru
 import { bestNavigationPickup } from './navigation-pickups'
 import { canLockPlanetCourse, nearestPlanetCourseTarget, planetCourseLockToast } from './navigation-planet-lock'
 import { blendedNavigationMove, isManualNavigationActive } from './navigation-steering'
+import { navigationThreatWeaveVector } from './navigation-threat-weave'
 import { applyMutationXp } from './mutation-progress'
 import { createChunkPlanet, type GeneratedPlanet } from './planet-generation'
 import { collectPickup, dropPickup, updatePickupsPhysics, type Pickup, type PickupKind } from './pickups'
@@ -1371,21 +1372,13 @@ export class VectorShooter {
   }
 
   private applyThreatWeave(dt: number, level: number) {
-    let ax = 0
-    let ay = 0
-    const radius = 230 + level * 38
-    const radius2 = radius * radius
-    for (const enemy of this.enemies) {
-      const dx = this.player.x - enemy.x
-      const dy = this.player.y - enemy.y
-      const d = dx * dx + dy * dy
-      if (d <= 1 || d > radius2) continue
-      const weight = (enemy.kind === 'brute' || enemy.kind === 'warden' ? 1.45 : 1) * (1 - d / radius2)
-      ax += (dx / Math.sqrt(d)) * weight
-      ay += (dy / Math.sqrt(d)) * weight
-    }
-    if (Math.abs(ax) + Math.abs(ay) <= 0.02) return
-    const avoidAngle = Math.atan2(ay, ax)
+    const avoidance = navigationThreatWeaveVector({
+      player: this.player,
+      enemies: this.enemies,
+      navRank: level
+    })
+    if (!avoidance) return
+    const avoidAngle = Math.atan2(avoidance.y, avoidance.x)
     this.autoNavHeading = angleLerp(this.autoNavHeading, avoidAngle, clamp(dt * (0.72 + level * 0.08), 0, 0.14))
   }
 
