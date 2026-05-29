@@ -1,38 +1,57 @@
 import type { GameState } from '../game-states'
-import type { VectorShooter } from '../main'
 
-export function makeScreens(self: VectorShooter) {
+interface ScreenShellView extends Object {}
+
+interface ScreenElements {
+  title: HTMLElement
+  collection: HTMLElement
+  powerups: HTMLElement
+  sectorMap: HTMLElement
+  station: HTMLElement
+  levelup: HTMLElement
+  planet: HTMLElement
+  gameover: HTMLElement
+  scores: HTMLElement
+}
+
+function screenUi(self: ScreenShellView) {
+  return (self as { ui: ScreenElements }).ui
+}
+
+export function makeScreens(self: ScreenShellView) {
+  const ui = screenUi(self)
   const wrap = document.createElement('div')
   const screenList = [
-    self['ui'].title,
-    self['ui'].collection,
-    self['ui'].powerups,
-    self['ui'].sectorMap,
-    self['ui'].station,
-    self['ui'].levelup,
-    self['ui'].planet,
-    self['ui'].gameover,
-    self['ui'].scores
+    ui.title,
+    ui.collection,
+    ui.powerups,
+    ui.sectorMap,
+    ui.station,
+    ui.levelup,
+    ui.planet,
+    ui.gameover,
+    ui.scores
   ]
   for (const screen of screenList) {
     screen.className = 'screen'
     wrap.append(screen)
   }
-  self['ui'].gameover.className = 'screen gameover-screen'
+  ui.gameover.className = 'screen gameover-screen'
   return wrap
 }
 
-export function showOnly(self: VectorShooter, which: GameState | null) {
+export function showOnly(self: ScreenShellView, which: GameState | null) {
+  const ui = screenUi(self)
   const screens: Partial<Record<GameState, HTMLElement>> = {
-    title: self['ui'].title,
-    collection: self['ui'].collection,
-    powerups: self['ui'].powerups,
-    sectorMap: self['ui'].sectorMap,
-    station: self['ui'].station,
-    levelup: self['ui'].levelup,
-    planet: self['ui'].planet,
-    gameover: self['ui'].gameover,
-    scores: self['ui'].scores
+    title: ui.title,
+    collection: ui.collection,
+    powerups: ui.powerups,
+    sectorMap: ui.sectorMap,
+    station: ui.station,
+    levelup: ui.levelup,
+    planet: ui.planet,
+    gameover: ui.gameover,
+    scores: ui.scores
   }
   for (const [name, el] of Object.entries(screens)) {
     el?.classList.toggle('visible', name === which)
