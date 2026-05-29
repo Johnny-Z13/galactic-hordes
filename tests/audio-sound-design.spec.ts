@@ -87,7 +87,7 @@ test('gameplay events route to specialized audio cues', () => {
   expect(workbenchSource()).toContain("self['audio'].install(installCueFor(self, choice), rare)")
   expect(main).toContain('this.audio.upgrade(uiInstallCueFor(this, choice),')
   expect(main).toContain('this.audio.planetSignal(planet.archetype)')
-  expect(main).toContain('this.audio.boom(big ? ')
+  expect(main).toContain('this.audio.boom(feedback.boomKind)')
 })
 
 test('bullet impacts use an electric shield arc cue with cooldown', () => {

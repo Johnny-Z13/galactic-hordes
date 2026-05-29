@@ -92,6 +92,7 @@ import { createDashWakeEffects } from './space-dash-wake'
 import { createSpaceEnemy, createSplitChildEnemy } from './space-enemy-factory'
 import { createEnemyTrailParticle } from './space-enemy-trails'
 import { EnemySpatialGrid } from './space-enemy-grid'
+import { resolveSpaceEnemyDeathFeedback } from './space-enemy-death-feedback'
 import {
   resolveSpaceEnemyBonusDrops,
   resolveSpaceEnemyKillReward,
@@ -2212,26 +2213,30 @@ export class VectorShooter {
 
   private killEnemy(e: Enemy, reward: boolean) {
     this.removeEnemy(e)
-    const big = e.kind === 'warden' || e.kind === 'brute' || e.kind === 'bulwark' || isGiantEnemyKind(e.kind)
     const highLoad = this.isHighLoad()
+    const feedback = resolveSpaceEnemyDeathFeedback({
+      kind: e.kind,
+      highLoad,
+      collisionFxCooldown: this.collisionFxCooldown
+    })
     const pulse = createImpactPulse({
       kind: 'kill',
       x: e.x,
       y: e.y,
       color: e.color,
       amount: e.value,
-      giant: big,
+      giant: feedback.big,
       highLoad
     })
     if (pulse) {
       this.impactPulses.push(pulse)
       if (this.impactPulses.length > 96) this.impactPulses.shift()
     }
-    if (big || !highLoad || this.collisionFxCooldown <= 0) {
-      this.audio.boom(big ? 'heavy' : 'small')
-      this.camera.shake = Math.max(this.camera.shake, big ? 16 : highLoad ? 2 : 5)
-      this.burst(e.x, e.y, e.color, big ? 42 : highLoad ? 4 : 12, big ? 330 : highLoad ? 120 : 150)
-      this.collisionFxCooldown = highLoad ? 0.04 : 0
+    if (feedback.playFx) {
+      this.audio.boom(feedback.boomKind)
+      this.camera.shake = Math.max(this.camera.shake, feedback.cameraShake)
+      this.burst(e.x, e.y, e.color, feedback.burstCount, feedback.burstSpeed)
+      this.collisionFxCooldown = feedback.collisionCooldownSeconds
     }
     if (reward) {
       appendScorePopup(this.scorePopups, createScorePopup({
