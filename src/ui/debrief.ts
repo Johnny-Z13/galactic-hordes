@@ -1,4 +1,5 @@
-import { formatTime, type VectorShooter } from '../main'
+import type { VectorShooter } from '../main'
+import { formatTime } from '../time-format'
 
 export function renderDebrief(self: VectorShooter) {
   if (!self['debrief']) return

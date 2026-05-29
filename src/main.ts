@@ -60,6 +60,7 @@ import {
 } from './persistent-progress-storage'
 import { advanceScorePopups, appendScorePopup, createInstallPopup, createScorePopup, createSignalPopup, type ScorePopupModel } from './score-popups'
 import { resolveShipFlightStats } from './ship-flight-stats'
+import { formatTime } from './time-format'
 import { resolveWorkbenchInstallFollowup, rollWorkbenchChoices, type WorkbenchChoice } from './workbench-choices'
 import {
   pickupBalance,
@@ -117,6 +118,7 @@ import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemyS
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { clamp, norm, dist2, hash32, hashString, len, rngFrom, TAU } from './math-utils'
 export { clamp } from './math-utils'
+export { formatTime } from './time-format'
 import { resolvePlayerAim } from './player-aim'
 import { resolvePlayerInputAxes } from './player-input'
 import { renderScorePopups as drawScorePopups } from './render/score-popups'
@@ -452,12 +454,6 @@ const angleLerp = (a: number, b: number, t: number) => {
   const diff = Math.atan2(Math.sin(b - a), Math.cos(b - a))
   return a + diff * t
 }
-export const formatTime = (seconds: number) => {
-  const m = Math.floor(seconds / 60)
-  const s = Math.floor(seconds % 60)
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
 export class VectorShooter {
   private app = document.querySelector<HTMLDivElement>('#app')!
   private canvas: HTMLCanvasElement

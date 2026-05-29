@@ -1,5 +1,6 @@
-import { formatTime, type VectorShooter } from '../main'
+import type { VectorShooter } from '../main'
 import { scoreExpeditionLogEntries, type ScoreEntry } from '../score-history'
+import { formatTime } from '../time-format'
 
 function renderScoreExpeditionLog(self: VectorShooter, entries: ScoreEntry[]) {
   const storyEntries = scoreExpeditionLogEntries(entries)

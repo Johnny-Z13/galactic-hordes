@@ -8,7 +8,8 @@ import {
   type MothershipDepartmentId
 } from '../mothership-progression'
 import { availableSectorChoices, currentSectorNode } from '../sector-map'
-import { clamp, type MothershipConsoleView, type VectorShooter } from '../main'
+import type { MothershipConsoleView, VectorShooter } from '../main'
+import { clamp } from '../math-utils'
 import { renderManifestRelicLine, renderManifestSummary } from './workbench'
 import { renderCollectionScreen } from './collection'
 import { sectorNodeGlyph } from './sector-map-screen'
@@ -415,4 +416,4 @@ export function buyMothershipDepartment(self: VectorShooter, id: MothershipDepar
   self['saveMothership']()
   self['toast'](`${result.purchased.name.toUpperCase()} ONLINE`)
   refreshMetaPowerUps(self, scrollTop)
-}
+}

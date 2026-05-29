@@ -4,8 +4,7 @@ import { collectionCatalog, collectionIconAtlasColumns, collectionIconAtlasRows 
 import { relics } from '../powerup-balance'
 import type { PersistentArchiveRecord } from '../mothership-progression'
 import type { ArtifactKind, ArtifactRecord, MothershipCollectionFilter, VectorShooter } from '../main'
-import { clamp } from '../main'
-import { hashString } from '../math-utils'
+import { clamp, hashString } from '../math-utils'
 export function renderArtifactsCollection(self: VectorShooter, source: 'run' | 'mothership' = 'run') {
   const wrap = document.createElement('div')
   wrap.className = 'artifact-collection'
