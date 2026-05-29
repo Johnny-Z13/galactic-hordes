@@ -114,6 +114,7 @@ import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemyS
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { clamp, norm, dist2, hash32, hashString, len, rngFrom, TAU } from './math-utils'
 export { clamp } from './math-utils'
+import { resolvePlayerInputAxes } from './player-input'
 import { renderScorePopups as drawScorePopups } from './render/score-popups'
 import { renderSectorWaveWarning as drawSectorWaveWarning } from './render/sector-wave-warning'
 import { renderSpaceBackground as drawSpaceBackground } from './render/space-background'
@@ -1513,53 +1514,11 @@ export class VectorShooter {
   }
 
   private getInput() {
-    let mx = 0
-    let my = 0
-    if (this.keys.has('KeyA')) mx -= 1
-    if (this.keys.has('KeyD')) mx += 1
-    if (this.keys.has('KeyW')) my -= 1
-    if (this.keys.has('KeyS')) my += 1
-    if (this.touchStick.active) {
-      const dx = this.touchStick.x - this.touchStick.startX
-      const dy = this.touchStick.y - this.touchStick.startY
-      const distance = Math.min(82, Math.hypot(dx, dy))
-      const direction = Math.atan2(dy, dx)
-      mx = Math.cos(direction) * (distance / 82)
-      my = Math.sin(direction) * (distance / 82)
-    }
-    let aimX = 0
-    let aimY = 0
-    if (this.keys.has('ArrowLeft') || this.keys.has('KeyJ')) aimX -= 1
-    if (this.keys.has('ArrowRight') || this.keys.has('KeyL')) aimX += 1
-    if (this.keys.has('ArrowUp') || this.keys.has('KeyI')) aimY -= 1
-    if (this.keys.has('ArrowDown') || this.keys.has('KeyK')) aimY += 1
-    let gamepadFire = false
-    let gamepadDash = false
     const gamepad = navigator.getGamepads?.().find((pad): pad is Gamepad => Boolean(pad))
-    if (gamepad) {
-      const lx = this.deadzone(gamepad.axes[0] ?? 0)
-      const ly = this.deadzone(gamepad.axes[1] ?? 0)
-      const rx = this.deadzone(gamepad.axes[2] ?? 0)
-      const ry = this.deadzone(gamepad.axes[3] ?? 0)
-      if (Math.abs(lx) + Math.abs(ly) > 0) {
-        mx = lx
-        my = ly
-      }
-      if (Math.abs(rx) + Math.abs(ry) > 0) {
-        aimX = rx
-        aimY = ry
-        gamepadFire = true
-      }
-      gamepadFire ||= (gamepad.buttons[7]?.value ?? 0) > 0.45 || !!gamepad.buttons[0]?.pressed
-      gamepadDash ||= !!gamepad.buttons[1]?.pressed || !!gamepad.buttons[5]?.pressed
-      if (gamepad.buttons[3]?.pressed) this.pressed.add('KeyE')
-    }
-    const moveActive = Math.abs(mx) + Math.abs(my) > 0.04
-    const move = norm(mx, my)
-    if (!moveActive) {
-      move.x = 0
-      move.y = 0
-    }
+    const inputAxes = resolvePlayerInputAxes({ keys: this.keys, touchStick: this.touchStick, gamepad })
+    if (inputAxes.gamepadInteract) this.pressed.add('KeyE')
+
+    const { move, moveActive, aimX, aimY, gamepadFire, gamepadDash } = inputAxes
 
     let aiming = Math.abs(aimX) + Math.abs(aimY) > 0
     let aimAngle = aiming ? Math.atan2(aimY, aimX) : this.player.aimAngle
@@ -1617,12 +1576,6 @@ export class VectorShooter {
       }
     }
     return best
-  }
-
-  private deadzone(v: number) {
-    const z = 0.18
-    if (Math.abs(v) < z) return 0
-    return Math.sign(v) * ((Math.abs(v) - z) / (1 - z))
   }
 
   private consume(code: string) {
