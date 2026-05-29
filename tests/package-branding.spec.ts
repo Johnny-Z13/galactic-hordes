@@ -29,8 +29,13 @@ test('browser storage writes use Galactic Hordes keys with legacy fallbacks', ()
 
 test('browser debug global exposes Galactic Hordes name with legacy alias', () => {
   const main = readFileSync('src/main.ts', 'utf8')
+  const enemyBehaviors = readFileSync('src/enemy-behaviors.ts', 'utf8')
 
-  expect(main).toContain('__galacticHordes?: VectorShooter')
-  expect(main).toContain('window.__galacticHordes = new VectorShooter()')
+  expect(main).toContain('export class GalacticHordesGame')
+  expect(main).not.toContain('export class VectorShooter')
+  expect(main).toContain('__galacticHordes?: GalacticHordesGame')
+  expect(main).toContain('__vectorShooter?: GalacticHordesGame')
+  expect(main).toContain('window.__galacticHordes = new GalacticHordesGame()')
   expect(main).toContain('window.__vectorShooter = window.__galacticHordes')
+  expect(enemyBehaviors).not.toContain('VectorShooter')
 })

@@ -447,7 +447,7 @@ const angleLerp = (a: number, b: number, t: number) => {
   const diff = Math.atan2(Math.sin(b - a), Math.cos(b - a))
   return a + diff * t
 }
-export class VectorShooter {
+export class GalacticHordesGame {
   private app = document.querySelector<HTMLDivElement>('#app')!
   private canvas: HTMLCanvasElement
   private mini: HTMLCanvasElement
@@ -4578,8 +4578,8 @@ export class VectorShooter {
 
 declare global {
   interface Window {
-    __galacticHordes?: VectorShooter
-    __vectorShooter?: VectorShooter
+    __galacticHordes?: GalacticHordesGame
+    __vectorShooter?: GalacticHordesGame
     __galacticHarness?: {
       snapshot: () => {
         state: GameState
@@ -4617,5 +4617,5 @@ declare global {
   }
 }
 
-window.__galacticHordes = new VectorShooter()
+window.__galacticHordes = new GalacticHordesGame()
 window.__vectorShooter = window.__galacticHordes
