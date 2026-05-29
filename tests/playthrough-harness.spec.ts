@@ -46,7 +46,7 @@ test('browser playthrough harness is live during a launched expedition', async (
   await page.waitForFunction(() => typeof window.__galacticHarness?.snapshot === 'function')
 
   await page.getByRole('button', { name: 'Launch Expedition', exact: true }).click()
-  await page.getByRole('button', { name: 'Launch Expedition', exact: true }).click()
+  await page.getByRole('button', { name: 'Open Sector Map', exact: true }).click()
   await page.locator('.sector-choice').first().click()
   await page.waitForFunction(() => {
     const snapshot = window.__galacticHarness?.snapshot()

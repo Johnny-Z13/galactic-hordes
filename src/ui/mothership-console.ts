@@ -92,7 +92,7 @@ export function showMothership(self: VectorShooter, options: { scrollTop?: numbe
   ship.className = 'mothership-ship-art'
   const launch = document.createElement('button')
   launch.className = 'vector-button start-button mothership-launch'
-  launch.textContent = 'Launch Expedition'
+  launch.textContent = 'Open Sector Map'
   launch.addEventListener('click', () => self['start']())
   shipBay.append(ship, launch, status)
   const launchStack = document.createElement('div')

@@ -200,6 +200,7 @@ test('desktop mothership shows route map alongside launch controls', () => {
   const css = styles()
 
   expect(mothership).toContain("launchStack.className = 'mothership-launch-stack'")
+  expect(mothership).toContain("launch.textContent = 'Open Sector Map'")
   expect(mothership).toContain("status.className = 'mothership-launch-meters'")
   expect(mothership).toContain('shipBay.append(ship, launch, status)')
   expect(mothership).toContain('launchStack.append(shipBay)')
