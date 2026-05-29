@@ -6,6 +6,7 @@ import {
   RETURN_BEACON_ASSIST_SECONDS,
   RETURN_BEACON_REMINDER_SECONDS,
   RETURN_BEACON_SKIP_DISTANCE,
+  advanceReturnBeacon,
   beaconExtractionBonus,
   beaconSpawnDistance,
   createReturnBeacon,
@@ -17,6 +18,7 @@ import {
 
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
 const hudSource = () => readFileSync(resolve(process.cwd(), 'src/ui/hud.ts'), 'utf8')
+const returnBeaconSource = () => readFileSync(resolve(process.cwd(), 'src/return-beacons.ts'), 'utf8')
 
 test('blocks first beacon before four minutes or before first planet', () => {
   expect(returnBeaconEligible({ time: 239, planetsVisited: 1, activeBeacon: false, nextBeaconAt: 0 })).toBe(false)
@@ -114,13 +116,15 @@ test('creates route beacon state from player heading and skipped beacon count', 
 test('route station is reinforced by HUD distance reminder and docking assist', () => {
   const main = source()
   const hud = hudSource()
+  const beacons = returnBeaconSource()
 
   expect(main).toContain('SPACE STATION AVAILABLE - TAP DOCK TO LOCK')
   expect(main).toContain('SPACE STATION WAITING - TAP DOCK TO LOCK')
   expect(main).toContain('DOCKING COURSE SET - NUDGE AWAY TO SKIP')
   expect(hud).toContain("STATION ${Math.floor(Math.sqrt(dist2(self['returnBeacon'], self['player'])))}")
-  expect(main).toContain('RETURN_BEACON_ASSIST_SECONDS')
-  expect(main).toContain('RETURN_BEACON_SKIP_DISTANCE')
+  expect(main).toContain('advanceReturnBeacon({')
+  expect(beacons).toContain('RETURN_BEACON_ASSIST_SECONDS')
+  expect(beacons).toContain('RETURN_BEACON_SKIP_DISTANCE')
   expect(main).toContain('createReturnBeacon({')
 })
 
@@ -140,4 +144,42 @@ test('beacon autopilot brakes inside the extraction ring instead of flying throu
   const brake = returnBeaconAutopilotVector({ dx: 20, dy: 0, vx: 230, vy: 0, radius: 96 })
   expect(brake.x).toBeLessThan(-0.9)
   expect(Math.abs(brake.y)).toBeLessThan(0.01)
+})
+
+test('advances return beacon timers and emits docking events in gameplay order', () => {
+  const beacon = createReturnBeacon({
+    player: { x: 0, y: 0, angle: 0 },
+    skippedBeacons: 0,
+    randomRange: () => 0
+  })
+
+  beacon.age = RETURN_BEACON_ASSIST_SECONDS + 0.1
+  const assisted = advanceReturnBeacon({
+    beacon,
+    dt: 0.2,
+    distance: beacon.radius * 2,
+    autoNavTargetBeacon: false
+  })
+
+  expect(assisted.events).toEqual(['reminder', 'assist'])
+  expect(beacon.reminded).toBe(true)
+  expect(beacon.assistTriggered).toBe(true)
+  expect(beacon.phase).toBeCloseTo(0.2)
+  expect(beacon.age).toBeCloseTo(RETURN_BEACON_ASSIST_SECONDS + 0.3)
+
+  const completing = advanceReturnBeacon({
+    beacon,
+    dt: BEACON_HOLD_SECONDS,
+    distance: beacon.radius * 0.5,
+    autoNavTargetBeacon: true
+  })
+  expect(completing.events).toEqual(['complete'])
+
+  const skipped = advanceReturnBeacon({
+    beacon,
+    dt: 0.1,
+    distance: RETURN_BEACON_SKIP_DISTANCE + 1,
+    autoNavTargetBeacon: true
+  })
+  expect(skipped.events).toEqual(['skip'])
 })

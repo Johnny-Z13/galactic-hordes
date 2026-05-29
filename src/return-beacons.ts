@@ -28,6 +28,8 @@ export interface ReturnBeaconAutopilotInput {
   radius: number
 }
 
+export type ReturnBeaconEvent = 'reminder' | 'assist' | 'skip' | 'complete'
+
 export const FIRST_BEACON_TIME = 240
 export const BEACON_INTERVAL = 210
 export const BEACON_HOLD_SECONDS = 2.4
@@ -93,4 +95,35 @@ export const returnBeaconAutopilotVector = ({ dx, dy, vx, vy, radius }: ReturnBe
   }
   if (distance <= 1) return { x: 0, y: 0 }
   return { x: dx / distance, y: dy / distance }
+}
+
+export const advanceReturnBeacon = (input: {
+  beacon: ReturnBeaconState
+  dt: number
+  distance: number
+  autoNavTargetBeacon: boolean
+}): { events: ReturnBeaconEvent[] } => {
+  const { beacon } = input
+  const events: ReturnBeaconEvent[] = []
+  beacon.phase += input.dt
+  beacon.age += input.dt
+  if (beacon.age > RETURN_BEACON_REMINDER_SECONDS && !beacon.reminded) {
+    beacon.reminded = true
+    events.push('reminder')
+  }
+  if (beacon.age > RETURN_BEACON_ASSIST_SECONDS && !beacon.assistTriggered && !input.autoNavTargetBeacon) {
+    beacon.assistTriggered = true
+    events.push('assist')
+  }
+  if (input.distance > RETURN_BEACON_SKIP_DISTANCE) {
+    events.push('skip')
+    return { events }
+  }
+  if (input.distance < beacon.radius) {
+    beacon.hold += input.dt
+    if (beacon.hold >= BEACON_HOLD_SECONDS) events.push('complete')
+  } else {
+    beacon.hold = Math.max(0, beacon.hold - input.dt * 1.5)
+  }
+  return { events }
 }

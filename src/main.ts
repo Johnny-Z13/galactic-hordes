@@ -198,10 +198,8 @@ import {
   type RunOutcomeKind
 } from './mothership-progression'
 import {
+  advanceReturnBeacon,
   BEACON_HOLD_SECONDS,
-  RETURN_BEACON_ASSIST_SECONDS,
-  RETURN_BEACON_REMINDER_SECONDS,
-  RETURN_BEACON_SKIP_DISTANCE,
   createReturnBeacon,
   nextBeaconWindow,
   returnBeaconAutopilotVector,
@@ -1294,35 +1292,31 @@ export class VectorShooter {
       this.spawnReturnBeacon()
     }
     if (!this.returnBeacon) return
-    this.returnBeacon.phase += dt
-    this.returnBeacon.age += dt
     const distance = Math.sqrt(dist2(this.returnBeacon, this.player))
-    if (this.returnBeacon.age > RETURN_BEACON_REMINDER_SECONDS && !this.returnBeacon.reminded) {
-      this.returnBeacon.reminded = true
-      this.toast('SPACE STATION WAITING - TAP DOCK TO LOCK')
-      this.audio.pickup('nav')
-    }
-    if (this.returnBeacon.age > RETURN_BEACON_ASSIST_SECONDS && !this.returnBeacon.assistTriggered && !this.autoNavTargetBeacon) {
-      this.returnBeacon.assistTriggered = true
-      this.autoNavTargetPlanetId = null
-      this.autoNavTargetBeacon = true
-      this.autoNavActive = true
-      this.autoNavHeading = Math.atan2(this.returnBeacon.y - this.player.y, this.returnBeacon.x - this.player.x)
-      this.toast('DOCKING COURSE SET - NUDGE AWAY TO SKIP')
-      this.audio.pickup('nav')
-    }
-    if (distance > RETURN_BEACON_SKIP_DISTANCE) {
-      this.skipReturnBeacon()
-      return
-    }
-    if (distance < this.returnBeacon.radius) {
-      this.returnBeacon.hold += dt
-      if (this.returnBeacon.hold >= BEACON_HOLD_SECONDS) {
+    const result = advanceReturnBeacon({
+      beacon: this.returnBeacon,
+      dt,
+      distance,
+      autoNavTargetBeacon: this.autoNavTargetBeacon
+    })
+    for (const event of result.events) {
+      if (event === 'reminder') {
+        this.toast('SPACE STATION WAITING - TAP DOCK TO LOCK')
+        this.audio.pickup('nav')
+      } else if (event === 'assist') {
+        this.autoNavTargetPlanetId = null
+        this.autoNavTargetBeacon = true
+        this.autoNavActive = true
+        this.autoNavHeading = Math.atan2(this.returnBeacon.y - this.player.y, this.returnBeacon.x - this.player.x)
+        this.toast('DOCKING COURSE SET - NUDGE AWAY TO SKIP')
+        this.audio.pickup('nav')
+      } else if (event === 'skip') {
+        this.skipReturnBeacon()
+        return
+      } else if (event === 'complete') {
         this.completeSectorNodeViaBeacon()
         return
       }
-    } else {
-      this.returnBeacon.hold = Math.max(0, this.returnBeacon.hold - dt * 1.5)
     }
   }
 
