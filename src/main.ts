@@ -165,6 +165,7 @@ import { renderShockwaves as drawShockwaves } from './render/shockwaves'
 import { renderOrbitals as drawOrbitals } from './render/orbitals'
 import { renderBullets as drawBullets, renderBulletsSimple as drawBulletsSimple } from './render/bullets'
 import { renderAutopilot as drawAutopilot, renderReturnBeacon as drawReturnBeacon } from './render/navigation-aids'
+import { effectLayerCamera, surfaceEffectMode } from './render/effect-layer'
 import type { MothershipCollectionFilter, MothershipConsoleView } from './ui/mothership-ui-types'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
 import { fireCathedralLattice, fireDreadnoughtBroadside, fireHelixSpikes, firePrismFan, fireSiphonVortex, type SpaceEnemyAttackContext } from './space-enemy-attacks'
@@ -3676,8 +3677,20 @@ export class GalacticHordesGame {
     return { x: x - this.surface.camera.x, y: y - this.surface.camera.y }
   }
 
+  private transitionProgress() {
+    return this.transitionDuration <= 0 ? 1 : this.transitionTimer / this.transitionDuration
+  }
+
+  private isSurfaceEffectMode() {
+    return surfaceEffectMode({
+      hasSurface: Boolean(this.surface),
+      state: this.state,
+      transitionProgress: this.transitionProgress()
+    })
+  }
+
   private effectToScreen(x: number, y: number): Vec {
-    if (this.surface && (this.state === 'surface' || this.state === 'takeoff' || (this.state === 'landing' && this.transitionTimer / this.transitionDuration > 0.58))) {
+    if (this.isSurfaceEffectMode()) {
       return this.surfaceToScreen(x, y)
     }
     return this.worldToScreen(x, y)
@@ -3894,7 +3907,7 @@ export class GalacticHordesGame {
       this.renderParticlesSimple(ctx)
       return
     }
-    const surfaceMode = this.surface && (this.state === 'surface' || this.state === 'takeoff' || (this.state === 'landing' && this.transitionTimer / this.transitionDuration > 0.58))
+    const surfaceMode = this.isSurfaceEffectMode()
     drawParticles({
       ctx,
       particles: this.particles,
@@ -3909,9 +3922,12 @@ export class GalacticHordesGame {
   }
 
   private renderParticlesSimple(ctx: CanvasRenderingContext2D) {
-    const surfaceMode = this.surface && (this.state === 'surface' || this.state === 'takeoff' || (this.state === 'landing' && this.transitionTimer / this.transitionDuration > 0.58))
-    const camX = surfaceMode ? this.surface!.camera.x : this.camera.x
-    const camY = surfaceMode ? this.surface!.camera.y : this.camera.y
+    const surfaceMode = this.isSurfaceEffectMode()
+    const camera = effectLayerCamera({
+      surfaceMode,
+      surfaceCamera: this.surface?.camera ?? null,
+      spaceCamera: this.camera
+    })
     drawParticlesSimple({
       ctx,
       particles: this.particles,
@@ -3919,14 +3935,14 @@ export class GalacticHordesGame {
       height: this.height,
       surfaceMode: Boolean(surfaceMode),
       scale: this.spaceScale(),
-      cameraX: camX,
-      cameraY: camY,
+      cameraX: camera.x,
+      cameraY: camera.y,
       worldToScreen: (x, y) => this.worldToScreen(x, y)
     })
   }
 
   private renderShockwaves(ctx: CanvasRenderingContext2D) {
-    const surfaceMode = this.surface && (this.state === 'surface' || this.state === 'takeoff' || (this.state === 'landing' && this.transitionTimer / this.transitionDuration > 0.58))
+    const surfaceMode = this.isSurfaceEffectMode()
     const highLoad = this.isHighLoad()
     const glow = this.allowGlow()
     drawShockwaves({
