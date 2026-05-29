@@ -183,10 +183,11 @@ import {
   RETURN_BEACON_ASSIST_SECONDS,
   RETURN_BEACON_REMINDER_SECONDS,
   RETURN_BEACON_SKIP_DISTANCE,
-  beaconSpawnDistance,
+  createReturnBeacon,
   nextBeaconWindow,
   returnBeaconAutopilotVector,
-  returnBeaconReadyForRoute
+  returnBeaconReadyForRoute,
+  type ReturnBeaconState
 } from './return-beacons'
 import {
   workbenchUnlockEdges,
@@ -351,16 +352,7 @@ interface SurfaceRun {
   message: string
 }
 
-interface ReturnBeacon {
-  x: number
-  y: number
-  radius: number
-  hold: number
-  phase: number
-  age: number
-  reminded: boolean
-  assistTriggered: boolean
-}
+type ReturnBeacon = ReturnBeaconState
 
 interface PlayerState {
   x: number
@@ -1320,18 +1312,11 @@ export class VectorShooter {
   }
 
   private spawnReturnBeacon() {
-    const angle = this.player.angle + rand(-0.9, 0.9)
-    const distance = beaconSpawnDistance(this.skippedReturnBeacons)
-    this.returnBeacon = {
-      x: this.player.x + Math.cos(angle) * distance,
-      y: this.player.y + Math.sin(angle) * distance,
-      radius: 132,
-      hold: 0,
-      phase: 0,
-      age: 0,
-      reminded: false,
-      assistTriggered: false
-    }
+    this.returnBeacon = createReturnBeacon({
+      player: this.player,
+      skippedBeacons: this.skippedReturnBeacons,
+      randomRange: rand
+    })
     this.toast('SPACE STATION AVAILABLE - TAP DOCK TO LOCK')
     this.audio.pickup('nav')
   }

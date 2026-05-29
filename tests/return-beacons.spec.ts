@@ -8,6 +8,7 @@ import {
   RETURN_BEACON_SKIP_DISTANCE,
   beaconExtractionBonus,
   beaconSpawnDistance,
+  createReturnBeacon,
   nextBeaconWindow,
   returnBeaconAutopilotVector,
   returnBeaconEligible,
@@ -91,6 +92,25 @@ test('spawns the first beacon close enough to read as an offer', () => {
   expect(beaconSpawnDistance(3)).toBe(910)
 })
 
+test('creates route beacon state from player heading and skipped beacon count', () => {
+  const beacon = createReturnBeacon({
+    player: { x: 100, y: 200, angle: 0 },
+    skippedBeacons: 2,
+    randomRange: () => 0
+  })
+
+  expect(beacon).toEqual({
+    x: 100 + beaconSpawnDistance(2),
+    y: 200,
+    radius: 132,
+    hold: 0,
+    phase: 0,
+    age: 0,
+    reminded: false,
+    assistTriggered: false
+  })
+})
+
 test('route station is reinforced by HUD distance reminder and docking assist', () => {
   const main = source()
   const hud = hudSource()
@@ -101,6 +121,7 @@ test('route station is reinforced by HUD distance reminder and docking assist', 
   expect(hud).toContain("STATION ${Math.floor(Math.sqrt(dist2(self['returnBeacon'], self['player'])))}")
   expect(main).toContain('RETURN_BEACON_ASSIST_SECONDS')
   expect(main).toContain('RETURN_BEACON_SKIP_DISTANCE')
+  expect(main).toContain('createReturnBeacon({')
 })
 
 test('route station renders as a large octagonal docking structure', () => {

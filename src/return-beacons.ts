@@ -9,6 +9,17 @@ export interface ReturnBeaconRouteReadinessInput extends ReturnBeaconEligibility
   introNode: boolean
 }
 
+export interface ReturnBeaconState {
+  x: number
+  y: number
+  radius: number
+  hold: number
+  phase: number
+  age: number
+  reminded: boolean
+  assistTriggered: boolean
+}
+
 export interface ReturnBeaconAutopilotInput {
   dx: number
   dy: number
@@ -47,6 +58,25 @@ export const beaconExtractionBonus = (skippedBeacons: number) => (
 export const beaconSpawnDistance = (skippedBeacons: number) => (
   640 + Math.min(360, Math.max(0, skippedBeacons) * 90)
 )
+
+export const createReturnBeacon = (input: {
+  player: { x: number; y: number; angle: number }
+  skippedBeacons: number
+  randomRange: (min: number, max: number) => number
+}): ReturnBeaconState => {
+  const angle = input.player.angle + input.randomRange(-0.9, 0.9)
+  const distance = beaconSpawnDistance(input.skippedBeacons)
+  return {
+    x: input.player.x + Math.cos(angle) * distance,
+    y: input.player.y + Math.sin(angle) * distance,
+    radius: 132,
+    hold: 0,
+    phase: 0,
+    age: 0,
+    reminded: false,
+    assistTriggered: false
+  }
+}
 
 export const returnBeaconAutopilotVector = ({ dx, dy, vx, vy, radius }: ReturnBeaconAutopilotInput) => {
   const distance = Math.hypot(dx, dy)
