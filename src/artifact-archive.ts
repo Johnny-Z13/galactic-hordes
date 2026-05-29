@@ -41,6 +41,36 @@ export function artifactColor(kind: ArtifactKind, key: string) {
   return colors[hashString(key, 73) % colors.length]
 }
 
+export function spaceEnemyDiscoveryRecord(input: {
+  kind: string
+  elapsedLabel: string
+  color: string
+}): Omit<ArtifactRecord, 'count'> {
+  const title = input.kind.replace(/([A-Z])/g, ' $1').replace(/^./, (ch) => ch.toUpperCase())
+  const id = `enemy:space:${input.kind}`
+  return enemyDiscoveryRecord({
+    id,
+    title: `${title} Vector`,
+    detail: `Encountered in open space after ${input.elapsedLabel}.`,
+    source: 'Space horde telemetry',
+    color: input.color
+  })
+}
+
+export function enemyDiscoveryRecord(input: {
+  id: string
+  title: string
+  detail: string
+  source: string
+  color: string
+}): Omit<ArtifactRecord, 'count'> {
+  return {
+    ...input,
+    kind: 'enemy',
+    icon: hashString(input.id, 83) % 80
+  }
+}
+
 export function recordArtifactDiscovery(artifacts: Map<string, ArtifactRecord>, record: Omit<ArtifactRecord, 'count'>) {
   const collectionEntry = collectionCatalogById.get(record.id)
   const canonicalRecord = collectionEntry

@@ -4,6 +4,8 @@ import {
   artifactColor,
   collectionSlug,
   currentRunArchiveRecords,
+  enemyDiscoveryRecord,
+  spaceEnemyDiscoveryRecord,
   recordArtifactDiscovery,
   type ArtifactRecord
 } from '../src/artifact-archive'
@@ -70,13 +72,59 @@ test('artifact helpers create stable ids colors and persistent archive records',
   })
 })
 
+test('space enemy discovery record names telemetry consistently', () => {
+  expect(enemyDiscoveryRecord({
+    id: 'enemy:surface:glass-mite',
+    title: 'Glass Mite',
+    detail: 'Catalogued in the dust.',
+    source: 'Surface contact',
+    color: '#57fff3'
+  })).toEqual({
+    id: 'enemy:surface:glass-mite',
+    kind: 'enemy',
+    title: 'Glass Mite',
+    detail: 'Catalogued in the dust.',
+    source: 'Surface contact',
+    color: '#57fff3',
+    icon: expect.any(Number)
+  })
+
+  expect(spaceEnemyDiscoveryRecord({
+    kind: 'dreadnought',
+    elapsedLabel: '4:12',
+    color: '#ff5d73'
+  })).toEqual({
+    id: 'enemy:space:dreadnought',
+    kind: 'enemy',
+    title: 'Dreadnought Vector',
+    detail: 'Encountered in open space after 4:12.',
+    source: 'Space horde telemetry',
+    color: '#ff5d73',
+    icon: expect.any(Number)
+  })
+
+  expect(spaceEnemyDiscoveryRecord({
+    kind: 'glassMiteOracle',
+    elapsedLabel: '7:03',
+    color: '#57fff3'
+  })).toMatchObject({
+    id: 'enemy:space:glassMiteOracle',
+    title: 'Glass Mite Oracle Vector'
+  })
+})
+
 test('main delegates artifact archive bookkeeping to a focused module', () => {
   const main = readFileSync('src/main.ts', 'utf8')
   const archive = readFileSync('src/artifact-archive.ts', 'utf8')
 
   expect(archive).toContain('export function recordArtifactDiscovery')
   expect(archive).toContain('export function currentRunArchiveRecords')
+  expect(archive).toContain('export function enemyDiscoveryRecord')
+  expect(archive).toContain('export function spaceEnemyDiscoveryRecord')
   expect(main).toContain("from './artifact-archive'")
   expect(main).toContain('recordArtifactDiscovery(this.artifacts, record)')
+  expect(main).toContain('enemyDiscoveryRecord(discovery)')
+  expect(main).toContain('spaceEnemyDiscoveryRecord({')
   expect(main).toContain('archiveRecordsFromArtifacts(this.artifacts.values())')
+  expect(main).not.toContain('private recordEnemyDiscovery(')
 })

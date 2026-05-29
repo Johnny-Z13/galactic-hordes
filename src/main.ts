@@ -17,8 +17,10 @@ import {
   artifactColor as archiveArtifactColor,
   collectionSlug as archiveCollectionSlug,
   currentRunArchiveRecords as archiveRecordsFromArtifacts,
+  enemyDiscoveryRecord,
   orderArtifactArchiveCards,
   recordArtifactDiscovery,
+  spaceEnemyDiscoveryRecord,
   type ArtifactKind,
   type ArtifactRecord
 } from './artifact-archive'
@@ -2096,7 +2098,11 @@ export class VectorShooter {
   private spawnEnemyAt(kind: EnemyKind, x: number, y: number) {
     if (this.enemies.length >= MAX_ENEMIES) return
     const color = balancedSpaceEnemyDefinition(kind).color
-    this.recordEnemyDiscovery(`enemy:space:${kind}`, `${this.enemyDisplayName(kind)} Vector`, `Encountered in open space after ${formatTime(this.stats.time)}.`, 'Space horde telemetry', color)
+    this.recordArtifact(spaceEnemyDiscoveryRecord({
+      kind,
+      elapsedLabel: formatTime(this.stats.time),
+      color
+    }))
     if (isGiantEnemyKind(kind)) {
       this.audio.playSample(Math.random() < 0.5 ? 'alienship-scan-high' : 'alienship-scan-low', { gain: 0.6 })
     }
@@ -2116,10 +2122,6 @@ export class VectorShooter {
       giant: isGiantEnemyKind(kind)
     }))
     if (this.spawnEntryPings.length > 96) this.spawnEntryPings.shift()
-  }
-
-  private enemyDisplayName(kind: EnemyKind) {
-    return kind.replace(/([A-Z])/g, ' $1').replace(/^./, (ch) => ch.toUpperCase())
   }
 
   private randomNearPlayer(minR: number, maxR: number): Vec {
@@ -2778,7 +2780,7 @@ export class VectorShooter {
       time: this.stats.time,
       randomRange: rand
     })
-    this.recordEnemyDiscovery(discovery.id, discovery.title, discovery.detail, discovery.source, discovery.color)
+    this.recordArtifact(enemyDiscoveryRecord(discovery))
     return threat
   }
 
@@ -2792,7 +2794,7 @@ export class VectorShooter {
       planetsVisited: this.stats.planets,
       randomRange: rand
     })
-    this.recordEnemyDiscovery(discovery.id, discovery.title, discovery.detail, discovery.source, discovery.color)
+    this.recordArtifact(enemyDiscoveryRecord(discovery))
     return threat
   }
 
@@ -2802,7 +2804,7 @@ export class VectorShooter {
       time: this.stats.time,
       randomRange: rand
     })
-    this.recordEnemyDiscovery(discovery.id, discovery.title, discovery.detail, discovery.source, discovery.color)
+    this.recordArtifact(enemyDiscoveryRecord(discovery))
     return threat
   }
 
@@ -4106,18 +4108,6 @@ export class VectorShooter {
   private recordArtifact(record: Omit<ArtifactRecord, 'count'>) {
     const result = recordArtifactDiscovery(this.artifacts, record)
     if (result.unlocksSuitOffer) this.discoverySuitOffer = true
-  }
-
-  private recordEnemyDiscovery(id: string, title: string, detail: string, source: string, color: string) {
-    this.recordArtifact({
-      id,
-      kind: 'enemy',
-      title,
-      detail,
-      source,
-      color,
-      icon: hashString(id, 83) % 80
-    })
   }
 
   private collectionSlug(value: string) {

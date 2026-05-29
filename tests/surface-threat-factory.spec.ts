@@ -106,5 +106,6 @@ test('main delegates surface threat construction to a focused surface factory', 
   expect(factory).toContain('export function createGlassMiteOracleThreat')
   expect(main).toContain("from './surface/threat-factory'")
   expect(main).toContain('createGenericSurfaceThreatFactory({')
-  expect(main).toContain('this.recordEnemyDiscovery(discovery.id')
+  expect(main).toContain('enemyDiscoveryRecord(discovery)')
+  expect(main).not.toContain('this.recordEnemyDiscovery(discovery.id')
 })
