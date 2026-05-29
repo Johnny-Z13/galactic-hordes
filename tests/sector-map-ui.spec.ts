@@ -103,6 +103,15 @@ test('route node completion state mutation is centralized', () => {
   expect((main.match(/this\.sectorMap = completeSectorNode\(this\.sectorMap\)/g) ?? []).length).toBe(1)
 })
 
+test('route profile refresh is centralized after route selection and reset', () => {
+  const main = mainSource()
+
+  expect(main).toContain('private setSectorNodeProfile(node: SectorNode)')
+  expect(main).toContain('this.setSectorNodeProfile(selected)')
+  expect(main).toContain('this.setSectorNodeProfile(currentSectorNode(this.sectorMap))')
+  expect((main.match(/this\.sectorNodeProfile = sectorNodeRunProfile\(/g) ?? []).length).toBe(1)
+})
+
 test('route launch toast uses authored node objective copy', () => {
   const main = mainSource()
 

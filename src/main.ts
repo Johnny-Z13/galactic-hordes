@@ -4268,7 +4268,7 @@ export class GalacticHordesGame {
     if (!node) return
     this.sectorMap = selectSectorNode(this.sectorMap, nodeId)
     const selected = currentSectorNode(this.sectorMap)
-    this.sectorNodeProfile = sectorNodeRunProfile(selected)
+    this.setSectorNodeProfile(selected)
     if (selected.kind === 'station') {
       const report = this.applySectorStationServices(selected)
       this.completeCurrentSectorNode()
@@ -4288,6 +4288,10 @@ export class GalacticHordesGame {
 
   private completeCurrentSectorNode() {
     this.sectorMap = completeSectorNode(this.sectorMap)
+  }
+
+  private setSectorNodeProfile(node: SectorNode) {
+    this.sectorNodeProfile = sectorNodeRunProfile(node)
   }
 
   private recordStationVisit(node: SectorNode, repaired: number, workbenchSignals: number, scrap: number, crystal: number) {
@@ -4455,7 +4459,7 @@ export class GalacticHordesGame {
 
   private reset() {
     this.sectorMap = createSectorMap(Date.now())
-    this.sectorNodeProfile = sectorNodeRunProfile(currentSectorNode(this.sectorMap))
+    this.setSectorNodeProfile(currentSectorNode(this.sectorMap))
     this.player = this.makePlayer()
     const launchLoadout = resolveMothershipLaunchLoadout(this.mothership)
     this.player.maxHull += launchLoadout.hullBonus
