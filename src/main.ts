@@ -36,7 +36,7 @@ import {
 import { resolveDashStats } from './dash-stats'
 import { navigationCruiseScalar, navigationTrailProfile } from './navigation-cruise'
 import { bestNavigationPickup } from './navigation-pickups'
-import { canLockPlanetCourse, nearestPlanetCourseTarget, planetCourseLockToast } from './navigation-planet-lock'
+import { canLockPlanetCourse, planetCourseLockToast, resolveLandingIntent } from './navigation-planet-lock'
 import { blendedNavigationMove, isManualNavigationActive } from './navigation-steering'
 import { navigationThreatWeaveVector } from './navigation-threat-weave'
 import { applyMutationXp } from './mutation-progress'
@@ -2603,31 +2603,30 @@ export class VectorShooter {
 
   private tryLand() {
     if (this.player.landedCd > 0) return
-    const planet = this.planets.find((p) => Math.sqrt(dist2(p, this.player)) < p.radius + 86)
-    if (!planet) {
-      if (this.lockReturnBeacon()) return
-      if (canLockPlanetCourse({
-        navRank: this.build.nav,
-        pendingUpgrades: this.pendingUpgrades,
-        navPlanetLockRank: powerupBalance.ship.navPlanetLockRank,
-        hasLockedPlanet: Boolean(this.autoNavTargetPlanetId),
-        stationAvailable: Boolean(this.returnBeacon),
-        planetCount: this.planets.length
-      })) {
-        const target = nearestPlanetCourseTarget(this.planets, this.player)
-        if (target) {
-          this.autoNavTargetPlanetId = target.id
-          this.autoNavActive = true
-          this.autoNavHeading = Math.atan2(target.y - this.player.y, target.x - this.player.x)
-          this.toast(planetCourseLockToast({ pendingUpgrades: this.pendingUpgrades, planetName: target.name }))
-          this.audio.pickup('nav')
-          return
-        }
-      }
-      this.toast('NO LANDING SIGNAL IN RANGE')
+    const intent = resolveLandingIntent({
+      player: this.player,
+      planets: this.planets,
+      returnBeaconAvailable: Boolean(this.returnBeacon),
+      navRank: this.build.nav,
+      pendingUpgrades: this.pendingUpgrades,
+      navPlanetLockRank: powerupBalance.ship.navPlanetLockRank,
+      hasLockedPlanet: Boolean(this.autoNavTargetPlanetId)
+    })
+    if (intent.action === 'land') {
+      this.startLanding(intent.planet)
       return
     }
-    this.startLanding(planet)
+    if (intent.action === 'returnBeacon' && this.lockReturnBeacon()) return
+    if (intent.action === 'lockPlanetCourse') {
+      const target = intent.target
+      this.autoNavTargetPlanetId = target.id
+      this.autoNavActive = true
+      this.autoNavHeading = Math.atan2(target.y - this.player.y, target.x - this.player.x)
+      this.toast(planetCourseLockToast({ pendingUpgrades: this.pendingUpgrades, planetName: target.name }))
+      this.audio.pickup('nav')
+      return
+    }
+    this.toast('NO LANDING SIGNAL IN RANGE')
   }
 
   private startLanding(planet: Planet) {
