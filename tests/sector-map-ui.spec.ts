@@ -108,8 +108,18 @@ test('route profile refresh is centralized after route selection and reset', () 
 
   expect(main).toContain('private setSectorNodeProfile(node: SectorNode)')
   expect(main).toContain('this.setSectorNodeProfile(selected)')
-  expect(main).toContain('this.setSectorNodeProfile(currentSectorNode(this.sectorMap))')
+  expect(main).toContain('this.setSectorNodeProfile(this.activeSectorNode())')
   expect((main.match(/this\.sectorNodeProfile = sectorNodeRunProfile\(/g) ?? []).length).toBe(1)
+})
+
+test('active route node lookup is centralized behind the game route state', () => {
+  const main = mainSource()
+
+  expect(main).toContain('private activeSectorNode(): SectorNode')
+  expect(main).toContain('return currentSectorNode(this.sectorMap)')
+  expect(main).toContain('sectorNodeRunProfile(this.activeSectorNode())')
+  expect(main).toContain('const selected = this.activeSectorNode()')
+  expect((main.match(/currentSectorNode\(this\.sectorMap\)/g) ?? []).length).toBe(1)
 })
 
 test('route launch toast uses authored node objective copy', () => {

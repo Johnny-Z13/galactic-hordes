@@ -540,7 +540,7 @@ export class GalacticHordesGame {
   private mothershipCollectionFilter: MothershipCollectionFilter = 'all'
   private selectedCollectionId: string | null = null
   private sectorMap: SectorMap = createSectorMap()
-  private sectorNodeProfile: SectorNodeRunProfile = sectorNodeRunProfile(currentSectorNode(this.sectorMap))
+  private sectorNodeProfile: SectorNodeRunProfile = sectorNodeRunProfile(this.activeSectorNode())
   private stationDockReport: StationDockReport | null = null
   private stationVisits: StationVisitRecord[] = []
   private sectorNodeStartedAt = 0
@@ -1341,7 +1341,7 @@ export class GalacticHordesGame {
   }
 
   private returnBeaconReady() {
-    const node = currentSectorNode(this.sectorMap)
+    const node = this.activeSectorNode()
     return returnBeaconReadyForRoute({
       time: this.stats.time,
       planetsVisited: this.stats.planets,
@@ -4263,11 +4263,15 @@ export class GalacticHordesGame {
     uiShowSectorMap(this, message)
   }
 
+  private activeSectorNode(): SectorNode {
+    return currentSectorNode(this.sectorMap)
+  }
+
   private launchSectorNode(nodeId: string) {
     const node = availableSectorChoices(this.sectorMap).find((choice) => choice.id === nodeId)
     if (!node) return
     this.sectorMap = selectSectorNode(this.sectorMap, nodeId)
-    const selected = currentSectorNode(this.sectorMap)
+    const selected = this.activeSectorNode()
     this.setSectorNodeProfile(selected)
     if (selected.kind === 'station') {
       const report = this.applySectorStationServices(selected)
@@ -4428,7 +4432,7 @@ export class GalacticHordesGame {
   }
 
   private completeSectorNodeViaBeacon() {
-    const node = currentSectorNode(this.sectorMap)
+    const node = this.activeSectorNode()
     if (node.kind === 'final') {
       this.finishRun('cleanExtraction')
       return
@@ -4459,7 +4463,7 @@ export class GalacticHordesGame {
 
   private reset() {
     this.sectorMap = createSectorMap(Date.now())
-    this.setSectorNodeProfile(currentSectorNode(this.sectorMap))
+    this.setSectorNodeProfile(this.activeSectorNode())
     this.player = this.makePlayer()
     const launchLoadout = resolveMothershipLaunchLoadout(this.mothership)
     this.player.maxHull += launchLoadout.hullBonus
