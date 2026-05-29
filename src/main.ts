@@ -166,6 +166,7 @@ import { renderOrbitals as drawOrbitals } from './render/orbitals'
 import { renderBullets as drawBullets, renderBulletsSimple as drawBulletsSimple } from './render/bullets'
 import { renderAutopilot as drawAutopilot, renderReturnBeacon as drawReturnBeacon } from './render/navigation-aids'
 import { effectLayerCamera, surfaceEffectMode } from './render/effect-layer'
+import { renderGlowAllowed, renderHighLoad } from './render/performance-mode'
 import type { MothershipCollectionFilter, MothershipConsoleView } from './ui/mothership-ui-types'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
 import { fireCathedralLattice, fireDreadnoughtBroadside, fireHelixSpikes, firePrismFan, fireSiphonVortex, type SpaceEnemyAttackContext } from './space-enemy-attacks'
@@ -3697,11 +3698,23 @@ export class GalacticHordesGame {
   }
 
   private isHighLoad() {
-    return this.graphicsMode === 'LOW' || this.particles.length > 170 || this.enemies.length > 120 || this.bullets.length > 130 || this.pickups.length > 150
+    return renderHighLoad({
+      graphicsMode: this.graphicsMode,
+      particles: this.particles.length,
+      enemies: this.enemies.length,
+      bullets: this.bullets.length,
+      pickups: this.pickups.length
+    })
   }
 
   private allowGlow() {
-    return this.graphicsMode === 'GLOW' && !this.isHighLoad()
+    return renderGlowAllowed({
+      graphicsMode: this.graphicsMode,
+      particles: this.particles.length,
+      enemies: this.enemies.length,
+      bullets: this.bullets.length,
+      pickups: this.pickups.length
+    })
   }
 
   private setGraphicsMode(mode: GraphicsMode) {
