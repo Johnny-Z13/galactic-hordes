@@ -167,7 +167,8 @@ test('first sector node has shorter station timing to introduce the route loop',
 
   expect(main).toContain('private isIntroSectorNode(')
   expect(main).toContain('runBalance.timers.introSectorBeaconSeconds')
-  expect(main).toContain('return this.stats.time >= this.nextReturnBeaconAt')
+  expect(main).toContain('returnBeaconReadyForRoute({')
+  expect(main).toContain('introNode: this.isIntroSectorNode(node)')
 })
 
 test('dock action stays visible and pulses while a station is available', () => {

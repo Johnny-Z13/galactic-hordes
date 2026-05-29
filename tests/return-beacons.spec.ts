@@ -10,7 +10,8 @@ import {
   beaconSpawnDistance,
   nextBeaconWindow,
   returnBeaconAutopilotVector,
-  returnBeaconEligible
+  returnBeaconEligible,
+  returnBeaconReadyForRoute
 } from '../src/return-beacons'
 
 const source = () => readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
@@ -32,6 +33,40 @@ test('blocks beacon while another beacon is active', () => {
 test('uses a later next beacon window after a skipped beacon', () => {
   expect(returnBeaconEligible({ time: 500, planetsVisited: 2, activeBeacon: false, nextBeaconAt: 530 })).toBe(false)
   expect(returnBeaconEligible({ time: 530, planetsVisited: 2, activeBeacon: false, nextBeaconAt: 530 })).toBe(true)
+})
+
+test('route-aware beacon readiness lets intro nodes use their authored early station window', () => {
+  expect(returnBeaconReadyForRoute({
+    time: 89,
+    planetsVisited: 0,
+    activeBeacon: false,
+    nextBeaconAt: 90,
+    introNode: true
+  })).toBe(false)
+  expect(returnBeaconReadyForRoute({
+    time: 90,
+    planetsVisited: 0,
+    activeBeacon: false,
+    nextBeaconAt: 90,
+    introNode: true
+  })).toBe(true)
+})
+
+test('route-aware beacon readiness preserves normal route station gates after intro', () => {
+  expect(returnBeaconReadyForRoute({
+    time: 300,
+    planetsVisited: 0,
+    activeBeacon: false,
+    nextBeaconAt: 90,
+    introNode: false
+  })).toBe(false)
+  expect(returnBeaconReadyForRoute({
+    time: 300,
+    planetsVisited: 1,
+    activeBeacon: true,
+    nextBeaconAt: 90,
+    introNode: true
+  })).toBe(false)
 })
 
 test('caps skipped beacon extraction bonus', () => {

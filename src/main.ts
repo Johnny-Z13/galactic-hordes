@@ -186,7 +186,7 @@ import {
   beaconSpawnDistance,
   nextBeaconWindow,
   returnBeaconAutopilotVector,
-  returnBeaconEligible
+  returnBeaconReadyForRoute
 } from './return-beacons'
 import {
   workbenchUnlockEdges,
@@ -1338,12 +1338,12 @@ export class VectorShooter {
 
   private returnBeaconReady() {
     const node = currentSectorNode(this.sectorMap)
-    if (this.isIntroSectorNode(node)) return this.stats.time >= this.nextReturnBeaconAt
-    return returnBeaconEligible({
+    return returnBeaconReadyForRoute({
       time: this.stats.time,
       planetsVisited: this.stats.planets,
-      activeBeacon: false,
-      nextBeaconAt: this.nextReturnBeaconAt
+      activeBeacon: Boolean(this.returnBeacon),
+      nextBeaconAt: this.nextReturnBeaconAt,
+      introNode: this.isIntroSectorNode(node)
     })
   }
 

@@ -5,6 +5,10 @@ export interface ReturnBeaconEligibilityInput {
   nextBeaconAt: number
 }
 
+export interface ReturnBeaconRouteReadinessInput extends ReturnBeaconEligibilityInput {
+  introNode: boolean
+}
+
 export interface ReturnBeaconAutopilotInput {
   dx: number
   dy: number
@@ -26,6 +30,12 @@ export const returnBeaconEligible = (input: ReturnBeaconEligibilityInput) => {
   if (input.time < FIRST_BEACON_TIME) return false
   if (input.nextBeaconAt > 0 && input.time < input.nextBeaconAt) return false
   return true
+}
+
+export const returnBeaconReadyForRoute = (input: ReturnBeaconRouteReadinessInput) => {
+  if (input.activeBeacon) return false
+  if (input.introNode) return input.time >= input.nextBeaconAt
+  return returnBeaconEligible(input)
 }
 
 export const nextBeaconWindow = (currentTime: number) => currentTime + BEACON_INTERVAL
