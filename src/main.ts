@@ -134,7 +134,7 @@ import { renderSurfaceWorld as drawSurfaceWorld } from './surface/render-world'
 import { alienGiftOfferCopy, createBadAlienGiftThreats, isAlienGiftGood } from './surface/alien-gifts'
 import { createSurfaceCacheArtifact, resolveSurfaceCacheReward, surfaceCacheAmbushChance } from './surface/cache-rewards'
 import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurfaceBulletsAndThreatDamage } from './surface/bullet-combat'
-import { initialSurfaceCamera as createInitialSurfaceCamera } from './surface/camera'
+import { followSurfaceCamera, initialSurfaceCamera as createInitialSurfaceCamera } from './surface/camera'
 import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction, surfaceTakeoffRequest, surfaceTransitionProgress } from './surface/lifecycle'
 import { surfaceRunInterest } from './surface/interest'
 import { findNearbySurfaceAlien, findNearbySurfaceLoreSite } from './surface/interaction-targets'
@@ -1493,10 +1493,14 @@ export class VectorShooter {
       this.surface.message = 'CACHE CLEARED. RETURN TO SHIP.'
     }
 
-    this.surface.camera.x += (this.surface.pilot.x - this.width / 2 - this.surface.camera.x) * clamp(dt * 7, 0, 1)
-    this.surface.camera.y += (this.surface.pilot.y - this.height / 2 - this.surface.camera.y) * clamp(dt * 7, 0, 1)
-    this.surface.camera.x = clamp(this.surface.camera.x, 0, Math.max(0, this.surface.width - this.width))
-    this.surface.camera.y = clamp(this.surface.camera.y, 0, Math.max(0, this.surface.height - this.height))
+    this.surface.camera = followSurfaceCamera({
+      camera: this.surface.camera,
+      pilot: this.surface.pilot,
+      world: { width: this.surface.width, height: this.surface.height },
+      viewWidth: this.width,
+      viewHeight: this.height,
+      dt
+    })
 
     this.updateParticles(dt)
     this.updateHud()
