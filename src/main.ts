@@ -39,7 +39,7 @@ import { resolveDashStats } from './dash-stats'
 import { navigationCruiseScalar, navigationTrailProfile } from './navigation-cruise'
 import { bestNavigationPickup } from './navigation-pickups'
 import { canLockPlanetCourse, planetCourseLockToast, resolveLandingIntent } from './navigation-planet-lock'
-import { blendedNavigationMove, isManualNavigationActive } from './navigation-steering'
+import { blendedNavigationMove, driftNavigationHeading, isManualNavigationActive, resolvedNavigationHeading, type NavigationHeading } from './navigation-steering'
 import { navigationThreatWeaveVector } from './navigation-threat-weave'
 import { applyMutationXp } from './mutation-progress'
 import { createChunkPlanet, type GeneratedPlanet } from './planet-generation'
@@ -116,7 +116,7 @@ import {
 import { damageSpaceHazard as damageSpaceHazardCombat } from './space-hazard-combat'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
-import { clamp, norm, dist2, hash32, hashString, len, rngFrom, TAU } from './math-utils'
+import { angleLerp, clamp, norm, dist2, hash32, hashString, len, rngFrom, TAU } from './math-utils'
 import { resolvePlayerAim } from './player-aim'
 import { resolvePlayerInputAxes } from './player-input'
 import { renderPlayerDamageFlash as drawPlayerDamageFlash } from './render/player-damage-flash'
@@ -446,10 +446,6 @@ const ENEMY_PRESSURE_RADIUS = 1250
 const rand = (min: number, max: number) => min + Math.random() * (max - min)
 
 const savedGraphicsMode = (): GraphicsMode => (storageValueWithFallback(localStorage, GRAPHICS_STORAGE_KEY, LEGACY_GRAPHICS_STORAGE_KEYS) as GraphicsMode | null) || 'LOW'
-const angleLerp = (a: number, b: number, t: number) => {
-  const diff = Math.atan2(Math.sin(b - a), Math.cos(b - a))
-  return a + diff * t
-}
 export class GalacticHordesGame {
   private app = document.querySelector<HTMLDivElement>('#app')!
   private canvas: HTMLCanvasElement
@@ -1216,33 +1212,30 @@ export class GalacticHordesGame {
     const manualActive = isManualNavigationActive({ move, moveActive })
     if (manualActive) {
       const target = Math.atan2(move.y, move.x)
-      this.autoNavHeading = this.autoNavActive ? angleLerp(this.autoNavHeading, target, clamp(dt * (3.6 + level * 0.42), 0, 0.38)) : target
-      this.autoNavActive = true
+      this.steerAutoNavigationHeading(target, clamp(dt * (3.6 + level * 0.42), 0, 0.38))
       this.clearPlanetCourse()
       this.clearReturnBeaconCourse()
     } else if (!this.autoNavActive) {
-      const speed = len(this.player.vx, this.player.vy)
-      this.autoNavHeading = speed > 20 ? Math.atan2(this.player.vy, this.player.vx) : this.player.angle
-      this.autoNavActive = true
+      this.activateAutoNavigationHeading(this.playerDriftHeading())
     }
 
     const targetPlanet = this.lockedPlanetCourseTarget()
     const beaconTarget = this.autoNavTargetBeacon ? this.returnBeacon : null
     if (targetPlanet) {
       const targetAngle = Math.atan2(targetPlanet.y - this.player.y, targetPlanet.x - this.player.x)
-      this.autoNavHeading = angleLerp(this.autoNavHeading, targetAngle, clamp(dt * (1.7 + level * 0.24), 0, 0.22))
+      this.steerAutoNavigationHeading(targetAngle, clamp(dt * (1.7 + level * 0.24), 0, 0.22))
       if (Math.sqrt(dist2(targetPlanet, this.player)) < targetPlanet.radius + 108) {
         this.clearPlanetCourse()
         this.toast('LANDING BEACON IN RANGE')
       }
     } else if (beaconTarget) {
       const targetAngle = Math.atan2(beaconTarget.y - this.player.y, beaconTarget.x - this.player.x)
-      this.autoNavHeading = angleLerp(this.autoNavHeading, targetAngle, clamp(dt * 1.9, 0, 0.24))
+      this.steerAutoNavigationHeading(targetAngle, clamp(dt * 1.9, 0, 0.24))
     } else if (!manualActive && level >= 5) {
       const pickup = this.bestNavigationPickup()
       if (pickup) {
         const targetAngle = Math.atan2(pickup.y - this.player.y, pickup.x - this.player.x)
-        this.autoNavHeading = angleLerp(this.autoNavHeading, targetAngle, clamp(dt * 0.82, 0, 0.12))
+        this.steerAutoNavigationHeading(targetAngle, clamp(dt * 0.82, 0, 0.12))
       }
     }
 
@@ -1257,7 +1250,7 @@ export class GalacticHordesGame {
         radius: beaconTarget.radius
       })
       if (Math.abs(beaconMove.x) + Math.abs(beaconMove.y) > 0.01) {
-        this.autoNavHeading = Math.atan2(beaconMove.y, beaconMove.x)
+        this.activateAutoNavigationHeading(Math.atan2(beaconMove.y, beaconMove.x))
       }
       return beaconMove
     }
@@ -1269,6 +1262,32 @@ export class GalacticHordesGame {
 
   private navigationCruiseLevel() {
     return this.build.nav
+  }
+
+  private applyAutoNavigationHeading(next: NavigationHeading) {
+    this.autoNavHeading = next.heading
+    this.autoNavActive = next.active
+  }
+
+  private activateAutoNavigationHeading(heading: number) {
+    this.applyAutoNavigationHeading({ active: true, heading })
+  }
+
+  private steerAutoNavigationHeading(target: number, blend: number) {
+    this.applyAutoNavigationHeading(resolvedNavigationHeading({
+      active: this.autoNavActive,
+      heading: this.autoNavHeading,
+      target,
+      blend
+    }))
+  }
+
+  private playerDriftHeading() {
+    return driftNavigationHeading({
+      vx: this.player.vx,
+      vy: this.player.vy,
+      angle: this.player.angle
+    })
   }
 
   private bestNavigationPickup() {
@@ -1339,8 +1358,7 @@ export class GalacticHordesGame {
   private setPlanetCourse(target: Planet) {
     this.autoNavTargetPlanetId = target.id
     this.clearReturnBeaconCourse()
-    this.autoNavActive = true
-    this.autoNavHeading = Math.atan2(target.y - this.player.y, target.x - this.player.x)
+    this.activateAutoNavigationHeading(Math.atan2(target.y - this.player.y, target.x - this.player.x))
   }
 
   private clearPlanetCourse() {
@@ -1359,8 +1377,7 @@ export class GalacticHordesGame {
     if (!this.returnBeacon) return false
     this.clearPlanetCourse()
     this.autoNavTargetBeacon = true
-    this.autoNavActive = true
-    this.autoNavHeading = Math.atan2(this.returnBeacon.y - this.player.y, this.returnBeacon.x - this.player.x)
+    this.activateAutoNavigationHeading(Math.atan2(this.returnBeacon.y - this.player.y, this.returnBeacon.x - this.player.x))
     return true
   }
 
@@ -1392,7 +1409,7 @@ export class GalacticHordesGame {
     })
     if (!avoidance) return
     const avoidAngle = Math.atan2(avoidance.y, avoidance.x)
-    this.autoNavHeading = angleLerp(this.autoNavHeading, avoidAngle, clamp(dt * (0.72 + level * 0.08), 0, 0.14))
+    this.steerAutoNavigationHeading(avoidAngle, clamp(dt * (0.72 + level * 0.08), 0, 0.14))
   }
 
   private updateLanding(dt: number) {
@@ -2463,8 +2480,7 @@ export class GalacticHordesGame {
     this.build[upgrade.id] = nextLevel
     if (upgrade.id === 'engine') this.player.speed += powerupBalance.upgradeApply.engineSpeedPerRank
     if (upgrade.id === 'nav') {
-      this.autoNavActive = true
-      this.autoNavHeading = len(this.player.vx, this.player.vy) > 20 ? Math.atan2(this.player.vy, this.player.vx) : this.player.angle
+      this.activateAutoNavigationHeading(this.playerDriftHeading())
       if (nextLevel === 1) this.toast('NAV GHOST TUNED TO YOUR DRIFT')
     }
     if (upgrade.id === 'shield') {

@@ -1,8 +1,13 @@
-import { len } from './math-utils'
+import { angleLerp, len } from './math-utils'
 
 export interface NavigationMove {
   x: number
   y: number
+}
+
+export interface NavigationHeading {
+  active: boolean
+  heading: number
 }
 
 export function isManualNavigationActive(input: {
@@ -26,4 +31,25 @@ export function blendedNavigationMove(input: {
   }
   const magnitude = len(steered.x, steered.y)
   return magnitude > 1 ? { x: steered.x / magnitude, y: steered.y / magnitude } : steered
+}
+
+export function resolvedNavigationHeading(input: {
+  active: boolean
+  heading: number
+  target: number
+  blend: number
+}): NavigationHeading {
+  return {
+    active: true,
+    heading: input.active ? angleLerp(input.heading, input.target, input.blend) : input.target
+  }
+}
+
+export function driftNavigationHeading(input: {
+  vx: number
+  vy: number
+  angle: number
+  speedThreshold?: number
+}) {
+  return len(input.vx, input.vy) > (input.speedThreshold ?? 20) ? Math.atan2(input.vy, input.vx) : input.angle
 }

@@ -15,6 +15,11 @@ export const clamp = (v: number, min: number, max: number) => Math.max(min, Math
 
 export const len = (x: number, y: number) => Math.hypot(x, y)
 
+export const angleLerp = (a: number, b: number, t: number) => {
+  const diff = Math.atan2(Math.sin(b - a), Math.cos(b - a))
+  return a + diff * t
+}
+
 export const norm = (x: number, y: number): Vec => {
   const l = len(x, y) || 1
   return { x: x / l, y: y / l }
