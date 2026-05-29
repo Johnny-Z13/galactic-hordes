@@ -117,8 +117,6 @@ import { damageSpaceHazard as damageSpaceHazardCombat } from './space-hazard-com
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { clamp, norm, dist2, hash32, hashString, len, rngFrom, TAU } from './math-utils'
-export { clamp } from './math-utils'
-export { formatTime } from './time-format'
 import { resolvePlayerAim } from './player-aim'
 import { resolvePlayerInputAxes } from './player-input'
 import { renderScorePopups as drawScorePopups } from './render/score-popups'
@@ -255,8 +253,6 @@ import {
 import { installPlaytestHarnessIfRequested } from './playtest-harness'
 import type { GameState, StateHandlers } from './game-states'
 
-export type { AudioUpgradeCue } from './audio/audio-director'
-export type { ArtifactKind, ArtifactRecord } from './artifact-archive'
 
 type GraphicsMode = 'LOW' | 'MED' | 'GLOW'
 interface Particle {
