@@ -4276,10 +4276,14 @@ export class GalacticHordesGame {
       return
     }
     this.prepareSectorNode(selected)
+    this.enterSectorRoute(selected)
+  }
+
+  private enterSectorRoute(node: SectorNode) {
     this.state = 'playing'
     this.showOnly(null)
     this.updateHud()
-    this.toast(`${selected.label}: ${selected.config.objective}`)
+    this.toast(`${node.label}: ${node.config.objective}`)
   }
 
   private recordStationVisit(node: SectorNode, repaired: number, workbenchSignals: number, scrap: number, crystal: number) {

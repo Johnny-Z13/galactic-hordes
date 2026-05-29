@@ -98,18 +98,25 @@ test('station docking advances the sector map instead of always ending the run',
 test('route launch toast uses authored node objective copy', () => {
   const main = mainSource()
 
-  expect(main).toContain('selected.config.objective')
+  expect(main).toContain('node.config.objective')
   expect(main).not.toContain('DOCK AT STATION TO CLEAR ROUTE')
 })
 
 test('route launch refreshes hud after selecting the sector node', () => {
   const main = mainSource()
   const launchStart = main.indexOf('private launchSectorNode(')
-  const launchEnd = main.indexOf('private recordStationVisit(', launchStart)
+  const launchEnd = main.indexOf('private enterSectorRoute(', launchStart)
   const launchMethod = main.slice(launchStart, launchEnd)
+  const enterStart = main.indexOf('private enterSectorRoute(')
+  const enterEnd = main.indexOf('private recordStationVisit(', enterStart)
+  const enterMethod = main.slice(enterStart, enterEnd)
 
   expect(launchMethod).toContain('this.sectorMap = selectSectorNode(this.sectorMap, nodeId)')
-  expect(launchMethod.indexOf('this.updateHud()')).toBeGreaterThan(launchMethod.indexOf('this.showOnly(null)'))
+  expect(launchMethod).toContain('this.enterSectorRoute(selected)')
+  expect(launchMethod).not.toContain("this.state = 'playing'")
+  expect(enterMethod).toContain("this.state = 'playing'")
+  expect(enterMethod.indexOf('this.updateHud()')).toBeGreaterThan(enterMethod.indexOf('this.showOnly(null)'))
+  expect(enterMethod).toContain('this.toast(`${node.label}: ${node.config.objective}`)')
 })
 
 test('station docking opens a master command menu with collapsible sections and route map', () => {
