@@ -110,6 +110,7 @@ import { renderSurfaceWorld as drawSurfaceWorld } from './surface/render-world'
 import { alienGiftOfferCopy, createBadAlienGiftThreats } from './surface/alien-gifts'
 import { createSurfaceCacheArtifact, resolveSurfaceCacheReward, surfaceCacheAmbushChance } from './surface/cache-rewards'
 import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurfaceBulletsAndThreatDamage } from './surface/bullet-combat'
+import { initialSurfaceCamera as createInitialSurfaceCamera } from './surface/camera'
 import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction, surfaceTakeoffRequest, surfaceTransitionProgress } from './surface/lifecycle'
 import { surfaceRunInterest } from './surface/interest'
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
@@ -2833,10 +2834,7 @@ export class VectorShooter {
   }
 
   private initialSurfaceCamera(pilot: Vec, world: typeof surfaceRunBalance.world) {
-    return {
-      x: clamp(pilot.x - this.width / 2, 0, Math.max(0, world.width - this.width)),
-      y: clamp(pilot.y - this.height / 2, 0, Math.max(0, world.height - this.height))
-    }
+    return createInitialSurfaceCamera({ pilot, world, viewWidth: this.width, viewHeight: this.height })
   }
 
   private surfaceInterest() {
