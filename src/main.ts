@@ -1218,7 +1218,7 @@ export class GalacticHordesGame {
       const target = Math.atan2(move.y, move.x)
       this.autoNavHeading = this.autoNavActive ? angleLerp(this.autoNavHeading, target, clamp(dt * (3.6 + level * 0.42), 0, 0.38)) : target
       this.autoNavActive = true
-      this.autoNavTargetPlanetId = null
+      this.clearPlanetCourse()
       this.autoNavTargetBeacon = false
     } else if (!this.autoNavActive) {
       const speed = len(this.player.vx, this.player.vy)
@@ -1232,7 +1232,7 @@ export class GalacticHordesGame {
       const targetAngle = Math.atan2(targetPlanet.y - this.player.y, targetPlanet.x - this.player.x)
       this.autoNavHeading = angleLerp(this.autoNavHeading, targetAngle, clamp(dt * (1.7 + level * 0.24), 0, 0.22))
       if (Math.sqrt(dist2(targetPlanet, this.player)) < targetPlanet.radius + 108) {
-        this.autoNavTargetPlanetId = null
+        this.clearPlanetCourse()
         this.toast('LANDING BEACON IN RANGE')
       }
     } else if (beaconTarget) {
@@ -1343,13 +1343,17 @@ export class GalacticHordesGame {
     this.autoNavHeading = Math.atan2(target.y - this.player.y, target.x - this.player.x)
   }
 
+  private clearPlanetCourse() {
+    this.autoNavTargetPlanetId = null
+  }
+
   private lockedPlanetCourseTarget() {
     return this.autoNavTargetPlanetId ? this.planets.find((planet) => planet.id === this.autoNavTargetPlanetId) ?? null : null
   }
 
   private setReturnBeaconCourse() {
     if (!this.returnBeacon) return false
-    this.autoNavTargetPlanetId = null
+    this.clearPlanetCourse()
     this.autoNavTargetBeacon = true
     this.autoNavActive = true
     this.autoNavHeading = Math.atan2(this.returnBeacon.y - this.player.y, this.returnBeacon.x - this.player.x)
@@ -2637,7 +2641,7 @@ export class GalacticHordesGame {
     this.stopIntroWaypoint()
     this.state = 'landing'
     this.planetChoice = planet
-    this.autoNavTargetPlanetId = null
+    this.clearPlanetCourse()
     this.orbitReturnPoint = { x: this.player.x, y: this.player.y }
     this.transitionTimer = 0
     this.transitionDuration = 1.35
@@ -4341,7 +4345,7 @@ export class GalacticHordesGame {
     this.activeChunkKey = ''
     this.returnBeacon = null
     this.autoNavActive = false
-    this.autoNavTargetPlanetId = null
+    this.clearPlanetCourse()
     this.autoNavTargetBeacon = false
   }
 

@@ -89,6 +89,14 @@ test('main shares locked planet course lookup between update and render paths', 
   expect(occurrences(main, 'this.planets.find((planet) => planet.id === this.autoNavTargetPlanetId)')).toBe(1)
 })
 
+test('main clears planet course targets through a focused helper', () => {
+  const main = source()
+
+  expect(main).toContain('private clearPlanetCourse()')
+  expect(occurrences(main, 'this.clearPlanetCourse()')).toBe(5)
+  expect(occurrences(main, 'this.autoNavTargetPlanetId = null')).toBe(1)
+})
+
 test('landing intent prioritizes nearby planets then return beacon then course lock', () => {
   const planets = [
     { id: 'near', name: 'Near', x: 80, y: 0, radius: 30 },
