@@ -110,7 +110,7 @@ import { renderSurfaceBullets as drawSurfaceBullets, renderSurfaceWaveTelegraphs
 import { renderSurfaceShip as drawSurfaceShip } from './surface/render-ship'
 import { renderSurfaceThreats } from './surface/render-threats'
 import { renderSurfaceWorld as drawSurfaceWorld } from './surface/render-world'
-import { alienGiftOfferCopy, createBadAlienGiftThreats } from './surface/alien-gifts'
+import { alienGiftOfferCopy, createBadAlienGiftThreats, isAlienGiftGood } from './surface/alien-gifts'
 import { createSurfaceCacheArtifact, resolveSurfaceCacheReward, surfaceCacheAmbushChance } from './surface/cache-rewards'
 import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurfaceBulletsAndThreatDamage } from './surface/bullet-combat'
 import { initialSurfaceCamera as createInitialSurfaceCamera } from './surface/camera'
@@ -3283,8 +3283,11 @@ export class VectorShooter {
       this.toast('ALIEN GIFT REFUSED')
       return
     }
-    const luck = this.build.luck * powerupBalance.upgradeApply.alienGiftLuckPerRank + this.build.survey * powerupBalance.upgradeApply.alienGiftSurveyPerRank
-    const good = Math.random() < powerupBalance.upgradeApply.alienGiftGoodBaseChance + luck
+    const good = isAlienGiftGood({
+      luckRank: this.build.luck,
+      surveyRank: this.build.survey,
+      random: Math.random
+    })
     if (good) this.applyGoodAlienGift(alien)
     else this.applyBadAlienGift(alien)
   }

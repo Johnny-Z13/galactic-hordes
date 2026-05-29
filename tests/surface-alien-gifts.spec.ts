@@ -4,8 +4,10 @@ import { TAU } from '../src/math-utils'
 import { surfaceRunBalance } from '../src/surface-balance'
 import {
   alienGiftOfferCopy,
-  createBadAlienGiftThreats
+  createBadAlienGiftThreats,
+  isAlienGiftGood
 } from '../src/surface/alien-gifts'
+import { powerupBalance } from '../src/powerup-balance'
 
 const middleRange = (min: number, max: number) => (min + max) / 2
 
@@ -67,11 +69,22 @@ test('bad beacon gift creates blue dust threats and non-threat gifts create none
   })).toEqual([])
 })
 
+test('alien gift success chance scales with luck and survey ranks', () => {
+  const chance = powerupBalance.upgradeApply.alienGiftGoodBaseChance
+    + 2 * powerupBalance.upgradeApply.alienGiftLuckPerRank
+    + 3 * powerupBalance.upgradeApply.alienGiftSurveyPerRank
+
+  expect(isAlienGiftGood({ luckRank: 2, surveyRank: 3, random: () => chance - 0.001 })).toBe(true)
+  expect(isAlienGiftGood({ luckRank: 2, surveyRank: 3, random: () => chance })).toBe(false)
+})
+
 test('main delegates alien gift copy and ambush creation to the surface module', () => {
   const main = readFileSync('src/main.ts', 'utf8')
 
   expect(main).toContain("from './surface/alien-gifts'")
   expect(main).toContain('alienGiftOfferCopy(alien.gift)')
   expect(main).toContain('createBadAlienGiftThreats({')
+  expect(main).toContain('isAlienGiftGood({')
   expect(main).not.toContain('private alienOfferCopy(')
+  expect(main).not.toContain('alienGiftGoodBaseChance')
 })

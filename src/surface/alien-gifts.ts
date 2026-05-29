@@ -1,4 +1,5 @@
 import { clamp, TAU } from '../math-utils'
+import { powerupBalance } from '../powerup-balance'
 import { surfaceRunBalance, type AlienGiftKind } from '../surface-balance'
 
 export interface AlienGiftThreatModel {
@@ -21,6 +22,17 @@ export function alienGiftOfferCopy(gift: AlienGiftKind): string {
     coin: 'It flips a black coin into the air and waits for your glove to open.',
     beacon: 'It holds up a cracked docking charter. The station signature inside is alive, frightened, and already calling your ship.'
   }[gift]
+}
+
+export function isAlienGiftGood(input: {
+  luckRank: number
+  surveyRank: number
+  random: () => number
+}): boolean {
+  const chance = powerupBalance.upgradeApply.alienGiftGoodBaseChance
+    + input.luckRank * powerupBalance.upgradeApply.alienGiftLuckPerRank
+    + input.surveyRank * powerupBalance.upgradeApply.alienGiftSurveyPerRank
+  return input.random() < chance
 }
 
 export function createBadAlienGiftThreats(input: {
