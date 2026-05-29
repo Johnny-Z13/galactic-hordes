@@ -84,7 +84,7 @@ test('gameplay events route to specialized audio cues', () => {
   expect(main).toContain("this.audio.fire('surface'")
   expect(main).toContain('this.playBulletImpact(b.rail ? 1.3 : 1)')
   expect(main).toContain('this.playBulletImpact(0.85)')
-  expect(workbenchSource()).toContain("self['audio'].install(installCueFor(self, choice), rare)")
+  expect(workbenchSource()).toContain("runtime['audio'].install(installCueFor(self, choice), rare)")
   expect(main).toContain('this.audio.upgrade(uiInstallCueFor(this, choice),')
   expect(main).toContain('this.audio.planetSignal(planet.archetype)')
   expect(main).toContain('this.audio.boom(feedback.boomKind)')
