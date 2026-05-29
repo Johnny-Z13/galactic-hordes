@@ -92,6 +92,7 @@ import { createDashWakeEffects } from './space-dash-wake'
 import { createSpaceEnemy, createSplitChildEnemy } from './space-enemy-factory'
 import { createEnemyTrailParticle } from './space-enemy-trails'
 import { EnemySpatialGrid } from './space-enemy-grid'
+import { resolveSpaceEnemyKillReward } from './space-enemy-rewards'
 import { damageSpaceHazard as damageSpaceHazardCombat } from './space-hazard-combat'
 import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemySpawnPoint, spriteEnemyKinds, type SpaceEnemyKind } from './space-enemies'
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
@@ -144,7 +145,7 @@ import { renderBullets as drawBullets, renderBulletsSimple as drawBulletsSimple 
 import { renderAutopilot as drawAutopilot, renderReturnBeacon as drawReturnBeacon } from './render/navigation-aids'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
 import { fireCathedralLattice, fireDreadnoughtBroadside, fireHelixSpikes, firePrismFan, fireSiphonVortex, type SpaceEnemyAttackContext } from './space-enemy-attacks'
-import { advancedRewardEnemyKinds, spaceEnemyBehavior } from './space-enemy-behavior'
+import { spaceEnemyBehavior } from './space-enemy-behavior'
 import {
   alienBloomFormation,
   asteroidFieldAsteroids,
@@ -2242,31 +2243,9 @@ export class VectorShooter {
       }
       this.stats.kills += 1
       this.stats.score += e.value
-      const xpCount = isGiantEnemyKind(e.kind)
-        ? spaceEnemyBehavior.rewards.xpCount.giant
-        : e.kind === 'warden'
-          ? spaceEnemyBehavior.rewards.xpCount.warden
-          : e.kind === 'bulwark'
-            ? spaceEnemyBehavior.rewards.xpCount.bulwark
-            : e.kind === 'brute'
-              ? spaceEnemyBehavior.rewards.xpCount.brute
-              : advancedRewardEnemyKinds.includes(e.kind)
-                ? spaceEnemyBehavior.rewards.xpCount.advanced
-                : spaceEnemyBehavior.rewards.xpCount.default
-      const xpDrops = highLoad && e.kind !== 'warden' ? 1 : xpCount
-      const xpValue = isGiantEnemyKind(e.kind)
-        ? spaceEnemyBehavior.rewards.xpValue.giant
-        : e.kind === 'warden'
-          ? spaceEnemyBehavior.rewards.xpValue.warden
-          : e.kind === 'bulwark'
-            ? spaceEnemyBehavior.rewards.xpValue.bulwark
-            : e.kind === 'brute'
-              ? spaceEnemyBehavior.rewards.xpValue.brute
-              : highLoad
-                ? spaceEnemyBehavior.rewards.xpValue.highLoadPerDrop * xpCount
-                : spaceEnemyBehavior.rewards.xpValue.default
-      for (let i = 0; i < xpDrops; i += 1) this.drop('xp', e.x, e.y, xpValue)
-      if (e.kind === 'warden' || isGiantEnemyKind(e.kind)) this.drop('chest', e.x, e.y, 1)
+      const killReward = resolveSpaceEnemyKillReward({ kind: e.kind, highLoad })
+      for (let i = 0; i < killReward.xpDrops; i += 1) this.drop('xp', e.x, e.y, killReward.xpValue)
+      if (killReward.chest) this.drop('chest', e.x, e.y, 1)
       if (e.kind === 'splinter' && this.enemies.length < MAX_ENEMIES - spaceEnemyBehavior.splitChild.count && Math.random() < spaceEnemyBehavior.splitChild.chance) {
         for (let k = 0; k < spaceEnemyBehavior.splitChild.count; k += 1) {
           const child = this.spawnChild(e.x, e.y)
