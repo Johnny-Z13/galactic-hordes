@@ -3546,14 +3546,41 @@ export class GalacticHordesGame {
       glow: this.allowGlow(),
       worldToScreen: (x, y) => this.worldToScreen(x, y)
     })
-    this.renderReturnBeacon(ctx)
+    drawReturnBeacon({
+      ctx,
+      beacon: this.returnBeacon,
+      player: this.player,
+      width: this.width,
+      height: this.height,
+      glow: this.allowGlow(),
+      scale: this.spaceScale(),
+      holdSeconds: BEACON_HOLD_SECONDS,
+      worldToScreen: (x, y) => this.worldToScreen(x, y)
+    })
     this.renderPickups(ctx)
     this.renderBullets(ctx)
     this.renderEnemies(ctx)
     this.renderThreatIndicators(ctx)
     this.renderSpawnEntryPings(ctx)
     this.renderOrbitals(ctx)
-    this.renderAutopilot(ctx)
+    const autopilotTarget = this.autoNavTargetPlanetId ? this.planets.find((planet) => planet.id === this.autoNavTargetPlanetId) ?? null : null
+    const autopilotBeaconTarget = this.autoNavTargetBeacon ? this.returnBeacon : null
+    const autopilotLevel = this.navigationCruiseLevel()
+    drawAutopilot({
+      ctx,
+      active: this.state === 'playing' && this.autoNavActive,
+      player: this.player,
+      target: autopilotTarget,
+      beaconTarget: autopilotBeaconTarget,
+      level: autopilotLevel,
+      scale: this.spaceScale(),
+      color: autopilotBeaconTarget ? '#fff27a' : this.build.nav <= 0 ? '#57fff3' : this.build.nav >= 6 ? '#fff27a' : '#70a8ff',
+      glow: this.graphicsMode !== 'LOW',
+      alpha: this.build.nav <= 0 ? 0.34 : 0.62,
+      heading: this.autoNavHeading,
+      worldToScreen: (x, y) => this.worldToScreen(x, y),
+      time: this.stats.time
+    })
     if (this.state !== 'dying' || this.deathTimer < 0.16) this.renderPlayer(ctx)
     this.renderShockwaves(ctx)
     this.renderParticles(ctx)
@@ -3759,43 +3786,6 @@ export class GalacticHordesGame {
       surfaceToScreen: (x, y) => this.surfaceToScreen(x, y)
     })
     ctx.restore()
-  }
-
-  private renderReturnBeacon(ctx: CanvasRenderingContext2D) {
-    drawReturnBeacon({
-      ctx,
-      beacon: this.returnBeacon,
-      player: this.player,
-      width: this.width,
-      height: this.height,
-      glow: this.allowGlow(),
-      scale: this.spaceScale(),
-      holdSeconds: BEACON_HOLD_SECONDS,
-      worldToScreen: (x, y) => this.worldToScreen(x, y)
-    })
-  }
-
-  private renderAutopilot(ctx: CanvasRenderingContext2D) {
-    const target = this.autoNavTargetPlanetId ? this.planets.find((planet) => planet.id === this.autoNavTargetPlanetId) ?? null : null
-    const beaconTarget = this.autoNavTargetBeacon ? this.returnBeacon : null
-    const level = this.navigationCruiseLevel()
-    const scale = this.spaceScale()
-    const color = beaconTarget ? '#fff27a' : this.build.nav <= 0 ? '#57fff3' : this.build.nav >= 6 ? '#fff27a' : '#70a8ff'
-    drawAutopilot({
-      ctx,
-      active: this.state === 'playing' && this.autoNavActive,
-      player: this.player,
-      target,
-      beaconTarget,
-      level,
-      scale,
-      color,
-      glow: this.graphicsMode !== 'LOW',
-      alpha: this.build.nav <= 0 ? 0.34 : 0.62,
-      heading: this.autoNavHeading,
-      worldToScreen: (x, y) => this.worldToScreen(x, y),
-      time: this.stats.time
-    })
   }
 
   private renderPlayer(ctx: CanvasRenderingContext2D) {

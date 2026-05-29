@@ -8,6 +8,8 @@ test('main delegates return beacon and autopilot drawing to a focused render mod
   expect(main).toContain("from './render/navigation-aids'")
   expect(main).toContain('drawReturnBeacon({')
   expect(main).toContain('drawAutopilot({')
+  expect(main).not.toContain('private renderReturnBeacon(')
+  expect(main).not.toContain('private renderAutopilot(')
   expect(renderer).toContain('export function renderReturnBeacon')
   expect(renderer).toContain('export function renderAutopilot')
 })
