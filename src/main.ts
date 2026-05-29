@@ -209,6 +209,7 @@ import {
   loadMothershipState,
   saveMothershipState
 } from './mothership-storage'
+import { resolveMothershipLaunchLoadout } from './mothership-launch-loadout'
 import {
   workbenchUnlockEdges,
   workbenchUpgradeRows,
@@ -4507,10 +4508,10 @@ export class VectorShooter {
     this.sectorMap = createSectorMap(Date.now())
     this.sectorNodeProfile = sectorNodeRunProfile(currentSectorNode(this.sectorMap))
     this.player = this.makePlayer()
-    const shipyard = this.mothership.departments.shipyard
-    this.player.maxHull += shipyard * runBalance.progression.shipyardHullPerTier
+    const launchLoadout = resolveMothershipLaunchLoadout(this.mothership)
+    this.player.maxHull += launchLoadout.hullBonus
     this.player.hull = this.player.maxHull
-    this.player.speed += shipyard * runBalance.progression.shipyardSpeedPerTier
+    this.player.speed += launchLoadout.speedBonus
     this.bullets = []
     this.enemies = []
     this.enemyGrid.clear()
@@ -4553,13 +4554,8 @@ export class VectorShooter {
     this.returnToSectorMapAfterWorkbench = false
     this.discoverySuitOffer = false
     this.summonReturnBeaconAfterTakeoff = false
-    this.workbenchRerolls = this.mothership.departments.workbench >= 1 ? 1 : 0
-    const hangarCrew = this.mothership.departments.hangarCrew
-    this.resources = {
-      scrap: hangarCrew * runBalance.progression.hangarCrewScrapPerTier,
-      crystal: hangarCrew >= runBalance.progression.hangarCrewCrystalUnlockTier ? hangarCrew * runBalance.progression.hangarCrewCrystalPerTier : 0,
-      cores: hangarCrew >= runBalance.progression.hangarCrewCoreUnlockTier ? runBalance.progression.hangarCrewCores : 0
-    }
+    this.workbenchRerolls = launchLoadout.workbenchRerolls
+    this.resources = { ...launchLoadout.resources }
     this.relics.clear()
     this.evolved.clear()
     this.artifacts.clear()
