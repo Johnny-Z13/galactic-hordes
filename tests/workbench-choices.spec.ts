@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import {
   availableWorkbenchEvolutions,
+  resolveWorkbenchInstallFollowup,
   rollWorkbenchChoices,
   workbenchUpgradeWeight
 } from '../src/workbench-choices'
@@ -49,4 +50,42 @@ test('workbench choice rolling prioritizes jackpot discovery and upgrade offers 
   expect(choices.map((choice) => choice.kind)).toEqual(['evolution', 'relic', 'upgrade'])
   expect(choices[0].kind === 'evolution' ? choices[0].evolution.weapon : '').toBe('rapid')
   expect(choices[2].kind === 'upgrade' ? choices[2].upgrade.id : '').toBe('suitO2')
+})
+
+test('workbench install followup keeps remaining signals before leaving the workbench', () => {
+  expect(resolveWorkbenchInstallFollowup({
+    pendingUpgrades: 3,
+    takeoffAfterWorkbench: true,
+    returnToSectorMapAfterWorkbench: true
+  })).toEqual({
+    nextPendingUpgrades: 2,
+    action: 'refreshWorkbench'
+  })
+
+  expect(resolveWorkbenchInstallFollowup({
+    pendingUpgrades: 1,
+    takeoffAfterWorkbench: true,
+    returnToSectorMapAfterWorkbench: true
+  })).toEqual({
+    nextPendingUpgrades: 0,
+    action: 'takeoff'
+  })
+
+  expect(resolveWorkbenchInstallFollowup({
+    pendingUpgrades: 1,
+    takeoffAfterWorkbench: false,
+    returnToSectorMapAfterWorkbench: true
+  })).toEqual({
+    nextPendingUpgrades: 0,
+    action: 'sectorMap'
+  })
+
+  expect(resolveWorkbenchInstallFollowup({
+    pendingUpgrades: 1,
+    takeoffAfterWorkbench: false,
+    returnToSectorMapAfterWorkbench: false
+  })).toEqual({
+    nextPendingUpgrades: 0,
+    action: 'resumePlay'
+  })
 })

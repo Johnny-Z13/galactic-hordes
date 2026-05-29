@@ -58,7 +58,7 @@ import {
 } from './persistent-progress-storage'
 import { advanceScorePopups, appendScorePopup, createInstallPopup, createScorePopup, createSignalPopup, type ScorePopupModel } from './score-popups'
 import { resolveShipFlightStats } from './ship-flight-stats'
-import { rollWorkbenchChoices, type WorkbenchChoice } from './workbench-choices'
+import { resolveWorkbenchInstallFollowup, rollWorkbenchChoices, type WorkbenchChoice } from './workbench-choices'
 import {
   pickupBalance,
   powerupBalance,
@@ -2412,17 +2412,22 @@ export class VectorShooter {
       lifeSeconds: introHookConfig.popup.lifeSeconds
     }), introHookConfig.popup.cap)
     if (choice.kind === 'upgrade' && choice.upgrade.bucket === 'spacesuit') this.discoverySuitOffer = false
-    this.pendingUpgrades = Math.max(0, this.pendingUpgrades - 1)
-    if (this.pendingUpgrades > 0) {
+    const followup = resolveWorkbenchInstallFollowup({
+      pendingUpgrades: this.pendingUpgrades,
+      takeoffAfterWorkbench: this.takeoffAfterWorkbench,
+      returnToSectorMapAfterWorkbench: this.returnToSectorMapAfterWorkbench
+    })
+    this.pendingUpgrades = followup.nextPendingUpgrades
+    if (followup.action === 'refreshWorkbench') {
       this.refreshLevelUp('SHIPBOARD WORKBENCH', `${this.pendingUpgrades} mutation signal${this.pendingUpgrades === 1 ? '' : 's'} remain before takeoff.`)
       return
     }
     this.showOnly(null)
-    if (this.takeoffAfterWorkbench) {
+    if (followup.action === 'takeoff') {
       this.surfaceInstallCompleted = true
       this.takeoffAfterWorkbench = false
       this.startTakeoff()
-    } else if (this.returnToSectorMapAfterWorkbench) {
+    } else if (followup.action === 'sectorMap') {
       this.returnToSectorMapAfterWorkbench = false
       this.showSectorMap('Station workbench complete. Choose the next jump.')
     } else {

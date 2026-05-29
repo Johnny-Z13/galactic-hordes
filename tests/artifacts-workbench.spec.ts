@@ -92,7 +92,7 @@ test('shipboard workbench installs directly from bay detail', () => {
   const workbenchChoices = workbenchChoicesSource()
   const css = styles()
 
-  expect(main).toContain("import { rollWorkbenchChoices, type WorkbenchChoice } from './workbench-choices'")
+  expect(main).toContain("import { resolveWorkbenchInstallFollowup, rollWorkbenchChoices, type WorkbenchChoice } from './workbench-choices'")
   expect(main).not.toContain('export type WorkbenchChoice =')
   expect(main).toContain('return rollWorkbenchChoices({')
   expect(main).not.toContain('private weightedUpgrade(')

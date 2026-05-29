@@ -35,6 +35,8 @@ export interface RollWorkbenchChoicesInput extends WorkbenchUpgradeWeightInput {
   random?: () => number
 }
 
+export type WorkbenchInstallFollowupAction = 'refreshWorkbench' | 'takeoff' | 'sectorMap' | 'resumePlay'
+
 export function availableWorkbenchEvolutions(build: Record<UpgradeId, number>, relics: ReadonlySet<RelicId>, evolved: ReadonlySet<UpgradeId>) {
   return evolutions.filter((evolution) => build[evolution.weapon] >= upgradeMaxRank(evolution.weapon) && relics.has(evolution.relic) && !evolved.has(evolution.weapon))
 }
@@ -101,4 +103,16 @@ export function rollWorkbenchChoices(input: RollWorkbenchChoicesInput) {
   }
   while (choices.length < input.count) choices.push(rollWorkbenchLimitBreak(random))
   return choices
+}
+
+export function resolveWorkbenchInstallFollowup(input: {
+  pendingUpgrades: number
+  takeoffAfterWorkbench: boolean
+  returnToSectorMapAfterWorkbench: boolean
+}): { nextPendingUpgrades: number; action: WorkbenchInstallFollowupAction } {
+  const nextPendingUpgrades = Math.max(0, input.pendingUpgrades - 1)
+  if (nextPendingUpgrades > 0) return { nextPendingUpgrades, action: 'refreshWorkbench' }
+  if (input.takeoffAfterWorkbench) return { nextPendingUpgrades, action: 'takeoff' }
+  if (input.returnToSectorMapAfterWorkbench) return { nextPendingUpgrades, action: 'sectorMap' }
+  return { nextPendingUpgrades, action: 'resumePlay' }
 }
