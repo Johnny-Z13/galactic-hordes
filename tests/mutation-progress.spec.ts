@@ -27,7 +27,7 @@ test('main delegates mutation xp thresholds through a shared progression helper'
   expect(main).toContain("import { applyMutationXp } from './mutation-progress'")
   expect(pickups).toContain("import { applyMutationXp } from './mutation-progress'")
   expect(pickups).toContain('result.bankedSignals = applyMutationXp(stats, input.pickup.value)')
-  expect(main).toContain('const levelsGained = applyMutationXp(this.stats, resource.value)')
+  expect(main).toContain('const levelsGained = applyMutationXp(this.stats, pickup.mutationXp)')
   expect(main).not.toContain('while (this.stats.xp >= this.stats.nextXp)')
   expect(hud).toContain("import { mutationSignalAlmostReady, mutationXpReadout } from '../mutation-progress'")
   expect(hud).toContain("self['ui'].level.textContent = mutationXpReadout(self['stats'])")

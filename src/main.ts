@@ -113,6 +113,7 @@ import { createSurfaceBullet, findSurfaceTarget as pickSurfaceTarget, updateSurf
 import { advanceSurfaceOxygen, surfaceExtractionScore, surfaceInteractionAction, surfaceTakeoffRequest, surfaceTransitionProgress } from './surface/lifecycle'
 import { collectTouchedSurfaceResources, createSurfaceBossCacheDrops, createSurfaceCacheAmbushThreats, shouldPromptSurfaceReturn } from './surface/objectives'
 import { createSurfaceResourceNodes, surfaceEventMessage } from './surface/run-setup'
+import { resolveSurfaceResourcePickup } from './surface/resource-pickup'
 import { safeSurfaceResourcePoint } from './surface/safe-point'
 import { surfaceGunCooldown, surfaceGunDamage, surfaceGunSpeed, surfaceLowOxygenRatio, surfaceMaxHealth, surfaceMaxOxygen } from './surface/suit-stats'
 import { createSurfaceAliens as createSurfaceAliensFactory, createSurfaceLoreSites as createSurfaceLoreSitesFactory, type SurfaceAlienModel, type SurfaceLoreSiteModel } from './surface/discovery-factory'
@@ -2989,20 +2990,18 @@ export class VectorShooter {
       this.surface.collected += 1
       this.audio.pickup(resource.kind)
       this.burst(resource.x, resource.y, resource.color, resource.kind === 'cache' ? 22 : 10, resource.kind === 'cache' ? 240 : 140)
-      if (resource.kind === 'crystal') {
-        const gained = Math.ceil(resource.value * (1 + this.build.cargo * powerupBalance.upgradeApply.cargoResourceBonusPerRank))
-        this.resources.crystal += gained
-        this.stats.score += resource.value * 12
-        const levelsGained = applyMutationXp(this.stats, resource.value)
+      const pickup = resolveSurfaceResourcePickup({ resource, build: this.build })
+      this.resources.crystal += pickup.crystal
+      this.resources.scrap += pickup.scrap
+      this.stats.score += pickup.score
+      if (pickup.mutationXp > 0) {
+        const levelsGained = applyMutationXp(this.stats, pickup.mutationXp)
         for (let i = 0; i < levelsGained; i += 1) this.bankSurfaceUpgrade()
-      } else if (resource.kind === 'scrap') {
-        const gained = Math.ceil(resource.value * (1 + this.build.cargo * powerupBalance.upgradeApply.cargoResourceBonusPerRank))
-        this.resources.scrap += gained
-        this.stats.score += gained
-      } else if (resource.kind === 'repair') {
-        const surfaceRepair = resource.value * (1 + this.build.suitHealth * powerupBalance.upgradeApply.suitRepairBonusPerRank)
-        this.surface.pilot.health = clamp(this.surface.pilot.health + surfaceRepair, 0, this.surface.pilot.maxHealth)
-      } else if (resource.kind === 'cache') {
+      }
+      if (pickup.repair > 0) {
+        this.surface.pilot.health = clamp(this.surface.pilot.health + pickup.repair, 0, this.surface.pilot.maxHealth)
+      }
+      if (pickup.cache) {
         this.resolvePlanetCache(resource)
       }
     }
