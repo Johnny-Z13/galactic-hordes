@@ -114,6 +114,7 @@ import { isGiantEnemyKind, isSpriteEnemyKind, spaceEnemyDefinitions, spaceEnemyS
 import type { Vec, Enemy, Bullet, EnemyKind } from './main-types'
 import { clamp, norm, dist2, hash32, hashString, len, rngFrom, TAU } from './math-utils'
 export { clamp } from './math-utils'
+import { resolvePlayerAim } from './player-aim'
 import { resolvePlayerInputAxes } from './player-input'
 import { renderScorePopups as drawScorePopups } from './render/score-popups'
 import { renderSectorWaveWarning as drawSectorWaveWarning } from './render/sector-wave-warning'
@@ -1520,28 +1521,23 @@ export class VectorShooter {
 
     const { move, moveActive, aimX, aimY, gamepadFire, gamepadDash } = inputAxes
 
-    let aiming = Math.abs(aimX) + Math.abs(aimY) > 0
-    let aimAngle = aiming ? Math.atan2(aimY, aimX) : this.player.aimAngle
-    if (!aiming && this.mouse.down) {
-      const world = this.screenToWorld(this.mouse.x, this.mouse.y)
-      aimAngle = Math.atan2(world.y - this.player.y, world.x - this.player.x)
-      aiming = true
-    }
-    let autoFire = false
-    if (!aiming && this.state === 'playing') {
-      const target = this.findAutoTarget()
-      if (target) {
-        aimAngle = Math.atan2(target.y - this.player.y, target.x - this.player.x)
-        aiming = true
-        autoFire = true
-      }
-    }
+    const directAimActive = Math.abs(aimX) + Math.abs(aimY) > 0
+    const mouseWorld = this.mouse.down ? this.screenToWorld(this.mouse.x, this.mouse.y) : null
+    const aim = resolvePlayerAim({
+      aimX,
+      aimY,
+      previousAimAngle: this.player.aimAngle,
+      player: this.player,
+      mouseWorld,
+      autoTarget: !directAimActive && !mouseWorld && this.state === 'playing' ? this.findAutoTarget() : null,
+      isPlaying: this.state === 'playing'
+    })
     return {
       move,
       moveActive,
-      aiming,
-      aimAngle,
-      firing: this.keys.has('Space') || this.mouse.down || gamepadFire || aiming || autoFire || this.consumeMobileFire(),
+      aiming: aim.aiming,
+      aimAngle: aim.aimAngle,
+      firing: this.keys.has('Space') || this.mouse.down || gamepadFire || aim.aiming || aim.autoFire || this.consumeMobileFire(),
       dash: this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') || gamepadDash || this.consumeMobileDash(),
       interact: this.consume('KeyE') || this.consume('Enter') || this.consumeMobileAction()
     }
