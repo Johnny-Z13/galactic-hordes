@@ -44,7 +44,14 @@ import { createChunkPlanet, type GeneratedPlanet } from './planet-generation'
 import { collectPickup, dropPickup, updatePickupsPhysics, type Pickup, type PickupKind } from './pickups'
 import { runBalance } from './run-balance'
 import { resolveFinishedRun } from './run/finish-run'
-import { scoreEntryFromRun, type ScoreEntry } from './score-history'
+import type { ScoreEntry } from './score-history'
+import {
+  LEGACY_SCORE_STORAGE_KEYS,
+  SCORE_STORAGE_KEY,
+  loadScoreEntries,
+  sanitizeScoreName,
+  saveScoreEntry
+} from './score-storage'
 import { advanceScorePopups, appendScorePopup, createInstallPopup, createScorePopup, createSignalPopup, type ScorePopupModel } from './score-popups'
 import { resolveShipFlightStats } from './ship-flight-stats'
 import { rollWorkbenchChoices, type WorkbenchChoice } from './workbench-choices'
@@ -419,8 +426,6 @@ interface PerfStats {
 const CHUNK_SIZE = 3600
 const CHUNK_LOAD_RADIUS = 1
 const CHUNK_KEEP_RADIUS = 3
-const SCORE_STORAGE_KEY = 'galactic_hordes_high_scores_v1'
-const LEGACY_SCORE_STORAGE_KEYS = ['vector_shooter_high_scores']
 const GRAPHICS_STORAGE_KEY = 'galactic_hordes_graphics_v1'
 const LEGACY_GRAPHICS_STORAGE_KEYS = ['vector_shooter_graphics']
 const MOTHERSHIP_STORAGE_KEY = 'galactic_hordes_mothership_v2'
@@ -4493,7 +4498,7 @@ export class VectorShooter {
   }
 
   private saveScoreFromInput(input: HTMLInputElement) {
-    this.scoreName = input.value.toUpperCase().replace(/[^A-Z0-9 _-]/g, '').slice(0, 12).trim() || 'ACE'
+    this.scoreName = sanitizeScoreName(input.value)
     input.value = this.scoreName
     this.saveScore()
   }
@@ -4619,11 +4624,7 @@ export class VectorShooter {
   private debugEnemyCount() { return this.enemies.length }
 
   private loadScores(): ScoreEntry[] {
-    try {
-      return JSON.parse(localStorageWithFallback(SCORE_STORAGE_KEY, LEGACY_SCORE_STORAGE_KEYS) || '[]') as ScoreEntry[]
-    } catch {
-      return []
-    }
+    return loadScoreEntries(localStorage)
   }
 
   private resetProgressFromUrl() {
@@ -4665,7 +4666,7 @@ export class VectorShooter {
   private saveScore() {
     if (this.scoreSaved) return
     this.scoreSaved = true
-    const entry = scoreEntryFromRun({
+    this.highs = saveScoreEntry(localStorage, this.highs, {
       name: this.scoreName,
       score: this.stats.score,
       time: this.stats.time,
@@ -4674,8 +4675,6 @@ export class VectorShooter {
       date: new Date().toISOString(),
       debrief: this.debrief
     })
-    this.highs = [...this.highs, entry].sort((a, b) => b.score - a.score).slice(0, 10)
-    localStorage.setItem(SCORE_STORAGE_KEY, JSON.stringify(this.highs))
   }
 
   private escape(value: string) {
