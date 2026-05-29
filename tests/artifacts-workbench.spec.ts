@@ -53,12 +53,14 @@ test('title screen rendering lives in a focused ui module', () => {
   expect(main).not.toContain("import titleLogoMarkUrl from './assets/title-logo-mark.png'")
   expect(main).not.toContain("wordmark.innerHTML = '<span>GALACTIC</span><span>HORDES</span>'")
   expect(title).toContain("import titleLogoMarkUrl from '../assets/title-logo-mark.png'")
-  expect(title).toContain('export function showTitle(self: VectorShooter)')
-  expect(title).toContain("self['state'] = 'title'")
+  expect(title).toContain('interface TitleScreenView')
+  expect(title).toContain('export function showTitle(self: TitleScreenView)')
+  expect(title).not.toContain("from '../main'")
+  expect(title).toContain("runtime.state = 'title'")
   expect(title).toContain("quit.textContent = 'Quit'")
   expect(title).toContain("start.textContent = 'Launch Expedition'")
-  expect(title).toContain("self['showMothership']()")
-  expect(title).toContain("self['showOnly']('title')")
+  expect(title).toContain("runtime.showMothership()")
+  expect(title).toContain("runtime.showOnly('title')")
 })
 
 test('title launch action has a full-width primary row', () => {
