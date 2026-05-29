@@ -97,6 +97,14 @@ test('main clears planet course targets through a focused helper', () => {
   expect(occurrences(main, 'this.autoNavTargetPlanetId = null')).toBe(1)
 })
 
+test('main queries locked planet course state through a focused helper', () => {
+  const main = source()
+
+  expect(main).toContain('private hasLockedPlanetCourse()')
+  expect(occurrences(main, 'this.hasLockedPlanetCourse()')).toBe(2)
+  expect(occurrences(main, 'Boolean(this.autoNavTargetPlanetId)')).toBe(1)
+})
+
 test('landing intent prioritizes nearby planets then return beacon then course lock', () => {
   const planets = [
     { id: 'near', name: 'Near', x: 80, y: 0, radius: 30 },

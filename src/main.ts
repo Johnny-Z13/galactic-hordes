@@ -1347,6 +1347,10 @@ export class GalacticHordesGame {
     this.autoNavTargetPlanetId = null
   }
 
+  private hasLockedPlanetCourse() {
+    return Boolean(this.autoNavTargetPlanetId)
+  }
+
   private lockedPlanetCourseTarget() {
     return this.autoNavTargetPlanetId ? this.planets.find((planet) => planet.id === this.autoNavTargetPlanetId) ?? null : null
   }
@@ -2624,7 +2628,7 @@ export class GalacticHordesGame {
       navRank: this.build.nav,
       pendingUpgrades: this.pendingUpgrades,
       navPlanetLockRank: powerupBalance.ship.navPlanetLockRank,
-      hasLockedPlanet: Boolean(this.autoNavTargetPlanetId)
+      hasLockedPlanet: this.hasLockedPlanetCourse()
     })
     if (intent.action === 'land') {
       this.startLanding(intent.planet)
@@ -4059,7 +4063,7 @@ export class GalacticHordesGame {
         navRank: this.build.nav,
         pendingUpgrades: this.pendingUpgrades,
         navPlanetLockRank: powerupBalance.ship.navPlanetLockRank,
-        hasLockedPlanet: Boolean(this.autoNavTargetPlanetId),
+        hasLockedPlanet: this.hasLockedPlanetCourse(),
         stationAvailable,
         planetCount: this.planets.length
       })
