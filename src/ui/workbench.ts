@@ -1,5 +1,4 @@
 import type { AudioUpgradeCue } from '../audio/audio-director'
-import type { VectorShooter } from '../main'
 import { evolutions, relics, upgrades, workbenchBalance, type Upgrade, type UpgradeId } from '../powerup-balance'
 import { workbenchUnlockEdges, workbenchUpgradeRows, type WorkbenchUpgradeRow } from '../workbench-rolls'
 import { workbenchBayDefinitions, workbenchBayForUpgrade, type WorkbenchBayDefinition } from '../workbench-bays'
@@ -8,7 +7,11 @@ import { weaponHudReadout } from '../weapon-signatures'
 
 export const workbenchTopOfferCap = 5
 
-export function renderLevelUp(self: VectorShooter, title: string, copy: string) {
+interface WorkbenchRuntime extends Object {
+  [key: string]: any
+}
+
+export function renderLevelUp(self: WorkbenchRuntime, title: string, copy: string) {
   self['levelUpTitle'] = title
   self['levelUpCopy'] = copy
   self['ui'].levelup.innerHTML = ''
@@ -40,7 +43,7 @@ export function renderLevelUp(self: VectorShooter, title: string, copy: string) 
   self['showOnly']('levelup')
 }
 
-export function renderWorkbenchExitActions(self: VectorShooter) {
+export function renderWorkbenchExitActions(self: WorkbenchRuntime) {
   const buttons: HTMLButtonElement[] = []
   const continueButton = document.createElement('button')
   continueButton.type = 'button'
@@ -58,19 +61,19 @@ export function renderWorkbenchExitActions(self: VectorShooter) {
   return buttons
 }
 
-export function workbenchContinueLabel(self: VectorShooter) {
+export function workbenchContinueLabel(self: WorkbenchRuntime) {
   if (self['takeoffAfterWorkbench']) return 'Launch Now'
   if (self['returnToSectorMapAfterWorkbench']) return 'Route Map'
   return 'Resume Flight'
 }
 
-export function workbenchBackLabel(self: VectorShooter) {
+export function workbenchBackLabel(self: WorkbenchRuntime) {
   if (self['takeoffAfterWorkbench']) return 'Back to Surface'
   if (self['returnToSectorMapAfterWorkbench']) return 'Back to Station'
   return 'Back'
 }
 
-export function continueFromWorkbench(self: VectorShooter) {
+export function continueFromWorkbench(self: WorkbenchRuntime) {
   if (self['workbenchInstalling']) return
   self['showOnly'](null)
   if (self['takeoffAfterWorkbench']) {
@@ -87,7 +90,7 @@ export function continueFromWorkbench(self: VectorShooter) {
   self['toast'](self['pendingUpgrades'] > 0 ? `${self['pendingUpgrades']} SIGNAL${self['pendingUpgrades'] === 1 ? '' : 'S'} HELD IN BUFFER` : 'WORKBENCH CLOSED')
 }
 
-export function backFromWorkbench(self: VectorShooter) {
+export function backFromWorkbench(self: WorkbenchRuntime) {
   if (self['workbenchInstalling']) return
   if (self['returnToSectorMapAfterWorkbench'] && self['stationDockReport']) {
     const report = self['stationDockReport']
@@ -106,16 +109,18 @@ export function backFromWorkbench(self: VectorShooter) {
   self['toast']('WORKBENCH CLOSED')
 }
 
-export function currentLevelUpScrollTop(self: VectorShooter) {
-  const panel = self['ui'].levelup.querySelector<HTMLElement>('.workbench-panel')
-  const view = self['ui'].levelup.querySelector<HTMLElement>('.workbench-view')
+export function currentLevelUpScrollTop(self: WorkbenchRuntime) {
+  const levelup = self['ui'].levelup as HTMLElement
+  const panel = levelup.querySelector<HTMLElement>('.workbench-panel')
+  const view = levelup.querySelector<HTMLElement>('.workbench-view')
   return Math.max(panel?.scrollTop ?? 0, view?.scrollTop ?? 0)
 }
 
-export function restoreLevelUpScroll(self: VectorShooter, scrollTop: number) {
+export function restoreLevelUpScroll(self: WorkbenchRuntime, scrollTop: number) {
   const restore = () => {
-    const panel = self['ui'].levelup.querySelector<HTMLElement>('.workbench-panel')
-    const view = self['ui'].levelup.querySelector<HTMLElement>('.workbench-view')
+    const levelup = self['ui'].levelup as HTMLElement
+    const panel = levelup.querySelector<HTMLElement>('.workbench-panel')
+    const view = levelup.querySelector<HTMLElement>('.workbench-view')
     if (panel) panel.scrollTop = scrollTop
     if (view) view.scrollTop = scrollTop
   }
@@ -123,7 +128,7 @@ export function restoreLevelUpScroll(self: VectorShooter, scrollTop: number) {
   window.requestAnimationFrame(restore)
 }
 
-export function recycleWorkbenchSignal(self: VectorShooter) {
+export function recycleWorkbenchSignal(self: WorkbenchRuntime) {
   if (self['workbenchInstalling'] || self['pendingUpgrades'] <= 0 || self['mothership'].departments.workbench < 4) return
   const scrap = workbenchBalance.recycleScrapBase + Math.floor(self['stats'].level * workbenchBalance.recycleScrapPerLevel)
   const crystal = workbenchBalance.recycleCrystalBase + Math.floor(self['stats'].planets * workbenchBalance.recycleCrystalPerPlanet)
@@ -147,7 +152,7 @@ export function recycleWorkbenchSignal(self: VectorShooter) {
   }
 }
 
-export function beginWorkbenchInstall(self: VectorShooter, choice: WorkbenchChoice, button: HTMLButtonElement) {
+export function beginWorkbenchInstall(self: WorkbenchRuntime, choice: WorkbenchChoice, button: HTMLButtonElement) {
   if (self['workbenchInstalling']) return
   if (!canApplyWorkbenchChoice(self, choice)) {
     button.disabled = true
@@ -164,19 +169,20 @@ export function beginWorkbenchInstall(self: VectorShooter, choice: WorkbenchChoi
   const anchor = self['surface']?.ship ?? self['player']
   self['burst'](anchor.x, anchor.y, color, rare ? 28 : 18, rare ? 260 : 190)
   button.classList.add('selected')
-  for (const el of Array.from(self['ui'].levelup.querySelectorAll<HTMLButtonElement>('.workbench-install-choice'))) el.disabled = true
+  const levelup = self['ui'].levelup as HTMLElement
+  for (const el of Array.from(levelup.querySelectorAll<HTMLButtonElement>('.workbench-install-choice'))) el.disabled = true
   window.setTimeout(
     () => self['applyWorkbenchChoice'](choice),
     (rare ? workbenchBalance.rareInstallDelaySeconds : workbenchBalance.installDelaySeconds) * 1000
   )
 }
 
-export function installCueFor(self: VectorShooter, choice: WorkbenchChoice): AudioUpgradeCue {
+export function installCueFor(self: WorkbenchRuntime, choice: WorkbenchChoice): AudioUpgradeCue {
   if (choice.kind === 'upgrade') return choice.upgrade.bucket
   return choice.kind
 }
 
-export function canApplyWorkbenchChoice(self: VectorShooter, choice: WorkbenchChoice) {
+export function canApplyWorkbenchChoice(self: WorkbenchRuntime, choice: WorkbenchChoice) {
   if (choice.kind === 'upgrade') return self['pendingUpgrades'] > 0 && self['build'][choice.upgrade.id] < choice.upgrade.max && isWorkbenchUpgradeUnlocked(self, choice.upgrade.id) && !workbenchBayBalanceGate(self, choice.upgrade)
   if (choice.kind === 'evolution') {
     const upgrade = upgrades.find((candidate) => candidate.id === choice.evolution.weapon)
@@ -186,44 +192,44 @@ export function canApplyWorkbenchChoice(self: VectorShooter, choice: WorkbenchCh
   return true
 }
 
-export function choiceTitle(self: VectorShooter, choice: WorkbenchChoice) {
+export function choiceTitle(self: WorkbenchRuntime, choice: WorkbenchChoice) {
   if (choice.kind === 'upgrade') return choice.upgrade.name
   if (choice.kind === 'evolution') return choice.evolution.name
   if (choice.kind === 'relic') return choice.relic.name
   return choice.name
 }
 
-export function workbenchChoiceRoute(self: VectorShooter, choice: WorkbenchChoice, currentLevel: number) {
+export function workbenchChoiceRoute(self: WorkbenchRuntime, choice: WorkbenchChoice, currentLevel: number) {
   if (choice.kind === 'upgrade') return `INSTALL RANK ${Math.min(currentLevel + 1, choice.upgrade.max)}/${choice.upgrade.max}`
   if (choice.kind === 'evolution') return 'EVOLUTION READY'
   if (choice.kind === 'relic') return 'RELIC SIGNAL'
   return 'LIMIT BREAK'
 }
 
-export function choiceDetail(self: VectorShooter, choice: WorkbenchChoice) {
+export function choiceDetail(self: WorkbenchRuntime, choice: WorkbenchChoice) {
   if (choice.kind === 'upgrade') return self['upgradeLevelDetail'](choice.upgrade, self['build'][choice.upgrade.id] + 1)
   if (choice.kind === 'evolution') return choice.evolution.description
   if (choice.kind === 'relic') return choice.relic.description + (choice.relic.downside ? ` Risk: ${choice.relic.downside}` : '')
   return choice.description
 }
 
-export function choiceKindLabel(self: VectorShooter, choice: WorkbenchChoice) {
+export function choiceKindLabel(self: WorkbenchRuntime, choice: WorkbenchChoice) {
   if (choice.kind === 'upgrade') return `${self['build'][choice.upgrade.id]}/${choice.upgrade.max}`
   if (choice.kind === 'evolution') return 'EVOLVE'
   if (choice.kind === 'relic') return 'RELIC'
   return 'LIMIT'
 }
 
-export function choiceCategoryLabel(self: VectorShooter, choice: WorkbenchChoice) {
+export function choiceCategoryLabel(self: WorkbenchRuntime, choice: WorkbenchChoice) {
   if (choice.kind === 'upgrade') return self['bucketLabel'](choice.upgrade.bucket)
   if (choice.kind === 'evolution') return 'EVOLUTION'
   if (choice.kind === 'relic') return 'RELIC'
   return 'LIMIT BREAK'
 }
 
-export function choiceWeaponPreview(self: VectorShooter, choice: WorkbenchChoice) {
+export function choiceWeaponPreview(self: WorkbenchRuntime, choice: WorkbenchChoice) {
   const nextBuild = { ...self['build'] }
-  const nextEvolved = new Set(self['evolved'])
+  const nextEvolved = new Set<string>(self['evolved'] as Set<string>)
 
   if (choice.kind === 'upgrade') {
     if (choice.upgrade.bucket !== 'weapons') return ''
@@ -242,26 +248,26 @@ export function choiceWeaponPreview(self: VectorShooter, choice: WorkbenchChoice
   return current.text === next.text ? '' : `NEXT: ${next.text}`
 }
 
-export function isWorkbenchUpgradeUnlocked(self: VectorShooter, id: UpgradeId) {
+export function isWorkbenchUpgradeUnlocked(self: WorkbenchRuntime, id: UpgradeId) {
   const rows = workbenchUpgradeRows(upgrades, self['build'], [], workbenchExtraUnlockedIds(self))
   return rows.some((row) => row.upgrade.id === id && row.status !== 'locked')
 }
 
-export function workbenchBayOwnedRanks(self: VectorShooter, bay: WorkbenchBayDefinition) {
+export function workbenchBayOwnedRanks(self: WorkbenchRuntime, bay: WorkbenchBayDefinition) {
   return bay.upgradeIds.reduce((sum, id) => {
     const upgrade = upgrades.find((candidate) => candidate.id === id)
     return sum + Math.min(self['build'][id], upgrade?.max ?? self['build'][id])
   }, 0)
 }
 
-export function workbenchBayHasUpgradeableSystem(self: VectorShooter, bay: WorkbenchBayDefinition) {
+export function workbenchBayHasUpgradeableSystem(self: WorkbenchRuntime, bay: WorkbenchBayDefinition) {
   return bay.upgradeIds.some((id) => {
     const upgrade = upgrades.find((candidate) => candidate.id === id)
     return !!upgrade && isWorkbenchUpgradeUnlocked(self, id) && self['build'][id] < upgrade.max
   })
 }
 
-export function workbenchBayBalanceGate(self: VectorShooter, upgrade: Upgrade) {
+export function workbenchBayBalanceGate(self: WorkbenchRuntime, upgrade: Upgrade) {
   const bay = workbenchBayForUpgrade(upgrade)
   if (bay.id === 'spacesuit') return ''
   const activeBays = workbenchBayDefinitions.filter((candidate) => candidate.id !== 'spacesuit' && workbenchBayHasUpgradeableSystem(self, candidate))
@@ -274,15 +280,15 @@ export function workbenchBayBalanceGate(self: VectorShooter, upgrade: Upgrade) {
   return `SYNC LOCK // upgrade another bay to ${catchupTarget}+ ranks`
 }
 
-export function workbenchReadyRows(self: VectorShooter, rows: Array<WorkbenchUpgradeRow<Upgrade>>) {
+export function workbenchReadyRows(self: WorkbenchRuntime, rows: Array<WorkbenchUpgradeRow<Upgrade>>) {
   return rows.filter((row) => row.status === 'standby' && !workbenchBayBalanceGate(self, row.upgrade))
 }
 
-export function workbenchTopReadyRows(self: VectorShooter, rows: Array<WorkbenchUpgradeRow<Upgrade>>) {
+export function workbenchTopReadyRows(self: WorkbenchRuntime, rows: Array<WorkbenchUpgradeRow<Upgrade>>) {
   return workbenchReadyRows(self, rows).slice(0, workbenchTopOfferCap)
 }
 
-export function renderWorkbenchSignalBriefing(self: VectorShooter, rows: Array<WorkbenchUpgradeRow<Upgrade>>) {
+export function renderWorkbenchSignalBriefing(self: WorkbenchRuntime, rows: Array<WorkbenchUpgradeRow<Upgrade>>) {
   const briefing = document.createElement('div')
   briefing.className = 'workbench-signal-briefing'
   const readyRows = workbenchReadyRows(self, rows)
@@ -311,12 +317,12 @@ export function renderWorkbenchSignalBriefing(self: VectorShooter, rows: Array<W
   return briefing
 }
 
-export function renderManifestSummary(self: VectorShooter) {
+export function renderManifestSummary(self: WorkbenchRuntime) {
   const summary = document.createElement('div')
   summary.className = 'manifest-summary'
   const ownedCount = upgrades.filter((upgrade) => self['build'][upgrade.id] > 0).length
   const maxedCount = upgrades.filter((upgrade) => self['build'][upgrade.id] >= upgrade.max).length
-  const limitCount = Object.values(self['limitBreaks']).reduce((sum, value) => sum + value, 0)
+  const limitCount = Object.values(self['limitBreaks'] as Record<string, number>).reduce((sum, value) => sum + value, 0)
   summary.innerHTML = `
     <div><b>${ownedCount}/${upgrades.length}</b><span>systems</span></div>
     <div><b>${maxedCount}</b><span>maxed</span></div>
@@ -327,7 +333,7 @@ export function renderManifestSummary(self: VectorShooter) {
   return summary
 }
 
-export function renderManifestRelicLine(self: VectorShooter) {
+export function renderManifestRelicLine(self: WorkbenchRuntime) {
   const relicLine = document.createElement('div')
   relicLine.className = 'manifest-relics'
   relicLine.textContent = self['relics'].size > 0
@@ -336,18 +342,18 @@ export function renderManifestRelicLine(self: VectorShooter) {
   return relicLine
 }
 
-export function workbenchExtraUnlockedIds(self: VectorShooter): UpgradeId[] {
+export function workbenchExtraUnlockedIds(self: WorkbenchRuntime): UpgradeId[] {
   return self['discoverySuitOffer'] ? ['suitO2'] : []
 }
 
-export function workbenchSectionLabel(self: VectorShooter, label: string) {
+export function workbenchSectionLabel(self: WorkbenchRuntime, label: string) {
   const el = document.createElement('div')
   el.className = 'workbench-section-label'
   el.innerHTML = `<b>${self['escape'](label)}</b><span></span>`
   return el
 }
 
-export function renderWorkbenchChoiceChip(self: VectorShooter, choice: WorkbenchChoice) {
+export function renderWorkbenchChoiceChip(self: WorkbenchRuntime, choice: WorkbenchChoice) {
   const chip = document.createElement('button')
   chip.type = 'button'
   const level = choice.kind === 'upgrade' ? self['build'][choice.upgrade.id] : 0
@@ -368,7 +374,7 @@ export function renderWorkbenchChoiceChip(self: VectorShooter, choice: Workbench
   return chip
 }
 
-export function maxedUnlockText(self: VectorShooter, upgrade: Upgrade) {
+export function maxedUnlockText(self: WorkbenchRuntime, upgrade: Upgrade) {
   const unlocked = workbenchUnlockEdges
     .filter((edge) => edge.source === upgrade.id)
     .flatMap((edge) => edge.unlocks)
@@ -377,7 +383,7 @@ export function maxedUnlockText(self: VectorShooter, upgrade: Upgrade) {
   return self['upgradeLevelDetail'](upgrade, upgrade.max)
 }
 
-export function renderWorkbenchUpgradeChip(self: VectorShooter, upgrade: Upgrade) {
+export function renderWorkbenchUpgradeChip(self: WorkbenchRuntime, upgrade: Upgrade) {
   const chip = document.createElement('button')
   chip.type = 'button'
   const next = Math.min(self['build'][upgrade.id] + 1, upgrade.max)
@@ -397,7 +403,7 @@ export function renderWorkbenchUpgradeChip(self: VectorShooter, upgrade: Upgrade
   return chip
 }
 
-export function renderWorkbenchContextChip(self: VectorShooter, upgrade: Upgrade, status: 'MAXED' | 'LOCKED' | 'STANDBY', detail: string, extraClass = '') {
+export function renderWorkbenchContextChip(self: WorkbenchRuntime, upgrade: Upgrade, status: 'MAXED' | 'LOCKED' | 'STANDBY', detail: string, extraClass = '') {
   const level = self['build'][upgrade.id]
   const chip = document.createElement('div')
   chip.className = `manifest-chip ${level > 0 ? 'owned' : 'unowned'} status-${status.toLowerCase()} ${status === 'LOCKED' ? 'locked future' : ''} ${status === 'MAXED' ? 'maxed' : ''} ${extraClass} ${upgrade.bucket}`
@@ -414,7 +420,7 @@ export function renderWorkbenchContextChip(self: VectorShooter, upgrade: Upgrade
 }
 
 export function renderWorkbenchBayToggle(
-  self: VectorShooter,
+  self: WorkbenchRuntime,
   bay: WorkbenchBayDefinition,
   rows: Array<WorkbenchUpgradeRow<Upgrade>>,
   offeredUpgradeChoices: Map<UpgradeId, WorkbenchChoice>
@@ -472,7 +478,7 @@ export function renderWorkbenchBayToggle(
 }
 
 export function renderWorkbenchBayEntry(
-  self: VectorShooter,
+  self: WorkbenchRuntime,
   bay: WorkbenchBayDefinition,
   rows: Array<WorkbenchUpgradeRow<Upgrade>>,
   offeredUpgradeChoices: Map<UpgradeId, WorkbenchChoice>
@@ -485,7 +491,7 @@ export function renderWorkbenchBayEntry(
 }
 
 export function renderWorkbenchBayDetail(
-  self: VectorShooter,
+  self: WorkbenchRuntime,
   bay: WorkbenchBayDefinition,
   rows: Array<WorkbenchUpgradeRow<Upgrade>>,
   offeredUpgradeChoices: Map<UpgradeId, WorkbenchChoice>
@@ -515,7 +521,7 @@ export function renderWorkbenchBayDetail(
   return detail
 }
 
-export function renderWorkbenchInstallSurface(self: VectorShooter) {
+export function renderWorkbenchInstallSurface(self: WorkbenchRuntime) {
   const wrap = document.createElement('div')
   wrap.className = 'build-manifest workbench'
   const title = document.createElement('div')
