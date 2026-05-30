@@ -6,8 +6,12 @@ export interface RenderPerformanceInput {
   pickups: number
 }
 
-export function renderHighLoad({ graphicsMode, particles, enemies, bullets, pickups }: RenderPerformanceInput) {
+export function highLoadFromCounts(graphicsMode: string, particles: number, enemies: number, bullets: number, pickups: number) {
   return graphicsMode === 'LOW' || particles > 170 || enemies > 120 || bullets > 130 || pickups > 150
+}
+
+export function renderHighLoad({ graphicsMode, particles, enemies, bullets, pickups }: RenderPerformanceInput) {
+  return highLoadFromCounts(graphicsMode, particles, enemies, bullets, pickups)
 }
 
 export function renderGlowAllowed(input: RenderPerformanceInput) {

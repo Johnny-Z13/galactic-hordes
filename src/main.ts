@@ -168,7 +168,7 @@ import { renderOrbitals as drawOrbitals } from './render/orbitals'
 import { renderBullets as drawBullets, renderBulletsSimple as drawBulletsSimple } from './render/bullets'
 import { renderAutopilot as drawAutopilot, renderReturnBeacon as drawReturnBeacon } from './render/navigation-aids'
 import { effectLayerCamera, surfaceEffectMode } from './render/effect-layer'
-import { renderDprCap, renderGlowAllowed, renderHighLoad } from './render/performance-mode'
+import { highLoadFromCounts, renderDprCap } from './render/performance-mode'
 import type { MothershipCollectionFilter, MothershipConsoleView } from './ui/mothership-ui-types'
 import { enemyBehaviors, type EnemyBehaviorContext } from './enemy-behaviors'
 import { fireCathedralLattice, fireDreadnoughtBroadside, fireHelixSpikes, firePrismFan, fireSiphonVortex, type SpaceEnemyAttackContext } from './space-enemy-attacks'
@@ -457,6 +457,8 @@ export class GalacticHordesGame {
   private dpr = window.devicePixelRatio || 1
   private width = 1280
   private height = 720
+  // Cached viewport scale — depends only on width/height, recomputed on resize, not per frame.
+  private spaceScaleCache = spaceViewportScale(1280, 720)
   private last = performance.now()
   private state: GameState = 'title'
   private previousState: GameState = 'title'
@@ -945,6 +947,7 @@ export class GalacticHordesGame {
     this.dpr = Math.min(window.devicePixelRatio || 1, modeCap)
     this.width = window.innerWidth
     this.height = window.innerHeight
+    this.spaceScaleCache = spaceViewportScale(this.width, this.height)
     this.canvas.width = Math.floor(this.width * this.dpr)
     this.canvas.height = Math.floor(this.height * this.dpr)
     this.canvas.style.width = `${this.width}px`
@@ -1226,7 +1229,7 @@ export class GalacticHordesGame {
     if (targetPlanet) {
       const targetAngle = Math.atan2(targetPlanet.y - this.player.y, targetPlanet.x - this.player.x)
       this.steerAutoNavigationHeading(targetAngle, clamp(dt * (1.7 + level * 0.24), 0, 0.22))
-      if (Math.sqrt(dist2(targetPlanet, this.player)) < targetPlanet.radius + 108) {
+      if (dist2(targetPlanet, this.player) < (targetPlanet.radius + 108) ** 2) {
         this.clearPlanetCourse()
         this.toast('LANDING BEACON IN RANGE')
       }
@@ -3434,7 +3437,7 @@ export class GalacticHordesGame {
   }
 
   private spaceScale() {
-    return spaceViewportScale(this.width, this.height)
+    return this.spaceScaleCache
   }
 
   private burst(x: number, y: number, color: string, count: number, speed: number) {
@@ -3651,7 +3654,7 @@ export class GalacticHordesGame {
       worldToScreen: (x, y) => this.worldToScreen(x, y)
     })
     if (this.state === 'playing') {
-      const landingPlanet = this.planets.find((planet) => Math.sqrt(dist2(planet, this.player)) < planet.radius + 86)
+      const landingPlanet = this.planets.find((planet) => dist2(planet, this.player) < (planet.radius + 86) ** 2)
       if (landingPlanet) {
         drawLandingPrompt({
           ctx,
@@ -3737,23 +3740,12 @@ export class GalacticHordesGame {
   }
 
   private isHighLoad() {
-    return renderHighLoad({
-      graphicsMode: this.graphicsMode,
-      particles: this.particles.length,
-      enemies: this.enemies.length,
-      bullets: this.bullets.length,
-      pickups: this.pickups.length
-    })
+    // Primitive args (no per-call options object) — these are called ~15-20×/frame.
+    return highLoadFromCounts(this.graphicsMode, this.particles.length, this.enemies.length, this.bullets.length, this.pickups.length)
   }
 
   private allowGlow() {
-    return renderGlowAllowed({
-      graphicsMode: this.graphicsMode,
-      particles: this.particles.length,
-      enemies: this.enemies.length,
-      bullets: this.bullets.length,
-      pickups: this.pickups.length
-    })
+    return this.graphicsMode === 'GLOW' && !this.isHighLoad()
   }
 
   private setGraphicsMode(mode: GraphicsMode) {
@@ -4069,7 +4061,7 @@ export class GalacticHordesGame {
       this.ui.touchDash.classList.add('hidden')
       return
     }
-    const planet = this.planets.find((p) => Math.sqrt(dist2(p, this.player)) < p.radius + 86)
+    const planet = this.planets.find((p) => dist2(p, this.player) < (p.radius + 86) ** 2)
     const stationAvailable = Boolean(this.returnBeacon)
     const action = touchActionLabel({
       state: 'playing',

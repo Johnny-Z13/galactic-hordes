@@ -32,8 +32,9 @@ test('main delegates high-load and glow decisions to render performance helper',
   const main = readFileSync('src/main.ts', 'utf8')
 
   expect(main).toContain("from './render/performance-mode'")
-  expect(main).toContain('renderHighLoad({')
-  expect(main).toContain('renderGlowAllowed({')
+  // main delegates the high-load threshold to the shared helper (primitive args, no
+  // per-call options object), and derives glow from it rather than re-inlining thresholds.
+  expect(main).toContain('highLoadFromCounts(this.graphicsMode, this.particles.length, this.enemies.length, this.bullets.length, this.pickups.length)')
   expect(main).toContain('renderDprCap(this.graphicsMode)')
   expect(main).not.toContain("this.graphicsMode === 'LOW' ? 1 : this.graphicsMode === 'MED' ? 1.25 : 1.75")
   expect(main).not.toContain('this.particles.length > 170')
