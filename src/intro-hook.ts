@@ -12,7 +12,12 @@ export const introHookConfig = {
   hitstop: { durationSeconds: 0.04, giantKindsOnly: true },
   magnetGlint: { frameInterval: 6, particleSpeed: 18, color: '#57fff3' },
   safeDriftFirstNode: { spawnMultiplier: 1.25, extraStartingSpawns: 2 },
-  firstPlanetPayoff: { cacheMultiplier: 1.4, guaranteedRelic: true, extraLoreSites: 1 }
+  firstPlanetPayoff: { cacheMultiplier: 1.4, guaranteedRelic: true, extraLoreSites: 1 },
+  // Sim model: the run's first landing is an early beeline anchored to run start, not to
+  // whichever node happens to roll a planet (the live game guarantees an early plantable
+  // target via the LAND HERE waypoint / curated first planet). If the opening node is
+  // genuinely planet-less, the beeline reaches the next node's planet a little later.
+  firstLandingBeeline: { baseSeconds: 40, perPriorNodeSeconds: 14, jitterSeconds: 12 }
 } as const
 
 export { hitFlashColor } from './combat/damage-feedback'

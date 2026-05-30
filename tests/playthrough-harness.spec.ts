@@ -51,7 +51,11 @@ test('browser playthrough harness is live during a launched expedition', async (
 
   await page.getByRole('button', { name: 'Launch Expedition', exact: true }).click()
   await page.getByRole('button', { name: 'Open Sector Map', exact: true }).click()
-  await page.locator('.sector-choice').first().click()
+  // The hex-grid sector map is a two-step select-then-launch flow: tap an available
+  // adjacent node to lock the jump (enabling the launch button), then launch. The intro
+  // SAFE DRIFT node is the curated first jump this run expects to enter.
+  await page.locator('.sector-node.available[data-node-id="h:1:0"]').click()
+  await page.locator('.sector-launch-button').click()
   await page.waitForFunction(() => {
     const snapshot = window.__galacticHarness?.snapshot()
     return snapshot?.state === 'playing' && snapshot.time > 0

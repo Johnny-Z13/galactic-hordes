@@ -114,7 +114,9 @@ test('pickup magnet glint uses a dedicated cyan signal color while pulled', asyn
     g.player.y = 0
     g.pickups = [{ kind: 'xp', x: 120, y: 0, vx: 0, vy: 0, value: 1, radius: 5.6, life: 10, color: '#8fff7d' }]
     g.particles = []
-    for (let i = 0; i < 4; i += 1) g.updatePickups(1 / 60)
+    // Glints emit once every magnetGlint.frameInterval (6) frames spent in magnet range,
+    // so step a full interval to let the first glint fire.
+    for (let i = 0; i < 6; i += 1) g.updatePickups(1 / 60)
     return {
       particleCount: g.particles.length,
       particleColors: g.particles.map((particle: { color: string }) => particle.color)

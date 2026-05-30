@@ -6,7 +6,7 @@ import {
   selectSectorNode,
   type SectorNode
 } from '../sector-map'
-import { introSafeDriftSpawnMultiplier, introSafeDriftStartingSpawns } from '../intro-hook'
+import { introHookConfig, introSafeDriftSpawnMultiplier, introSafeDriftStartingSpawns } from '../intro-hook'
 import { runBalance } from '../run-balance'
 import type { PlanetArchetype } from '../surface-encounters'
 import { createSimRng, pickWeighted } from './sim-rng'
@@ -255,8 +255,11 @@ export function runSimPlaythrough(options: SimRunOptions): SimRunResult {
       events,
       economy,
       difficulty: options.difficulty,
-      // Opening-node beeline window: a player reaches the first planet roughly 40-55s in.
-      firstLandingFloor: seconds + 40
+      // The run's first landing is an early beeline anchored to RUN START, not to this
+      // node's start time — so a planet-less opening node doesn't push the first landing
+      // hundreds of seconds out. nodesCleared is the count of space nodes traversed before
+      // this one, giving a small honest allowance when the opening node had no planet.
+      firstLandingFloor: introHookConfig.firstLandingBeeline.baseSeconds + nodesCleared * introHookConfig.firstLandingBeeline.perPriorNodeSeconds
     })
     planetsLanded += planetVisits.landed
     damageTaken += planetVisits.damageTaken
