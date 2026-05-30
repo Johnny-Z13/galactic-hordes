@@ -7,6 +7,7 @@ import {
   type SectorNode
 } from '../sector-map'
 import { introSafeDriftSpawnMultiplier, introSafeDriftStartingSpawns } from '../intro-hook'
+import { runBalance } from '../run-balance'
 import type { PlanetArchetype } from '../surface-encounters'
 import { createSimRng, pickWeighted } from './sim-rng'
 import { scoreRouteChoice, simPolicies, type SimPolicy } from './sim-policies'
@@ -131,15 +132,17 @@ function runPlanetVisits(input: {
   events: SimEvent[]
   economy: SimEconomyState
   difficulty: SimRunOptions['difficulty']
+  firstLandingFloor: number
 }) {
   const planetConfig = input.node.config.planets
-  if (planetConfig.countMax <= 0) return { landed: 0, damageTaken: 0, discoveries: 0, firstLandingAt: null }
+  if (planetConfig.countMax <= 0) return { landed: 0, damageTaken: 0, repaired: 0, discoveries: 0, firstLandingAt: null }
 
   const meanPlanets = (planetConfig.countMin + planetConfig.countMax) / 2
   const visitPressure = meanPlanets * input.policy.planetBias * (input.node.kind === 'planet' ? 0.86 : 0.42)
   const attempts = Math.min(planetConfig.countMax, Math.max(0, Math.round(visitPressure + input.rng.range(-0.35, 0.55))))
   let landed = 0
   let damageTaken = 0
+  let repaired = 0
   let discoveries = 0
   let firstLandingAt: number | null = null
 
@@ -158,17 +161,28 @@ function runPlanetVisits(input: {
     if (input.planetsLanded + landed === 0) visit.resources.mutationSignals = Math.max(visit.resources.mutationSignals, 1)
     landed += 1
     damageTaken += visit.damageTaken
+    // Landing on a planet patches the hull, like the live game (run-balance landing repair).
+    // Repair-archetype docks heal more; later landings (revisits) heal less.
+    const landingRepair = (input.planetsLanded + landed === 1)
+      ? runBalance.landing.firstVisitHullRepair
+      : runBalance.landing.revisitHullRepair
+    repaired += archetype === 'repair' ? Math.round(landingRepair * 1.5) : landingRepair
     discoveries += visit.discoveries
     addEconomy(input.economy, visit.resources)
     increment(input.coverage.planetArchetypes, archetype)
     increment(input.coverage.surfaceEvents, visit.event)
     increment(input.coverage.surfaceScenarios, visit.scenario)
-    const landingAt = input.seconds + 12 + landed * 8
+    // The run's very first landing models an early beeline to a planet rather than a
+    // mid-node detour, so it is not gated behind the node-progress offset baked into input.seconds.
+    const isRunFirstLanding = input.planetsLanded + landed === 1
+    const landingAt = isRunFirstLanding
+      ? input.firstLandingFloor + input.rng.range(0, 12)
+      : input.seconds + 12 + landed * 8
     if (firstLandingAt === null) firstLandingAt = landingAt
     input.events.push({ t: landingAt, kind: 'planetLanded', archetype, event: visit.event, scenario: visit.scenario })
   }
 
-  return { landed, damageTaken, discoveries, firstLandingAt }
+  return { landed, damageTaken, repaired, discoveries, firstLandingAt }
 }
 
 export function runSimPlaythrough(options: SimRunOptions): SimRunResult {
@@ -240,10 +254,14 @@ export function runSimPlaythrough(options: SimRunOptions): SimRunResult {
       coverage,
       events,
       economy,
-      difficulty: options.difficulty
+      difficulty: options.difficulty,
+      // Opening-node beeline window: a player reaches the first planet roughly 40-55s in.
+      firstLandingFloor: seconds + 40
     })
     planetsLanded += planetVisits.landed
     damageTaken += planetVisits.damageTaken
+    // Landing repairs patch the hull between fights, so net pressure is the recovery balance.
+    damageTaken = Math.max(0, damageTaken - planetVisits.repaired)
     discoveries += planetVisits.discoveries
     if (planetVisits.firstLandingAt !== null && firstMinute.firstLandingSec === null) firstMinute.firstLandingSec = planetVisits.firstLandingAt
     if (planetVisits.firstLandingAt !== null && planetVisits.landed > 0 && firstMinute.firstWorkbenchSec === null && economy.mutationSignals > 0) {
