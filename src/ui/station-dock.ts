@@ -52,6 +52,22 @@ export function showStationDock(self: StationDockView, report: StationDockReport
         <div><b>${signalCopy}</b><span>workbench buffer</span></div>
       </div>
     `
+  const departure = document.createElement('div')
+  departure.className = 'station-departure-panel'
+  departure.innerHTML = `
+      <div>
+        <span>DISCOVERIES BANKED</span>
+        <b>Ready For Next Jump</b>
+        <p>${runtime.escape(`${report.routeStatus} ${signalCopy}. Choose a sector from the map, then launch.`)}</p>
+      </div>
+    `
+  const launch = document.createElement('button')
+  launch.type = 'button'
+  launch.className = 'station-command-button primary station-launch-button'
+  launch.textContent = 'Launch'
+  launch.setAttribute('aria-label', 'Launch: choose sector from map')
+  launch.addEventListener('click', () => runtime.leaveStationForSectorMap())
+  departure.append(launch)
   const sections = document.createElement('div')
   sections.className = 'station-command-sections'
   const serviceList = document.createElement('div')
@@ -101,8 +117,9 @@ export function showStationDock(self: StationDockView, report: StationDockReport
     stationCommandSection(runtime, 'SERVICES', 'repair / trade / workbench', [serviceList, serviceCopy, serviceActions], true),
     stationCommandSection(runtime, 'CONTACT', report.contactRole.toUpperCase(), [contact], false),
     stationCommandSection(runtime, 'CARGO MANIFEST', `${runtime.resources.scrap} scrap / ${runtime.resources.crystal} crystal`, [cargo], false),
-    stationCommandSection(runtime, 'ROUTE MAP', 'departure lane ready', [stationRouteMap(runtime, report), routeStatus, routeActions], false)
+    stationCommandSection(runtime, 'ROUTE MAP', 'departure lane ready', [stationRouteMap(runtime, report), routeStatus, routeActions], true)
   )
+  panel.append(departure)
   panel.append(sections)
   runtime.ui.station.append(panel)
   runtime.showOnly('station')

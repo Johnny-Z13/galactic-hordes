@@ -1348,7 +1348,7 @@ canvas {
   width: min(980px, calc(100vw - 34px));
   max-height: min(820px, calc(100svh - 34px));
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 12px;
   border: 1px solid rgba(143, 255, 125, 0.5);
   border-radius: 8px;
@@ -1421,6 +1421,49 @@ canvas {
   color: rgba(215, 255, 247, 0.62);
   font-size: 10px;
   text-transform: uppercase;
+}
+
+.station-departure-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, auto);
+  gap: 10px;
+  align-items: stretch;
+  border: 1px solid rgba(143, 255, 125, 0.34);
+  border-radius: 7px;
+  background:
+    linear-gradient(90deg, rgba(143, 255, 125, 0.12), transparent 42%),
+    rgba(0, 9, 12, 0.72);
+  padding: 12px;
+}
+
+.station-departure-panel div {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.station-departure-panel span {
+  color: rgba(255, 242, 122, 0.82);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.station-departure-panel b {
+  color: #f6fffe;
+  font-size: clamp(18px, 2vw, 24px);
+  line-height: 1;
+}
+
+.station-departure-panel p {
+  margin: 0;
+  color: rgba(215, 255, 247, 0.74);
+  font-size: 13px;
+  line-height: 1.28;
+}
+
+.station-launch-button {
+  min-width: 150px;
 }
 
 .station-command-sections {
@@ -4820,7 +4863,8 @@ button.manifest-chip:disabled {
   }
 
   .station-command-status,
-  .station-cargo-grid {
+  .station-cargo-grid,
+  .station-departure-panel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4832,6 +4876,14 @@ button.manifest-chip:disabled {
 
   .station-dock-actions {
     display: grid;
+  }
+
+  .station-departure-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .station-launch-button {
+    width: 100%;
   }
 
   .station-command-actions {

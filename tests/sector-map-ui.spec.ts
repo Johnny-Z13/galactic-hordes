@@ -185,8 +185,13 @@ test('station docking opens a master command menu with collapsible sections and 
   expect(stationDock).toContain('function stationCommandSection(')
   expect(stationDock).toContain('function stationRouteMap(')
   expect(stationDock).toContain("workbench.addEventListener('click', () => runtime.openStationWorkbench())")
+  expect(stationDock).toContain("launch.addEventListener('click', () => runtime.leaveStationForSectorMap())")
   expect(stationDock).toContain("route.addEventListener('click', () => runtime.leaveStationForSectorMap())")
   expect(stationDock).toContain('station-command-section')
+  expect(stationDock).toContain('station-departure-panel')
+  expect(stationDock).toContain('station-launch-button')
+  expect(stationDock).toContain("launch.textContent = 'Launch'")
+  expect(stationDock).toContain("stationCommandSection(runtime, 'ROUTE MAP', 'departure lane ready', [stationRouteMap(runtime, report), routeStatus, routeActions], true)")
   expect(stationDock).toContain("import type { StationDockReport } from '../station-dock-report'")
   expect(main).not.toContain('private stationNameForNode(')
   expect(main).not.toContain('private stationFictionForNode(')
@@ -200,6 +205,7 @@ test('station docking opens a master command menu with collapsible sections and 
   expect(main).toContain('private leaveStationForSectorMap(')
   expect(css).toContain('.station-command-panel')
   expect(css).toContain('.station-command-section')
+  expect(css).toContain('.station-departure-panel')
 })
 
 test('route metric grid adapts to first contact timing without forcing desktop wrap', () => {
