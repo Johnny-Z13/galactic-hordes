@@ -113,7 +113,12 @@ export const spaceEnemyRunScaling = {
 
 export const spaceSpawnBalance = {
   pressureRamp: {
-    fullStrengthSeconds: 180
+    // Spawn pressure ramps 0 -> full over this window. At 180s the first ~3 min were
+    // trivially survivable (a balance sweep found ~0 early deaths), so lethality was
+    // deferred entirely to the late game. 130s steepens the early ramp to make the
+    // opening minutes carry real risk without touching the intro flow (first kill/landing
+    // happen well inside the ramp regardless).
+    fullStrengthSeconds: 130
   },
   spawnCooldown: {
     maxSeconds: 1.35,
