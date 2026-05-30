@@ -1,6 +1,6 @@
 import type { ImpactPulse } from '../combat/impact-feedback'
 import type { Vec } from '../main-types'
-import { TAU } from '../math-utils'
+import { clamp, TAU } from '../math-utils'
 
 export interface ImpactPulsesRenderView {
   ctx: CanvasRenderingContext2D
@@ -41,8 +41,4 @@ export function renderImpactPulses(view: ImpactPulsesRenderView) {
     ctx.restore()
   }
   ctx.restore()
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
 }

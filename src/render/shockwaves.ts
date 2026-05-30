@@ -1,5 +1,5 @@
 import type { Vec } from '../main-types'
-import { TAU } from '../math-utils'
+import { clamp, TAU } from '../math-utils'
 
 export interface RenderShockwave {
   x: number
@@ -67,8 +67,4 @@ export function renderShockwaves(view: ShockwavesRenderView) {
     ctx.restore()
   }
   ctx.restore()
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
 }

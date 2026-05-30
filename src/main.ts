@@ -2401,20 +2401,6 @@ export class GalacticHordesGame {
     this.restoreLevelUpScroll(scrollTop)
   }
 
-  private openChest() {
-    this.recordArtifact({
-      id: 'cache:treasure-core',
-      kind: 'cache',
-      title: 'Treasure Core',
-      detail: 'A space broadcast cache carrying concentrated rewards.',
-      source: 'Space cache telemetry',
-      color: '#70a8ff',
-      icon: 73
-    })
-    this.bankUpgrade('TREASURE CORE BANKED. INSTALL IT WHEN YOU BOARD.')
-    this.stats.score += runBalance.scoring.treasureCoreBase + this.stats.level * runBalance.scoring.treasureCorePerLevel
-  }
-
   private rollUpgrades(count: number, rare = false): WorkbenchChoice[] {
     return rollWorkbenchChoices({
       count,
@@ -3336,7 +3322,7 @@ export class GalacticHordesGame {
   }
 
   private surfaceHitSpark(x: number, y: number, color: string) {
-    for (let i = 0; i < 1; i += 1) {
+    for (let i = 0; i < 2; i += 1) {
       if (this.particles.length >= MAX_PARTICLES) this.particles.shift()
       const a = rand(-0.45, 0.45) + (i ? Math.PI : 0)
       const speed = rand(32, 58)
@@ -4140,24 +4126,6 @@ export class GalacticHordesGame {
 
   private artifactColor(kind: ArtifactKind, key: string) {
     return archiveArtifactColor(kind, key)
-  }
-
-  private choiceMarkup(choice: WorkbenchChoice) {
-    if (choice.kind === 'upgrade') {
-      const level = this.build[choice.upgrade.id] + 1
-      const detail = this.upgradeLevelDetail(choice.upgrade, level)
-      const systemLabel = choice.upgrade.bucket === 'spacesuit' ? 'SUIT' : choice.upgrade.category === 'weapon' ? 'WEAPON' : 'SHIP'
-      const tag = `${this.bucketLabel(choice.upgrade.bucket)} // ${systemLabel}`
-      return `<strong>${this.escape(choice.upgrade.name)}</strong><em>INSTALL RANK ${level}/${choice.upgrade.max} // ${tag}</em><span>${this.escape(detail)}</span>`
-    }
-    if (choice.kind === 'evolution') {
-      return `<strong>${this.escape(choice.evolution.name)}</strong><em>EVOLUTION</em><span>${this.escape(choice.evolution.description)}</span>`
-    }
-    if (choice.kind === 'relic') {
-      const downside = choice.relic.downside ? ` Risk: ${choice.relic.downside}` : ''
-      return `<strong>${this.escape(choice.relic.name)}</strong><em>RELIC</em><span>${this.escape(choice.relic.description + downside)}</span>`
-    }
-    return `<strong>${this.escape(choice.name)}</strong><em>LIMIT BREAK</em><span>${this.escape(choice.description)}</span>`
   }
 
   private upgradeLevelDetail(upgrade: Upgrade, level: number) {

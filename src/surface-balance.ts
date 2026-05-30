@@ -1,4 +1,5 @@
 import type { SurfaceEventKind, SurfaceScenarioKind } from './surface-encounters'
+import { clamp } from './math-utils'
 
 export type SurfaceResourceKind = 'crystal' | 'scrap' | 'repair' | 'cache'
 export type AlienGiftKind = 'herb' | 'idol' | 'map' | 'coin' | 'beacon'
@@ -266,8 +267,6 @@ export const surfaceResourceValue = (kind: SurfaceResourceKind, event: SurfaceEv
   if (kind === 'scrap') return event === 'horde' ? values.scrap.horde : event === 'jackpot' ? values.scrap.jackpot : values.scrap.default
   return event === 'repair' ? values.repair.repairEvent : values.repair.default
 }
-
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
 export const surfaceEventPoint = (
   event: SurfaceEventKind,

@@ -1,4 +1,5 @@
 import type { Vec } from './main-types'
+import { clamp } from './math-utils'
 
 export interface SpawnEntryPing {
   x: number
@@ -51,8 +52,4 @@ export function spawnEntryPingScreenPoint(input: {
     y,
     offscreen: x !== input.screen.x || y !== input.screen.y
   }
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
 }

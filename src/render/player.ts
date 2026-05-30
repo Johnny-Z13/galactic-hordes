@@ -1,11 +1,9 @@
 import type { Vec } from '../main-types'
 import type { LimitId, UpgradeId } from '../powerup-balance'
 import { powerupBalance } from '../powerup-balance'
-import { len, TAU } from '../math-utils'
+import { clamp, len, TAU } from '../math-utils'
 import { navigationTrailProfile } from '../navigation-cruise'
 import { starterSignatureFlags } from '../weapon-signatures'
-
-const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
 
 export interface PlayerRenderState {
   x: number

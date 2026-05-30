@@ -28,34 +28,6 @@ function collectionRuntime(self: CollectionView) {
   return self as CollectionRuntime
 }
 
-export function renderArtifactsCollection(self: CollectionView, source: 'run' | 'mothership' = 'run') {
-  const runtime = collectionRuntime(self)
-  const wrap = document.createElement('div')
-  wrap.className = 'artifact-collection'
-  const title = document.createElement('div')
-  title.className = 'manifest-title'
-  title.innerHTML = '<b>ARTEFACT ARCHIVE</b><span>relics, contacts, ruins, caches, and planet firsts</span>'
-  const summary = document.createElement('div')
-  summary.className = 'manifest-summary artifact-summary'
-  const unlocked = source === 'run'
-    ? Array.from(runtime.artifacts.values())
-    : Object.values(runtime.mothership.archive.records).map((record) => normalizeArchiveRecord(self, record))
-  const counts: Record<ArtifactKind, number> = { relic: 0, alien: 0, lore: 0, planet: 0, cache: 0, enemy: 0 }
-  for (const artifact of unlocked) counts[artifact.kind] += 1
-  summary.innerHTML = `
-    <div><b>${counts.relic}/${relics.length}</b><span>relics</span></div>
-    <div><b>${counts.alien}</b><span>contacts</span></div>
-    <div><b>${counts.lore}</b><span>ruins</span></div>
-    <div><b>${counts.planet}</b><span>planets</span></div>
-    <div><b>${counts.enemy}</b><span>enemies</span></div>
-  `
-  const grid = document.createElement('div')
-  grid.className = 'artifact-grid'
-  for (const card of orderArtifactArchiveCards(artifactCards(self, source))) grid.append(artifactCard(self, card.record, card.locked))
-  wrap.append(title, summary, grid)
-  return wrap
-}
-
 export function artifactCards(self: CollectionView, source: 'run' | 'mothership' = 'run') {
   const runtime = collectionRuntime(self)
   const cards: Array<{ record: ArtifactRecord; locked: boolean }> = []

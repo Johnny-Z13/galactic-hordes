@@ -1,11 +1,10 @@
 import type { Vec } from '../main-types'
 import { damageFeedbackConfig, hitFlashColor } from '../combat/damage-feedback'
-import { TAU } from '../math-utils'
+import { clamp, TAU } from '../math-utils'
 import { planetBossCatalogVariants } from '../surface-balance'
 
 const BOSS_CATALOG_ROWS = planetBossCatalogVariants.length
 const BOSS_CATALOG_FRAMES = 4
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
 export interface SurfaceThreatRenderModel {
   x: number

@@ -53,7 +53,6 @@ test('workbench renderer wires weapon previews into choice cards', () => {
   expect(source).toContain("from '../weapon-signatures'")
   expect(source).toContain('workbench-weapon-preview')
   expect(source).toContain('export interface WorkbenchWeaponPreviewRuntime')
-  expect(source).toContain('choiceWeaponPreview(workbenchWeaponPreviewRuntime(self), choice)')
   expect(source).toContain("choiceWeaponPreview(workbenchWeaponPreviewRuntime(self), { kind: 'upgrade', upgrade })")
   expect(css).toContain('.workbench-weapon-preview')
 })

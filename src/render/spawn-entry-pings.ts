@@ -1,5 +1,5 @@
 import { spawnEntryPingScreenPoint, type SpawnEntryPing } from '../spawn-entry-feedback'
-import { TAU } from '../math-utils'
+import { clamp, TAU } from '../math-utils'
 import type { Vec } from '../main-types'
 
 export interface SpawnEntryPingsRenderView {
@@ -58,8 +58,4 @@ export function renderSpawnEntryPings(view: SpawnEntryPingsRenderView) {
     ctx.restore()
   }
   ctx.restore()
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
 }

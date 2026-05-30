@@ -1,6 +1,7 @@
 import type { UpgradeBucket } from '../powerup-balance'
 import type { SurfaceResourceKind } from '../surface-balance'
 import type { PlanetArchetype } from '../surface-encounters'
+import { clamp } from '../math-utils'
 
 export type PlanetAudioMood = PlanetArchetype | 'deepSpace' | 'title'
 export type WeaponSoundKind = 'pulse' | 'prism' | 'rail' | 'needle' | 'surface'
@@ -28,7 +29,6 @@ interface WeaponSoundProfile {
   filter: number
 }
 
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 const rand = (min: number, max: number) => min + Math.random() * (max - min)
 
 export class AudioDirector {

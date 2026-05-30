@@ -1,5 +1,5 @@
 import type { Vec } from '../main-types'
-import { TAU } from '../math-utils'
+import { clamp, TAU } from '../math-utils'
 import { surfaceWaveDirectorBalance } from '../surface-balance'
 
 export interface SurfaceBulletRenderModel {
@@ -31,8 +31,6 @@ export interface SurfaceWaveTelegraphRenderView {
   allowGlow: boolean
   surfaceToScreen: (x: number, y: number) => Vec
 }
-
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
 export function renderSurfaceBullets(view: SurfaceProjectileRenderView) {
   const { ctx, bullets, allowGlow, surfaceToScreen } = view

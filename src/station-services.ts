@@ -1,5 +1,6 @@
 import { runBalance } from './run-balance'
 import type { SectorStationService } from './sector-map'
+import { clamp } from './math-utils'
 
 export interface StationServiceState {
   hull: number
@@ -52,8 +53,4 @@ export function resolveStationServices(input: StationServiceState & {
     nextPendingUpgrades,
     nextWorkbenchRerolls
   }
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
 }

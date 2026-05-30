@@ -1,5 +1,5 @@
 import type { Vec } from '../main-types'
-import { TAU } from '../math-utils'
+import { clamp, TAU } from '../math-utils'
 
 export interface RenderParticle {
   x: number
@@ -103,8 +103,4 @@ export function renderParticlesSimple(view: SimpleParticlesRenderView) {
   }
   ctx.stroke()
   ctx.restore()
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
 }

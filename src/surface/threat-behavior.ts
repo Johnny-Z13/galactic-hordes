@@ -1,5 +1,5 @@
 import { scaledSurfaceDamage, scaledSurfaceHp, scaledSurfaceSpeed, surfaceThreatBalance } from '../game-balance'
-import { len, norm, TAU } from '../math-utils'
+import { clamp, len, norm, TAU } from '../math-utils'
 import { surfacePilotCollisionRadius } from '../surface-pilot'
 import { surfaceThreatMotionBalance, type SurfaceThreatBehavior } from '../surface-balance'
 
@@ -34,8 +34,6 @@ export interface SurfaceThreatMotionResult {
   contactDamage: number | null
   blinkBurst: { x: number; y: number; color: string; count: number; speed: number } | null
 }
-
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
 export function updateSurfaceThreatMotion(input: {
   threat: SurfaceThreatBehaviorModel

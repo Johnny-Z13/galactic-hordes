@@ -48,7 +48,7 @@ test('power-up application values are driven by balance data and upgrade definit
   const main = mainSource()
 
   expect(powerupBalance.ship.navPlanetLockRank).toBe(3)
-  expect(powerupBalance.upgradeApply.temporaryMagnetRanks).toBe(1)
+  expect(powerupBalance.upgradeApply.magnetPickupRanks).toBe(1)
   expect(powerupBalance.upgradeApply.limitHullMaxPerRank).toBe(3)
   expect(powerupBalance.upgradeApply.limitHullRepairPerRank).toBe(10)
   expect(powerupBalance.upgradeApply.alienMapSurveyRanks).toBe(1)
@@ -101,7 +101,7 @@ test('workbench upgrade cards distinguish next rank from current manifest rank',
 
   const mothership = readFileSync(resolve(process.cwd(), 'src/ui/mothership-console.ts'), 'utf8')
 
-  expect(main).toContain('INSTALL RANK ${level}/${choice.upgrade.max}')
+  expect(workbench).toContain('INSTALL RANK ${Math.min(currentLevel + 1, choice.upgrade.max)}/${choice.upgrade.max}')
   expect(mothership).toContain("runtime['upgradeLevelDetail'](upgrade, level)")
   expect(workbenchChoices).toContain('workbenchRollableUpgrades(upgrades, input.build, input.extraUnlockedIds)')
   expect(workbench).toContain('renderWorkbenchBayDetail')

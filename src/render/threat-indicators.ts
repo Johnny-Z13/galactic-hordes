@@ -1,4 +1,5 @@
 import type { Vec } from '../main-types'
+import { clamp } from '../math-utils'
 
 export interface ThreatIndicatorTarget {
   x: number
@@ -93,8 +94,4 @@ export function renderThreatIndicators(view: ThreatIndicatorRenderView) {
     view.ctx.restore()
   }
   view.ctx.restore()
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
 }

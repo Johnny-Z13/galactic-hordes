@@ -143,11 +143,13 @@ export function collectPickup(input: CollectPickupInput): CollectPickupResult {
   } else if (input.pickup.kind === 'magnet') {
     result.extendPickupLifeSeconds = 2
     result.magnetRank = clamp(
-      input.magnetRank + powerupBalance.upgradeApply.temporaryMagnetRanks,
+      input.magnetRank + powerupBalance.upgradeApply.magnetPickupRanks,
       0,
       input.maxMagnetRank
     )
-    result.toast = 'SIGNAL MAGNET TEMPORARILY OVERCHARGED'
+    // The magnet pickup grants a permanent +1 magnet rank (capped). Toast reads honestly
+    // rather than implying a temporary effect the code never reverts.
+    result.toast = input.magnetRank >= input.maxMagnetRank ? 'SIGNAL MAGNET AT MAX RANGE' : 'SIGNAL MAGNET RANGE BOOSTED'
   } else if (input.pickup.kind === 'chest') {
     result.artifact = {
       id: 'cache:treasure-core',

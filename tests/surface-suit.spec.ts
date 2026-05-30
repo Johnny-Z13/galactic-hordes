@@ -34,7 +34,6 @@ test('surface tech upgrades improve suit timer health and gun output', () => {
 
   expect(spacesuitUpgrades).toEqual(expect.arrayContaining(['suitO2', 'suitHealth', 'suitBlaster']))
   expect(main).toContain("spacesuit: 'SPACESUIT'")
-  expect(main).toContain("choice.upgrade.bucket === 'spacesuit' ? 'SUIT'")
   expect(main).toContain('private surfaceGunDamage()')
   expect(main).toContain('private surfaceGunCooldown()')
 })

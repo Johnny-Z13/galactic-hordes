@@ -154,7 +154,18 @@ test('collection helper resolves repair magnet and chest rewards', () => {
   })
   expect(magnet.magnetRank).toBe(6)
   expect(magnet.extendPickupLifeSeconds).toBe(2)
-  expect(magnet.toast).toBe('SIGNAL MAGNET TEMPORARILY OVERCHARGED')
+  expect(magnet.toast).toBe('SIGNAL MAGNET AT MAX RANGE')
+
+  // Below max, the magnet pickup permanently bumps the rank and reads as a range boost.
+  const magnetBoost = collectPickup({
+    pickup: xpDrop({ kind: 'magnet', value: 1, color: '#b990ff' }),
+    stats: { score: 0, level: 2, xp: 0, nextXp: 80 },
+    player: { hull: 75, maxHull: 100, pickupAbsorbPulse: 0 },
+    magnetRank: 2,
+    maxMagnetRank: 6
+  })
+  expect(magnetBoost.magnetRank).toBe(3)
+  expect(magnetBoost.toast).toBe('SIGNAL MAGNET RANGE BOOSTED')
 
   const chest = collectPickup({
     pickup: xpDrop({ kind: 'chest', value: 1, color: '#fff27a' }),

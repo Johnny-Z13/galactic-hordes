@@ -1,6 +1,7 @@
 import type { Enemy, EnemyKind } from '../main-types'
 import { damageFeedbackConfig } from '../combat/damage-feedback'
 import { isGiantEnemyKind } from '../space-enemies'
+import { clamp } from '../math-utils'
 
 export interface EnemyHealthReadout {
   fillRatio: number
@@ -42,8 +43,4 @@ export function enemyHealthReadout(input: {
     strokeColor: boss ? '#ffedf1' : '#d7fff7',
     alpha: boss ? 0.9 : 0.78
   }
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
 }

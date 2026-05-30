@@ -1,3 +1,5 @@
+import { clamp } from './math-utils'
+
 interface NavigationCruiseInput {
   navRank: number
   targetLocked?: boolean
@@ -16,8 +18,6 @@ export interface NavigationTrailProfile {
   color: string
   accent: string
 }
-
-const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
 
 export const navigationCruiseScalar = ({ navRank, targetLocked = false }: NavigationCruiseInput) => {
   const rank = clamp(navRank, 0, 7)

@@ -441,28 +441,6 @@ export function workbenchSectionLabel(self: WorkbenchHost, label: string) {
   return el
 }
 
-export function renderWorkbenchChoiceChip(self: WorkbenchHost, choice: WorkbenchChoice) {
-  const runtime = workbenchRuntime(self)
-  const chip = document.createElement('button')
-  chip.type = 'button'
-  const level = choice.kind === 'upgrade' ? runtime['build'][choice.upgrade.id] : 0
-  const kindClass = choice.kind === 'upgrade' ? choice.upgrade.bucket : choice.kind
-  const weaponPreview = choiceWeaponPreview(workbenchWeaponPreviewRuntime(self), choice)
-  chip.className = `manifest-chip available workbench-install-choice ${kindClass}`
-  chip.addEventListener('click', () => beginWorkbenchInstall(self, choice, chip))
-  chip.innerHTML = `
-    <i class="manifest-chip-node">${runtime['escape'](choiceKindLabel(self, choice))}</i>
-    <div class="manifest-chip-head">
-      <strong>${runtime['escape'](choiceTitle(self, choice))}</strong>
-      <b>${runtime['escape'](workbenchChoiceRoute(self, choice, level))}</b>
-    </div>
-    <span>${runtime['escape'](choiceDetail(self, choice))}</span>
-    ${weaponPreview ? `<small class="workbench-weapon-preview">${runtime['escape'](weaponPreview)}</small>` : ''}
-    <em>${runtime['escape'](choiceCategoryLabel(self, choice))}</em>
-  `
-  return chip
-}
-
 export function maxedUnlockText(self: WorkbenchHost, upgrade: Upgrade) {
   const runtime = workbenchRuntime(self)
   const unlocked = workbenchUnlockEdges

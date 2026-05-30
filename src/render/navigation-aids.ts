@@ -1,5 +1,5 @@
 import type { Vec } from '../main-types'
-import { dist2, TAU } from '../math-utils'
+import { clamp, dist2, TAU } from '../math-utils'
 
 export interface RenderReturnBeacon {
   x: number
@@ -193,8 +193,4 @@ function renderOffscreenBeaconPointer(view: OffscreenBeaconPointerView) {
   const labelY = clamp(edge.y - 20, topMargin, height - 52)
   ctx.fillText(`STATION ${distance}`, labelX, labelY)
   ctx.restore()
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
 }

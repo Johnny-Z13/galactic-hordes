@@ -1,3 +1,5 @@
+import { clamp } from './math-utils'
+
 export interface SurfaceSpawnPoint {
   x: number
   y: number
@@ -13,8 +15,6 @@ export interface SurfaceSpawnBounds {
   minY: number
   maxY: number
 }
-
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
 export const surfaceThreatSpawnPoint = (
   candidate: SurfaceSpawnPoint,

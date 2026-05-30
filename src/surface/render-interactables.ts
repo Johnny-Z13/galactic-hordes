@@ -1,5 +1,5 @@
 import type { Vec } from '../main-types'
-import { TAU } from '../math-utils'
+import { clamp, TAU } from '../math-utils'
 import { planetAlienCatalogVariants, type SurfaceResourceKind } from '../surface-balance'
 
 type SurfaceLoreKind = 'fossils' | 'pyramid' | 'grave' | 'machine' | 'choir'
@@ -59,7 +59,6 @@ export interface SurfaceAliensRenderView {
 
 const ALIEN_CATALOG_ROWS = planetAlienCatalogVariants.length
 const ALIEN_CATALOG_FRAMES = 4
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
 export function renderSurfaceResources(view: SurfaceResourcesRenderView) {
   const { ctx, resources, time, surfaceToScreen } = view

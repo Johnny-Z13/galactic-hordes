@@ -217,7 +217,7 @@ export const powerupBalance = {
     engineSpeedPerRank: 18,
     shieldCapacityPerRank: 18,
     repairHullPerRank: 18,
-    temporaryMagnetRanks: 1,
+    magnetPickupRanks: 1,
     magnetInstallScore: 60,
     limitHullMaxPerRank: 3,
     limitHullRepairPerRank: 10,
